@@ -71,8 +71,8 @@ class Ladder:
                 node=ET.SubElement(sec,'Member',Name=member,Datatype=datatype)
                 attributes=ET.SubElement(node,'AttributeList')
                 visible=kind=='Static' and (member in ('Seq','Conditions','ModeStart','RamExtend') or member.startswith('Row'))
-                for flag,value in [('ExternalAccessible',kind!='InOut' and (kind!='Static' or visible)),
-                                   ('ExternalVisible',kind!='InOut' and (kind!='Static' or visible)),('ExternalWritable',False)]:
+                for flag,value in [('ExternalAccessible',kind not in ('InOut','Input') and (kind!='Static' or visible)),
+                                   ('ExternalVisible',kind not in ('InOut','Input') and (kind!='Static' or visible)),('ExternalWritable',False)]:
                     ET.SubElement(attributes,'BooleanAttribute',Name=flag,SystemDefined='true').text=str(value).lower()
         self.objects = ET.SubElement(self.block,'ObjectList')
         self.sigs = sigs; self.networks=[]
@@ -182,11 +182,13 @@ def interface(chain,roles):
 
 def header(name,intf):
     lines=['FUNCTION_BLOCK "'+name+'"',"{ S7_Optimized_Access := 'TRUE' }",'VERSION : 0.1']
-    for kind,members in intf.items():
+    for kind in ('Input','Output','InOut','Static'):
+        members=intf.get(kind,())
+        if not members:continue
         lines += [{'Input':'VAR_INPUT','InOut':'VAR_IN_OUT','Output':'VAR_OUTPUT','Static':'VAR'}[kind]]
-        lines += ['    '+n+(READONLY if kind=='Output' or (kind=='Static' and
+        lines += ['    '+n+(PRIVATE if kind=='Input' else READONLY if kind=='Output' or (kind=='Static' and
                   (n in ('Seq','Conditions','ModeStart','RamExtend') or n.startswith('Row'))) else PRIVATE
-                  if kind in ('Static','InOut') else '')+' : '+t+';' for n,t in members]
+                  if kind=='Static' else '')+' : '+t+';' for n,t in members]
         lines += ['END_VAR']
     return '\n'.join(lines)+'\nBEGIN\n'
 
@@ -217,13 +219,14 @@ def frame_ops(chain,roles,graph=False):
 
 
 def step_ops(step,index,module):
+    if type(step.get('steppable',True)) is not bool:raise ValueError('step stop-point policy must be Boolean')
     command = next(iter(step.get('commands',[])), None)
     awaiting = command[0]+'.'+command[1] if command else ('project.condition.'+step['wait'][0] if step.get('wait') else '')
     # A typed, private zero avoids the native LAD importer's time-literal
     # ambiguity. All languages use the same operand for an unguarded step.
     expected = '#'+step['delay'] if step.get('delay') else '#Seq.NoTimeGuard'
     time_class = Catalog.read().enums['E_TimeClass']['WAIT_OPERATOR' if step.get('policy') in ('AwaitCycle','ConfirmScrap','ModelSelected','ChangeoverAnswer') or 'StartLatched' in step.get('wait',[]) else 'WORK']
-    operations=[call('FRK_SeqStep',StepNo=str(step['no']),StepName=literal(step['label']),
+    operations=[call('FRK_SeqStep',Steppable=str(step.get('steppable',True)).upper(),StepNo=str(step['no']),StepName=literal(step['label']),
         AwaitingLabel=literal(awaiting),AwaitsPath='#'+command[0]+'.Status.Name' if command else "''",
         TimeClass=str(time_class),ExpectedTime=expected,Seq='#Seq',Row='#Row'+str(index))]
     ready=[]
@@ -301,6 +304,7 @@ def release_sources(definition,sources,width):
 def graph_sources(chain,roles,module,sources,definition):
     graph_name='FB_GRAPH_'+chain['name']
     old_interface=interface(chain,roles)
+    old_interface['Static']=[(n,'"FB_PressDemoLoadPositionGraphOwner"' if n=='LoadPosition' else t) for n,t in old_interface['Static']]
     graph_steps=copy.deepcopy(chain['steps'])
     parallel=chain.get('process')=='auto'
     results=Catalog.read().enums['E_StepResult']
@@ -363,20 +367,40 @@ def graph_sources(chain,roles,module,sources,definition):
         trans(998,{'all':[eq('Branch1',advance),eq('Branch2',advance)]})
         connect(['branch',5,'Out',1],['transition',998]);connect(['transition',998],['step',999])
         chart['topology']=top
+    elif any('jump1' in s for s in graph_steps):
+        top={'branches':[],'transitions':[],'connections':[]}
+        for step in graph_steps:
+            no=step['no'];number=no or 1
+            source=['step',no]
+            if 'jump1' in step:
+                branch=len(top['branches'])+1
+                top['branches'].append(dict(number=branch,type='AltBegin',cardinality=2))
+                top['connections'].append({'from':source,'to':['branch',branch,'In',0],'link':'Direct'})
+                for port,key,result in [(0,'next',advance),(1,'jump1',jump1)]:
+                    transition=number+port
+                    top['transitions'].append({'number':transition,'when':{'eq':['#Seq.RetVal',result]}})
+                    top['connections'] += [{'from':['branch',branch,'Out',port],'to':['transition',transition],'link':'Direct'},
+                        {'from':['transition',transition],'to':['step',step[key]],'link':'Jump' if key=='jump1' else 'Direct'}]
+            else:
+                top['transitions'].append({'number':number,'when':{'eq':['#Seq.RetVal',advance]} if 'next' in step else ['FALSE']})
+                top['connections'] += [{'from':source,'to':['transition',number],'link':'Direct'},
+                    {'from':['transition',number],'to':['step',step.get('next',no)],'link':'Direct' if 'next' in step else 'Jump'}]
+        chart['topology']=top
     reference=(ROOT/'Spikes/S11_Graph/reference/FB_GraphSample.xml').read_text('utf-8-sig')
     xml=GRAPH.generate(chart,reference)
+    attrs='<AttributeList>'+''.join('<BooleanAttribute Name="'+flag+'" SystemDefined="true">false</BooleanAttribute>'
+          for flag in ('ExternalAccessible','ExternalVisible','ExternalWritable'))+'</AttributeList>'
     def hide_value_parameters(match):
-        attrs='<AttributeList>'+''.join('<BooleanAttribute Name="'+flag+'" SystemDefined="true">false</BooleanAttribute>'
-              for flag in ('ExternalAccessible','ExternalVisible','ExternalWritable'))+'</AttributeList>'
         return match[1]+re.sub(r'(<Member\b[^>]*?) />',
             lambda hit:hit[0] if '&quot;' in hit[1] else hit[1]+'>'+attrs+'</Member>',match[2])+match[3]
     xml=GRAPH.once(xml,r'(\n  <Section Name="InOut">\n)(.*?)(  </Section>\n)',hide_value_parameters,re.S)
-    members=''.join('    <Member Name="'+n+'" Datatype="'+scalar.get(t,t)+'" />\n'
+    members=''.join('    <Member Name="'+n+'" Datatype="'+scalar.get(t,t)+'">'+attrs+'</Member>\n'
                     for n,t in old_interface['Input'])
     xml=GRAPH.once(xml,r'(\n  <Section Name="Input">\n.*?)(  </Section>\n)',
                    lambda m:m[1]+members+m[2],re.S)
     sources['27_'+graph_name+'.xml']=xml
     owner_intf=copy.deepcopy(old_interface);owner_intf['InOut'].append(('Chart','"'+graph_name+'"'))
+    if 'LoadPosition' in dict(owner_intf['Static']):owner_intf['InOut'].append(('LoadChart','"FB_GRAPH_PressDemoLoadPosition"'))
     before,after=frame_ops(chain,roles,graph=True)
     if parallel:
         before=[op for op in before if op[0] not in ('F_CylinderSequenceLease','FRK_SeqSubActive','F_PressDemoLoadPosition','FRK_SeqOwnerStatus','FRK_SeqSubStatus')]
@@ -387,13 +411,20 @@ def graph_sources(chain,roles,module,sources,definition):
         after=[call('FRK_SeqSubStatus',Seq='#Branch1',Child='#LoadPosition.Seq')]
         after += [call('FRK_SeqOwnerStatus',Seq=seq,Core='#Core',Status='#Status') for seq in ('#Branch1','#Branch2','#Seq')]
         after += [call('F_CylinderSequenceLease',Seq=seq,Target='#'+r) for seq in ('#Seq','#Branch1','#Branch2') for r in roles]
+    before=[('F_PressDemoLoadPositionGraph',dict(params,Chart='#LoadChart')) if name=='F_PressDemoLoadPosition' else (name,params) for name,params in before]
     text=header('FB_'+chain['name']+'GraphOwner',owner_intf)
     text+='\n'.join('    '+scl_call(op) for op in before)+'\n'
     params=[(n,'#'+(n[4:] if n.startswith('Host') else n)) for n,t in old_interface['Input']+inout]
     params += [('INIT_SQ','#Seq.Restart AND #Seq.Running'),('OFF_SQ','NOT #Seq.Running')]
     text+='    IF NOT #Seq.Frozen OR #Seq.RestartPending THEN\n        #Chart('+', '.join(n+' := '+v for n,v in params)+');\n    END_IF;\n'
     text+='\n'.join('    '+scl_call(op) for op in after)+'\nEND_FUNCTION_BLOCK\n'
-    sources['28_FB_'+chain['name']+'GraphOwner.scl']=text
+    owner_source=('28_00_FB_' if chain.get('shared') else '28_FB_')+chain['name']+'GraphOwner.scl'
+    sources[owner_source]=text
+    if chain.get('shared'):
+        wrapper=sources['23_00_FB_'+chain['name']+'.scl'].split('FUNCTION "F_PressDemoLoadPosition"',1)[1]
+        assert wrapper.count('PartSlide : "FB_CylinderCM"; END_VAR')==1 and wrapper.count('PartSlide := #PartSlide);')==1
+        wrapper=wrapper.replace('PartSlide : "FB_CylinderCM"; END_VAR','PartSlide : "FB_CylinderCM"; Chart : "FB_GRAPH_PressDemoLoadPosition"; END_VAR').replace('PartSlide := #PartSlide);','PartSlide := #PartSlide, Chart := #Chart);')
+        sources[owner_source]+='FUNCTION "F_PressDemoLoadPositionGraph"'+wrapper.replace('"FB_PressDemoLoadPosition"','"FB_PressDemoLoadPositionGraphOwner"').replace('#F_PressDemoLoadPosition :=','#F_PressDemoLoadPositionGraph :=')
 
 
 def sensor_module(folder, stem, catalog):
@@ -450,7 +481,7 @@ def unit_policy(catalog):
         TransferSettleTime := #ParCfg.TransferSettleTime, PressSettleTime := #ParCfg.PressSettleTime,
         SourcePath := #Status.Name, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide,
         Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog,
-        Chart := "GDB_GRAPH_PressDemoAuto");
+        Chart := "GDB_GRAPH_PressDemoAuto", LoadChart := "GDB_GRAPH_PressDemoAutoLoadPosition");
     #Home(Run := #Core.Exec = @BUSY@ AND #Unit.Mode = @HOME@ AND NOT "FRK_Registry".Fault,
         Reset := #SequenceReset, OwnerIndex := #Core.RegIndex, Delta := DINT_TO_TIME(UDINT_TO_DINT(#Core.DeltaMs)),
         PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, Chart := "GDB_GRAPH_PressDemoHome");
@@ -461,7 +492,7 @@ def unit_policy(catalog):
     #Changeover(Run := #Core.Exec = @BUSY@ AND #Unit.Mode = @CHANGEOVER@ AND NOT "FRK_Registry".Fault,
         Reset := #SequenceReset, OwnerIndex := #Core.RegIndex, Delta := DINT_TO_TIME(UDINT_TO_DINT(#Core.DeltaMs)),
         ModelCode := #Model.ModelCode, SourcePath := #Status.Name,
-        PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, AlarmLog := #AlarmLog);
+        PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, AlarmLog := #AlarmLog, Chart := "GDB_GRAPH_PressDemoChangeover", LoadChart := "GDB_GRAPH_PressDemoChangeoverLoadPosition");
     "FRK_SeqOwnerStatus"(Seq := #Changeover.Seq, Core := #Core, Status := #Status);
     IF #Changeover.Seq.Done AND #Core.Exec = @BUSY@ AND #Unit.Mode = @CHANGEOVER@ THEN
         // A command result: it stands until the next command replaces it.
@@ -477,7 +508,7 @@ def wire_demo(sources,definition,catalog):
     text=sources.pop(name)
     anchor='    Unit'+PRIVATE+' : "FRK_Unit";'
     assert text.count(anchor)==1
-    text=text.replace(anchor,anchor+'\n    Auto'+READONLY+' : "FB_PressDemoAutoGraphOwner";\n    Home'+READONLY+' : "FB_PressDemoHomeGraphOwner";\n    Changeover'+READONLY+' : "FB_PressDemoChangeover";\n    Release'+READONLY+' : "FB_PressDemoRelease";\n    SequenceReset'+PRIVATE+' : Bool;')
+    text=text.replace(anchor,anchor+'\n    Auto'+PRIVATE+' : "FB_PressDemoAutoGraphOwner";\n    Home'+PRIVATE+' : "FB_PressDemoHomeGraphOwner";\n    Changeover'+PRIVATE+' : "FB_PressDemoChangeoverGraphOwner";\n    Release'+READONLY+' : "FB_PressDemoRelease";\n    SequenceReset'+PRIVATE+' : Bool;')
     sources['29_FB_PressDemoUnit.scl']=text
     if '23_PersistQuiesce.scl' in sources:
         sources['29_PersistQuiesce.scl']=sources.pop('23_PersistQuiesce.scl')
@@ -485,11 +516,27 @@ def wire_demo(sources,definition,catalog):
         if chain.get('language','GRAPH')!='GRAPH':continue
         name='GDB_GRAPH_'+chain['name']
         sources['29_'+name+'.db']='\n'.join(['DATA_BLOCK "'+name+'"',"{ S7_Optimized_Access := 'TRUE' }",'VERSION : 0.1','NON_RETAIN','"FB_GRAPH_'+chain['name']+'"','BEGIN','END_DATA_BLOCK',''])
+        if chain.get('load_chain_index'):
+            sources['29_'+name+'LoadPosition.db']='\n'.join(['DATA_BLOCK "'+name+'LoadPosition"',"{ S7_Optimized_Access := 'TRUE' }",'VERSION : 0.1','NON_RETAIN','"FB_GRAPH_PressDemoLoadPosition"','BEGIN','END_DATA_BLOCK',''])
     for old in list(sources):
         if old.startswith('25_'):sources['29_'+old[3:].replace('GDB_FraktalHal','GDB_PressDemoHal')]=sources.pop(old)
     simulate=definition['integration']['simulate_feedback']
-    sources['38_PressDemoHardwareDriver.scl']=bind((EXAMPLE/'hardware_driver.scl.in').read_text('ascii'),catalog,
+    hardware=bind((ROOT/'Examples/PressDemo/00_System/Hardware/hardware_driver.scl.in').read_text('ascii'),catalog,
         {'USE_SIMULATION':'TRUE' if simulate else 'FALSE'})
+    # DB declarations have their own native interface/initializer read-back gate.
+    # Keep them separate from the driver FCs rather than hiding DBs in an SCL file.
+    matches=list(re.finditer(r'^DATA_BLOCK "(\w+)".*?^END_DATA_BLOCK\s*',hardware,re.M|re.S))
+    assert [match[1] for match in matches]==[
+        'GDB_PressDemoIO','GDB_PressDemoSim','GDB_PressDemoHardwareDriver']
+    for match in matches:
+        prefix='39_' if match[1]=='GDB_PressDemoHardwareDriver' else '38_'
+        data=match[0].rstrip()+'\n'
+        if match[1]=='GDB_PressDemoIO':
+            data,count=re.subn(r'^(\s+\w+)(\s*:\s*Bool;)',lambda m:m[1]+PRIVATE+m[2],data,flags=re.M)
+            assert count==len(re.findall(r'\bBool;',match[0]))
+        sources[prefix+match[1]+'.db']=data
+    for match in reversed(matches):hardware=hardware[:match.start()]+hardware[match.end():]
+    sources['38_PressDemoHardwareDriver.scl']=hardware
     main=sources['40_Main.scl'];anchor='    "GDB_FraktalMain"(Startup := #Initial_Call);'
     main=main.replace(anchor,'    "F_PressDemoReadInputs"();\n'+anchor+'\n    "F_PressDemoWriteOutputs"();')
     sources['40_Main.scl']=main
@@ -505,7 +552,7 @@ def build():
     records['ST_SequenceCommandLease']='STRUCT OwnerIndex : DINT; ChainIndex : DINT; BranchIndex : DINT; Step : DINT; Raised : BOOL; AbortIssued : BOOL; ReleasedScan : UDINT; END_STRUCT'
     # model_fields declares the whole record, the Unit's mode-switch Timeout
     # included: a model change is migrate-or-fault over every member.
-    records.update({'ST_PressDemoParCfg':'STRUCT SchemaVersion : UINT := 2; '+
+    records.update({'ST_PressDemoParCfg':'STRUCT SchemaVersion : UINT := 3; '+
                         ''.join(f['name']+' : '+f['type']+' := '+f['default']+'; ' for f in definition['model_fields'])+'END_STRUCT',
                     'ST_PressDemoParCmd':'STRUCT Reserved : BOOL; END_STRUCT',
                     'ST_PressDemoOutCmd':'STRUCT CycleCompleted : BOOL; ChangeoverCompleted : BOOL; END_STRUCT',
@@ -524,9 +571,13 @@ def build():
            'contract':{k:'ST_PressDemo'+k for k in ('ParCfg','ParCmd','OutCmd','OutImm')},
            'commands':[{'id':1,'label':'Run'}],'timeout':'Timeout',
            'unit':{'modes':['AUTO','MANUAL','HOME','CHANGEOVER'],'initial':'MANUAL','run_command':1}}
-    records['ST_PressDemoStationCfg']='STRUCT SchemaVersion : UINT := 1; '+''.join(f["name"]+' : '+f["type"]+' := '+f["default"]+'; ' for f in definition['station_config'])+'END_STRUCT'
+    records['ST_PressDemoStationCfg']='STRUCT SchemaVersion : UINT := 2; '+''.join(f["name"]+' : '+f["type"]+' := '+f["default"]+'; ' for f in definition['station_config'])+'END_STRUCT'
     owner['station_config']='ST_PressDemoStationCfg'
     owner['sequence_view']=definition['sequence_view']
+    owner['health']={}
+    owner['production']=dict(ideal_cycle='ParCfg.IdealCycleMs',baseline='ParCfg.BaselineWorkMs',degradation_percent='StationCfg.DegradationPercent')
+    owner['signal_tower']={}
+    owner['unit']['run_styles']={mode:['CONTINUOUS','SINGLE_STEP','HOLD_TO_RUN'] for mode in ('AUTO','HOME','CHANGEOVER')}
     owner['logic']=unit_policy(catalog)
     owner['config']=[{'member':role+'.'+f['name'],'revision':1,**{k:v for k,v in f.items() if k in ('key','label','minimum','maximum')}}
                      for role,group in (('StationCfg','station_config'),('ParCfg','model_fields')) for f in definition[group]]
@@ -539,6 +590,7 @@ def build():
             AND #AirPressureMonitor.OutImm.PressureOk);"""
     declaration={'schema_version':1,'target_family':'S7-1500','registry_capacity':4+len(definition['sensors']),'types':[owner,cm,*(s for s,_ in sensors)],
                  'roots':[{'name':'PressDemo','type':'FB_PressDemoUnit'}],'records':records}
+    declaration['engineering_gates']=[dict(name='USE_SIMULATION',description='std.engineering.simulation',active=definition['integration']['simulate_feedback'])]
     if definition.get('model_config'):
         declaration['model_config']=definition['model_config']
     if definition.get('config_sets'):
@@ -569,7 +621,7 @@ def build():
             ('Awaiting',next(f['native_type'] for f in catalog.resolve(['ST_StepRecord'])['ST_StepRecord'] if f['member']=='AwaitingLabel')),
             ('ErrorDiagnostic','"ST_Diagnostic"'),('BranchIndex','DInt'),('ViewOffset','DInt'),('ViewDepth','Int'),('NoTimeGuard','Time'),
             ('CommandFailed','Bool'),('CommandIssued','Bool'),('Warned','Bool'),('HandledDiagnostic','"ST_Diagnostic"'),
-            ('EventVisit','UDInt'),('EventToken','DInt')]
+            ('EventVisit','UDInt'),('EventToken','DInt'),('Steppable','Bool'),('DecisionAnswer','Int')]
     sources['06_FRK_SequenceCtx.udt']=udt('FRK_SequenceCtx',fields,
         ('Running','Done','Error','Pending','Step','Elapsed','StepName','Awaiting','ErrorDiagnostic'))
     sources['06_FRK_SequenceRow.udt']=udt('FRK_SequenceRow',[('StepNo','DInt'),('Visited','Bool'),('LastDuration','Time')],('StepNo','Visited','LastDuration'))
@@ -626,6 +678,7 @@ BEGIN
 END_FUNCTION
 '''
             sources['23_00_'+name+'.scl']=text+wrapper
+            graph_sources(chain,definition['roles'],module,sources,definition)
         else:
             sources['23_'+name+'.scl']=text
             if chain.get('language','GRAPH')=='GRAPH':
@@ -645,6 +698,36 @@ def generate(out):
           'core_inputs':manifest['core_inputs']}
     (out/'manifest.json').write_bytes((json.dumps(data,indent=2)+'\n').encode('ascii'))
     return len(sources)
+
+
+def refresh(out):
+    """Replace only manifest-owned generated files, retaining project identity."""
+    import tempfile
+    import shutil
+    from fraktal_tia_program_layout import organize
+    out=out.resolve()
+    previous=json.loads((out/'manifest.json').read_bytes())
+    plan=(out/'import.plan').read_text('ascii')
+    project=re.search(r'^open-project --path "([^"]+)"',plan,re.M)[1]
+    export=re.search(r'^export --plc PLC_1 --out "([^"]+)"',plan,re.M)[1]
+    with tempfile.TemporaryDirectory(prefix='fraktal_tia_refresh_') as temporary:
+        root=Path(temporary);generate(root/'flat')
+        organize(root/'flat',root/'grouped',Path(project),Path(export))
+        shutil.copyfile(root/'flat/manifest.json',root/'grouped/manifest.json')
+        current=json.loads((root/'flat/manifest.json').read_bytes())
+        destinations={p.name:p.relative_to(root/'grouped') for p in (root/'grouped').rglob('*') if p.is_file()}
+        for name in previous['generated']:
+            found=list(out.rglob(name))
+            if len(found)!=1 or not found[0].resolve().is_relative_to(out):raise ValueError('existing generated inventory differs: '+name)
+            if name not in current['generated'] or found[0].relative_to(out)!=destinations[name]:found[0].unlink()
+        for path in (root/'grouped').rglob('*'):
+            if not path.is_file():continue
+            target=out/path.relative_to(root/'grouped');target.parent.mkdir(parents=True,exist_ok=True)
+            if path.name=='import.plan':
+                relative=out.relative_to(Path(__file__).resolve().parents[1])
+                target.write_bytes(path.read_bytes().replace(str(root/'grouped').encode('ascii'),str(relative).encode('ascii')))
+            else:shutil.copyfile(path,target)
+    return verify(out)
 
 
 def verify(out,native=None):
@@ -677,6 +760,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     group=parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--out',type=Path);group.add_argument('--verify',type=Path)
+    group.add_argument('--refresh',type=Path)
     parser.add_argument('--native',type=Path)
     args=parser.parse_args()
-    print(json.dumps(verify(args.verify,args.native) if args.verify else {'generated':generate(args.out)},indent=2))
+    print(json.dumps(refresh(args.refresh) if args.refresh else verify(args.verify,args.native) if args.verify else {'generated':generate(args.out)},indent=2))

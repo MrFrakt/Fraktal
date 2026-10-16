@@ -1,0 +1,26 @@
+DATA_BLOCK "GDB_PressDemoSim"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    LeftButton { ExternalWritable := 'False'} : Bool;
+    RightButton { ExternalWritable := 'False'} : Bool;
+    AirPressureOk { ExternalWritable := 'False'} : Bool := TRUE;
+    PartQuality { ExternalWritable := 'False'} : Bool := TRUE;
+    FieldbusHealthy { ExternalWritable := 'False'} : Bool := TRUE;
+    // AutoLoad swaps the part whenever the slide returns to the load position;
+    // without it PartPresent is the operator's manual stimulus.
+    AutoLoad { ExternalWritable := 'False'} : Bool := TRUE;
+    PartPresent { ExternalWritable := 'False'} : Bool := TRUE;
+    RamPositionMs { ExternalWritable := 'False'} : DInt;
+    DoorPositionMs { ExternalWritable := 'False'} : DInt;
+    SlidePositionMs { ExternalWritable := 'False'} : DInt;
+    PartLoaded { ExternalWritable := 'False'} : Bool := TRUE;
+    SwapSinceMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+    Swapping { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    SlideWasInside { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    LastMs { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+    Started { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+BEGIN
+END_DATA_BLOCK

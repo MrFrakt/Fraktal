@@ -31,6 +31,7 @@ BEGIN
         #Seq.EventVisit := #Seq.Visit - 1;
         #Seq.Warned := FALSE;
         #Seq.StartLatched := FALSE;
+        #Seq.DecisionAnswer := 0;
         #Seq.Elapsed := T#0ms; #Seq.DelayElapsed := T#0ms;
         #Seq.ErrorDiagnostic.ReasonCode := 0;
     END_IF;
@@ -52,6 +53,7 @@ BEGIN
     IF #Seq.Restart OR (NOT #Run AND NOT #Seq.Frozen AND NOT #Seq.ResumePending) THEN
         #Seq.Step := 0;
         #Seq.RecordedStep := -1;
+        #Seq.DecisionAnswer := 0;
         #Seq.Visit := #Seq.Visit + 1;
         #Seq.Done := FALSE;
         #Seq.Error := FALSE;
@@ -85,6 +87,7 @@ BEGIN
     // Preserve exactly the preceding active scan's result for that evaluation;
     // the mandatory step record clears it before the current action decides.
     #PreviousResult := #Seq.RetVal;
+    IF #Seq.Steppable AND "FRK_HoldRunBlocked"(Owner := #Seq.OwnerIndex) THEN #PreviousResult := 0; END_IF;
     "FRK_SeqBegin"(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex,
         ChainIndex := #ChainIndex, BranchIndex := #BranchIndex, ViewOffset := #ViewOffset,
         ViewDepth := #ViewDepth, Delta := #Delta, Seq := #Seq);
@@ -145,6 +148,7 @@ FUNCTION "FRK_SeqStep" : Void
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 VAR_INPUT
+    Steppable : Bool;
     StepNo : DInt;
     StepName : String;
     AwaitingLabel : String;
@@ -158,8 +162,10 @@ VAR_IN_OUT
 END_VAR
 BEGIN
     #Seq.RetVal := 0;
+    #Seq.Steppable := #Steppable;
     IF NOT #Seq.Running OR #Seq.Error THEN RETURN; END_IF;
     IF #Seq.RecordedStep <> #StepNo THEN
+        #Seq.DecisionAnswer := 0;
         #Seq.Visit := #Seq.Visit + 1;
         #Seq.Elapsed := T#0ms;
         #Seq.DelayElapsed := T#0ms;
@@ -175,6 +181,33 @@ BEGIN
         Branch := #Seq.BranchIndex, Depth := #Seq.ViewDepth, Visit := #Seq.Visit, StepName := #StepName,
         AwaitingLabel := #AwaitingLabel, AwaitsPath := #AwaitsPath, TimeClass := #TimeClass,
         ExpectedTime := #ExpectedTime, Elapsed := #Seq.Elapsed);
+END_FUNCTION
+
+FUNCTION "FRK_SeqDecisionAsk" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT OwnerPath : WString; Request : "ST_DecisionRequest"; END_VAR
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    #FRK_SeqDecisionAsk := FALSE;
+    IF NOT #Seq.Running OR #Seq.Error THEN RETURN; END_IF;
+    // A consumed answer waiting for pacing must not open a second prompt.
+    IF #Seq.DecisionAnswer <> 0 THEN #FRK_SeqDecisionAsk := TRUE; RETURN; END_IF;
+    #FRK_SeqDecisionAsk := "FRK_DecisionAsk"(Owner := #Seq.OwnerIndex, OwnerPath := #OwnerPath, Request := #Request, AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_SeqDecisionTake" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Seq : "FRK_SequenceCtx"; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    // A decision is consumed once by its step, independently of pacing. Keep
+    // the answer until the mandatory step record or lifecycle re-arms it.
+    IF NOT #Seq.Running OR #Seq.Error THEN #FRK_SeqDecisionTake := 0; RETURN; END_IF;
+    IF #Seq.DecisionAnswer = 0 THEN
+        #Seq.DecisionAnswer := "FRK_DecisionTake"(Owner := #Seq.OwnerIndex, AlarmLog := #AlarmLog);
+    END_IF;
+    #FRK_SeqDecisionTake := #Seq.DecisionAnswer;
 END_FUNCTION
 
 FUNCTION "FRK_SeqAwait" : Bool
@@ -387,9 +420,14 @@ FUNCTION "FRK_SeqSelect" : Void
 VERSION : 0.1
 VAR_INPUT AdvanceOk : Bool; Jump1Ok : Bool; END_VAR
 VAR_IN_OUT Seq : "FRK_SequenceCtx"; END_VAR
+VAR_TEMP Ready : Bool; END_VAR
 BEGIN
     #Seq.RetVal := 0;
     IF NOT #Seq.Running OR #Seq.Error THEN RETURN; END_IF;
+    IF NOT #AdvanceOk AND NOT #Jump1Ok THEN RETURN; END_IF;
+    #Ready := "FRK_StepGate"(Owner := #Seq.OwnerIndex, Steppable := #Seq.Steppable);
+    #Ready := "FRK_SeqAwait"(Seq := #Seq, Label := 'std.condition.sequenceAdvance', Ok := #Ready);
+    IF NOT #Ready THEN RETURN; END_IF;
     IF #AdvanceOk THEN #Seq.RetVal := 1;
     ELSIF #Jump1Ok THEN #Seq.RetVal := 2;
     END_IF;

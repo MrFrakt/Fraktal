@@ -1,0 +1,36 @@
+﻿FUNCTION "FRK_LineCalendar" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Values : "ST_LineProductionConfig";
+      Calendar : "ST_ShiftCalendarV3";
+   END_VAR
+
+
+BEGIN
+	
+	#Calendar.SchemaVersion := 3;
+	#Calendar.UtcOffsetMin := #Values.UtcOffsetMin;
+	#Calendar.Rows[1].StartMin := #Values.ShiftStartMin[1];
+	#Calendar.Rows[1].DurationMin := #Values.ShiftDurationMin[1];
+	#Calendar.Rows[1].ActiveDays := #Values.ShiftActiveDays[1];
+	#Calendar.Rows[1].ProductionTarget := #Values.ShiftTarget[1];
+	#Calendar.Rows[2].StartMin := #Values.ShiftStartMin[2];
+	#Calendar.Rows[2].DurationMin := #Values.ShiftDurationMin[2];
+	#Calendar.Rows[2].ActiveDays := #Values.ShiftActiveDays[2];
+	#Calendar.Rows[2].ProductionTarget := #Values.ShiftTarget[2];
+	#Calendar.Rows[3].StartMin := #Values.ShiftStartMin[3];
+	#Calendar.Rows[3].DurationMin := #Values.ShiftDurationMin[3];
+	#Calendar.Rows[3].ActiveDays := #Values.ShiftActiveDays[3];
+	#Calendar.Rows[3].ProductionTarget := #Values.ShiftTarget[3];
+	#Calendar.Rows[4].StartMin := #Values.ShiftStartMin[4];
+	#Calendar.Rows[4].DurationMin := #Values.ShiftDurationMin[4];
+	#Calendar.Rows[4].ActiveDays := #Values.ShiftActiveDays[4];
+	#Calendar.Rows[4].ProductionTarget := #Values.ShiftTarget[4];
+	#Calendar.Rows[5].StartMin := #Values.ShiftStartMin[5];
+	#Calendar.Rows[5].DurationMin := #Values.ShiftDurationMin[5];
+	#Calendar.Rows[5].ActiveDays := #Values.ShiftActiveDays[5];
+	#Calendar.Rows[5].ProductionTarget := #Values.ShiftTarget[5];
+	
+END_FUNCTION
+

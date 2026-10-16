@@ -8,6 +8,18 @@ driver, bench tooling, spike fixtures, declaration/frame generator and a shared
 [command-kernel prototype](Framework/Core/README.md).
 Do not describe it as a conforming implementation.
 
+Latest qualification (2026-10-16): generator0.22 adds shared OEE/shifts/work
+degradation, health/nameplates/build gates, shelving/tower/lamp test, pacing,
+typed teach capture and fixed host-event rings. The254-source press now wires
+GRAPH AUTO/HOME/CHANGEOVER/LoadPosition with ST permissives; ST/LD twins remain
+unwired. [The operations report](../../../Specification/Siemens/Evidence/TIA_OPERATIONS_GRAPH_2026-10-16.md)
+binds native compile/read-back,93 PLC assertions,46 live config/health/capture
+checks and press jump/pacing checks. [The fresh-project gate](tools/fraktal_tia_gate.py)
+creates only a reserved unmapped test CPU and always releases it. The saved
+`Fraktal` image remains `Press_Complete_20261015`. P7 class/model work,
+complete Line integration, module/connectivity expansion and deployment/physical
+qualification remain open; host rings do not yet implement durable MES delivery.
+
 Current continuation: generator0.21 adds typed configuration and complete
 current-value exports through the existing provider, mailbox and generic HMI.
 The selected two-root LOAD_DB runtime is

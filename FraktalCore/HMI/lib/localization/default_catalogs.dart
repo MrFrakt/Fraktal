@@ -244,6 +244,10 @@ const standardEnglish = <String, String>{
 
   // Core §7.5.2 — the standing commissioning-gate annunciation. The gate keys
   // are raised by the PLC (framework and project alike) and resolved here.
+  'std.condition.sequenceAdvance': 'Operator sequence advance',
+  'std.audit.configCaptured': 'Configuration captured from the machine',
+  'std.audit.configWritten': 'Configuration value written',
+  'std.audit.configValue': 'Stored configuration value',
   'std.engineering.banner':
       'Commissioning build — this station is not running its production software.',
   'std.engineering.outputForcing':
@@ -1433,6 +1437,10 @@ const standardSpanish = <String, String>{
   'std.config.durability.blocksStart':
       'Esta estación no arrancará hasta que se acepte la pérdida.',
   'std.config.durability.acknowledge': 'Aceptar los ajustes perdidos',
+  'std.condition.sequenceAdvance': 'Avance de secuencia del operador',
+  'std.audit.configCaptured': 'Configuración capturada de la máquina',
+  'std.audit.configWritten': 'Valor de configuración escrito',
+  'std.audit.configValue': 'Valor de configuración guardado',
   'std.engineering.banner':
       'Compilación de puesta en marcha: esta estación no ejecuta su software de producción.',
   'std.engineering.outputForcing':
@@ -2508,6 +2516,7 @@ const projectEnglish = <String, String>{
   'project.config.pressSettleTime': 'Press settle time',
   'project.config.transferSettleTime': 'Transfer settle time',
   'project.config.idealCycleMs': 'Ideal cycle time (OEE performance)',
+  'project.config.degradationPercent': 'Work-time degradation threshold (%)',
   'project.config.baselineWorkMs': 'Baseline work time (degradation watch)',
   'project.io.el6001Status': 'RS232 terminal status word',
   'project.io.el6001Ctrl': 'RS232 terminal control word',
@@ -2809,6 +2818,7 @@ const projectSpanish = <String, String>{
   'project.config.transferSettleTime':
       'Tiempo de asentamiento de la transferencia',
   'project.config.idealCycleMs': 'Tiempo de ciclo ideal (rendimiento OEE)',
+  'project.config.degradationPercent': 'Umbral de degradación del tiempo de trabajo (%)',
   'project.config.baselineWorkMs':
       'Tiempo de trabajo de referencia (vigilancia de degradación)',
   'project.io.el6001Status': 'Palabra de estado del terminal RS232',

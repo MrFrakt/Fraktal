@@ -1,0 +1,42 @@
+﻿FUNCTION "FRK_TowerFrame" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      MachineState : DInt;
+      OperatorActionRequired : Bool;
+      ParCfg : "ST_SignalTowerParCfg";
+   END_VAR
+
+   VAR_IN_OUT 
+      Book : "FRK_TowerBook";
+      AlarmLog : "FRK_AlarmLog";
+      Status : "ST_SignalTowerOut";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Highest : DInt;
+      Active : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Highest := 0;
+	#Active := FALSE;
+	FOR #Index := 1 TO 16 DO
+	    IF #AlarmLog.Active[#Index].State <> 0 AND NOT #AlarmLog.Active[#Index].Shelved THEN
+	        #Active := TRUE;
+	        #Highest := MAX(IN1 := #Highest, IN2 := #AlarmLog.Active[#Index].Severity);
+	    END_IF;
+	END_FOR;
+	"FRK_TowerTick"(MachineState := #MachineState,
+	                AlarmActive := #Active,
+	                HighestSeverity := #Highest,
+	                OperatorActionRequired := #OperatorActionRequired,
+	                ParCfg := #ParCfg,
+	                Book := #Book,
+	                Status := #Status);
+	
+END_FUNCTION
+

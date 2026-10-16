@@ -39,13 +39,12 @@ def build(unit_runtime=False, event_sink='', states=False, history=False, recove
     text = text.replace('@MAX_CMD_STATS@', str(catalog.capacities['MAX_CMD_STATS']))
     text = text.replace('@FAULT_HANDLED_RESET@', '    #Core.FaultHandled := FALSE;' if unit_runtime else '')
     rational = REPO / 'Specification/reason_rationalization.json'
-    rules = json.loads(rational.read_text(encoding='utf-8'))['reasons']
+    from fraktal_tia_reasons import rules,inputs as reason_inputs
     rows = []
-    for name, rule in rules.items():
-        if name in catalog.enums['E_Reason']:
-            rows.append('        %d: #Diag.Severity := %d; #Diag.Category := %d;' % (
-                catalog.enums['E_Reason'][name], catalog.enums['E_Severity'][rule['priority']],
-                catalog.enums['E_Category'][rule['category']]))
+    for number, rule in rules(catalog):
+        rows.append('        %d: #Diag.Severity := %d; #Diag.Category := %d;' % (
+            number, catalog.enums['E_Severity'][rule['priority']],
+            catalog.enums['E_Category'][rule['category']]))
     text = text.replace('@RATIONALIZATION@', '\n'.join(rows))
     if '@' in text:
         raise ValueError('unresolved command-kernel template token')
@@ -57,7 +56,7 @@ def build(unit_runtime=False, event_sink='', states=False, history=False, recove
     if states:
         from fraktal_tia_alarms import STATE, expand
         sources['12a_StateServices.scl'] = expand(STATE,catalog)
-    inputs = {**catalog.inputs,
+    inputs = {**catalog.inputs,**reason_inputs(),
               rational.relative_to(REPO).as_posix(): hashlib.sha256(rational.read_bytes()).hexdigest(),
               TEMPLATE.relative_to(REPO).as_posix(): hashlib.sha256(TEMPLATE.read_bytes()).hexdigest()}
     if unit_runtime:
@@ -68,8 +67,9 @@ def build(unit_runtime=False, event_sink='', states=False, history=False, recove
         inputs[DECISION.relative_to(REPO).as_posix()] = hashlib.sha256(DECISION.read_bytes()).hexdigest()
         from fraktal_tia_access import inputs as access_inputs
         inputs.update(access_inputs())
-        from fraktal_tia_alarms import ALARM, HISTORY
+        from fraktal_tia_alarms import ALARM, HISTORY, SHELVING
         inputs[ALARM.relative_to(REPO).as_posix()] = hashlib.sha256(ALARM.read_bytes()).hexdigest()
+        inputs[SHELVING.relative_to(REPO).as_posix()] = hashlib.sha256(SHELVING.read_bytes()).hexdigest()
         if history:inputs[HISTORY.relative_to(REPO).as_posix()] = hashlib.sha256(HISTORY.read_bytes()).hexdigest()
         if recovery:
             from fraktal_tia_alarms import RECOVERY, RECOVERY_POLICY

@@ -1,0 +1,37 @@
+﻿FUNCTION "FRK_AccessUsersShapeData" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Count : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Rows : Array[1..16] of "ST_UserRecord";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Other : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_AccessUsersShapeData := FALSE;
+	IF #Count < 0 OR #Count > 16 THEN
+	    RETURN;
+	END_IF;
+	FOR #Slot := 1 TO DINT_TO_INT(#Count) DO
+	    IF #Rows[#Slot].User = '' OR #Rows[#Slot].Level < 0 OR #Rows[#Slot].Level > 4 THEN
+	        RETURN;
+	    END_IF;
+	    FOR #Other := 1 TO #Slot - 1 DO
+	        IF #Rows[#Slot].User = #Rows[#Other].User THEN
+	            RETURN;
+	        END_IF;
+	    END_FOR;
+	END_FOR;
+	#FRK_AccessUsersShapeData := TRUE;
+	
+END_FUNCTION
+

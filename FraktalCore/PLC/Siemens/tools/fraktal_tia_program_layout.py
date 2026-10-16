@@ -47,6 +47,8 @@ def group(filename, text):
         return 'Examples/PressDemo/01_PneumaticPress'
     if 'GDB_GRAPH_PressDemo' in filename or 'PressDemoAutoServices' in filename:
         return 'Examples/PressDemo/01_PneumaticPress/Sequences'
+    if 'PressDemo' in filename and (filename.startswith('38_') or 'HardwareDriver' in filename):
+        return 'Examples/PressDemo/00_System/Hardware'
     if 'PressDemo' in filename and filename.startswith('29_') and filename.endswith('.db'):
         return 'Examples/PressDemo/00_System'
     if 'PressDemo' in filename and ('HardwareDriver' in filename or filename.startswith(('30_','35_','40_'))):
@@ -92,7 +94,7 @@ def organize(source,out,project,export):
     def dependency(row):
         name=Path(row['file']).name
         if name.startswith('28_'):return 2
-        if name.startswith(('29_','30_','35_','38_','40_')):return 3
+        if name.startswith(('29_','30_','35_','38_','39_','40_')):return 3
         return 1 if row['kind']=='xml' else 0
     rows=sorted(inventory,key=lambda row:(dependency(row),Path(row['file']).name))
     compiled_charts=False

@@ -1,0 +1,879 @@
+﻿FUNCTION_BLOCK "FB_OperationsTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_OUTPUT 
+      Done { ExternalWritable := 'False'} : Bool;
+      Checks { ExternalWritable := 'False'} : Int;
+      Failures { ExternalWritable := 'False'} : Int;
+      FirstFailure { ExternalWritable := 'False'} : Int;
+   END_VAR
+
+   VAR 
+      Result { ExternalWritable := 'False'} : "FRK_TestResult";
+      Ran { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Book { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Production";
+      Oee { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_Oee";
+      Trend { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..60] of "ST_OeeSample";
+      Unit { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Unit";
+      Calendar { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_ShiftCalendarV3";
+      AlarmLog { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_AlarmLog";
+      Access { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Access";
+      Response { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_HmiResponse";
+      Ok { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      Index { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      Machine { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+      Selected { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      StartAt { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : LDT;
+      EndAt { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : LDT;
+      Target { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      CurrentShift { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      StartedAt { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : LDT;
+      ProductionTarget { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+      History { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..8] of "ST_ShiftRecordV3";
+      HistoryCount { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      Truncated { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      HealthInput { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SystemHealthInput";
+      HealthConfig { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SystemHealthParCfg";
+      HealthStatus { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SystemHealthStatus";
+      HealthBook { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_HealthBook";
+      EngineeringSlots { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..1] of Int;
+      ShelfSlot { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      TestDiag { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_Diagnostic";
+      TowerConfig { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SignalTowerParCfg";
+      TowerBook { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_TowerBook";
+      TowerStatus { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SignalTowerOut";
+      TestCore { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+      Support { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[0..2] of Bool;
+      HostView { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_HostEvents";
+      HostSeen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Ran THEN
+	    #Book := "FRK_ProductionDefaults".Book;
+	    #Oee := "FRK_ProductionDefaults".Oee;
+	    #Unit.Good := 0;
+	    #Unit.Nok := 0;
+	    #Unit.Rework := 0;
+	    "FRK_OeeTick"(NowMs := 0,
+	                  Exec := 1,
+	                  Blocking := FALSE,
+	                  Good := 0,
+	                  Nok := 0,
+	                  IdealCycleMs := 0,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_TestAssert"(Condition := NOT #Oee.OeeValid AND NOT #Oee.AvailValid AND NOT #Oee.PerfValid AND NOT #Oee.QualValid,
+	                     Code := 1,
+	                     Result := #Result);
+	    "FRK_OeeTick"(NowMs := 1000,
+	                  Exec := 1,
+	                  Blocking := FALSE,
+	                  Good := 3,
+	                  Nok := 1,
+	                  IdealCycleMs := 100,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_TestAssert"(Condition := #Oee.RunMs = 1000 AND #Oee.DownMs = 0 AND #Oee.IdleMs = 0,
+	                     Code := 2,
+	                     Result := #Result);
+	    "FRK_TestAssert"(Condition := ABS(#Oee.Quality - 0.75) < 0.00001 AND ABS(#Oee.Performance - 0.4) < 0.00001 AND ABS(#Oee.Oee - 0.3) < 0.00001,
+	                     Code := 3,
+	                     Result := #Result);
+	    "FRK_OeeTick"(NowMs := 2000,
+	                  Exec := 1,
+	                  Blocking := TRUE,
+	                  Good := 3,
+	                  Nok := 1,
+	                  IdealCycleMs := 100,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_TestAssert"(Condition := #Oee.RunMs = 1000 AND #Oee.DownMs = 1000,
+	                     Code := 4,
+	                     Result := #Result);
+	    "FRK_OeeTick"(NowMs := 2500,
+	                  Exec := 0,
+	                  Blocking := FALSE,
+	                  Good := 3,
+	                  Nok := 1,
+	                  IdealCycleMs := 0,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_TestAssert"(Condition := #Oee.IdleMs = 500 AND NOT #Oee.PerfValid AND ABS(#Oee.Oee - 0.375) < 0.00001,
+	                     Code := 5,
+	                     Result := #Result);
+	    #Book := "FRK_ProductionDefaults".Book;
+	    #Oee := "FRK_ProductionDefaults".Oee;
+	    #Unit.Good := 0;
+	    #Unit.Nok := 0;
+	    #Unit.Rework := 0;
+	    "FRK_OeeTick"(NowMs := 4294967290,
+	                  Exec := 1,
+	                  Blocking := FALSE,
+	                  Good := 0,
+	                  Nok := 0,
+	                  IdealCycleMs := 100,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_OeeTick"(NowMs := 4,
+	                  Exec := 1,
+	                  Blocking := FALSE,
+	                  Good := 0,
+	                  Nok := 0,
+	                  IdealCycleMs := 100,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_TestAssert"(Condition := #Oee.RunMs = 10,
+	                     Code := 6,
+	                     Result := #Result);
+	    #Oee.RunMs := UDINT#4294967290;
+	    "FRK_OeeTick"(NowMs := 14,
+	                  Exec := 1,
+	                  Blocking := FALSE,
+	                  Good := 0,
+	                  Nok := 0,
+	                  IdealCycleMs := 100,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_TestAssert"(Condition := #Oee.RunMs = UDINT#4294967295,
+	                     Code := 7,
+	                     Result := #Result);
+	    #Book := "FRK_ProductionDefaults".Book;
+	    #Oee := "FRK_ProductionDefaults".Oee;
+	    #Unit.Good := 0;
+	    #Unit.Nok := 0;
+	    #Unit.Rework := 0;
+	    "FRK_OeeTick"(NowMs := 0,
+	                  Exec := 1,
+	                  Blocking := FALSE,
+	                  Good := 0,
+	                  Nok := 0,
+	                  IdealCycleMs := 100,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_OeeTick"(NowMs := 60000,
+	                  Exec := 1,
+	                  Blocking := FALSE,
+	                  Good := 1000,
+	                  Nok := 0,
+	                  IdealCycleMs := 1000,
+	                  Book := #Book,
+	                  Oee := #Oee,
+	                  Trend := #Trend);
+	    "FRK_TestAssert"(Condition := #Book.TrendHead = 1 AND #Trend[1].OeeValid AND #Oee.Performance = 1.0,
+	                     Code := 8,
+	                     Result := #Result);
+	    "FRK_OeeReset"(Good := 1000,
+	                   Nok := 0,
+	                   Book := #Book,
+	                   Oee := #Oee,
+	                   Trend := #Trend);
+	    "FRK_TestAssert"(Condition := #Book.TrendHead = 0 AND #Book.ManualReset AND #Book.GoodBase = 1000 AND NOT #Oee.OeeValid,
+	                     Code := 9,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 3, Mode := 0, Blocking := FALSE, Starved := FALSE, Blocked := FALSE, StopRequested := FALSE);
+	    "FRK_TestAssert"(Condition := #Machine = 4,
+	                     Code := 10,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 1, Mode := 0, Blocking := TRUE, Starved := TRUE, Blocked := TRUE, StopRequested := FALSE);
+	    "FRK_TestAssert"(Condition := #Machine = 4,
+	                     Code := 11,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 1, Mode := 3, Blocking := FALSE, Starved := TRUE, Blocked := TRUE, StopRequested := FALSE);
+	    "FRK_TestAssert"(Condition := #Machine = 5,
+	                     Code := 12,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 1, Mode := 0, Blocking := FALSE, Starved := TRUE, Blocked := TRUE, StopRequested := FALSE);
+	    "FRK_TestAssert"(Condition := #Machine = 2,
+	                     Code := 13,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 1, Mode := 0, Blocking := FALSE, Starved := TRUE, Blocked := FALSE, StopRequested := FALSE);
+	    "FRK_TestAssert"(Condition := #Machine = 3,
+	                     Code := 14,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 1, Mode := 0, Blocking := FALSE, Starved := FALSE, Blocked := FALSE, StopRequested := FALSE);
+	    "FRK_TestAssert"(Condition := #Machine = 0,
+	                     Code := 15,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 0, Mode := 1, Blocking := FALSE, Starved := FALSE, Blocked := FALSE, StopRequested := TRUE);
+	    "FRK_TestAssert"(Condition := #Machine = 6,
+	                     Code := 16,
+	                     Result := #Result);
+	    #Machine := "FRK_MachineState"(Exec := 0, Mode := 1, Blocking := FALSE, Starved := FALSE, Blocked := FALSE, StopRequested := FALSE);
+	    "FRK_TestAssert"(Condition := #Machine = 1,
+	                     Code := 17,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := #Ok,
+	                     Code := 18,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.SchemaVersion := 2;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 19,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.UtcOffsetMin := 841;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 20,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.Rows[1].StartMin := 1440;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 21,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.Rows[1].DurationMin := 0;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 22,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.Rows[1].ActiveDays := 128;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 23,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.Rows[1].ProductionTarget := -1;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 24,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.Rows[1].StartMin := 480;
+	    #Calendar.Rows[1].DurationMin := 720;
+	    #Calendar.Rows[1].ActiveDays := 96;
+	    #Calendar.Rows[1].ProductionTarget := 500;
+	    #Ok := "FRK_ShiftInterval"(Now := LDT#2026-10-17-08:00:00, Calendar := #Calendar, ShiftIndex => #Selected, StartAt => #StartAt, EndAt => #EndAt, Target => #Target);
+	    "FRK_TestAssert"(Condition := #Ok AND #Selected = 1 AND #Target = 500 AND #EndAt = LDT#2026-10-17-20:00:00,
+	                     Code := 25,
+	                     Result := #Result);
+	    #Ok := "FRK_ShiftInterval"(Now := LDT#2026-10-17-20:00:00, Calendar := #Calendar, ShiftIndex => #Selected, StartAt => #StartAt, EndAt => #EndAt, Target => #Target);
+	    "FRK_TestAssert"(Condition := #Ok AND #Selected = 0 AND #Target = 0 AND #EndAt = LDT#2026-10-18-08:00:00,
+	                     Code := 26,
+	                     Result := #Result);
+	    #Calendar.UtcOffsetMin := 60;
+	    #Ok := "FRK_ShiftInterval"(Now := LDT#2026-10-17-07:00:00, Calendar := #Calendar, ShiftIndex => #Selected, StartAt => #StartAt, EndAt => #EndAt, Target => #Target);
+	    "FRK_TestAssert"(Condition := #Ok AND #Selected = 1 AND #StartAt = LDT#2026-10-17-07:00:00,
+	                     Code := 27,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Calendar.Rows[1].StartMin := 1380;
+	    #Calendar.Rows[1].DurationMin := 120;
+	    #Calendar.Rows[1].ActiveDays := 64;
+	    #Ok := "FRK_ShiftInterval"(Now := LDT#2026-10-19-00:30:00, Calendar := #Calendar, ShiftIndex => #Selected, StartAt => #StartAt, EndAt => #EndAt, Target => #Target);
+	    "FRK_TestAssert"(Condition := #Ok AND #Selected = 1 AND #StartAt = LDT#2026-10-18-23:00:00,
+	                     Code := 28,
+	                     Result := #Result);
+	    #Calendar.Rows[2].StartMin := 0;
+	    #Calendar.Rows[2].DurationMin := 60;
+	    #Calendar.Rows[2].ActiveDays := 1;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 29,
+	                     Result := #Result);
+	    #Calendar.Rows[2].StartMin := 60;
+	    #Ok := "FRK_ShiftValidate"(Calendar := #Calendar);
+	    "FRK_TestAssert"(Condition := #Ok,
+	                     Code := 30,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Book := "FRK_ProductionDefaults".Book;
+	    #Oee := "FRK_ProductionDefaults".Oee;
+	    #Unit.Good := 0;
+	    #Unit.Nok := 0;
+	    #Unit.Rework := 0;
+	    #HistoryCount := 0;
+	    #Truncated := FALSE;
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-17-06:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND #CurrentShift = 0,
+	                     Code := 31,
+	                     Result := #Result);
+	    #Unit.Good := 7;
+	    #Oee.RunMs := 1000;
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-17-07:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND #Unit.Good = 7 AND #StartedAt = LDT#2026-10-17-06:00:00,
+	                     Code := 32,
+	                     Result := #Result);
+	    #Calendar.Rows[1].StartMin := 480;
+	    #Calendar.Rows[1].DurationMin := 720;
+	    #Calendar.Rows[1].ActiveDays := 96;
+	    #Calendar.Rows[1].ProductionTarget := 500;
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-17-07:00:00, Synchronized := TRUE, Revision := 2, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND #Unit.Good = 7 AND #Book.ShiftEnd = LDT#2026-10-17-08:00:00,
+	                     Code := 33,
+	                     Result := #Result);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-17-08:00:00, Synchronized := TRUE, Revision := 2, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND #HistoryCount = 1 AND #History[1].GoodCount = 7 AND #History[1].ShiftIndex = 0 AND #Unit.Good = 0,
+	                     Code := 34,
+	                     Result := #Result);
+	    "FRK_TestAssert"(Condition := #CurrentShift = 1 AND #ProductionTarget = 500 AND #History[1].ProductionTarget = 0,
+	                     Code := 35,
+	                     Result := #Result);
+	    #Unit.Good := 9;
+	    #Unit.Nok := 1;
+	    #Unit.Rework := 2;
+	    #Oee.RunMs := 1000;
+	    #Calendar.Rows[1].ProductionTarget := 900;
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-17-09:00:00, Synchronized := TRUE, Revision := 3, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND #ProductionTarget = 500 AND #Unit.Good = 9,
+	                     Code := 36,
+	                     Result := #Result);
+	    #Book.ManualReset := TRUE;
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-17-20:00:00, Synchronized := TRUE, Revision := 3, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND #History[1].ProductionTarget = 500 AND #History[1].GoodCount = 9 AND #History[1].NokCount = 1 AND #History[1].ReworkCount = 2 AND #History[1].ManualReset,
+	                     Code := 37,
+	                     Result := #Result);
+	    "FRK_TestAssert"(Condition := #History[1].TimeSynchronized AND #CurrentShift = 0 AND #ProductionTarget = 0 AND #Oee.RunMs = 0,
+	                     Code := 38,
+	                     Result := #Result);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-18-08:00:00, Synchronized := TRUE, Revision := 3, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND #CurrentShift = 1 AND #ProductionTarget = 900,
+	                     Code := 39,
+	                     Result := #Result);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-18-07:00:00, Synchronized := TRUE, Revision := 3, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND NOT #Book.ShiftSynchronized AND #History[1].EndAt >= #History[1].StartAt,
+	                     Code := 40,
+	                     Result := #Result);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-20-12:00:00, Synchronized := TRUE, Revision := 3, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND #HistoryCount = 4 AND NOT #History[1].TimeSynchronized,
+	                     Code := 41,
+	                     Result := #Result);
+	    #Calendar.SchemaVersion := 3;
+	    #Calendar.UtcOffsetMin := 0;
+	    FOR #Index := 1 TO 5 DO
+	        #Calendar.Rows[#Index].StartMin := -1;
+	        #Calendar.Rows[#Index].DurationMin := 1440;
+	        #Calendar.Rows[#Index].ActiveDays := 0;
+	        #Calendar.Rows[#Index].ProductionTarget := 0;
+	    END_FOR;
+	    #Book := "FRK_ProductionDefaults".Book;
+	    #Oee := "FRK_ProductionDefaults".Oee;
+	    #Unit.Good := 0;
+	    #Unit.Nok := 0;
+	    #Unit.Rework := 0;
+	    #HistoryCount := 0;
+	    #Truncated := FALSE;
+	    #Calendar.Rows[1].StartMin := 0;
+	    #Calendar.Rows[1].DurationMin := 1440;
+	    #Calendar.Rows[1].ActiveDays := 127;
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-01-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-02-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-03-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-04-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-05-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-06-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-07-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-08-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-09-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-10-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_ShiftTick"(Now := LDT#2026-10-11-00:00:00, Synchronized := TRUE, Revision := 1, Scope := 'Operations', Calendar := #Calendar, Book := #Book, Unit := #Unit, Oee := #Oee, CurrentShift := #CurrentShift, StartedAt := #StartedAt, ProductionTarget := #ProductionTarget, History := #History, Count := #HistoryCount, Truncated := #Truncated, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #HistoryCount = 8 AND #Truncated AND #History[1].StartAt = LDT#2026-10-10-00:00:00,
+	                     Code := 42,
+	                     Result := #Result);
+	    #Book := "FRK_ProductionDefaults".Book;
+	    #Oee := "FRK_ProductionDefaults".Oee;
+	    #Unit.Good := 0;
+	    #Unit.Nok := 0;
+	    #Unit.Rework := 0;
+	    #Ok := "FRK_WorkDegradation"(CycleNo := 1, WorkMs := 1200, BaselineMs := 1000, BandPercent := 10, Book := #Book);
+	    "FRK_TestAssert"(Condition := #Ok AND #Book.Degraded,
+	                     Code := 43,
+	                     Result := #Result);
+	    #Ok := "FRK_WorkDegradation"(CycleNo := 1, WorkMs := 9999, BaselineMs := 1000, BandPercent := 10, Book := #Book);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND #Book.WorkSamples = 1,
+	                     Code := 44,
+	                     Result := #Result);
+	    #Ok := "FRK_WorkDegradation"(CycleNo := 2, WorkMs := 200, BaselineMs := 1000, BandPercent := 10, Book := #Book);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND NOT #Book.Degraded,
+	                     Code := 45,
+	                     Result := #Result);
+	    #Ok := "FRK_WorkDegradation"(CycleNo := 3, WorkMs := 3000, BaselineMs := 1000, BandPercent := 10, Book := #Book);
+	    "FRK_TestAssert"(Condition := #Ok,
+	                     Code := 46,
+	                     Result := #Result);
+	    #Ok := "FRK_WorkDegradation"(CycleNo := 3, WorkMs := 9999, BaselineMs := 2000, BandPercent := 10, Book := #Book);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND #Book.WorkSamples = 0 AND NOT #Book.Degraded,
+	                     Code := 47,
+	                     Result := #Result);
+	    #Unit.RequestPending := TRUE;
+	    #Unit.Request.Kind := 18;
+	    #Access.CurrentLevel := 0;
+	    #Access.Policy.Required[1] := 2;
+	    #Oee.RunMs := 1000;
+	    "FRK_ProductionRequest"(Unit := #Unit,
+	                            Access := #Access,
+	                            Response := #Response,
+	                            Book := #Book,
+	                            Oee := #Oee,
+	                            Trend := #Trend,
+	                            AlarmLog := #AlarmLog,
+	                            Scope := 'Operations');
+	    "FRK_TestAssert"(Condition := NOT #Response.Accepted AND #Oee.RunMs = 1000 AND NOT #Response.Report.Released,
+	                     Code := 48,
+	                     Result := #Result);
+	    #Access.CurrentLevel := 2;
+	    "FRK_ProductionRequest"(Unit := #Unit,
+	                            Access := #Access,
+	                            Response := #Response,
+	                            Book := #Book,
+	                            Oee := #Oee,
+	                            Trend := #Trend,
+	                            AlarmLog := #AlarmLog,
+	                            Scope := 'Operations');
+	    "FRK_TestAssert"(Condition := #Response.Accepted AND #Response.Report.Released AND #Oee.RunMs = 0 AND #Book.ManualReset,
+	                     Code := 49,
+	                     Result := #Result);
+	    "FRK_AlarmBegin"(Startup := TRUE,
+	                     AlarmLog := #AlarmLog);
+	    #HealthConfig := "FRK_HealthDefaults".Config;
+	    #HealthInput.TaskAvailable := TRUE;
+	    #HealthInput.TaskCycleUs := 1000;
+	    #HealthInput.ControllerAvailable := TRUE;
+	    #HealthInput.MemoryAvailableMb := 1024;
+	    #HealthInput.TimeQuality.Available := TRUE;
+	    #HealthInput.TimeQuality.Synchronized := TRUE;
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND #HealthStatus.Present AND #HealthStatus.Healthy AND #AlarmLog.NActive = 0,
+	                     Code := 50,
+	                     Result := #Result);
+	    #HealthInput.ControllerAvailable := FALSE;
+	    #HealthInput.TimeQuality.Synchronized := FALSE;
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND NOT #HealthStatus.Healthy AND #AlarmLog.NActive = 2 AND NOT #AlarmLog.Blocking,
+	                     Code := 51,
+	                     Result := #Result);
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #AlarmLog.NActive = 2,
+	                     Code := 52,
+	                     Result := #Result);
+	    "FRK_AlarmOperatorReset"(AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #AlarmLog.NActive = 2,
+	                     Code := 53,
+	                     Result := #Result);
+	    #HealthInput.ControllerAvailable := TRUE;
+	    #HealthInput.TimeQuality.Synchronized := TRUE;
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #HealthStatus.Healthy AND #AlarmLog.NActive = 0,
+	                     Code := 54,
+	                     Result := #Result);
+	    #HealthInput.TaskCycleUs := 100001;
+	    #HealthInput.TaskJitterUs := 10001;
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #HealthStatus.Healthy AND #AlarmLog.NActive = 2,
+	                     Code := 55,
+	                     Result := #Result);
+	    #HealthInput.TaskCycleUs := 1000;
+	    #HealthInput.TaskJitterUs := 0;
+	    #HealthInput.FanAvailable := TRUE;
+	    #HealthInput.StorageAvailable := TRUE;
+	    #HealthInput.IpcAvailable := FALSE;
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #HealthStatus.Healthy AND NOT #HealthStatus.FanAvailable AND NOT #HealthStatus.StorageAvailable,
+	                     Code := 56,
+	                     Result := #Result);
+	    #HealthConfig.RequireFieldbus := TRUE;
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #HealthStatus.Healthy AND #AlarmLog.NActive = 1,
+	                     Code := 57,
+	                     Result := #Result);
+	    #HealthConfig.SchemaVersion := 0;
+	    #Ok := "FRK_HealthCyclic"(Configured := TRUE, Scope := 'Operations', Input := #HealthInput, ParCfg := #HealthConfig, Status := #HealthStatus, Book := #HealthBook, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND NOT #HealthStatus.Present AND NOT #HealthStatus.Healthy AND #AlarmLog.NActive = 0,
+	                     Code := 58,
+	                     Result := #Result);
+	    "FRK_EngineeringTick"(Scope := 'Operations',
+	                          Slots := #EngineeringSlots,
+	                          AlarmLog := #AlarmLog);
+	    "FRK_AlarmOperatorReset"(AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #AlarmLog.NActive = 1 AND #AlarmLog.Active[#EngineeringSlots[1]].ReasonCode = 2030 AND NOT #AlarmLog.Blocking,
+	                     Code := 59,
+	                     Result := #Result);
+	    "FRK_EngineeringTick"(Scope := 'Operations',
+	                          Slots := #EngineeringSlots,
+	                          AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #AlarmLog.NActive = 1,
+	                     Code := 60,
+	                     Result := #Result);
+	    #Ok := "FRK_AlarmShelve"(Slot := #EngineeringSlots[1], DurationMs := 1000, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND NOT #AlarmLog.Active[#EngineeringSlots[1]].Shelved,
+	                     Code := 61,
+	                     Result := #Result);
+	    "FRK_AlarmBegin"(Startup := TRUE,
+	                     AlarmLog := #AlarmLog);
+	    #TestDiag := "FRK_UnitScratch".EmptyDiagnostic;
+	    #TestDiag.SourcePath := WSTRING#'Operations';
+	    #TestDiag.Description := WSTRING#'std.system.taskJitterHigh';
+	    #TestDiag.ReasonCode := 11;
+	    #TestDiag.Severity := 0;
+	    #TestDiag.Category := 2;
+	    #ShelfSlot := "FRK_AlarmRaise"(Diag := #TestDiag, ResetClass := 1, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_AlarmShelve"(Slot := #ShelfSlot, DurationMs := 0, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 62,
+	                     Result := #Result);
+	    "FRK_Clock".NowMs := UDINT#4294967290;
+	    #Ok := "FRK_AlarmShelve"(Slot := #ShelfSlot, DurationMs := 10, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND #AlarmLog.Active[#ShelfSlot].Shelved AND #AlarmLog.Blocking,
+	                     Code := 63,
+	                     Result := #Result);
+	    "FRK_Clock".NowMs := 3;
+	    "FRK_AlarmShelfTick"(AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #AlarmLog.Active[#ShelfSlot].Shelved,
+	                     Code := 64,
+	                     Result := #Result);
+	    "FRK_Clock".NowMs := 4;
+	    "FRK_AlarmShelfTick"(AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #AlarmLog.Active[#ShelfSlot].Shelved AND #AlarmLog.Blocking,
+	                     Code := 65,
+	                     Result := #Result);
+	    #Ok := "FRK_AlarmShelve"(Slot := #ShelfSlot, DurationMs := UDINT#4294967295, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := #Ok AND #AlarmLog.ShelfDuration[#ShelfSlot] = 28800000,
+	                     Code := 66,
+	                     Result := #Result);
+	    #AlarmLog.ShelfDuration[#ShelfSlot] := 0;
+	    "FRK_AlarmShelfTick"(AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #AlarmLog.Active[#ShelfSlot].Shelved,
+	                     Code := 67,
+	                     Result := #Result);
+	    #TestDiag.ReasonCode := 19001;
+	    #TestDiag.Category := 1;
+	    #ShelfSlot := "FRK_AlarmRaise"(Diag := #TestDiag, ResetClass := 1, AlarmLog := #AlarmLog);
+	    #Ok := "FRK_AlarmShelve"(Slot := #ShelfSlot, DurationMs := 1000, AlarmLog := #AlarmLog);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 68,
+	                     Result := #Result);
+	    #TowerConfig := "FRK_TowerDefaults".Config;
+	    #TowerConfig.LampTestDuration := T#60s;
+	    #Unit.RequestPending := TRUE;
+	    #Unit.Request.Kind := 26;
+	    #Access.CurrentLevel := 2;
+	    #Access.Policy.Required[2] := 2;
+	    #TestCore.Exec := 1;
+	    "FRK_TowerRequest"(Scope := 'Operations',
+	                       Core := #TestCore,
+	                       Unit := #Unit,
+	                       Access := #Access,
+	                       Response := #Response,
+	                       Book := #TowerBook,
+	                       ParCfg := #TowerConfig);
+	    "FRK_TestAssert"(Condition := NOT #Response.Accepted AND NOT #TowerBook.TestActive,
+	                     Code := 69,
+	                     Result := #Result);
+	    #TestCore.Exec := 0;
+	    "FRK_TowerRequest"(Scope := 'Operations',
+	                       Core := #TestCore,
+	                       Unit := #Unit,
+	                       Access := #Access,
+	                       Response := #Response,
+	                       Book := #TowerBook,
+	                       ParCfg := #TowerConfig);
+	    "FRK_TestAssert"(Condition := #Response.Accepted AND #TowerBook.DurationMs = 30000,
+	                     Code := 70,
+	                     Result := #Result);
+	    "FRK_TowerTick"(MachineState := 6,
+	                    AlarmActive := FALSE,
+	                    HighestSeverity := 0,
+	                    OperatorActionRequired := FALSE,
+	                    ParCfg := #TowerConfig,
+	                    Book := #TowerBook,
+	                    Status := #TowerStatus);
+	    "FRK_TestAssert"(Condition := #TowerStatus.TestActive AND #TowerStatus.Red AND #TowerStatus.Amber AND #TowerStatus.Green AND #TowerStatus.Blue AND #TowerStatus.White AND #TowerStatus.Horn,
+	                     Code := 71,
+	                     Result := #Result);
+	    "FRK_Clock".NowMs := "FRK_Clock".NowMs + 30000;
+	    "FRK_TowerTick"(MachineState := 6,
+	                    AlarmActive := FALSE,
+	                    HighestSeverity := 0,
+	                    OperatorActionRequired := FALSE,
+	                    ParCfg := #TowerConfig,
+	                    Book := #TowerBook,
+	                    Status := #TowerStatus);
+	    "FRK_TestAssert"(Condition := NOT #TowerStatus.TestActive AND NOT #TowerStatus.Red AND NOT #TowerStatus.Green AND NOT #TowerStatus.Horn,
+	                     Code := 72,
+	                     Result := #Result);
+	    "FRK_TowerTick"(MachineState := 0,
+	                    AlarmActive := FALSE,
+	                    HighestSeverity := 0,
+	                    OperatorActionRequired := FALSE,
+	                    ParCfg := #TowerConfig,
+	                    Book := #TowerBook,
+	                    Status := #TowerStatus);
+	    "FRK_TestAssert"(Condition := #TowerStatus.Green AND NOT #TowerStatus.Red,
+	                     Code := 73,
+	                     Result := #Result);
+	    "FRK_TowerTick"(MachineState := 0,
+	                    AlarmActive := TRUE,
+	                    HighestSeverity := 2,
+	                    OperatorActionRequired := FALSE,
+	                    ParCfg := #TowerConfig,
+	                    Book := #TowerBook,
+	                    Status := #TowerStatus);
+	    "FRK_TestAssert"(Condition := #TowerStatus.Red AND NOT #TowerStatus.Green AND #TowerStatus.Horn,
+	                     Code := 74,
+	                     Result := #Result);
+	    #TowerConfig.OperatorUsesWhite := TRUE;
+	    "FRK_TowerTick"(MachineState := 2,
+	                    AlarmActive := FALSE,
+	                    HighestSeverity := 0,
+	                    OperatorActionRequired := TRUE,
+	                    ParCfg := #TowerConfig,
+	                    Book := #TowerBook,
+	                    Status := #TowerStatus);
+	    "FRK_TestAssert"(Condition := #TowerStatus.Amber AND #TowerStatus.White AND NOT #TowerStatus.Blue,
+	                     Code := 75,
+	                     Result := #Result);
+	    "FRK_Registry".Count := 1;
+	    "FRK_Registry".Fault := FALSE;
+	    "FRK_Registry".Rows[1].Valid := TRUE;
+	    "FRK_Registry".Rows[1].RunStyle := 0;
+	    #Ok := "FRK_StepGate"(Owner := 1, Steppable := TRUE);
+	    "FRK_TestAssert"(Condition := #Ok,
+	                     Code := 76,
+	                     Result := #Result);
+	    "FRK_Registry".Rows[1].RunStyle := 1;
+	    #Ok := "FRK_StepGate"(Owner := 1, Steppable := TRUE);
+	    "FRK_TestAssert"(Condition := NOT #Ok AND "FRK_Registry".Rows[1].StepWait,
+	                     Code := 77,
+	                     Result := #Result);
+	    #Ok := "FRK_StepGate"(Owner := 1, Steppable := FALSE);
+	    "FRK_TestAssert"(Condition := #Ok,
+	                     Code := 78,
+	                     Result := #Result);
+	    "FRK_Registry".Rows[1].StepToken := TRUE;
+	    #Ok := "FRK_StepGate"(Owner := 1, Steppable := TRUE);
+	    "FRK_TestAssert"(Condition := #Ok AND NOT "FRK_Registry".Rows[1].StepToken,
+	                     Code := 79,
+	                     Result := #Result);
+	    #Ok := "FRK_StepGate"(Owner := 1, Steppable := TRUE);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 80,
+	                     Result := #Result);
+	    "FRK_Registry".Rows[1].RunStyle := 2;
+	    #Ok := "FRK_StepGate"(Owner := 1, Steppable := TRUE);
+	    "FRK_TestAssert"(Condition := NOT #Ok,
+	                     Code := 81,
+	                     Result := #Result);
+	    "FRK_Registry".Rows[1].HoldRun := TRUE;
+	    #Ok := "FRK_StepGate"(Owner := 1, Steppable := TRUE);
+	    "FRK_TestAssert"(Condition := #Ok AND "FRK_Registry".Rows[1].HoldRun,
+	                     Code := 82,
+	                     Result := #Result);
+	    #Access.PolicyLost := TRUE;
+	    #Support[0] := TRUE;
+	    #Support[1] := TRUE;
+	    #Support[2] := TRUE;
+	    "FRK_RunStylePrepare"(Owner := 1,
+	                          Startup := FALSE,
+	                          Exec := 1,
+	                          Access := #Access,
+	                          Supported := #Support);
+	    "FRK_TestAssert"(Condition := NOT "FRK_Registry".Rows[1].HoldRun AND NOT "FRK_Registry".Rows[1].StepToken,
+	                     Code := 83,
+	                     Result := #Result);
+	    #Unit.Request.Kind := 14;
+	    #Unit.Request.BoolValue := FALSE;
+	    "FRK_RunStyleRequest"(Owner := 1,
+	                          Scope := 'Operations',
+	                          Exec := 0,
+	                          Supported := #Support,
+	                          Unit := #Unit,
+	                          Access := #Access,
+	                          Response := #Response);
+	    "FRK_TestAssert"(Condition := #Response.Accepted,
+	                     Code := 84,
+	                     Result := #Result);
+	    #Access.PolicyLost := FALSE;
+	    #Access.CurrentLevel := 4;
+	    #Unit.Request.Kind := 12;
+	    #Unit.Request.IntValue := 99;
+	    "FRK_RunStyleRequest"(Owner := 1,
+	                          Scope := 'Operations',
+	                          Exec := 0,
+	                          Supported := #Support,
+	                          Unit := #Unit,
+	                          Access := #Access,
+	                          Response := #Response);
+	    "FRK_TestAssert"(Condition := NOT #Response.Accepted,
+	                     Code := 85,
+	                     Result := #Result);
+	    #Unit.Request.IntValue := 1;
+	    #Support[1] := FALSE;
+	    "FRK_RunStyleRequest"(Owner := 1,
+	                          Scope := 'Operations',
+	                          Exec := 0,
+	                          Supported := #Support,
+	                          Unit := #Unit,
+	                          Access := #Access,
+	                          Response := #Response);
+	    "FRK_TestAssert"(Condition := NOT #Response.Accepted,
+	                     Code := 86,
+	                     Result := #Result);
+	    "FRK_HostEmit"(Kind := 0,
+	                   Scope := 'StationA',
+	                   PartUid := 'part-17',
+	                   Subject := 'Tool',
+	                   Value := 'T17',
+	                   Verdict := 0,
+	                   Reason := 0);
+	    "FRK_HostEmit"(Kind := 999,
+	                   Scope := 'StationA',
+	                   PartUid := 'part-17',
+	                   Subject := 'Tool',
+	                   Value := 'T17',
+	                   Verdict := 0,
+	                   Reason := 0);
+	    "FRK_HostEmit"(Kind := 9,
+	                   Scope := 'unknown',
+	                   PartUid := 'part-17',
+	                   Subject := 'Tool',
+	                   Value := 'T17',
+	                   Verdict := 0,
+	                   Reason := 0);
+	    "FRK_TestAssert"(Condition := "FRK_HostStore".Rows[1].View.Count = 0,
+	                     Code := 87,
+	                     Result := #Result);
+	    "FRK_HostEmit"(Kind := 10,
+	                   Scope := 'StationA',
+	                   PartUid := 'part-17',
+	                   Subject := 'Tool',
+	                   Value := 'T17',
+	                   Verdict := 2,
+	                   Reason := 10001);
+	    "FRK_HostMirror"(Scope := 'StationA',
+	                     Startup := TRUE,
+	                     Seen := #HostSeen,
+	                     View := #HostView);
+	    "FRK_TestAssert"(Condition := #HostView.Count = 1 AND #HostView.Capacity = 32 AND #HostView.RingHead = 1 AND NOT #HostView.Wrapped,
+	                     Code := 88,
+	                     Result := #Result);
+	    "FRK_TestAssert"(Condition := #HostView.Ring[1].Sequence = 1 AND #HostView.Ring[1].Kind = 10 AND #HostView.Ring[1].StationPath = WSTRING#'StationA' AND #HostView.Ring[1].PartUid = 'part-17' AND #HostView.Ring[1].ReasonCode = 10001,
+	                     Code := 89,
+	                     Result := #Result);
+	    "FRK_TestAssert"(Condition := NOT #HostView.Ring[1].TimeSynchronized AND #HostView.Ring[1].Stamp > LDT#2026-01-01-00:00:00,
+	                     Code := 90,
+	                     Result := #Result);
+	    "FRK_TestAssert"(Condition := "FRK_HostStore".Rows[2].View.Count = 0,
+	                     Code := 91,
+	                     Result := #Result);
+	    FOR #Index := 1 TO 32 DO
+	        "FRK_HostEmit"(Kind := 7,
+	                       Scope := 'StationA',
+	                       PartUid := 'part-17',
+	                       Subject := 'Tool',
+	                       Value := 'T17',
+	                       Verdict := 0,
+	                       Reason := 0);
+	    END_FOR;
+	    "FRK_HostMirror"(Scope := 'StationA',
+	                     Startup := FALSE,
+	                     Seen := #HostSeen,
+	                     View := #HostView);
+	    "FRK_TestAssert"(Condition := #HostView.Count = 32 AND #HostView.RingHead = 1 AND #HostView.Wrapped AND #HostView.Ring[1].Sequence = 33,
+	                     Code := 92,
+	                     Result := #Result);
+	    "FRK_HostStore".Rows[1].Sequence := UDINT#4294967295;
+	    "FRK_HostEmit"(Kind := 8,
+	                   Scope := 'StationA',
+	                   PartUid := 'part-17',
+	                   Subject := 'Tool',
+	                   Value := 'T17',
+	                   Verdict := 0,
+	                   Reason := 0);
+	    "FRK_TestAssert"(Condition := "FRK_HostStore".Rows[1].Sequence = 1 AND "FRK_HostStore".Rows[1].View.Wrapped,
+	                     Code := 93,
+	                     Result := #Result);
+	    #Ran := TRUE;
+	END_IF;
+	#Done := #Ran AND NOT #Result.ProtocolError;
+	#Checks := #Result.Checks;
+	#Failures := #Result.Failures;
+	#FirstFailure := #Result.FirstFailure;
+	
+END_FUNCTION_BLOCK
+

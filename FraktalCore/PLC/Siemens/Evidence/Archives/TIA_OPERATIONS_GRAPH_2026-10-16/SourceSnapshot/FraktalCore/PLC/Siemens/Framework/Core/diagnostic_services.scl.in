@@ -1,0 +1,128 @@
+// One private sample per deployed module consumed by a selected sequence Unit.
+// Typed owning frames derive these from the authoritative module contract.
+FUNCTION "FRK_DiagSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Index : DInt; END_VAR
+BEGIN
+    #FRK_DiagSlot := 0;
+    CASE #Index OF
+@SLOT_CASES@
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_DiagName" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Index : DInt; END_VAR
+BEGIN
+    #FRK_DiagName := '';
+    CASE #Index OF
+@NAME_CASES@
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_DiagSync" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Index : DInt; Withdraw : Bool; Status : "ST_ModuleStatus"; Held : Bool;
+    Timeout : Time; ActiveTimeoutMs : UDInt;
+END_VAR
+VAR_TEMP Slot : Int; END_VAR
+BEGIN
+    #Slot := "FRK_DiagSlot"(Index := #Index);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    "FRK_Diagnostics".Samples[#Slot].Valid := NOT #Withdraw;
+    "FRK_Diagnostics".Samples[#Slot].Index := #Index;
+    "FRK_Diagnostics".Samples[#Slot].State := #Status.State;
+    "FRK_Diagnostics".Samples[#Slot].Held := #Held;
+    "FRK_Diagnostics".Samples[#Slot].Diagnostic := #Status.Diagnostic;
+    IF #Status.State = @E_ExecState.BUSY@ AND #ActiveTimeoutMs > 0 AND #ActiveTimeoutMs <= UDINT#2147483647 THEN
+        "FRK_Diagnostics".Samples[#Slot].Timeout := DINT_TO_TIME(UDINT_TO_DINT(#ActiveTimeoutMs));
+    ELSE
+        "FRK_Diagnostics".Samples[#Slot].Timeout := #Timeout;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_DiagBelow" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Index : DInt; Owner : DInt; END_VAR
+VAR_TEMP Parent : DInt; Depth : DInt; END_VAR
+BEGIN
+    #FRK_DiagBelow := FALSE;
+    IF "FRK_Registry".Fault OR #Index < 1 OR #Index > "FRK_Registry".Count
+        OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > @CAPACITY@ THEN RETURN; END_IF;
+    #Parent := #Index;
+    FOR #Depth := 1 TO @CAPACITY@ DO
+        IF #Parent = #Owner THEN #FRK_DiagBelow := TRUE; RETURN; END_IF;
+        IF #Parent < 1 OR #Parent > "FRK_Registry".Count THEN RETURN; END_IF;
+        IF NOT "FRK_Registry".Rows[#Parent].Valid THEN RETURN; END_IF;
+        #Parent := "FRK_Registry".Rows[#Parent].Parent;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_DiagRead" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Target : DInt; Faults : Bool; DescendantsOnly : Bool; END_VAR
+VAR_IN_OUT Summary : "FRK_DiagSummary"; END_VAR
+VAR_TEMP Slot : Int; Index : Int; HasReason : Bool; Below : Bool; END_VAR
+BEGIN
+    #Summary := "FRK_Diagnostics".Empty;
+    #Slot := "FRK_DiagSlot"(Index := #Target);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF #Owner <> 0 THEN
+        IF #Owner = #Target THEN RETURN; END_IF;
+        IF NOT "FRK_DiagBelow"(Index := #Target, Owner := #Owner) THEN RETURN; END_IF;
+    END_IF;
+    IF NOT "FRK_Diagnostics".Samples[#Slot].Valid THEN RETURN; END_IF;
+    #Summary.Valid := TRUE;
+    #Summary.State := "FRK_Diagnostics".Samples[#Slot].State;
+    #Summary.Timeout := "FRK_Diagnostics".Samples[#Slot].Timeout;
+    #HasReason := FALSE;
+    // Target first, then declaration/registration order below it. A real fault
+    // outranks an informational wait; an awaited hold outranks an unnamed wait.
+    FOR #Index := 0 TO @COUNT@ DO
+        IF #Index = 0 THEN #Slot := "FRK_DiagSlot"(Index := #Target);
+        ELSE #Slot := #Index; END_IF;
+        IF "FRK_Diagnostics".Samples[#Slot].Valid THEN
+            #Below := "FRK_DiagBelow"(Index := "FRK_Diagnostics".Samples[#Slot].Index, Owner := #Target);
+            IF #Below AND (NOT #DescendantsOnly OR "FRK_Diagnostics".Samples[#Slot].Index <> #Target) THEN
+                IF #Faults AND "FRK_Diagnostics".Samples[#Slot].State = @E_ExecState.ERROR@ THEN
+                    #Summary.Fault := TRUE;
+                    #Summary.Diagnostic := "FRK_Diagnostics".Samples[#Slot].Diagnostic;
+                    RETURN;
+                END_IF;
+                IF "FRK_Diagnostics".Samples[#Slot].State = @E_ExecState.BUSY@ THEN
+                    IF "FRK_Diagnostics".Samples[#Slot].Held AND NOT #Summary.Held THEN
+                        #Summary.Held := TRUE;
+                        #Summary.Diagnostic := "FRK_Diagnostics".Samples[#Slot].Diagnostic;
+                        #HasReason := TRUE;
+                    ELSIF NOT #HasReason AND "FRK_Diagnostics".Samples[#Slot].Diagnostic.ReasonCode <> @E_Reason.NONE@ THEN
+                        #Summary.Diagnostic := "FRK_Diagnostics".Samples[#Slot].Diagnostic;
+                        #HasReason := TRUE;
+                    END_IF;
+                END_IF;
+            END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_DiagComposite" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT AdoptErrors : Bool; END_VAR
+VAR_IN_OUT Core : "FRK_Core"; Status : "ST_ModuleStatus"; END_VAR
+VAR_TEMP Summary : "FRK_DiagSummary"; END_VAR
+BEGIN
+    IF #Core.Exec <> @E_ExecState.BUSY@ THEN RETURN; END_IF;
+    "FRK_DiagRead"(Owner := 0, Target := #Core.RegIndex, Faults := #AdoptErrors, DescendantsOnly := TRUE, Summary := #Summary);
+    IF #Summary.Fault THEN
+        "FRK_AdoptFault"(Core := #Core, Status := #Status, Diag := #Summary.Diagnostic);
+    ELSIF #Summary.Held THEN
+        "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Summary.Diagnostic);
+    END_IF;
+END_FUNCTION

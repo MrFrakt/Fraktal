@@ -79,3 +79,12 @@ Config_Types_Press_Offline_20261015. Shared configuration covers floating-point,
 small integers, Core enums and explicit array elements, plus token-bound current
 station/model documents. Broader providers, runtime model creation/collections,
 the complete Line profile, baseline/OEE, module/HAL and deployment remain open.
+
+Latest operations continuation (2026-10-16):
+[shared operations and wired GRAPH](Evidence/TIA_OPERATIONS_GRAPH_2026-10-16.md).
+Generator0.22 qualifies OEE/shifts/degradation, health/nameplates/build gates,
+shelving/tower, sequence pacing, typed capture, fixed host rings and the fresh
+native assertion gate. CHANGEOVER/LoadPosition join AUTO/HOME as wired GRAPH;
+ST/LD twins stay unwired. Original Fraktal storage/image and the physical1214C
+are preserved. Remaining scope is tracked in the plan above, including classes,
+model creation, complete Line/OUC, modules/connectors and deployment acceptance.

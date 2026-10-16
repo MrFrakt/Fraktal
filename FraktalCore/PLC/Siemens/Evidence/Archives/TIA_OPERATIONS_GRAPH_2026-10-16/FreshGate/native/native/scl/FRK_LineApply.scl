@@ -1,0 +1,107 @@
+﻿FUNCTION "FRK_LineApply" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Image : "ST_LineImage";
+      Restore : Bool;
+      NowMs : UDInt;
+      Stamp : LDT;
+      TimeSynchronized : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      State : "FRK_LineState";
+   END_VAR
+
+   VAR_TEMP 
+      Stage : "ST_LineProbeConfig";
+      FieldIndex : Int;
+      SourceIndex : Int;
+      Found : Int;
+      Delta : UDInt;
+      CandidateText : WString[80];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_LineApply := FALSE;
+	IF #State.Status.LineId <> 'PRESS-LINE-1' OR #State.Status.Owner <> 'BenchLineOwner' THEN
+	    RETURN;
+	END_IF;
+	IF #State.Status.Role <> 2 AND NOT #Restore THEN
+	    RETURN;
+	END_IF;
+	#State.Status.SourceError := 1;
+	IF #Image.LineId <> 'PRESS-LINE-1' THEN
+	    RETURN;
+	END_IF;
+	#State.Status.SourceError := 2;
+	IF #Image.Owner <> 'BenchLineOwner' OR #Image.Revision = 0 OR #Image.Count <> 8 THEN
+	    RETURN;
+	END_IF;
+	// Modular revision ordering permits wrap, but never rolls a mirror back.
+	IF #State.Applied AND NOT #Restore AND #Image.Revision <> #State.Status.Revision THEN
+	    IF #Image.Revision >= #State.Status.Revision THEN
+	        #Delta := #Image.Revision - #State.Status.Revision;
+	    ELSE
+	        #Delta := (UDINT#4294967295 - #State.Status.Revision) + #Image.Revision + 1;
+	    END_IF;
+	    IF #Delta > UDINT#2147483647 THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	#Stage := "FRK_LineDefaults".Values;
+	FOR #FieldIndex := 1 TO 8 DO
+	    "FRK_LineDef"(FieldIndex := #FieldIndex);
+	    #Found := 0;
+	    FOR #SourceIndex := 1 TO 8 DO
+	        IF #Image.Records[#SourceIndex].WriteKey = "FRK_ConfigScratch".Entry.WriteKey THEN
+	            IF #Found <> 0 THEN
+	                RETURN;
+	            END_IF;
+	            #Found := #SourceIndex;
+	        END_IF;
+	    END_FOR;
+	    IF #Found = 0 THEN
+	        RETURN;
+	    END_IF;
+	    IF #Image.Records[#Found].Revision <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigValidate"(Text := STRING_TO_WSTRING(#Image.Records[#Found].ValueText)) THEN
+	        RETURN;
+	    END_IF;
+	    "FRK_LineAssign"(FieldIndex := #FieldIndex,
+	                     Values := #Stage);
+	    // Same revision must describe the same values; a corrupt heartbeat
+	    // cannot renew freshness or change data while keeping the revision.
+	    IF #State.Applied AND NOT #Restore AND #Image.Revision = #State.Status.Revision THEN
+	        "FRK_LineValue"(FieldIndex := #FieldIndex,
+	                        Values := #Stage);
+	        #CandidateText := "FRK_ConfigScratch".Entry.ValueText;
+	        "FRK_LineValue"(FieldIndex := #FieldIndex,
+	                        Values := #State.Values);
+	        IF "FRK_ConfigScratch".Entry.ValueText <> #CandidateText THEN
+	            RETURN;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+	#State.Values := #Stage;
+	#State.Image := #Image;
+	#State.Dirty := #State.Dirty OR NOT #State.Applied OR #State.Status.Revision <> #Image.Revision;
+	#State.Status.Revision := #Image.Revision;
+	#State.Applied := TRUE;
+	#State.Status.SourceError := 0;
+	IF NOT #Restore THEN
+	    #State.HaveSuccess := TRUE;
+	    #State.LastSuccessMs := #NowMs;
+	    #State.Status.LastUpdate := #Stamp;
+	    #State.Status.TimeSynchronized := #TimeSynchronized;
+	    #State.Status.Stale := FALSE;
+	END_IF;
+	#FRK_LineApply := TRUE;
+	
+END_FUNCTION
+

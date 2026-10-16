@@ -2,18 +2,16 @@ FUNCTION_BLOCK "FB_PressDemoHomeGraphOwner"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 VAR_INPUT
-    Run : Bool;
-    Reset : Bool;
-    OwnerIndex : DInt;
-    Delta : Time;
+    Run {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Reset {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    OwnerIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Delta {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
 END_VAR
 VAR_IN_OUT
-    PressRam {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    Door {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    PartSlide {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    Chart {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_GRAPH_PressDemoHome";
-END_VAR
-VAR_OUTPUT
+    PressRam : "FB_CylinderCM";
+    Door : "FB_CylinderCM";
+    PartSlide : "FB_CylinderCM";
+    Chart : "FB_GRAPH_PressDemoHome";
 END_VAR
 VAR
     Seq {ExternalWritable := 'False'} : "FRK_SequenceCtx";

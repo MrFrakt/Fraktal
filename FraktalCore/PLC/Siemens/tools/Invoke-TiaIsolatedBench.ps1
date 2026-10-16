@@ -3,7 +3,8 @@ param(
   [Parameter(Mandatory=$true)] [string] $Profile,
   [ValidateSet('host','status','run','read','restart','release')] [string] $Action = 'status',
   [string] $StopFile,
-  [int] $ExpectedChecks = 0
+  [int] $ExpectedChecks = 0,
+  [string] $ExpectedImageHash = ''
 )
 $ErrorActionPreference = 'Stop'
 $bench = Get-Content -LiteralPath $Profile -Raw | ConvertFrom-Json
@@ -103,14 +104,23 @@ if ($ExpectedChecks -lt 1) { throw 'Expected assertion count is required for a r
 $details = [enum]::Parse($asm.GetType('Siemens.Simatic.Simulation.Runtime.ETagListDetails'),'DB')
 $instance.UpdateTagList($details,$false,('"'+$resultBlock+'"'))
 $values = @{}
+$imageWords = @{}
 foreach ($tag in $instance.TagInfos) {
+  if ($ExpectedImageHash -and $tag.Name -match '\.ImageHash\[([0-7])\]$') {
+    $imageIndex = [int]$Matches[1]
+    $native = $instance.Read($tag.Name)
+    $imageWords[$imageIndex] = ('{0:x8}' -f [uint32]$native."$($native.Type)")
+    continue
+  }
   if ($tag.Name -notmatch '\.(Done|Checks|Failures|FirstFailure)$') { continue }
   $key = $Matches[1]
   $native = $instance.Read($tag.Name)
   $values[$key] = $native."$($native.Type)"
 }
-if ($values.Count -ne 4) { throw 'Bench result interface incomplete' }
+foreach ($key in @('Done','Checks','Failures','FirstFailure')) { if (-not $values.ContainsKey($key)) { throw 'Bench result interface incomplete' } }
+if ($ExpectedImageHash -and $imageWords.Count -eq 8) { $values['ImageHash'] = ((0..7 | ForEach-Object { $imageWords[$_] }) -join '') }
 Emit 'results' $values
+if ($ExpectedImageHash -and ($ExpectedImageHash -notmatch '^[a-f0-9]{64}$' -or $values.ImageHash -cne $ExpectedImageHash)) { throw 'Loaded fixture fingerprint differs' }
 if (-not $values.Done -or $values.Failures -ne 0 -or $values.FirstFailure -ne 0 -or $values.Checks -ne $ExpectedChecks) { throw 'Native assertions failed' }
 } finally {
   if ($instance) { $instance.Dispose() }

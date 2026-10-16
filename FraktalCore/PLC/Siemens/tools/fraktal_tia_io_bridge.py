@@ -235,12 +235,12 @@ def build(physical=True):
         assert original.count(boundary) == 1
         # The logical I/O image is internal transport storage. Publishing raw
         # demands would create a command path outside the Unit mailbox.
-        image = re.search(r'(DATA_BLOCK "GDB_PressDemoIO".*?\nVAR\n)(.*?)(END_VAR)', original, re.S)
+        image_source=sources['38_GDB_PressDemoIO.db']
+        image = re.search(r'(DATA_BLOCK "GDB_PressDemoIO".*?\nVAR\n)(.*?)(END_VAR)', image_source, re.S)
         if not image: raise ValueError('press logical I/O image not found')
-        private_fields, count = re.subn(r'^(\s+\w+)(\s*:\s*Bool;)',
-                                       lambda m: m[1] + PRIVATE + m[2], image[2], flags=re.M)
-        if count != len(re.findall(r'\bBool;', image[2])): raise ValueError('unrecognized logical I/O declaration')
-        original = original[:image.start(2)] + private_fields + original[image.end(2):]
+        fields=re.findall(r'^\s+\w+\s*\{([^}]+)\}\s*:\s*Bool;',image[2],re.M)
+        if not fields or len(fields)!=len(re.findall(r'\bBool;',image[2])) or any("ExternalAccessible := 'False'" not in flags for flags in fields):
+            raise ValueError('logical I/O storage must be private in the owning press generator')
         original = original.replace(boundary, client_driver(mapping) + '\n' + boundary)
         sources[target] = original.replace('USE_SIMULATION : Bool := TRUE;', 'USE_SIMULATION : Bool := FALSE;').replace(
             anchor, '    "GDB_PressIoBridgeClient"();\n' + anchor)

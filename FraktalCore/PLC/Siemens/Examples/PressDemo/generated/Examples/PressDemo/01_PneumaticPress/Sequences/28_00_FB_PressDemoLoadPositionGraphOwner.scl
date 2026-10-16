@@ -1,0 +1,57 @@
+FUNCTION_BLOCK "FB_PressDemoLoadPositionGraphOwner"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Run {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Reset {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    OwnerIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    ChainIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Delta {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+END_VAR
+VAR_IN_OUT
+    PressRam : "FB_CylinderCM";
+    Door : "FB_CylinderCM";
+    PartSlide : "FB_CylinderCM";
+    Chart : "FB_GRAPH_PressDemoLoadPosition";
+END_VAR
+VAR
+    Seq {ExternalWritable := 'False'} : "FRK_SequenceCtx";
+    Row1 {ExternalWritable := 'False'} : "FRK_SequenceRow";
+    Row2 {ExternalWritable := 'False'} : "FRK_SequenceRow";
+    Row3 {ExternalWritable := 'False'} : "FRK_SequenceRow";
+    Row4 {ExternalWritable := 'False'} : "FRK_SequenceRow";
+    At240 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    At260 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    At280 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    At300 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Ready1 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Ready2 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Ready3 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Ready4 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Ready5 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Advance {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+BEGIN
+    "FRK_SeqGraphBegin"(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := #ChainIndex, BranchIndex := 1, ViewOffset := 360, ViewDepth := 1, Delta := #Delta, Seq := #Seq);
+    "FRK_SeqInitial"(Seq := #Seq, InitialStep := 240);
+    "F_CylinderSequenceLease"(Seq := #Seq, Target := #PressRam);
+    "F_CylinderSequenceLease"(Seq := #Seq, Target := #Door);
+    "F_CylinderSequenceLease"(Seq := #Seq, Target := #PartSlide);
+    IF NOT #Seq.Frozen OR #Seq.RestartPending THEN
+        #Chart(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := #ChainIndex, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, Seq := #Seq, Row1 := #Row1, Row2 := #Row2, Row3 := #Row3, Row4 := #Row4, Ready1 := #Ready1, Ready2 := #Ready2, Ready3 := #Ready3, Ready4 := #Ready4, Ready5 := #Ready5, INIT_SQ := #Seq.Restart AND #Seq.Running, OFF_SQ := NOT #Seq.Running);
+    END_IF;
+    "F_CylinderSequenceLease"(Seq := #Seq, Target := #PressRam);
+    "F_CylinderSequenceLease"(Seq := #Seq, Target := #Door);
+    "F_CylinderSequenceLease"(Seq := #Seq, Target := #PartSlide);
+END_FUNCTION_BLOCK
+FUNCTION "F_PressDemoLoadPositionGraph" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Run : Bool; Reset : Bool; OwnerIndex : DInt; ChainIndex : DInt; Delta : Time; END_VAR
+VAR_IN_OUT Target : "FB_PressDemoLoadPositionGraphOwner"; PressRam : "FB_CylinderCM"; Door : "FB_CylinderCM"; PartSlide : "FB_CylinderCM"; Chart : "FB_GRAPH_PressDemoLoadPosition"; END_VAR
+BEGIN
+    // Each embedding chain passes its own identity, so two owners of the one
+    // motion chain never share a command lease.
+    #Target(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := #ChainIndex, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, Chart := #Chart);
+    #F_PressDemoLoadPositionGraph := #Target.Seq.Done;
+END_FUNCTION

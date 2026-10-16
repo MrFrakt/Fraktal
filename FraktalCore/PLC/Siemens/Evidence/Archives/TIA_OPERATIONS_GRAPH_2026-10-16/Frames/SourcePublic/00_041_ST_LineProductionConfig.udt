@@ -1,0 +1,18 @@
+TYPE "ST_LineProductionConfig"
+VERSION : 0.1
+   STRUCT
+      "SchemaVersion" : UInt := 2;
+      "TaktMs" : UDInt := 1000;
+      "Gain" : LReal := 1.25;
+      "Grade" : DInt := 1;
+      "Enabled" : Bool := TRUE;
+      "HostName" : String[40] := 'press-line';
+      "Offsets" : Array[0..1] of Int;
+      "Small" : USInt := 7;
+      "UtcOffsetMin" : DInt;
+      "ShiftStartMin" : Array[1..5] of DInt;
+      "ShiftDurationMin" : Array[1..5] of DInt;
+      "ShiftActiveDays" : Array[1..5] of DInt;
+      "ShiftTarget" : Array[1..5] of DInt;
+   END_STRUCT;
+END_TYPE

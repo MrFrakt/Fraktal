@@ -1,0 +1,37 @@
+﻿FUNCTION "FRK_ConfigBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	"FRK_ConfigRuntime".Fresh := "FRK_ConfigStore".SchemaVersion = 0;
+	IF "FRK_ConfigStore".SchemaVersion <> 1 THEN
+	    FOR #Index := 1 TO 17 DO
+	        "FRK_ConfigStore".Rows[#Index].Used := FALSE;
+	    END_FOR;
+	    IF NOT "FRK_ConfigRuntime".Fresh THEN
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'PressDemo');
+	    END_IF;
+	    "FRK_ConfigStore".ActiveModels[1] := 'ALUMINUM';
+	    "FRK_ConfigStore".SchemaVersion := 1;
+	END_IF;
+	IF "FRK_ConfigStore".ActiveModels[1] <> 'ALUMINUM' AND "FRK_ConfigStore".ActiveModels[1] <> 'PLASTIC' AND "FRK_ConfigStore".ActiveModels[1] <> 'STEEL' THEN
+	    "FRK_ConfigStore".ActiveModels[1] := 'ALUMINUM';
+	    "FRK_ConfigLoss"(RootIndex := 1,
+	                     Scope := 'PressDemo');
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,21 @@
+﻿FUNCTION "FRK_SeqInitial" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      InitialStep : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Seq.Restart THEN
+	    #Seq.Step := #InitialStep;
+	    #Seq.ScanStep := #InitialStep;
+	END_IF;
+	
+END_FUNCTION
+

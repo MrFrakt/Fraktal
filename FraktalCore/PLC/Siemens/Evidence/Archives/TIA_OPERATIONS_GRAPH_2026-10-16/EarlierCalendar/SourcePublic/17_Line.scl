@@ -1,0 +1,1175 @@
+FUNCTION "FRK_LineDef" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    FieldIndex : Int;
+END_VAR
+BEGIN
+    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;
+    "FRK_ConfigScratch".EnumCount := 0;
+    CASE #FieldIndex OF
+        1:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.taktMs';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/TaktMs';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 100000.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 4;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 1.0;
+            "FRK_ConfigScratch".Maximum := 100000.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 0;
+        2:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.gain';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/Gain';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := -100.0;
+            "FRK_ConfigScratch".Entry.Maximum := 100.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 6;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -100.0;
+            "FRK_ConfigScratch".Maximum := 100.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 0;
+        3:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.grade';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'0|1|2|3|4|5|6';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/Grade';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+            "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+            "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 6.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 6.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 7;
+            "FRK_ConfigScratch".EnumValues[1] := 0;
+            "FRK_ConfigScratch".EnumValues[2] := 1;
+            "FRK_ConfigScratch".EnumValues[3] := 2;
+            "FRK_ConfigScratch".EnumValues[4] := 3;
+            "FRK_ConfigScratch".EnumValues[5] := 4;
+            "FRK_ConfigScratch".EnumValues[6] := 5;
+            "FRK_ConfigScratch".EnumValues[7] := 6;
+        4:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.enabled';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/Enabled';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 2;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+            "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+            "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 1;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 1.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 0;
+        5:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.hostName';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/HostName';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 1;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+            "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+            "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 8;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 1.0;
+            "FRK_ConfigScratch".MaxLength := 40;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 0;
+        6:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.offset.0';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/Offsets[0]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+            "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+            "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+            "FRK_ConfigScratch".Entry.Minimum := -32768.0;
+            "FRK_ConfigScratch".Entry.Maximum := 32767.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 2;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -32768.0;
+            "FRK_ConfigScratch".Maximum := 32767.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 0;
+        7:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.offset.1';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/Offsets[1]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+            "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+            "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+            "FRK_ConfigScratch".Entry.Minimum := -32768.0;
+            "FRK_ConfigScratch".Entry.Maximum := 32767.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 2;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -32768.0;
+            "FRK_ConfigScratch".Maximum := 32767.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 0;
+        8:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.small';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/Small';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := FALSE;
+            "FRK_ConfigScratch".Entry.HasMinimum := FALSE;
+            "FRK_ConfigScratch".Entry.HasMaximum := FALSE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 255.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 255.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 1;
+            "FRK_ConfigScratch".MinWrite := 2;
+            "FRK_ConfigScratch".EnumCount := 0;
+        9:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.utcOffsetMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/UtcOffsetMin';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := -840.0;
+            "FRK_ConfigScratch".Entry.Maximum := 840.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -840.0;
+            "FRK_ConfigScratch".Maximum := 840.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        10:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.1.startMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftStartMin[1]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := -1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1439.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -1.0;
+            "FRK_ConfigScratch".Maximum := 1439.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        11:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.1.durationMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftDurationMin[1]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1440.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 1.0;
+            "FRK_ConfigScratch".Maximum := 1440.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        12:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.1.activeDays';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftActiveDays[1]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 127.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 127.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        13:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.1.target';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftTarget[1]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 2147483647.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 2147483647.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        14:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.2.startMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftStartMin[2]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := -1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1439.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -1.0;
+            "FRK_ConfigScratch".Maximum := 1439.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        15:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.2.durationMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftDurationMin[2]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1440.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 1.0;
+            "FRK_ConfigScratch".Maximum := 1440.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        16:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.2.activeDays';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftActiveDays[2]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 127.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 127.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        17:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.2.target';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftTarget[2]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 2147483647.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 2147483647.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        18:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.3.startMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftStartMin[3]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := -1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1439.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -1.0;
+            "FRK_ConfigScratch".Maximum := 1439.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        19:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.3.durationMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftDurationMin[3]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1440.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 1.0;
+            "FRK_ConfigScratch".Maximum := 1440.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        20:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.3.activeDays';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftActiveDays[3]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 127.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 127.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        21:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.3.target';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftTarget[3]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 2147483647.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 2147483647.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        22:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.4.startMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftStartMin[4]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := -1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1439.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -1.0;
+            "FRK_ConfigScratch".Maximum := 1439.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        23:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.4.durationMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftDurationMin[4]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1440.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 1.0;
+            "FRK_ConfigScratch".Maximum := 1440.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        24:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.4.activeDays';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftActiveDays[4]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 127.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 127.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        25:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.4.target';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftTarget[4]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 2147483647.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 2147483647.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        26:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.5.startMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftStartMin[5]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := -1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1439.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := -1.0;
+            "FRK_ConfigScratch".Maximum := 1439.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        27:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.5.durationMin';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftDurationMin[5]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 1.0;
+            "FRK_ConfigScratch".Entry.Maximum := 1440.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 1.0;
+            "FRK_ConfigScratch".Maximum := 1440.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        28:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.5.activeDays';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftActiveDays[5]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 127.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 127.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        29:
+            "FRK_ConfigScratch".Entry.WriteKey := 'line.shift.5.target';
+            "FRK_ConfigScratch".Entry.WriteRevision := UDINT#1;
+            "FRK_ConfigScratch".Entry.EnumDomain := WSTRING#'';
+            "FRK_ConfigScratch".Entry.Item := WSTRING#'Line/ShiftTarget[5]';
+            "FRK_ConfigScratch".Entry.ConfigKind := 2;
+            "FRK_ConfigScratch".Entry.ValueType := 0;
+            "FRK_ConfigScratch".Entry.Writable := TRUE;
+            "FRK_ConfigScratch".Entry.RequiresReady := TRUE;
+            "FRK_ConfigScratch".Entry.HasMinimum := TRUE;
+            "FRK_ConfigScratch".Entry.HasMaximum := TRUE;
+            "FRK_ConfigScratch".Entry.Minimum := 0.0;
+            "FRK_ConfigScratch".Entry.Maximum := 2147483647.0;
+            "FRK_ConfigScratch".Entry.LabelKey := 'test.config.preset';
+            "FRK_ConfigScratch".Storage := 3;
+            "FRK_ConfigScratch".Schema := 2;
+            "FRK_ConfigScratch".Minimum := 0.0;
+            "FRK_ConfigScratch".Maximum := 2147483647.0;
+            "FRK_ConfigScratch".MaxLength := 0;
+            "FRK_ConfigScratch".MinRead := 0;
+            "FRK_ConfigScratch".MinWrite := 0;
+            "FRK_ConfigScratch".EnumCount := 0;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_LineCalendar" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Values : "ST_LineProductionConfig";
+    Calendar : "ST_ShiftCalendarV3";
+END_VAR
+BEGIN
+    #Calendar.SchemaVersion := 3;
+    #Calendar.UtcOffsetMin := #Values.UtcOffsetMin;
+    #Calendar.Rows[1].StartMin := #Values.ShiftStartMin[1];
+    #Calendar.Rows[1].DurationMin := #Values.ShiftDurationMin[1];
+    #Calendar.Rows[1].ActiveDays := #Values.ShiftActiveDays[1];
+    #Calendar.Rows[1].ProductionTarget := #Values.ShiftTarget[1];
+    #Calendar.Rows[2].StartMin := #Values.ShiftStartMin[2];
+    #Calendar.Rows[2].DurationMin := #Values.ShiftDurationMin[2];
+    #Calendar.Rows[2].ActiveDays := #Values.ShiftActiveDays[2];
+    #Calendar.Rows[2].ProductionTarget := #Values.ShiftTarget[2];
+    #Calendar.Rows[3].StartMin := #Values.ShiftStartMin[3];
+    #Calendar.Rows[3].DurationMin := #Values.ShiftDurationMin[3];
+    #Calendar.Rows[3].ActiveDays := #Values.ShiftActiveDays[3];
+    #Calendar.Rows[3].ProductionTarget := #Values.ShiftTarget[3];
+    #Calendar.Rows[4].StartMin := #Values.ShiftStartMin[4];
+    #Calendar.Rows[4].DurationMin := #Values.ShiftDurationMin[4];
+    #Calendar.Rows[4].ActiveDays := #Values.ShiftActiveDays[4];
+    #Calendar.Rows[4].ProductionTarget := #Values.ShiftTarget[4];
+    #Calendar.Rows[5].StartMin := #Values.ShiftStartMin[5];
+    #Calendar.Rows[5].DurationMin := #Values.ShiftDurationMin[5];
+    #Calendar.Rows[5].ActiveDays := #Values.ShiftActiveDays[5];
+    #Calendar.Rows[5].ProductionTarget := #Values.ShiftTarget[5];
+END_FUNCTION
+FUNCTION "FRK_LineValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Values : "ST_LineProductionConfig";
+END_VAR
+VAR_TEMP
+    Calendar : "ST_ShiftCalendarV3";
+END_VAR
+BEGIN
+    "FRK_LineCalendar"(Values := #Values, Calendar := #Calendar);
+    #FRK_LineValid := "FRK_ShiftValidate"(Calendar := #Calendar);
+END_FUNCTION
+FUNCTION "FRK_LineValue" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    FieldIndex : Int;
+END_VAR
+VAR_IN_OUT
+    Values : "ST_LineProductionConfig";
+END_VAR
+BEGIN
+    CASE #FieldIndex OF
+        1:
+    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#Values.TaktMs);
+        2:
+    "FRK_ConfigScratch".Entry.ValueText := "FRK_ConfigDecimalText"(Number := #Values.Gain);
+        3:
+    "FRK_ConfigScratch".Entry.ValueText := "FRK_ConfigEnumText"(Number := #Values.Grade);
+        4:
+    IF #Values.Enabled THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#'true'; ELSE "FRK_ConfigScratch".Entry.ValueText := WSTRING#'false'; END_IF;
+        5:
+    "FRK_ConfigScratch".Entry.ValueText := STRING_TO_WSTRING(#Values.HostName);
+        6:
+    "FRK_ConfigScratch".Entry.ValueText := INT_TO_WSTRING(#Values.Offsets[0]);
+        7:
+    "FRK_ConfigScratch".Entry.ValueText := INT_TO_WSTRING(#Values.Offsets[1]);
+        8:
+    "FRK_ConfigScratch".Entry.ValueText := USINT_TO_WSTRING(#Values.Small);
+        9:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.UtcOffsetMin);
+        10:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[1]);
+        11:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[1]);
+        12:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[1]);
+        13:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[1]);
+        14:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[2]);
+        15:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[2]);
+        16:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[2]);
+        17:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[2]);
+        18:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[3]);
+        19:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[3]);
+        20:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[3]);
+        21:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[3]);
+        22:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[4]);
+        23:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[4]);
+        24:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[4]);
+        25:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[4]);
+        26:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[5]);
+        27:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[5]);
+        28:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[5]);
+        29:
+    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[5]);
+        ELSE "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_LineAssign" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    FieldIndex : Int;
+END_VAR
+VAR_IN_OUT
+    Values : "ST_LineProductionConfig";
+END_VAR
+BEGIN
+    CASE #FieldIndex OF
+        1:
+    #Values.TaktMs := LINT_TO_UDINT("FRK_ConfigScratch".Value.Number);
+        2:
+    #Values.Gain := "FRK_ConfigScratch".Value.Decimal;
+        3:
+    #Values.Grade := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        4:
+    #Values.Enabled := "FRK_ConfigScratch".Value.Flag;
+        5:
+    #Values.HostName := "FRK_ConfigScratch".Value.Text;
+        6:
+    #Values.Offsets[0] := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+        7:
+    #Values.Offsets[1] := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+        8:
+    #Values.Small := LINT_TO_USINT("FRK_ConfigScratch".Value.Number);
+        9:
+    #Values.UtcOffsetMin := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        10:
+    #Values.ShiftStartMin[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        11:
+    #Values.ShiftDurationMin[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        12:
+    #Values.ShiftActiveDays[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        13:
+    #Values.ShiftTarget[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        14:
+    #Values.ShiftStartMin[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        15:
+    #Values.ShiftDurationMin[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        16:
+    #Values.ShiftActiveDays[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        17:
+    #Values.ShiftTarget[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        18:
+    #Values.ShiftStartMin[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        19:
+    #Values.ShiftDurationMin[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        20:
+    #Values.ShiftActiveDays[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        21:
+    #Values.ShiftTarget[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        22:
+    #Values.ShiftStartMin[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        23:
+    #Values.ShiftDurationMin[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        24:
+    #Values.ShiftActiveDays[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        25:
+    #Values.ShiftTarget[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        26:
+    #Values.ShiftStartMin[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        27:
+    #Values.ShiftDurationMin[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        28:
+    #Values.ShiftActiveDays[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        29:
+    #Values.ShiftTarget[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+// Orthogonal line infrastructure. Source images are input, never live storage.
+// Clock quality is explicit; a restored image is not a fresh source observation.
+FUNCTION "FRK_LineBuild" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+VAR_TEMP
+    FieldIndex : Int;
+    StageImage : "ST_LineImage";
+END_VAR
+BEGIN
+    IF #State.Status.LineId <> 'PRESS-LINE-1' OR #State.Status.Owner <> 'BenchLineOwner'
+        OR #State.Status.Role <> 1 OR #State.Status.Revision = 0
+        OR #State.BuiltRevision = #State.Status.Revision THEN RETURN; END_IF;
+    IF NOT "FRK_LineValid"(Values := #State.Values) THEN #State.Status.SourceError := 2; RETURN; END_IF;
+    #StageImage := "FRK_LineDefaults".Image;
+    #StageImage.LineId := 'PRESS-LINE-1';
+    #StageImage.Owner := 'BenchLineOwner';
+    #StageImage.Revision := #State.Status.Revision;
+    #StageImage.Count := 29;
+    FOR #FieldIndex := 1 TO 29 DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #State.Values);
+        IF NOT "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText) THEN
+            #State.Status.SourceError := 2; RETURN;
+        END_IF;
+        #StageImage.Records[#FieldIndex].WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
+        #StageImage.Records[#FieldIndex].Revision := "FRK_ConfigScratch".Entry.WriteRevision;
+        #StageImage.Records[#FieldIndex].ValueText := WSTRING_TO_STRING("FRK_ConfigScratch".Entry.ValueText);
+    END_FOR;
+    #State.Image := #StageImage;
+    #State.Applied := TRUE;
+    #State.Status.SourceError := 0;
+    #State.BuiltRevision := #State.Status.Revision;
+END_FUNCTION
+
+FUNCTION "FRK_LineBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    OwnerRole : Bool;
+    NowMs : UDInt;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+BEGIN
+    #State.Values := "FRK_LineDefaults".Values;
+    #State.Image := "FRK_LineDefaults".Image;
+    #State.Status := "FRK_LineDefaults".Status;
+    #State.Status.LineId := 'PRESS-LINE-1';
+    #State.Status.Owner := 'BenchLineOwner';
+    #State.Status.Role := 2;
+    #State.Applied := FALSE;
+    #State.HaveSuccess := FALSE;
+    #State.LastSuccessMs := #NowMs;
+    #State.StartedMs := #NowMs;
+    #State.BuiltRevision := 0;
+    #State.Dirty := FALSE;
+    #State.StaleSlot := 0;
+    IF #OwnerRole THEN
+        #State.Status.Role := 1;
+        #State.Status.Revision := 1;
+        #State.Dirty := TRUE;
+        "FRK_LineBuild"(State := #State);
+        #State.Applied := #State.Image.Revision <> 0;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_LineAnnounce" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Gone : Bool;
+END_VAR
+BEGIN
+    IF #State.Status.Role = 2 AND #State.Status.Stale THEN
+        IF #State.StaleSlot = 0 THEN
+            #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+            #Diag.ReasonCode := 0;
+            #Diag.Description := WSTRING#'std.error.lineDataStale';
+            #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+            #Diag.Severity := 0;
+            #Diag.Category := 2;
+            #State.StaleSlot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+        END_IF;
+    ELSIF #State.StaleSlot > 0 THEN
+        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #State.StaleSlot);
+        #State.StaleSlot := 0;
+    END_IF;
+END_FUNCTION
+
+// Every whole owner change advances exactly once, regardless of record count.
+FUNCTION "FRK_LineCommit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+BEGIN
+    IF #State.Status.Role <> 1 THEN RETURN; END_IF;
+    IF #State.Status.Revision = UDINT#4294967295 THEN #State.Status.Revision := 1;
+    ELSE #State.Status.Revision := #State.Status.Revision + 1; END_IF;
+    #State.Dirty := TRUE;
+    "FRK_LineBuild"(State := #State);
+END_FUNCTION
+
+FUNCTION "FRK_LineWrite" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Access : "FRK_Access";
+    Ready : Bool;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+    Matched : Bool;
+END_VAR
+VAR_TEMP
+    FieldIndex : Int;
+    Stage : "ST_LineProductionConfig";
+END_VAR
+BEGIN
+    #FRK_LineWrite := FALSE;
+    FOR #FieldIndex := 1 TO 29 DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+            #Matched := TRUE;
+            IF #State.Status.LineId <> 'PRESS-LINE-1' OR #State.Status.Owner <> 'BenchLineOwner'
+                OR #State.Status.Role <> 1 OR #Request.Kind <> 19
+                OR #Request.DurationMs <> 0
+                OR DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision
+                OR #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite)
+                OR ("FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready) THEN RETURN; END_IF;
+            IF NOT "FRK_ConfigValidate"(Text := #Request.TextValue) THEN RETURN; END_IF;
+            #Stage := #State.Values;
+            "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #Stage);
+            IF NOT "FRK_LineValid"(Values := #Stage) THEN RETURN; END_IF;
+            #State.Values := #Stage;
+            "FRK_LineCommit"(State := #State);
+            #FRK_LineWrite := TRUE;
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_LineApply" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Image : "ST_LineImage";
+    Restore : Bool;
+    NowMs : UDInt;
+    Stamp : LDT;
+    TimeSynchronized : Bool;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+VAR_TEMP
+    Stage : "ST_LineProductionConfig";
+    FieldIndex : Int;
+    SourceIndex : Int;
+    Found : Int;
+    Delta : UDInt;
+    CandidateText : WString[80];
+END_VAR
+BEGIN
+    #FRK_LineApply := FALSE;
+    IF #State.Status.LineId <> 'PRESS-LINE-1' OR #State.Status.Owner <> 'BenchLineOwner' THEN RETURN; END_IF;
+    IF #State.Status.Role <> 2 AND NOT #Restore THEN RETURN; END_IF;
+    #State.Status.SourceError := 1;
+    IF #Image.LineId <> 'PRESS-LINE-1' THEN RETURN; END_IF;
+    #State.Status.SourceError := 2;
+    IF #Image.Owner <> 'BenchLineOwner' OR #Image.Revision = 0 OR #Image.Count <> 29 THEN RETURN; END_IF;
+    // Modular revision ordering permits wrap, but never rolls a mirror back.
+    IF #State.Applied AND NOT #Restore AND #Image.Revision <> #State.Status.Revision THEN
+        IF #Image.Revision >= #State.Status.Revision THEN #Delta := #Image.Revision - #State.Status.Revision;
+        ELSE #Delta := (UDINT#4294967295 - #State.Status.Revision) + #Image.Revision + 1; END_IF;
+        IF #Delta > UDINT#2147483647 THEN RETURN; END_IF;
+    END_IF;
+    #Stage := "FRK_LineDefaults".Values;
+    FOR #FieldIndex := 1 TO 29 DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        #Found := 0;
+        FOR #SourceIndex := 1 TO 29 DO
+            IF #Image.Records[#SourceIndex].WriteKey = "FRK_ConfigScratch".Entry.WriteKey THEN
+                IF #Found <> 0 THEN RETURN; END_IF;
+                #Found := #SourceIndex;
+            END_IF;
+        END_FOR;
+        IF #Found = 0 THEN RETURN; END_IF;
+        IF #Image.Records[#Found].Revision <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;
+        IF NOT "FRK_ConfigValidate"(Text := STRING_TO_WSTRING(#Image.Records[#Found].ValueText)) THEN RETURN; END_IF;
+        "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #Stage);
+        // Same revision must describe the same values; a corrupt heartbeat
+        // cannot renew freshness or change data while keeping the revision.
+        IF #State.Applied AND NOT #Restore AND #Image.Revision = #State.Status.Revision THEN
+            "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #Stage);
+            #CandidateText := "FRK_ConfigScratch".Entry.ValueText;
+            "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #State.Values);
+            IF "FRK_ConfigScratch".Entry.ValueText <> #CandidateText THEN RETURN; END_IF;
+        END_IF;
+    END_FOR;
+    IF NOT "FRK_LineValid"(Values := #Stage) THEN RETURN; END_IF;
+    #State.Values := #Stage;
+    #State.Image := #Image;
+    #State.Dirty := #State.Dirty OR NOT #State.Applied OR #State.Status.Revision <> #Image.Revision;
+    #State.Status.Revision := #Image.Revision;
+    #State.Applied := TRUE;
+    #State.Status.SourceError := 0;
+    IF NOT #Restore THEN
+        #State.HaveSuccess := TRUE;
+        #State.LastSuccessMs := #NowMs;
+        #State.Status.LastUpdate := #Stamp;
+        #State.Status.TimeSynchronized := #TimeSynchronized;
+        #State.Status.Stale := FALSE;
+    END_IF;
+    #FRK_LineApply := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_LineTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    NowMs : UDInt;
+    SourceError : DInt;
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+END_VAR
+VAR_TEMP
+    SinceMs : UDInt;
+END_VAR
+BEGIN
+    IF #State.Status.Role <> 2 THEN RETURN; END_IF;
+    IF #SourceError <> 0 THEN #State.Status.SourceError := #SourceError; END_IF;
+    #SinceMs := #State.StartedMs;
+    IF #State.HaveSuccess THEN #SinceMs := #State.LastSuccessMs; END_IF;
+    #State.Status.Stale := "FRK_Elapsed"(OldMs := #SinceMs, NewMs := #NowMs) >= 500;
+END_FUNCTION
+
+FUNCTION "FRK_LineLocalRead" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    OwnerState : "FRK_LineState";
+    Image : "ST_LineImage";
+END_VAR
+BEGIN
+    #FRK_LineLocalRead := #OwnerState.Status.Role = 1
+        AND #OwnerState.Status.Revision <> 0
+        AND #OwnerState.Image.Revision = #OwnerState.Status.Revision;
+    IF #FRK_LineLocalRead THEN #Image := #OwnerState.Image; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_LineManifest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Access : "FRK_Access";
+END_VAR
+VAR_IN_OUT
+    State : "FRK_LineState";
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    FieldIndex : Int;
+END_VAR
+BEGIN
+    FOR #FieldIndex := 1 TO 29 DO
+        "FRK_LineDef"(FieldIndex := #FieldIndex);
+        "FRK_LineValue"(FieldIndex := #FieldIndex, Values := #State.Values);
+        "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Scope);
+        "FRK_ConfigScratch".Entry.Writable := #State.Status.Role = 1;
+        "FRK_ConfigScratch".Entry.ReadLevel := MAX(IN1 := #Access.Policy.Required[0], IN2 := "FRK_ConfigScratch".MinRead);
+        "FRK_ConfigScratch".Entry.WriteLevel := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+        "FRK_ConfigScratch".Entry.Readable := #State.Applied AND #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+        IF NOT "FRK_ConfigScratch".Entry.Readable THEN "FRK_ConfigScratch".Entry.ValueText := WSTRING#''; END_IF;
+        "FRK_ConfigAppendEntry"(Cursor := #Cursor, Page := #Page);
+    END_FOR;
+END_FUNCTION
+FUNCTION "FRK_LineScope" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_LineScope := #Scope = 'StationA' OR #Scope = 'StationB';
+END_FUNCTION
+FUNCTION "FRK_LineFrame" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Startup : Bool;
+END_VAR
+VAR_IN_OUT
+    Seen : UDInt;
+    ConfigRevision : UDInt;
+    Published : "ST_LineStatus";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF NOT "FRK_LineScope"(Scope := #Scope) THEN RETURN; END_IF;
+    IF #Scope = 'StationA' THEN
+        "FRK_LineTick"(NowMs := "FRK_Clock".NowMs, SourceError := 0, State := "FRK_Line".Data);
+        "FRK_LineAnnounce"(Scope := #Scope, State := "FRK_Line".Data, AlarmLog := #AlarmLog);
+    END_IF;
+    #Published := "FRK_Line".Data.Status;
+    IF #Startup OR #Seen <> #Published.Revision THEN
+        #Seen := #Published.Revision;
+        #ConfigRevision := "FRK_ConfigRevision"(Previous := #ConfigRevision);
+    END_IF;
+END_FUNCTION

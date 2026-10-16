@@ -19,6 +19,11 @@ python FraktalCore/PLC/Siemens/tools/fraktal_tia_evidence.py verify
 New evidence belongs here with a corresponding Markdown report in
 `Specification/Siemens/Evidence/`. Do not put code or payload files back there.
 
+The [2026-10-16 operations/GRAPH report](../../../../Specification/Siemens/Evidence/TIA_OPERATIONS_GRAPH_2026-10-16.md)
+records generator0.22, isolated native assertions and live configuration/GRAPH
+checks. Its archive preserves the actual generated/native bytes, source inputs
+and completion/cleanup logs. The saved original Fraktal runtime is unchanged.
+
 
 The [2026-10-12 config-set report](../../../../Specification/Siemens/Evidence/TIA_CONFIG_SETS_2026-10-12.md)
 binds the new native set/retention/regression runs and live generic HMI screenshots.

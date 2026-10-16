@@ -2,31 +2,29 @@ FUNCTION_BLOCK "FB_PressDemoAuto"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 VAR_INPUT
-    Run : Bool;
-    Reset : Bool;
-    OwnerIndex : DInt;
-    Delta : Time;
-    TransferSettleTime : Time;
-    PartQuality : Bool;
-    RequireTwoHandStart : Bool;
-    SourcePath : String[80];
-    PartPresent : Bool;
-    AirPressureOk : Bool;
-    TwoHandHeld : Bool;
-    StartPulse : Bool;
-    PressSettleTime : Time;
+    Run {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Reset {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    OwnerIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Delta {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+    TransferSettleTime {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+    PartQuality {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    RequireTwoHandStart {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    SourcePath {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String[80];
+    PartPresent {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    AirPressureOk {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    TwoHandHeld {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    StartPulse {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    PressSettleTime {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
 END_VAR
 VAR_IN_OUT
-    PressRam {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    Door {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    PartSlide {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
-    Unit {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Unit";
-    Status {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_ModuleStatus";
-    Part {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_PartContext";
-    AlarmLog {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_AlarmLog";
-END_VAR
-VAR_OUTPUT
+    PressRam : "FB_CylinderCM";
+    Door : "FB_CylinderCM";
+    PartSlide : "FB_CylinderCM";
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 VAR
     Seq {ExternalWritable := 'False'} : "FRK_SequenceCtx";
@@ -87,34 +85,34 @@ BEGIN
     CASE #Seq.ScanStep OF
         0:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 0, StepName := 'project.step.pressAutoInitialize', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row1);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 0, StepName := 'project.step.pressAutoInitialize', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row1);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := TRUE, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 100, OnJump1 := -1);
             END_IF;
         100:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 100, StepName := 'project.step.pressAwaitTwoHand', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row2);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 100, StepName := 'project.step.pressAwaitTwoHand', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row2);
                 #Ready5 := "F_PressDemoAwaitCycle"(Seq := #Seq, Cycle := #Cycle, Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog, PartPresent := #PartPresent, PartQuality := #PartQuality, AirPressureOk := #AirPressureOk, RequireTwoHandStart := #RequireTwoHandStart);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 110, OnJump1 := -1);
             END_IF;
         110:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 110, StepName := 'project.step.pressRamUp', AwaitingLabel := 'PressRam.RETRACT', AwaitsPath := #PressRam.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row3);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 110, StepName := 'project.step.pressRamUp', AwaitingLabel := 'PressRam.RETRACT', AwaitsPath := #PressRam.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row3);
                 #Ready1 := "F_CylinderRetract"(Seq := #Seq, Target := #PressRam);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 130, OnJump1 := -1);
             END_IF;
         130:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 130, StepName := 'project.step.pressDoorOpen', AwaitingLabel := 'Door.RETRACT', AwaitsPath := #Door.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row4);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 130, StepName := 'project.step.pressDoorOpen', AwaitingLabel := 'Door.RETRACT', AwaitsPath := #Door.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row4);
                 #Ready1 := "F_CylinderRetract"(Seq := #Seq, Target := #Door);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 150, OnJump1 := -1);
             END_IF;
         150:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 150, StepName := 'project.step.pressSlideInside', AwaitingLabel := 'PartSlide.EXTEND', AwaitsPath := #PartSlide.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row5);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 150, StepName := 'project.step.pressSlideInside', AwaitingLabel := 'PartSlide.EXTEND', AwaitsPath := #PartSlide.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row5);
                 #Ready1 := "F_CylinderExtend"(Seq := #Seq, Target := #PartSlide);
                 "F_PressDemoStarted"(Seq := #Seq, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
@@ -122,28 +120,28 @@ BEGIN
             END_IF;
         170:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 170, StepName := 'project.step.pressTransferSettle', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #TransferSettleTime, Seq := #Seq, Row := #Row6);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 170, StepName := 'project.step.pressTransferSettle', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #TransferSettleTime, Seq := #Seq, Row := #Row6);
                 #Ready1 := "FRK_SeqDelay"(Seq := #Seq, PT := #TransferSettleTime, Delta := #Delta, Permit := TRUE);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 180, OnJump1 := -1);
             END_IF;
         180:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 180, StepName := 'project.step.pressDoorClose', AwaitingLabel := 'Door.EXTEND', AwaitsPath := #Door.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row7);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 180, StepName := 'project.step.pressDoorClose', AwaitingLabel := 'Door.EXTEND', AwaitsPath := #Door.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row7);
                 #Ready1 := "F_CylinderExtend"(Seq := #Seq, Target := #Door);
                 "F_PressDemoDoorClose"(Seq := #Seq, Closed := #Ready1, TwoHandHeld := #TwoHandHeld, RequireTwoHandStart := #RequireTwoHandStart, SourcePath := #SourcePath, AlarmLog := #AlarmLog);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 200, OnJump1 := 185);
             END_IF;
         185:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 185, StepName := 'project.step.pressDoorReopen', AwaitingLabel := 'Door.RETRACT', AwaitsPath := #Door.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row8);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 185, StepName := 'project.step.pressDoorReopen', AwaitingLabel := 'Door.RETRACT', AwaitsPath := #Door.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row8);
                 #Ready1 := "F_CylinderRetract"(Seq := #Seq, Target := #Door);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 190, OnJump1 := -1);
             END_IF;
         190:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 190, StepName := 'project.step.pressSlideOutsideAfterAbort', AwaitingLabel := 'PartSlide.RETRACT', AwaitsPath := #PartSlide.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row9);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 190, StepName := 'project.step.pressSlideOutsideAfterAbort', AwaitingLabel := 'PartSlide.RETRACT', AwaitsPath := #PartSlide.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row9);
                 #Ready1 := "F_CylinderRetract"(Seq := #Seq, Target := #PartSlide);
                 "F_PressDemoClearStart"(Seq := #Seq, Complete := #Ready1);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
@@ -151,49 +149,49 @@ BEGIN
             END_IF;
         200:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 200, StepName := 'project.step.pressRamDown', AwaitingLabel := 'PressRam.EXTEND', AwaitsPath := #PressRam.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row10);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 200, StepName := 'project.step.pressRamDown', AwaitingLabel := 'PressRam.EXTEND', AwaitsPath := #PressRam.Status.Name, TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row10);
                 #Ready1 := "F_CylinderExtendHandled"(Seq := #Seq, Target := #PressRam);
                 "F_PressDemoRamResult"(Seq := #Seq, Reached := #Ready1, Cycle := #Cycle, AlarmLog := #AlarmLog);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 220, OnJump1 := 210);
             END_IF;
         210:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 210, StepName := 'project.step.pressNotReachedConfirm', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row11);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 210, StepName := 'project.step.pressNotReachedConfirm', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row11);
                 #Ready5 := "F_PressDemoConfirmScrap"(Seq := #Seq, SourcePath := #SourcePath, AlarmLog := #AlarmLog);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 215, OnJump1 := -1);
             END_IF;
         215:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 215, StepName := 'project.step.pressScrapPart', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row12);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 215, StepName := 'project.step.pressScrapPart', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row12);
                 #Ready5 := "F_PressDemoScrap"(Seq := #Seq, Cycle := #Cycle, Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 240, OnJump1 := -1);
             END_IF;
         220:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 220, StepName := 'project.step.pressDwell', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row13);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 220, StepName := 'project.step.pressDwell', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row13);
                 #Ready5 := "F_PressDemoDwell"(Seq := #Seq, TwoHandHeld := #TwoHandHeld, RequireTwoHandStart := #RequireTwoHandStart, PT := #PressSettleTime, Delta := #Delta, PressRam := #PressRam);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 230, OnJump1 := -1);
             END_IF;
         230:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 230, StepName := 'project.step.pressRecordResult', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row14);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 230, StepName := 'project.step.pressRecordResult', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row14);
                 #Ready5 := "F_PressDemoRecord"(Seq := #Seq, Dwell := #PressSettleTime, Core := #Core, Status := #Status, Part := #Part);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 240, OnJump1 := -1);
             END_IF;
         240:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 240, StepName := 'project.step.pressReturnToLoad', AwaitingLabel := 'project.condition.LoadDone', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row15);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 240, StepName := 'project.step.pressReturnToLoad', AwaitingLabel := 'project.condition.LoadDone', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row15);
                 #Ready1 := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.LoadDone', Ok := #LoadDone);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 999, OnJump1 := -1);
             END_IF;
         999:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 999, StepName := 'project.step.pressAutoComplete', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row16);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 999, StepName := 'project.step.pressAutoComplete', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row16);
                 #Ready5 := "F_PressDemoCycleEnd"(Seq := #Seq, Cycle := #Cycle, Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 100, OnJump1 := -1);

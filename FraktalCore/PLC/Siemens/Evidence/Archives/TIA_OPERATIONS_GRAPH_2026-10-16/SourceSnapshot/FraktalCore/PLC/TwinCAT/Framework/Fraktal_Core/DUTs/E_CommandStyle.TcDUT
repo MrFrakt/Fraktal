@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_CommandStyle" Id="{09dad5b9-89ad-4e73-b769-7d159da1307a}">
+    <Declaration><![CDATA[// Core §7.6.1 - how a published command is OPERATED, so a generic HMI can render
+// it without knowing the module type (O1: no per-type HMI code).
+//
+// ONESHOT is the ordinary PLCopen command: press once, the module runs it to
+// Done. HELD is a command that only acts while the operator keeps asking - a
+// jog. The distinction is not cosmetic: a held action is re-asserted every scan
+// and STOPS when the asking stops, including when it stops because the network
+// stalled rather than because the operator let go (O10).
+{attribute 'qualified_only'}
+TYPE E_CommandStyle : (ONESHOT := 0, HELD := 1) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

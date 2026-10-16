@@ -1,0 +1,314 @@
+﻿FUNCTION "FRK_CfgRestore_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      ParCfg : "ST_PressDemoParCfg";
+      StationCfg : "ST_PressDemoStationCfg";
+      ConfigStageParCfg : "ST_PressDemoParCfg";
+      ConfigDefaultParCfg : "ST_PressDemoParCfg";
+      ConfigStageStationCfg : "ST_PressDemoStationCfg";
+      ConfigDefaultStationCfg : "ST_PressDemoStationCfg";
+   END_VAR
+
+   VAR_TEMP 
+      RootIndex : Int;
+      Ok : Bool;
+      Stored : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#RootIndex := "FRK_ConfigRoot"(RegIndex := #Core.RegIndex);
+	IF #RootIndex = 0 THEN
+	    RETURN;
+	END_IF;
+	#Ok := TRUE;
+	#ConfigStageParCfg := #ConfigDefaultParCfg;
+	"FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'ALUMINUM') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.IdealCycleMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'ALUMINUM' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'PLASTIC') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.IdealCycleMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'PLASTIC', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'PLASTIC', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'PLASTIC' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'STEEL') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.IdealCycleMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'STEEL', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'STEEL', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'STEEL' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	#Stored := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]);
+	#Ok := #Ok AND #Stored;
+	IF #Stored THEN
+	    #ConfigStageParCfg.IdealCycleMs := LINT_TO_UDINT("FRK_ConfigScratch".Value.Number);
+	END_IF;
+	"FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'ALUMINUM') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.BaselineWorkMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'ALUMINUM' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'PLASTIC') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.BaselineWorkMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'PLASTIC', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'PLASTIC', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'PLASTIC' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'STEEL') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.BaselineWorkMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'STEEL', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'STEEL', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'STEEL' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	#Stored := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]);
+	#Ok := #Ok AND #Stored;
+	IF #Stored THEN
+	    #ConfigStageParCfg.BaselineWorkMs := LINT_TO_UDINT("FRK_ConfigScratch".Value.Number);
+	END_IF;
+	"FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'ALUMINUM') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigDefaultParCfg.Timeout));
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'ALUMINUM' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'PLASTIC') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigDefaultParCfg.Timeout));
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'PLASTIC', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'PLASTIC', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'PLASTIC' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'STEEL') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigDefaultParCfg.Timeout));
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'STEEL', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'STEEL', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'STEEL' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	#Stored := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]);
+	#Ok := #Ok AND #Stored;
+	IF #Stored THEN
+	    #ConfigStageParCfg.Timeout := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	END_IF;
+	"FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'ALUMINUM') = 0 THEN
+	    #ConfigStageParCfg.TransferSettleTime := T#80ms;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigStageParCfg.TransferSettleTime));
+	    #ConfigStageParCfg.TransferSettleTime := #ConfigDefaultParCfg.TransferSettleTime;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'ALUMINUM' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'PLASTIC') = 0 THEN
+	    #ConfigStageParCfg.TransferSettleTime := T#120ms;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigStageParCfg.TransferSettleTime));
+	    #ConfigStageParCfg.TransferSettleTime := #ConfigDefaultParCfg.TransferSettleTime;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'PLASTIC', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'PLASTIC', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'PLASTIC' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'STEEL') = 0 THEN
+	    #ConfigStageParCfg.TransferSettleTime := T#150ms;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigStageParCfg.TransferSettleTime));
+	    #ConfigStageParCfg.TransferSettleTime := #ConfigDefaultParCfg.TransferSettleTime;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'STEEL', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'STEEL', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'STEEL' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	#Stored := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]);
+	#Ok := #Ok AND #Stored;
+	IF #Stored THEN
+	    #ConfigStageParCfg.TransferSettleTime := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	END_IF;
+	"FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'ALUMINUM') = 0 THEN
+	    #ConfigStageParCfg.PressSettleTime := T#300ms;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigStageParCfg.PressSettleTime));
+	    #ConfigStageParCfg.PressSettleTime := #ConfigDefaultParCfg.PressSettleTime;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'ALUMINUM', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'ALUMINUM' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'PLASTIC') = 0 THEN
+	    #ConfigStageParCfg.PressSettleTime := T#650ms;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigStageParCfg.PressSettleTime));
+	    #ConfigStageParCfg.PressSettleTime := #ConfigDefaultParCfg.PressSettleTime;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'PLASTIC', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'PLASTIC', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'PLASTIC' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := 'STEEL') = 0 THEN
+	    #ConfigStageParCfg.PressSettleTime := T#1200ms;
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigStageParCfg.PressSettleTime));
+	    #ConfigStageParCfg.PressSettleTime := #ConfigDefaultParCfg.PressSettleTime;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := 'STEEL', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := 'STEEL', Kind := 0) THEN
+	        IF "FRK_ConfigStore".ActiveModels[#RootIndex] = 'STEEL' THEN
+	            #Ok := FALSE;
+	        END_IF;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	#Stored := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]);
+	#Ok := #Ok AND #Stored;
+	IF #Stored THEN
+	    #ConfigStageParCfg.PressSettleTime := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	END_IF;
+	IF #Ok THEN
+	    #ParCfg := #ConfigStageParCfg;
+	ELSE
+	    #ParCfg := #ConfigDefaultParCfg;
+	    "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                     Scope := #Status.Name);
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.IdealCycleMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex], Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+	    "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ConfigDefaultParCfg.BaselineWorkMs);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex], Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigDefaultParCfg.Timeout));
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex], Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigDefaultParCfg.TransferSettleTime));
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex], Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
+	    "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ConfigDefaultParCfg.PressSettleTime));
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex], Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	END_IF;
+	#Ok := TRUE;
+	#ConfigStageStationCfg := #ConfigDefaultStationCfg;
+	"FRK_CfgDef_PressDemoUnit"(FieldIndex := 1);
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := '') = 0 THEN
+	    "FRK_ConfigScratch".Entry.ValueText := UINT_TO_WSTRING(#ConfigDefaultStationCfg.DegradationPercent);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := '', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := '', Kind := 1) THEN
+	        #Ok := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	#Stored := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := '');
+	#Ok := #Ok AND #Stored;
+	IF #Stored THEN
+	    #ConfigStageStationCfg.DegradationPercent := LINT_TO_UINT("FRK_ConfigScratch".Value.Number);
+	END_IF;
+	"FRK_CfgDef_PressDemoUnit"(FieldIndex := 2);
+	IF "FRK_ConfigFind"(Scope := #Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := '') = 0 THEN
+	    IF #ConfigDefaultStationCfg.RequireTwoHandStart THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'true';
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'false';
+	    END_IF;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := '', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    IF NOT "FRK_ConfigRuntime".Fresh AND NOT "FRK_PersistVirginConfig"(Scope := #Status.Name, ModelCode := '', Kind := 1) THEN
+	        #Ok := FALSE;
+	        "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                         Scope := #Status.Name);
+	    END_IF;
+	END_IF;
+	#Stored := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := '');
+	#Ok := #Ok AND #Stored;
+	IF #Stored THEN
+	    #ConfigStageStationCfg.RequireTwoHandStart := "FRK_ConfigScratch".Value.Flag;
+	END_IF;
+	IF #Ok THEN
+	    #StationCfg := #ConfigStageStationCfg;
+	ELSE
+	    #StationCfg := #ConfigDefaultStationCfg;
+	    "FRK_ConfigLoss"(RootIndex := #RootIndex,
+	                     Scope := #Status.Name);
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 1);
+	    "FRK_ConfigScratch".Entry.ValueText := UINT_TO_WSTRING(#ConfigDefaultStationCfg.DegradationPercent);
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := '', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 2);
+	    IF #ConfigDefaultStationCfg.RequireTwoHandStart THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'true';
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'false';
+	    END_IF;
+	    #Stored := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := '', Text := "FRK_ConfigScratch".Entry.ValueText, RootIndex := #RootIndex);
+	END_IF;
+	
+END_FUNCTION
+

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_SequenceAnnotation" Id="{2644e489-1710-4eb1-9aae-8a6b7e0385f1}">
+    <Declaration><![CDATA[// Core §6.9 — one error or message currently attached to a flow-chart row.
+//
+// These are SPARSE: an error is one at a time, and messages last only until their
+// step is entered again, so a handful are live at once out of a table of 128 rows.
+// Reserving the text on every row cost 633 of the row's 1156 bytes for a case that
+// is almost always empty. The row keeps the flag; this carries what it says.
+TYPE ST_SequenceAnnotation :
+STRUCT
+    RowIdx     : INT;              // SequenceSteps index this belongs to; 0 = free slot
+    IsError    : BOOL;             // TRUE = §6.9(d) raise (chain stopped), FALSE = §6.9(e) message
+    Key        : STRING(120);      // localization key of the reason/message
+    // Module the chart drills into; '' = this Unit. STRING(80) for the same reason
+    // as AwaitsPath: it is a module path, bounded by FB_ModuleBase._name.
+    SourcePath : STRING(80);
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

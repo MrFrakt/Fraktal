@@ -72,8 +72,39 @@ class Target:
         if result.returncode: raise RuntimeError('web provisioning failed; no replay')
         self.action('run')
 
+    def configure_web(self, output):
+        """Prepare credentials on the saved isolated project before hosting.
 
-    def download(self, revision):
+        Download once afterwards: two successive full downloads on the same
+        fresh simulated CPU caused a large temporary simulator allocation.
+        """
+        if output.resolve().parent!=self.work or not self.project.is_file():raise ValueError('fixed isolated copy required')
+        import re
+        if not re.fullmatch(r'Frk[A-Za-z0-9]+Test',self.profile['name']) or not re.fullmatch(r'169\.254\.212\.(5[2-9]|60)',self.profile['address']):raise ValueError('reserved isolated test profile required')
+        if hashlib.sha256(DRIVER.read_bytes()).hexdigest()!=DRIVER_SHA256:raise ValueError('approved driver differs')
+        if not os.environ.get('FRAKTAL_TIA_WEB_PASSWORD'):raise ValueError('DPAPI credential wrapper required')
+        before=original()
+        commands=['open-project --path "'+str(self.project)+'"',
+            'webserver-user --plc PLC_1 --name fraktal --permissions ReadTagStatus,ModifyTagStatus --password-env FRAKTAL_TIA_WEB_PASSWORD',
+            'save','compile --plc PLC_1 --hw','save']
+        plan=output.with_suffix('.plan')
+        with plan.open('xb') as stream:stream.write(('\n'.join(commands)+'\n').encode('ascii'))
+        with output.open('xb') as stream:
+            result=subprocess.run([str(DRIVER),'plan',str(plan)],stdout=stream,stderr=subprocess.STDOUT)
+        if original()!=before:raise RuntimeError('original Fraktal state changed')
+        rows=[json.loads(line) for line in output.read_text('utf-8-sig').splitlines() if line.startswith('{')]
+        compiles=[r for r in rows if r.get('event')=='compile']
+        expected={'PLC_1 does not contain a configured protection level',
+            'The S7-1500 CPU display does not contain any password protection.'}
+        warnings=[r['text'].strip() for r in rows if r.get('event')=='compile-message' and r.get('state')=='Warning' and r.get('text','').strip() and not r['text'].startswith('Compiling finished')]
+        allowed=len(compiles)==1 and not compiles[0]['errors'] and (
+            compiles[0]['warnings']==0 and not warnings or
+            compiles[0]['warnings']==2 and len(warnings)==2 and set(warnings)==expected)
+        if result.returncode or not compiles or not allowed:raise RuntimeError('offline web preparation failed; inspect '+str(output))
+        with output.open('ab') as stream:stream.write((json.dumps(dict(event='isolated-hardware-warnings',warnings=warnings,scope='reserved unmapped development CPU; not production protection qualification'))+'\n').encode('ascii'))
+
+
+    def download(self, revision, attempt=''):
         if revision.resolve().parent != self.work.resolve(): raise ValueError('fixed isolated workspace required')
         if not self.project.is_file() or hashlib.sha256(DRIVER.read_bytes()).hexdigest() != DRIVER_SHA256:
             raise ValueError('saved copy or approved driver differs')
@@ -87,13 +118,18 @@ class Target:
         bench = self.action('status')
         commands = ['open-project --path "'+str(self.project)+'"', 'compile --plc PLC_1',
                     'download --plc PLC_1 --pc-interface "Siemens PLCSIM Virtual Ethernet Adapter" --pc-number 1 --target "1 X1" --confirm-target '+self.profile['address']+' --user-management keep --trust-plc PLC_1', 'save']
-        plan = revision/'isolated_download.plan'
+        output=revision
+        if attempt:
+            import re
+            if not re.fullmatch(r'[A-Za-z0-9_]{1,64}',attempt):raise ValueError('invalid download attempt')
+            output=revision/attempt;output.mkdir(exist_ok=False)
+        plan = output/'isolated_download.plan'
         with plan.open('xb') as stream: stream.write(('\n'.join(commands)+'\n').encode('ascii'))
-        with (revision/'download.log').open('xb') as stream:
+        with (output/'download.log').open('xb') as stream:
             stream.write((json.dumps(dict(driver_sha256=DRIVER_SHA256,bench=bench,original_before=before))+'\n').encode('ascii'));stream.flush()
             result = subprocess.run([str(DRIVER), 'plan', str(plan)], stdout=stream, stderr=subprocess.STDOUT)
         after = original()
-        with (revision/'download_guard.json').open('x',encoding='ascii',newline='\n') as stream:
+        with (output/'download_guard.json').open('x',encoding='ascii',newline='\n') as stream:
             json.dump(dict(before=before,after=after,exit_code=result.returncode),stream,indent=2);stream.write('\n')
         if after != before: raise RuntimeError('original Fraktal state changed')
         if result.returncode: raise RuntimeError('download failed; no replay')

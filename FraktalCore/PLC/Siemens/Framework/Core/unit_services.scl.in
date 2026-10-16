@@ -1,4 +1,93 @@
 // Shared Unit services v0.1: operation authority, mailbox, modes and local carrier.
+FUNCTION "FRK_RunStylePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Startup : Bool; Exec : DInt; Access : "FRK_Access"; Supported : Array[0..@E_RunStyle.HOLD_TO_RUN@] of Bool; END_VAR
+BEGIN
+    IF #Owner < 1 OR #Owner > @CAPACITY@ THEN RETURN; END_IF;
+    "FRK_Registry".Rows[#Owner].StepWait := FALSE;
+    IF #Startup THEN "FRK_Registry".Rows[#Owner].RunStyle := @E_RunStyle.CONTINUOUS@; END_IF;
+    IF "FRK_Registry".Rows[#Owner].RunStyle < @E_RunStyle.CONTINUOUS@ OR "FRK_Registry".Rows[#Owner].RunStyle > @E_RunStyle.HOLD_TO_RUN@ THEN "FRK_Registry".Rows[#Owner].RunStyle := @E_RunStyle.CONTINUOUS@; END_IF;
+    IF NOT #Supported["FRK_Registry".Rows[#Owner].RunStyle] THEN "FRK_Registry".Rows[#Owner].RunStyle := @E_RunStyle.CONTINUOUS@; END_IF;
+    IF #Startup OR #Exec <> @E_ExecState.BUSY@ OR #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[@E_GatedAction.START_STOP@] THEN
+        "FRK_Registry".Rows[#Owner].StepToken := FALSE; "FRK_Registry".Rows[#Owner].HoldRun := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_RunStyleRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Scope : String; Exec : DInt; Supported : Array[0..@E_RunStyle.HOLD_TO_RUN@] of Bool; END_VAR
+VAR_IN_OUT Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse"; END_VAR
+VAR_TEMP Gate : DInt; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR (#Unit.Request.Kind <> @E_HmiRequestKind.SET_RUN_STYLE@ AND #Unit.Request.Kind <> @E_HmiRequestKind.STEP_REQUEST@ AND #Unit.Request.Kind <> @E_HmiRequestKind.SET_HOLD_RUN@) THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Owner < 1 OR #Owner > @CAPACITY@ THEN RETURN; END_IF;
+    IF #Unit.Request.Kind = @E_HmiRequestKind.SET_HOLD_RUN@ AND NOT #Unit.Request.BoolValue THEN
+        // A release can never be refused, including after logout/mode change.
+        "FRK_Registry".Rows[#Owner].HoldRun := FALSE; #Response.Accepted := TRUE;
+    ELSE
+        #Gate := @E_GatedAction.START_STOP@;
+        IF #Unit.Request.Kind = @E_HmiRequestKind.SET_RUN_STYLE@ THEN #Gate := @E_GatedAction.MODE_CHANGE@; END_IF;
+        IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[#Gate] THEN #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+        ELSIF NOT #Unit.ModePending THEN
+            CASE #Unit.Request.Kind OF
+                @E_HmiRequestKind.SET_RUN_STYLE@:
+                    IF #Unit.Request.IntValue >= @E_RunStyle.CONTINUOUS@ AND #Unit.Request.IntValue <= @E_RunStyle.HOLD_TO_RUN@ THEN
+                        IF #Supported[#Unit.Request.IntValue] THEN
+                            "FRK_Registry".Rows[#Owner].RunStyle := #Unit.Request.IntValue;
+                            "FRK_Registry".Rows[#Owner].StepToken := FALSE; "FRK_Registry".Rows[#Owner].HoldRun := FALSE;
+                            #Response.Accepted := TRUE;
+                        END_IF;
+                    END_IF;
+                @E_HmiRequestKind.STEP_REQUEST@:
+                    IF #Exec = @E_ExecState.BUSY@ AND "FRK_Registry".Rows[#Owner].RunStyle = @E_RunStyle.SINGLE_STEP@ THEN
+                        "FRK_Registry".Rows[#Owner].StepToken := TRUE; #Response.Accepted := TRUE;
+                    END_IF;
+                @E_HmiRequestKind.SET_HOLD_RUN@:
+                    IF #Exec = @E_ExecState.BUSY@ AND "FRK_Registry".Rows[#Owner].RunStyle = @E_RunStyle.HOLD_TO_RUN@ THEN
+                        "FRK_Registry".Rows[#Owner].HoldRun := TRUE; #Response.Accepted := TRUE;
+                    END_IF;
+                ELSE RETURN;
+            END_CASE;
+        END_IF;
+    END_IF;
+    IF #Response.Accepted THEN #Response.Diagnostic := WSTRING#'';
+    ELSE "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Scope), Kind := @E_ReleaseKind.OTHER@); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_StepGate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Steppable : Bool; END_VAR
+BEGIN
+    #FRK_StepGate := FALSE;
+    IF #Owner < 1 OR #Owner > @CAPACITY@ OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Fault THEN RETURN; END_IF;
+    IF NOT "FRK_Registry".Rows[#Owner].Valid THEN RETURN; END_IF;
+    IF NOT #Steppable THEN #FRK_StepGate := TRUE; RETURN; END_IF;
+    CASE "FRK_Registry".Rows[#Owner].RunStyle OF
+        @E_RunStyle.CONTINUOUS@: #FRK_StepGate := TRUE;
+        @E_RunStyle.SINGLE_STEP@:
+            #FRK_StepGate := "FRK_Registry".Rows[#Owner].StepToken;
+            "FRK_Registry".Rows[#Owner].StepToken := FALSE;
+        @E_RunStyle.HOLD_TO_RUN@: #FRK_StepGate := "FRK_Registry".Rows[#Owner].HoldRun;
+        ELSE #FRK_StepGate := FALSE;
+    END_CASE;
+    IF NOT #FRK_StepGate THEN "FRK_Registry".Rows[#Owner].StepWait := TRUE; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_HoldRunBlocked" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; END_VAR
+BEGIN
+    #FRK_HoldRunBlocked := TRUE;
+    IF #Owner < 1 OR #Owner > @CAPACITY@ THEN RETURN; END_IF;
+    #FRK_HoldRunBlocked := "FRK_Registry".Rows[#Owner].RunStyle = @E_RunStyle.HOLD_TO_RUN@ AND NOT "FRK_Registry".Rows[#Owner].HoldRun;
+END_FUNCTION
+
 FUNCTION "FRK_UnitPrepare" : Void
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
@@ -149,6 +238,7 @@ BEGIN
     FOR #ResultIndex := 1 TO @MAX_GENEALOGY@ DO #Part.Parents[#ResultIndex] := ''; END_FOR;
     "FRK_Carriers".Slots[#Index].Context := #Part;
     "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_RECEIVED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := @E_HostEventKind.PART_RECEIVED@, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := 0, Reason := 0);
     #FRK_PartReceived := TRUE;
 END_FUNCTION
 
@@ -164,6 +254,7 @@ END_VAR
 BEGIN
     IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN RETURN; END_IF;
     "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSING_STARTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := @E_HostEventKind.PROCESSING_STARTED@, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := 0, Reason := 0);
 END_FUNCTION
 
 FUNCTION "FRK_PartProcessed" : Bool
@@ -221,6 +312,10 @@ BEGIN
     END_CASE;
     // The provider result is written before publishing EVENT_PART_PROCESSED.
     "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := @E_HostEventKind.PROCESSED@, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := #Verdict, Reason := #Reason);
+    IF #Verdict = @E_Verdict.NOK@ THEN
+        "FRK_HostEmit"(Kind := @E_HostEventKind.NOK@, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := #Verdict, Reason := #Reason);
+    END_IF;
     #Part.Present := FALSE;
     #FRK_PartProcessed := TRUE;
 END_FUNCTION
@@ -240,6 +335,7 @@ BEGIN
     #Part.Result.Verdict := @E_Verdict.NONE@;
     IF #Core.Exec = @E_ExecState.ERROR@ AND #Part.Result.ReasonCode = 0 THEN #Part.Result.ReasonCode := #Status.Diagnostic.ReasonCode; END_IF;
     "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := @E_Reason.EVENT_PART_PROCESSING_ABORTED@, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := @E_HostEventKind.PROCESSING_ABORTED@, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := #Part.Result.Verdict, Reason := #Part.Result.ReasonCode);
     #Part.Present := FALSE;
 END_FUNCTION
 

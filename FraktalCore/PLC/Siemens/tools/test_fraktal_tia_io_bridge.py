@@ -91,7 +91,7 @@ class IoBridgeTests(unittest.TestCase):
 
     def test_client_io_image_cannot_be_an_external_command_path(self):
         import tia_lint
-        source = bridge.build(False)['38_PressDemoHardwareDriver.scl']
+        source = bridge.build(False)['38_GDB_PressDemoIO.db']
         image = next(b for b in tia_lint.parse_blocks(source) if b.name == 'GDB_PressDemoIO')
         self.assertTrue(image.decls)
         for member in image.decls:

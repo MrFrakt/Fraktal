@@ -1,0 +1,29 @@
+﻿FUNCTION "F_PressDemoChangeoverAsk" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      SourcePath : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Request : "ST_DecisionRequest";
+   END_VAR
+
+
+BEGIN
+	
+	#Request := "FRK_Decisions".EmptyRequest;
+	#Request.Prompt := WSTRING#'project.decision.pressChangeoverConfirm';
+	#Request.Options[1] := 'project.decision.confirmChangeover';
+	#Request.Options[2] := 'project.decision.repeatChangeoverPosition';
+	// Tooling/material confirmation is deliberate: no timeout, no default.
+	#F_PressDemoChangeoverAsk := "FRK_SeqDecisionAsk"(Seq := #Seq, OwnerPath := STRING_TO_WSTRING(#SourcePath),
+	                                                  Request := #Request, AlarmLog := #AlarmLog);
+	
+END_FUNCTION
+

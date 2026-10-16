@@ -25,15 +25,17 @@ class Line:
     values: tuple[dict, ...]
     stale_after_ms: int
     source: str = ''
+    shifts: tuple = ()
 
     def definition(self):
         return dict(id=self.line_id, owner=self.owner, role=self.role, roots=list(self.roots),
                     record=self.record, values=list(self.values), stale_after_ms=self.stale_after_ms,
-                    **({'source': self.source} if self.source else {}))
+                    **({'source': self.source} if self.source else {}),
+                    **({'shifts':dict(self.shifts)} if self.shifts else {}))
 
     @classmethod
     def read(cls, value, roots):
-        object_fields(value, ('id', 'owner', 'role', 'roots', 'record', 'values', 'stale_after_ms'), ('source',), 'line')
+        object_fields(value, ('id', 'owner', 'role', 'roots', 'record', 'values', 'stale_after_ms'), ('source','shifts'), 'line')
         facts = Catalog.read()
         for key, maximum in (('id', width(facts, 'ST_LineStatus', 'LineId')),
                              ('owner', width(facts, 'ST_LineStatus', 'Owner'))):
@@ -62,8 +64,14 @@ class Line:
                 raise DeclarationError('T-GEN', 'line.source', 'only a mirror binds a separate F_ image provider')
         elif not isinstance(source, str):
             raise DeclarationError('T-GEN', 'line.source', 'expected an F_ image provider')
+        shifts=value.get('shifts',{})
+        if shifts:
+            object_fields(shifts,('utc_offset','start_min','duration_min','active_days','target'),(),'line.shifts')
+            for name in shifts.values():identifier(name,'line.shifts')
+            if len(set(shifts.values()))!=len(shifts):raise DeclarationError('T-GEN','line.shifts','calendar members are distinct')
+        elif not isinstance(shifts,dict):raise DeclarationError('T-GEN','line.shifts','expected a V3 calendar binding')
         return cls(value['id'], value['owner'], value['role'], tuple(references),
-                   value['record'], values, stale, source)
+                   value['record'], values, stale, source,tuple(shifts.items()))
 
 
 class Engine:
@@ -77,6 +85,15 @@ class Engine:
         expected = set(record_targets(catalog, line.record, capacity)) - {'SchemaVersion'}
         if expected != {f.member.split('.')[1] for f in self.fields}:
             raise DeclarationError('T-GEN', 'line.values', 'line replication requires the complete config record')
+        if line.shifts:
+            targets=record_targets(catalog,line.record,capacity);count=catalog.capacities['MAX_WEEKLY_SHIFTS']
+            keys={f.member:f.key for f in self.fields}
+            for kind,member in line.shifts:
+                leaves=[member] if kind=='utc_offset' else [member+'[%d]'%i for i in range(1,count+1)]
+                for i,leaf in enumerate(leaves,1):
+                    key='line.shift.utcOffsetMin' if kind=='utc_offset' else 'line.shift.%d.'%i+{'start_min':'startMin','duration_min':'durationMin','active_days':'activeDays','target':'target'}[kind]
+                    if targets.get(leaf,'').split(':=')[0].strip().upper()!='DINT' or keys.get('Line.'+leaf)!=key:
+                        raise DeclarationError('T-GEN','line.shifts','V3 requires bounded DInt arrays and canonical line.shift.* keys')
 
     def boot_call(self):
         role = str(self.line.role == 'OWNER').upper()
@@ -129,7 +146,25 @@ class Engine:
         sources['05_FRK_LineDefaults.db'] = db('FRK_LineDefaults', [
             'Values'+PRIVATE+' : "'+self.line.record+'";',
             'Image'+PRIVATE+' : "ST_LineImage";', 'Status'+PRIVATE+' : "ST_LineStatus";'])
+        if self.line.shifts:
+            members=dict(self.line.shifts)
+            defaults={f['member']:f['initial'] for f in catalog.resolve(['ST_ShiftRowV3'])['ST_ShiftRowV3']}
+            initial=[]
+            for key,field in (('start_min','StartMin'),('duration_min','DurationMin')):
+                for i in range(1,catalog.capacities['MAX_WEEKLY_SHIFTS']+1):
+                    initial+=['    Values.'+members[key]+'[%d] := '%i+defaults[field]+';']
+            sources['05_FRK_LineDefaults.db']=sources['05_FRK_LineDefaults.db'].replace('BEGIN\nEND_DATA_BLOCK','BEGIN\n'+'\n'.join(initial)+'\nEND_DATA_BLOCK')
         text = definition_source(fields, 'FRK_LineDef')
+        if self.line.shifts:
+            members=dict(self.line.shifts);count=catalog.capacities['MAX_WEEKLY_SHIFTS']
+            body=['    #Calendar.SchemaVersion := 3;','    #Calendar.UtcOffsetMin := #Values.'+members['utc_offset']+';']
+            for i in range(1,count+1):
+                for key,field in (('start_min','StartMin'),('duration_min','DurationMin'),('active_days','ActiveDays'),('target','ProductionTarget')):
+                    body+=['    #Calendar.Rows[%d].%s := #Values.%s[%d];'%(i,field,members[key],i)]
+            text+=function('FRK_LineCalendar',[],['Values : "'+self.line.record+'";','Calendar : "ST_ShiftCalendarV3";'],[],body)
+            text+=function('FRK_LineValid',[],['Values : "'+self.line.record+'";'],['Calendar : "ST_ShiftCalendarV3";'],[
+                '    "FRK_LineCalendar"(Values := #Values, Calendar := #Calendar);',
+                '    #FRK_LineValid := "FRK_ShiftValidate"(Calendar := #Calendar);'],'Bool')
         # Typed encoders/decoders are shared with station/model config. No second
         # string-to-number parser, enum table, range rule or rounding rule exists.
         body = ['    CASE #FieldIndex OF']
@@ -145,6 +180,14 @@ class Engine:
         body += ['        ELSE RETURN;', '    END_CASE;']
         text += function('FRK_LineAssign', ['FieldIndex : Int;'], ['Values : "'+self.line.record+'";'], [], body)
         template = TEMPLATE.read_text('ascii')
+        template=template.replace('@LINE_BUILD_VALIDATE@',
+            '    IF NOT "FRK_LineValid"(Values := #State.Values) THEN #State.Status.SourceError := 2; RETURN; END_IF;' if self.line.shifts else '')
+        template=template.replace('@LINE_APPLY_VALIDATE@',
+            '    IF NOT "FRK_LineValid"(Values := #Stage) THEN RETURN; END_IF;' if self.line.shifts else '')
+        template=template.replace('@LINE_WRITE_STAGE@','    Stage : "'+self.line.record+'";' if self.line.shifts else '')
+        template=template.replace('@LINE_WRITE_ASSIGN@',
+            '            #Stage := #State.Values;\n            "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #Stage);\n            IF NOT "FRK_LineValid"(Values := #Stage) THEN RETURN; END_IF;\n            #State.Values := #Stage;'
+            if self.line.shifts else '            "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #State.Values);')
         constants = {'COUNT': len(fields), 'RECORD': self.line.record,
                      'LINE_ID': literal(self.line.line_id), 'OWNER': literal(self.line.owner),
                      'STALE_AFTER_MS': self.line.stale_after_ms,
@@ -153,6 +196,7 @@ class Engine:
                      'MIRROR_ROLE': catalog.enums['E_LineRole']['MIRROR'],
                      'WRITE_CONFIG': catalog.enums['E_HmiRequestKind']['WRITE_CONFIG'],
                      'REASON_NONE': catalog.enums['E_Reason']['NONE'],
+                     'E_Reason.PERMISSIVE_NOT_MET': catalog.enums['E_Reason']['PERMISSIVE_NOT_MET'],
                      'SEVERITY_LOW': catalog.enums['E_Severity']['LOW'],
                      'CATEGORY_SYSTEM': catalog.enums['E_Category']['SYSTEM'],
                      'AUTO_RESET': catalog.enums['E_ResetClass']['AUTO_RESET']}
@@ -178,7 +222,7 @@ class Engine:
                 '        '+state+'.Values := '+stage+';',
                 '        "FRK_LineCommit"(State := '+state+');',
                 '        #FRK_LineSetWalk := TRUE; RETURN;', '    END_IF;',
-                '    IF #Phase = 1 THEN '+stage+' := '+state+'.Values; END_IF;']
+                '    IF #Phase = 1 OR #Phase = 4 THEN '+stage+' := '+state+'.Values; END_IF;']
         for index, field in enumerate(self.fields, 1):
             body += ['    "FRK_LineDef"(FieldIndex := %d);'%index,
                      '    '+work+'.RejectScope := #Scope; '+work+'.RejectKey := "FRK_ConfigScratch".Entry.WriteKey;',
@@ -196,8 +240,9 @@ class Engine:
                      '    ELSE',
                      '        #Slot := "FRK_SetCheck"(RootIndex := #RootIndex, Scope := #Scope, Access := #Access, Ready := #Ready AND (#Phase = 4 OR "FRK_Line".Ready), WriteAccess := #Phase <> 3);',
                      '        IF #Slot = 0 THEN RETURN; END_IF;',
-                     '        IF #Phase = 1 THEN', assign_value(field, stage+'.'+field.member.split('.')[1]),
+                     '        IF #Phase = 1 OR #Phase = 4 THEN', assign_value(field, stage+'.'+field.member.split('.')[1]),
                      '        END_IF;', '    END_IF;']
+        if self.line.shifts:body+=['    IF (#Phase = 1 OR #Phase = 4) AND NOT "FRK_LineValid"(Values := '+stage+') THEN RETURN; END_IF;']
         body += ['    #FRK_LineSetWalk := TRUE;']
         return {'05_FRK_LineSetStage.db': db('FRK_LineSetStage', ['Values'+PRIVATE+' : "'+self.line.record+'";']),
                 '18_LineSets.scl': function('FRK_LineSetWalk', ['RootIndex : Int;', 'Scope : String;', 'Phase : Int;', 'Access : "FRK_Access";', 'Ready : Bool;'],

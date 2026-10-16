@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_TestAssert" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Condition : Bool;
+      Code : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Result : "FRK_TestResult";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Result.Checks >= 512 OR #Code <> #Result.Checks + 1 THEN
+	    #Result.ProtocolError := TRUE;
+	    RETURN;
+	END_IF;
+	#Result.Checks := #Result.Checks + 1;
+	#Result.Failed[#Result.Checks] := NOT #Condition;
+	IF NOT #Condition THEN
+	    #Result.Failures := #Result.Failures + 1;
+	    IF #Result.FirstFailure = 0 THEN
+	        #Result.FirstFailure := #Code;
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

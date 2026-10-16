@@ -14,6 +14,7 @@ BEGIN
     IF #State.Status.LineId <> @LINE_ID@ OR #State.Status.Owner <> @OWNER@
         OR #State.Status.Role <> @OWNER_ROLE@ OR #State.Status.Revision = 0
         OR #State.BuiltRevision = #State.Status.Revision THEN RETURN; END_IF;
+@LINE_BUILD_VALIDATE@
     #StageImage := "FRK_LineDefaults".Image;
     #StageImage.LineId := @LINE_ID@;
     #StageImage.Owner := @OWNER@;
@@ -128,6 +129,7 @@ VAR_IN_OUT
 END_VAR
 VAR_TEMP
     FieldIndex : Int;
+@LINE_WRITE_STAGE@
 END_VAR
 BEGIN
     #FRK_LineWrite := FALSE;
@@ -135,14 +137,22 @@ BEGIN
         "FRK_LineDef"(FieldIndex := #FieldIndex);
         IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
             #Matched := TRUE;
+            "FRK_ConfigScratch".CommittedScope := @OWNER@;
+            IF #Access.PolicyLost OR #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite) THEN
+                "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
+                "FRK_ConfigScratch".RejectReason := @E_Reason.PERMISSIVE_NOT_MET@; RETURN;
+            END_IF;
+            IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready THEN
+                "FRK_ConfigScratch".RejectDescription := WSTRING#'std.release.unitNotReady';
+                "FRK_ConfigScratch".RejectReason := @E_Reason.PERMISSIVE_NOT_MET@; RETURN;
+            END_IF;
             IF #State.Status.LineId <> @LINE_ID@ OR #State.Status.Owner <> @OWNER@
                 OR #State.Status.Role <> @OWNER_ROLE@ OR #Request.Kind <> @WRITE_CONFIG@
                 OR #Request.DurationMs <> 0
                 OR DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision
-                OR #Access.CurrentLevel < MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite)
-                OR ("FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready) THEN RETURN; END_IF;
+                THEN RETURN; END_IF;
             IF NOT "FRK_ConfigValidate"(Text := #Request.TextValue) THEN RETURN; END_IF;
-            "FRK_LineAssign"(FieldIndex := #FieldIndex, Values := #State.Values);
+@LINE_WRITE_ASSIGN@
             "FRK_LineCommit"(State := #State);
             #FRK_LineWrite := TRUE;
             RETURN;
@@ -208,6 +218,7 @@ BEGIN
             IF "FRK_ConfigScratch".Entry.ValueText <> #CandidateText THEN RETURN; END_IF;
         END_IF;
     END_FOR;
+@LINE_APPLY_VALIDATE@
     #State.Values := #Stage;
     #State.Image := #Image;
     #State.Dirty := #State.Dirty OR NOT #State.Applied OR #State.Status.Revision <> #Image.Revision;

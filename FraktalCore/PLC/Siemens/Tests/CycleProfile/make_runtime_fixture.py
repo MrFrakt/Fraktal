@@ -218,7 +218,7 @@ BEGIN
     %sResetPulse := FALSE;
     IF NOT %sSeq.Running THEN RETURN; END_IF;
     %sSeq.Step := %sStepNo;
-    "FRK_SeqStep"(StepNo := %sStepNo, StepName := 'test.profile.integration', AwaitingLabel := '',
+    "FRK_SeqStep"(Steppable := TRUE, StepNo := %sStepNo, StepName := 'test.profile.integration', AwaitingLabel := '',
         AwaitsPath := '', TimeClass := %sTimeClass, ExpectedTime := %sExpected, Seq := %sSeq, Row := %sRow);
     IF %sFinish THEN "FRK_SeqCycleEnd"(Seq := %sSeq); %sFinish := FALSE; END_IF;
     IF "GDB_ProfileIntegrationWork".ForceLateTimeout THEN

@@ -10,6 +10,7 @@ STATE = HERE/'state_services.scl.in'
 HISTORY = HERE/'alarm_history.scl.in'
 RECOVERY = HERE/'alarm_recovery.scl.in'
 RECOVERY_POLICY = HERE/'alarm_recovery.json'
+SHELVING = HERE/'alarm_shelving.scl.in'
 
 
 def expand(path, catalog):
@@ -31,6 +32,8 @@ def build(catalog, event_sink='', history=False, recovery=False, delivery=False)
               'RingHead':'Int','Blocking':'Bool','Truncated':'Bool'}
     public = set(fields)
     fields.update({'ComeMs':'Array[1..%d] of UDInt'%catalog.capacities['MAX_ALARM_ACTIVE'],
+                   'ShelfSince':'Array[1..%d] of UDInt'%catalog.capacities['MAX_ALARM_ACTIVE'],
+                   'ShelfDuration':'Array[1..%d] of UDInt'%catalog.capacities['MAX_ALARM_ACTIVE'],
                    'Automatic':'Array[1..%d] of Bool'%catalog.capacities['MAX_ALARM_ACTIVE'],
                    'Touched':'Array[1..%d] of Bool'%catalog.capacities['MAX_ALARM_ACTIVE'], 'RingUsed':'Int'})
     if history:fields['HistorySlot']='Int'
@@ -59,6 +62,13 @@ def build(catalog, event_sink='', history=False, recovery=False, delivery=False)
     text=text.replace('@DELIVERY_CAPTURE@','"FRK_DeliveryCapture"(AlarmLog := #AlarmLog, Ev := #AlarmLog.Active[#Slot]);' if delivery else '')
     text=text.replace('@ALARM_SPAN@','#Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #Slot);' if recovery else
         '#Span := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ComeMs[#Slot]);\n    IF #Span > 2147483647 THEN #Span := 2147483647; END_IF;')
+    from fraktal_tia_reasons import rules
+    from fraktal_tia_config import function
+    body=['    #FRK_ReasonShelvable := FALSE;', '    CASE #Reason OF']
+    body+=['        %d: #FRK_ReasonShelvable := TRUE;'%number for number,rule in rules(catalog) if rule['shelvable'] and rule['category']!='SAFETY']
+    body+=['        ELSE RETURN;', '    END_CASE;']
+    text+='\n'+function('FRK_ReasonShelvable',['Reason : DInt;'],[],[],body,'Bool')
+    text+='\n'+expand(SHELVING,catalog).replace('@MAX_SHELF_MS@',str(catalog.capacities['MAX_SHELF_S']*1000))
     return type_source('FRK_AlarmLog',[{'member':n,'native_type':t,'accessible':n in public,'initial':''} for n,t in fields.items()]),text
 
 

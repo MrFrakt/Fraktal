@@ -2,32 +2,31 @@ FUNCTION_BLOCK "FB_PressDemoAutoGraphOwner"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 VAR_INPUT
-    Run : Bool;
-    Reset : Bool;
-    OwnerIndex : DInt;
-    Delta : Time;
-    TransferSettleTime : Time;
-    PartQuality : Bool;
-    RequireTwoHandStart : Bool;
-    SourcePath : String[80];
-    PartPresent : Bool;
-    AirPressureOk : Bool;
-    TwoHandHeld : Bool;
-    StartPulse : Bool;
-    PressSettleTime : Time;
+    Run {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Reset {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    OwnerIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Delta {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+    TransferSettleTime {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+    PartQuality {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    RequireTwoHandStart {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    SourcePath {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String[80];
+    PartPresent {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    AirPressureOk {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    TwoHandHeld {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    StartPulse {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    PressSettleTime {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
 END_VAR
 VAR_IN_OUT
-    PressRam {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    Door {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    PartSlide {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
-    Unit {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Unit";
-    Status {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_ModuleStatus";
-    Part {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_PartContext";
-    AlarmLog {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_AlarmLog";
-    Chart {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_GRAPH_PressDemoAuto";
-END_VAR
-VAR_OUTPUT
+    PressRam : "FB_CylinderCM";
+    Door : "FB_CylinderCM";
+    PartSlide : "FB_CylinderCM";
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+    Chart : "FB_GRAPH_PressDemoAuto";
+    LoadChart : "FB_GRAPH_PressDemoLoadPosition";
 END_VAR
 VAR
     Seq {ExternalWritable := 'False'} : "FRK_SequenceCtx";
@@ -70,7 +69,7 @@ VAR
     Ready5 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
     Advance {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
     Cycle {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_PressDemoCycle";
-    LoadPosition {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_PressDemoLoadPosition";
+    LoadPosition {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_PressDemoLoadPositionGraphOwner";
     LoadDone {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
     LoadActive {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
     Branch1 {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_SequenceCtx";
@@ -86,7 +85,7 @@ BEGIN
     "FRK_SeqGraphBegin"(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := 1, BranchIndex := 1, ViewOffset := 0, ViewDepth := 0, Delta := #Delta, Seq := #Branch1);
     "FRK_SeqGraphBegin"(Run := #Run, Reset := #Reset, OwnerIndex := #OwnerIndex, ChainIndex := 1, BranchIndex := 2, ViewOffset := 0, ViewDepth := 0, Delta := #Delta, Seq := #Branch2);
     #LoadActive := "FRK_SeqSubActive"(Seq := #Branch1, Run := #Run, StepNo := 240);
-    #LoadDone := "F_PressDemoLoadPosition"(Target := #LoadPosition, Run := #LoadActive, Reset := #Seq.SubReset, OwnerIndex := #OwnerIndex, ChainIndex := 3, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide);
+    #LoadDone := "F_PressDemoLoadPositionGraph"(Target := #LoadPosition, Run := #LoadActive, Reset := #Seq.SubReset, OwnerIndex := #OwnerIndex, ChainIndex := 3, Delta := #Delta, PressRam := #PressRam, Door := #Door, PartSlide := #PartSlide, Chart := #LoadChart);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PressRam);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #Door);
     "F_CylinderSequenceLease"(Seq := #Seq, Target := #PartSlide);

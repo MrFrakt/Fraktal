@@ -1,0 +1,47 @@
+﻿FUNCTION "FRK_LineBuild" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Orthogonal line infrastructure. Source images are input, never live storage.
+// Clock quality is explicit; a restored image is not a fresh source observation.
+   VAR_IN_OUT 
+      State : "FRK_LineState";
+   END_VAR
+
+   VAR_TEMP 
+      FieldIndex : Int;
+      StageImage : "ST_LineImage";
+   END_VAR
+
+
+BEGIN
+	
+	IF #State.Status.LineId <> 'PRESS-LINE-1' OR #State.Status.Owner <> 'BenchLineOwner'
+	    OR #State.Status.Role <> 1 OR #State.Status.Revision = 0
+	    OR #State.BuiltRevision = #State.Status.Revision THEN
+	    RETURN;
+	END_IF;
+	
+	#StageImage := "FRK_LineDefaults".Image;
+	#StageImage.LineId := 'PRESS-LINE-1';
+	#StageImage.Owner := 'BenchLineOwner';
+	#StageImage.Revision := #State.Status.Revision;
+	#StageImage.Count := 8;
+	FOR #FieldIndex := 1 TO 8 DO
+	    "FRK_LineDef"(FieldIndex := #FieldIndex);
+	    "FRK_LineValue"(FieldIndex := #FieldIndex,
+	                    Values := #State.Values);
+	    IF NOT "FRK_ConfigValidate"(Text := "FRK_ConfigScratch".Entry.ValueText) THEN
+	        #State.Status.SourceError := 2;
+	        RETURN;
+	    END_IF;
+	    #StageImage.Records[#FieldIndex].WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
+	    #StageImage.Records[#FieldIndex].Revision := "FRK_ConfigScratch".Entry.WriteRevision;
+	    #StageImage.Records[#FieldIndex].ValueText := WSTRING_TO_STRING("FRK_ConfigScratch".Entry.ValueText);
+	END_FOR;
+	#State.Image := #StageImage;
+	#State.Applied := TRUE;
+	#State.Status.SourceError := 0;
+	#State.BuiltRevision := #State.Status.Revision;
+	
+END_FUNCTION
+

@@ -200,6 +200,20 @@ later phase adds published surface that the frozen contract must then cover.
 
 ### Implementation progress
 
+**October16 operations milestone — generator0.22.**
+[Measured scope and evidence](../Evidence/TIA_OPERATIONS_GRAPH_2026-10-16.md):
+P2/P3/P4 algorithms and two-root integration pass native/runtime checks;
+P5 health/nameplates/build gates are implemented with explicit metric/time
+exclusions. P6 pacing, shelving and signal tower/lamp test pass; MANUAL_HELD
+remains. P7 typed capture passes; classes/model creation remain. P10 wired GRAPH
+CHANGEOVER/LoadPosition, jumps and pacing pass native read-back/live checks.
+P11 now has the fixed bounded host ring and central lifecycle producers; durable
+FIFO/MES delivery remains. P13 now has the native assertion runner and fresh
+project compile/read-back/download/cleanup gate (93 PLC assertions,248 tool
+tests); this does not close the full contract/suite or physical R-gates.
+The normal generator still refuses incomplete Line profiles. The original
+Fraktal runtime and physical1214C remain unchanged.
+
 **P13 started — candidate contract gate.** The immutable
 [V1 subset](../../../FraktalCore/PLC/Siemens/Contracts/TIA_FROZEN_CONTRACTS_V1.json)
 and [`check_tia_contracts.py`](../../../tools/check_tia_contracts.py) now compare
@@ -232,11 +246,12 @@ S7-1200 Fraktal profile or closing P8's generic topology/PN-health scope.
 
 ## 6. Decisions for the owner
 
-1. **Cross-controller line transport** (P12): OUC TCP client on the mirror PLC,
-   or host-mediated through the gateway. Single-controller lines need neither.
+1. **Cross-controller line transport** (P12): owner selected **OUC TCP between
+   the PLCs** on October16. Single-controller lines need no external transport.
 2. **Shift calendar version**: adopt V3 (per-shift targets, active days,
    duration) directly; V2 migration is not needed on TIA.
 3. **Physical S7-1500** for reference conformance (plan §4.1), and whether the
    1214C constrained profile is still wanted.
-4. **Scope of P15** (robot, vision, axis): keep excluded until the press is
-   physically accepted, or schedule the S13/S14 spikes now.
+4. **Scope of P15**: owner selected **reusable connector infrastructure** on
+   October16. Device-specific robot, vision and axis ports remain deferred
+   until their actual targets are specified.

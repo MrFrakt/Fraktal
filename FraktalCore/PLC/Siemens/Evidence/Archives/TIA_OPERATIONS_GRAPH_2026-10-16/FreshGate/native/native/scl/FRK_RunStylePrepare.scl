@@ -1,0 +1,35 @@
+﻿FUNCTION "FRK_RunStylePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Shared Unit services v0.1: operation authority, mailbox, modes and local carrier.
+   VAR_INPUT 
+      Owner : DInt;
+      Startup : Bool;
+      Exec : DInt;
+      Access : "FRK_Access";
+      Supported : Array[0..2] of Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Owner < 1 OR #Owner > 32 THEN
+	    RETURN;
+	END_IF;
+	"FRK_Registry".Rows[#Owner].StepWait := FALSE;
+	IF #Startup THEN
+	    "FRK_Registry".Rows[#Owner].RunStyle := 0;
+	END_IF;
+	IF "FRK_Registry".Rows[#Owner].RunStyle < 0 OR "FRK_Registry".Rows[#Owner].RunStyle > 2 THEN
+	    "FRK_Registry".Rows[#Owner].RunStyle := 0;
+	END_IF;
+	IF NOT #Supported["FRK_Registry".Rows[#Owner].RunStyle] THEN
+	    "FRK_Registry".Rows[#Owner].RunStyle := 0;
+	END_IF;
+	IF #Startup OR #Exec <> 1 OR #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[5] THEN
+	    "FRK_Registry".Rows[#Owner].StepToken := FALSE;
+	    "FRK_Registry".Rows[#Owner].HoldRun := FALSE;
+	END_IF;
+	
+END_FUNCTION
+

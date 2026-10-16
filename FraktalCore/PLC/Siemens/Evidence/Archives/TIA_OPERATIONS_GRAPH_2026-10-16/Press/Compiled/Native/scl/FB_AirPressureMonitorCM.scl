@@ -1,0 +1,127 @@
+﻿FUNCTION_BLOCK "FB_AirPressureMonitorCM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Generated frame v0.22; change the declaration, then regenerate.
+   VAR_INPUT 
+      Execute { ExternalWritable := 'False'} : Bool;
+      Abort { ExternalWritable := 'False'} : Bool;
+      Command { ExternalWritable := 'False'} : DInt;
+      ParCfg { ExternalWritable := 'False'} : "ST_AirPressureParCfg";
+      ParCmd { ExternalWritable := 'False'} : "ST_AirPressureParCmd";
+      ParentIndex { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+      Startup { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      BoundPath { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : WString[254];
+   END_VAR
+
+   VAR_OUTPUT 
+      Busy { ExternalWritable := 'False'} : Bool;
+      Done { ExternalWritable := 'False'} : Bool;
+      Error { ExternalWritable := 'False'} : Bool;
+      Aborted { ExternalWritable := 'False'} : Bool;
+      Held { ExternalWritable := 'False'} : Bool;
+      ErrorID { ExternalWritable := 'False'} : DWord;
+      Timing { ExternalWritable := 'False'} : "ST_ModuleTiming";
+      OutCmd { ExternalWritable := 'False'} : "ST_AirPressureOutCmd";
+   END_VAR
+
+   VAR_IN_OUT 
+      Hal : "ST_AirPressureHal";
+   END_VAR
+
+   VAR 
+      OutImm { ExternalWritable := 'False'} : "ST_AirPressureOutImm";
+      Status { ExternalWritable := 'False'} : "ST_ModuleStatus";
+      Core { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+      LatchedParCmd { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_AirPressureParCmd";
+      Device { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_AirPressureDevice";
+      Catalog { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of "ST_CommandInfo";
+      CatalogCount { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      ManConditions { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of "FRK_ManualConditionRow";
+      ManualOwned { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      InstancePath : WString[254];
+   END_VAR
+
+   VAR CONSTANT 
+      EXEC_READY : DInt := 0;
+      MODULE_TIER : DInt := 3;
+   END_VAR
+
+
+BEGIN
+	
+	// ---- GENERATED: setup
+	IF #Startup OR NOT #Core.Named THEN
+	    #InstancePath := #BoundPath;
+	    "FRK_SetIdentity"(Core := #Core,
+	                      Status := #Status,
+	                      InstancePath := #InstancePath,
+	                      ModuleType := 3,
+	                      TypeId := 5,
+	                      Capabilities := DWORD#16#00000000,
+	                      ParentIndex := #ParentIndex,
+	                      TypeKey := 'std.moduleType.airPressure');
+	    #CatalogCount := 0;
+	END_IF;
+	// ---- GENERATED: begin
+	"FRK_Begin"(Core := #Core,
+	            Status := #Status,
+	            Execute := #Execute,
+	            Abort := #Abort,
+	            Command := #Command);
+	IF #Core.EvCommandStart THEN
+	    #LatchedParCmd := #ParCmd;
+	    "FRK_Start"(Core := #Core,
+	                Status := #Status,
+	                Supported := FALSE,
+	                Timeout := T#0ms,
+	                Label := '');
+	END_IF;
+	// ---- AUTHORED: cyclic management
+	IF #Hal.LowPressure AND #Hal.OperatingPressure THEN
+	    IF NOT #Device.Conflicting THEN
+	        #Device.Conflicting := TRUE;
+	        #Device.ConflictSinceMs := "FRK_Clock".NowMs;
+	    END_IF;
+	ELSE
+	    #Device.Conflicting := FALSE;
+	END_IF;
+	#Device.Contradictory := #Device.Conflicting
+	AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.ConflictSinceMs)
+	>= DINT_TO_UDINT(TIME_TO_DINT(#ParCfg.ConflictTime));
+	IF #Device.Contradictory THEN
+	    "FRK_Fault"(ReasonCode := 10601,
+	                Description := WSTRING#'std.error.airPressureSwitchConflict',
+	                Core := #Core,
+	                Status := #Status);
+	END_IF;
+	
+	// ---- GENERATED: end management
+	"FRK_RouteAbort"(Core := #Core,
+	                 Abort := #Abort);
+	"FRK_End"(Core := #Core,
+	          Status := #Status,
+	          Busy => #Busy,
+	          Done => #Done,
+	          Error => #Error,
+	          Aborted => #Aborted,
+	          Held => #Held,
+	          ErrorID => #ErrorID,
+	          Timing => #Timing);
+	// ---- AUTHORED: unconditional cyclic/derived data
+	"FRK_CyclicHook_AirPressureMonitorCM"(Device := #Device,
+	                                      Hal := #Hal,
+	                                      OutImm := #OutImm);
+	// ---- GENERATED: diagnostic snapshot
+	"FRK_DiagSync"(Index := #Core.RegIndex,
+	               Withdraw := FALSE,
+	               Status := #Status,
+	               Held := #Core.Held,
+	               Timeout := T#0ms,
+	               ActiveTimeoutMs := #Core.TimeoutMs);
+	// ---- GENERATED: frame end
+	
+END_FUNCTION_BLOCK
+

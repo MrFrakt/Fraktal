@@ -13,7 +13,7 @@ from fraktal_tia_binding import Catalog, PRIVATE, READONLY, REPO, literal, type_
 import fraktal_tia_declaration as DECL
 
 HERE = Path(__file__).resolve().parent
-VERSION = "0.21"
+VERSION = "0.22"
 KIND = "fraktal.tia.generated.frames.v1"
 ROLES = ("ParCfg", "ParCmd", "OutCmd", "OutImm")
 RESERVED_BLOCKS = {"frk_core", "frk_registry", "frk_registryrow", "frk_setidentity",
@@ -38,6 +38,8 @@ RESERVED_BLOCKS |= {'frk_alarmlog','frk_alarmnotify','frk_alarmrefresh','frk_ala
                     'frk_alarmraise','frk_alarmclose','frk_alarmgone','frk_alarmoperatorreset',
                     'frk_alarmmessage','frk_alarmcapture','frk_alarmend','frk_alarmtreeblocking',
                     'frk_state','frk_statesweep'}
+RESERVED_BLOCKS |= {'frk_hostevents','frk_hostbook','frk_hoststore','frk_hostemit','frk_hostmirror','frk_hostslot',
+                    'frk_engineeringtick','frk_engineeringmanifest'}
 
 
 def definition(model):
@@ -52,9 +54,15 @@ def definition(model):
                        **({'station_config': t.station_config} if t.station_config else {}),
                        **({'config': list(t.config)} if t.config else {}),
                        **({'sequence_view': dict(zip(('capacity', 'branches', 'annotations'), t.sequence_view))} if t.sequence_view else {}),
-                       **({'unit': {'modes': list(t.unit_modes), 'initial': t.unit_initial, 'run_command': t.unit_run}} if t.unit_modes else {})} for t in model.types],
+                       **({'production':dict(t.production)} if t.production is not None else {}),
+                       **({'health':dict(t.health)} if t.health is not None else {}),
+                       **({'signal_tower':dict(t.tower)} if t.tower is not None else {}),
+                       **({'unit': {'modes': list(t.unit_modes), 'initial': t.unit_initial, 'run_command': t.unit_run,
+                            **({'run_styles':{m:list(v) for m,v in t.run_styles}} if t.run_styles else {})}} if t.unit_modes else {})} for t in model.types],
             "roots": [{"name": r.name, "type": r.type_name} for r in model.roots],
             **({'event_sink':model.event_sink} if model.event_sink else {}),
+            **({'nameplates':{path:dict(values) for path,values in model.nameplates}} if model.nameplates else {}),
+            **({'engineering_gates':[dict(g) for g in model.engineering_gates]} if model.engineering_gates else {}),
             **({'model_config': {'models': list(model.model_config), 'initial': model.initial_model}} if model.model_config else {}),
             **({'config_sets': {'capacity': model.config_set_capacity}} if model.config_set_capacity else {}),
             **({'alarm_history': {'scopes': list(model.alarm_history_scopes)}} if model.alarm_history_scopes else {}),
@@ -177,6 +185,16 @@ def build(model, shared_runtime=False, *, line_workbench=False):
                 raise DECL.DeclarationError('T-CORE', t.name, 'editable config, staging and model identity belong to the owning handlers')
             if model.line and re.search(r'#(?:Line|LineRevisionSeen)(?:\.\w+)*\s*:=|"FRK_Line\w*"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'line config and publication belong to the shared owner and generated frame')
+            if t.production is not None and re.search(r'#(?:ProductionBook|Oee|OeeTrend|OeeTrendHead|MachineState|CurrentShift|ShiftStartedAt|ShiftProductionTarget|ShiftHistory\w*)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Production|Oee|Shift|WorkDegradation|MachineState)\w*"', code,re.I):
+                raise DECL.DeclarationError('T-CORE',t.name,'production accounting and shifts belong to the generated Unit frame')
+            if re.search(r'#(?:Nameplate|EngineeringSlots)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_Engineering\w*"',code,re.I):
+                raise DECL.DeclarationError('T-CORE',t.name,'static identity and engineering gates belong to composition/setup')
+            if re.search(r'#(?:HostEvents|HostSeenSequence|HostDoneSeen|RunStyle|SupportedRunStylesPublished)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:HostStore|HostMirror|RunStyle\w*|StepGate)"',code,re.I):
+                raise DECL.DeclarationError('T-CORE',t.name,'host publication and sequence pacing belong to the generated Unit frame')
+            if t.health is not None and re.search(r'#(?:SystemHealth|HealthBook|HealthConfig)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Health|S7Health)\w*"',code,re.I):
+                raise DECL.DeclarationError('T-CORE',t.name,'health evaluation belongs to the generated Unit frame')
+            if t.tower is not None and re.search(r'#(?:SignalTower|TowerBook|TowerConfig)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_Tower\w*"',code,re.I):
+                raise DECL.DeclarationError('T-CORE',t.name,'signal tower mapping belongs to the generated Unit frame')
             if re.search(r'#Access\b[^;]*:=|"FRK_Access\w*"\s*\(|"FRK_(?:LocalUsers|AccessPolicies|AccessStorage)"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'access authority belongs to generated services and composition injection')
             if re.search(r'#(?:StateFlags|StateFlagCount|StateTouched)\b|"FRK_StateSweep"\s*\(',code,re.I) or (region!='cyclic' and '"FRK_State"' in code):
@@ -226,7 +244,9 @@ def build(model, shared_runtime=False, *, line_workbench=False):
                                          "accessible": False} for r in model.roots]
     requests.append("ST_FraktalHal")
     if unit_runtime:
-        requests.append('ST_CommandInfo')
+        requests.extend(('ST_CommandInfo','ST_Nameplate','ST_HostEvent'))
+    elif model.nameplates:
+        requests.append('ST_Nameplate')
     if config_runtime:
         if not unit_runtime or not shared_runtime:
             raise DECL.DeclarationError('T-GEN', 'config', 'editable config requires the Unit shared runtime')
@@ -240,6 +260,36 @@ def build(model, shared_runtime=False, *, line_workbench=False):
         requests.append('ST_StateFlag')
     if any(t.sequence_view for t in ordered):
         requests.extend(('ST_SequenceStepDef', 'ST_SequenceStep', 'ST_SequenceCursor', 'ST_SequenceAnnotation', 'ST_StepRecord'))
+    if any(t.production is not None for t in ordered):
+        requests.extend(__import__('fraktal_tia_operations').RECORDS)
+        from fraktal_tia_config import record_targets
+        for t in ordered:
+            for key,member in t.production or ():
+                role,leaf=member.split('.')
+                record=dict(t.contract)['ParCfg'] if role=='ParCfg' else t.station_config
+                scalar=record_targets(catalog,record).get(leaf,'').split(':=')[0].strip().upper()
+                if scalar!=('UINT' if key=='degradation_percent' else 'UDINT') or member not in {f['member'] for f in t.config}:
+                    raise DECL.DeclarationError('T-GEN',t.name+'.production','production settings require registered UDInt milliseconds / UInt percent config members')
+    if model.line and model.line.shifts:
+        for root in model.roots:
+            if root.name in model.line.roots and lookup[root.type_name.casefold()].production is None:
+                raise DECL.DeclarationError('T-GEN','line.shifts','every referencing root requires production accounting')
+    if any(t.health is not None for t in ordered):
+        requests.extend(__import__('fraktal_tia_health').RECORDS)
+        from fraktal_tia_config import record_targets
+        for t in ordered:
+            for key,member in t.health or ():
+                scalar=record_targets(catalog,t.station_config).get(member.split('.')[1],'').split(':=')[0].strip().upper()
+                if scalar!=('BOOL' if key=='require_time_sync' else 'UDINT') or member not in {f['member'] for f in t.config}:
+                    raise DECL.DeclarationError('T-GEN',t.name+'.health','health thresholds require registered UDInt microseconds / Bool station config members')
+    if any(t.tower is not None for t in ordered):
+        requests.extend(__import__('fraktal_tia_tower').RECORDS)
+        from fraktal_tia_config import record_targets
+        for t in ordered:
+            for key,member in t.tower or ():
+                scalar=record_targets(catalog,t.station_config).get(member.split('.')[1],'').split(':=')[0].strip().upper()
+                if scalar!=('TIME' if key=='lamp_test_duration' else 'BOOL') or member not in {f['member'] for f in t.config}:
+                    raise DECL.DeclarationError('T-GEN',t.name+'.signal_tower','tower settings require registered TIME / Bool station config members')
     types = catalog.resolve(requests)
     unused = set(dict(model.records)) - set(types)
     if unused:
@@ -256,7 +306,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
     row_fields = [("Valid", "Bool"), ("Parent", "DInt"), ("ModuleType", "DInt"),
                   ("TypeId", "DInt"), ("Capabilities", "DWord"), ("Exec", "DInt"),
                   ("ReasonCode", "DInt"), ("Severity", "DInt")]
-    if unit_runtime:row_fields.append(('AlarmBlocking','Bool'))
+    if unit_runtime:row_fields.extend([('AlarmBlocking','Bool'),('RunStyle','DInt'),('StepToken','Bool'),('HoldRun','Bool'),('StepWait','Bool')])
     sources["01_FRK_RegistryRow.udt"] = type_source("FRK_RegistryRow", [
         {"member": n, "native_type": v, "accessible": False, "initial": ""} for n, v in row_fields])
     cap = model.registry_capacity
@@ -275,7 +325,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
             if len(t.commands) > catalog.capacities['MAX_CMD_CATALOG']:
                 raise DECL.DeclarationError('T-WIDTH', t.name, 'command catalog exceeds Core capacity')
             text += route(t, lookup, hal_names, catalog)
-            text += config.texts[t.name] if config else config_walk(t, lookup)
+            text += config.texts[t.name] if config else config_walk(t, lookup,model)
             text += alarm_walk(t, lookup)
         sources["20_%03d_%s.scl" % (index, t.name)] = text
     for root in model.roots:
@@ -284,6 +334,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
             "{ S7_Optimized_Access := 'TRUE' }", 'VERSION : 0.1', 'NON_RETAIN', '"' + t.name + '"', 'BEGIN', 'END_DATA_BLOCK', ''])
     sources["25_GDB_FraktalHal.db"] = db("GDB_FraktalHal", ['Data%s : "ST_FraktalHal";' % PRIVATE])
     calls = ['    "%s"(ParentIndex := 0, Startup := #Startup, Hal := "GDB_FraktalHal".Data.%s);' % (r.name, r.name) for r in model.roots]
+    if any(t.health is not None for t in ordered):calls.insert(0,'    "FRK_S7HealthProbe"(Startup := #Startup);')
     if config:
         sources.update(config.sources())
         calls.insert(0, '    "FRK_ConfigBoot"(Startup := #Startup);')
@@ -317,6 +368,12 @@ def build(model, shared_runtime=False, *, line_workbench=False):
             raise DECL.DeclarationError('T-GEN', 'runtime', 'every Unit and EM requires declared commands and a ParCfg timeout')
         import fraktal_tia_runtime
         runtime_sources, runtime_metadata = fraktal_tia_runtime.build(unit_runtime,model.event_sink,states,bool(model.alarm_history_scopes),bool(model.alarm_recovery_scopes),bool(model.alarm_delivery_scopes))
+        if unit_runtime:
+            from fraktal_tia_host_events import build as host_events
+            host_sources,host_text,host_inputs=host_events(model,catalog)
+            sources.update(host_sources)
+            runtime_sources['13_UnitServices.scl']=host_text+'\n'+runtime_sources['13_UnitServices.scl']
+            runtime_metadata['authority_inputs'].update(host_inputs)
         if config:
             from fraktal_tia_config import TEMPLATE as config_template, DECIMAL_TEMPLATE
             for config_source in (config_template, DECIMAL_TEMPLATE):
@@ -348,6 +405,20 @@ def build(model, shared_runtime=False, *, line_workbench=False):
             view_sources, view_inputs = view_build(model, catalog)
             sources.update(view_sources)
             runtime_metadata['authority_inputs'].update(view_inputs)
+        if any(t.production is not None for t in ordered):
+            from fraktal_tia_operations import build as production_build
+            production_sources,production_inputs=production_build(catalog,include_types=False)
+            sources.update(production_sources)
+            runtime_metadata['authority_inputs'].update(production_inputs)
+        if __import__('fraktal_tia_platform').active_gates(model) or any(t.health is not None for t in ordered):
+            platform_sources,platform_inputs=__import__('fraktal_tia_platform').build(model,catalog)
+            sources.update(platform_sources);runtime_metadata['authority_inputs'].update(platform_inputs)
+        if any(t.health is not None for t in ordered):
+            health_sources,health_inputs=__import__('fraktal_tia_health').build(catalog)
+            sources.update(health_sources);runtime_metadata['authority_inputs'].update(health_inputs)
+        if any(t.tower is not None for t in ordered):
+            tower_sources,tower_inputs=__import__('fraktal_tia_tower').build(catalog)
+            sources.update(tower_sources);runtime_metadata['authority_inputs'].update(tower_inputs)
         if model.persistence_min_write_ms:
             from fraktal_tia_persistence import Medium, FACTS as persistence_facts
             medium=Medium(config)
@@ -388,7 +459,7 @@ def config_name(t):
     return 'FRK_Config_' + t.name.removeprefix('FB_')
 
 
-def config_walk(t, lookup):
+def config_walk(t, lookup,model=None):
     """Typed ownership walk: the pager holds one window, never the whole tree."""
     lines = ['FUNCTION "'+config_name(t)+'" : Void', "{ S7_Optimized_Access := 'TRUE' }",
              'VERSION : 0.1', 'VAR_INPUT', '    ReadLevel : DInt;', '    Readable : Bool;',
@@ -397,6 +468,8 @@ def config_walk(t, lookup):
     service = 'FRK_ConfigUnit' if t.unit_modes else 'FRK_ConfigCatalog'
     facet = 'Policy := #Module.ModePolicy, ModelCount := 0' if t.unit_modes else 'Catalog := #Module.Catalog, Count := #Module.CatalogCount'
     lines += ['    "%s"(Scope := #Module.Status.Name, %s, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);' % (service, facet)]
+    if model and t.unit_modes and __import__('fraktal_tia_platform').active_gates(model):
+        lines+=['    IF #Module.Core.ParentIndex = 0 THEN "FRK_EngineeringManifest"(Scope := #Module.Status.Name, Access := #Module.Access, Cursor := #Cursor, Page := #Page); END_IF;']
     if t.sequence_view:
         lines += ['    "FRK_ViewManifest"(Scope := #Module.Status.Name, Defs := #Module.SequenceStepDef, Count := #Module.SequenceStepCount, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);']
     for child in t.children:
@@ -457,6 +530,7 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
                ('Aborted','Bool'), ('Held','Bool'), ('ErrorID','DWord'), ('Timing','"ST_ModuleTiming"'),
                ('OutCmd','"' + contract['OutCmd'] + '"'), ('OutImm','"' + contract['OutImm'] + '"')]]
     owned_par_cfg = config and any(f.member.startswith('ParCfg.') for f in config.fields[t.name])
+    has_nameplate=bool(t.unit_modes or any(i.type_name==t.name and i.path in dict(model.nameplates) for i in model.instances))
     if owned_par_cfg:
         inputs = [d for d in inputs if not d.startswith('ParCfg')]
     lines = ['// Generated frame v' + VERSION + '; change the declaration, then regenerate.',
@@ -464,6 +538,12 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
              'VAR_INPUT', *['    ' + x for x in inputs], 'END_VAR', 'VAR_OUTPUT', *['    ' + x for x in outputs],
              'END_VAR', 'VAR_IN_OUT', '    Hal : "%s";' % hals[t.name], 'END_VAR', 'VAR',
              '    Status%s : "ST_ModuleStatus";' % READONLY, '    Core%s : "FRK_Core";' % PRIVATE,
+             *(['    Nameplate'+READONLY+' : "ST_Nameplate";'] if has_nameplate else []),
+             *(__import__('fraktal_tia_platform').gate_declarations(model) if t.unit_modes else []),
+             *(__import__('fraktal_tia_run_styles').declarations(catalog) if t.unit_modes else []),
+             *(__import__('fraktal_tia_host_events').declarations() if t.unit_modes else []),
+             *(__import__('fraktal_tia_health').declarations() if t.health is not None else []),
+             *(__import__('fraktal_tia_tower').declarations() if t.tower is not None else []),
              *(['    ParCfg'+READONLY+' : "'+contract['ParCfg']+'";'] if owned_par_cfg else []),
              '    LatchedParCmd%s : "%s";' % (PRIVATE, contract['ParCmd']),
              *(['    StateFlags%s : Array[1..%d] of "ST_StateFlag";' % (READONLY,catalog.capacities['MAX_STATE_FLAGS']),
@@ -473,6 +553,7 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
              *(config.declarations(t) if config else []),
              *(__import__('fraktal_tia_sequence_view').declarations(t) if t.sequence_view else []),
              *(__import__('fraktal_tia_profile').declarations(t) if t.sequence_view else []),
+             *(__import__('fraktal_tia_operations').declarations(catalog,bool(model.line and model.line.shifts and config and t.name in config.line_types)) if t.production is not None else []),
              *(['    Catalog%s : Array[1..%d] of "ST_CommandInfo";' % (PRIVATE,catalog.capacities['MAX_CMD_CATALOG']),
                 '    CatalogCount%s : Int;' % PRIVATE,
                 '    ManConditions%s : Array[1..%d] of "FRK_ManualConditionRow";' % (PRIVATE,catalog.capacities['MAX_PERMINTLK_COND']),
@@ -500,6 +581,8 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
              'END_VAR', 'VAR_TEMP', '    InstancePath : WString[254];',
              *(['    RouteMatched : Bool;', '    ManualMatched : Bool;'] if t.unit_modes else []),
              *(['    ConfigRootIndex : Int;'] if config and t.name in config.roots else []),
+             *(['    ProductionChanged : Bool;'] if t.production is not None and model.line and model.line.shifts else []),
+             *(['    HealthResult : Bool;'] if t.health is not None else []),
              'END_VAR', 'VAR CONSTANT',
              '    EXEC_READY : DInt := %d;' % ready,
              '    %s : DInt := %d;' % ('MODULE_CM' if guarded else 'MODULE_TIER', model.core.tiers[t.tier]),
@@ -514,6 +597,7 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
             lines += ['        #Catalog[%d].Value := %d;' % (index,command_id),
                       '        #Catalog[%d].Label := %s;' % (index,literal(label)),
                       '        #Catalog[%d].Style := %d;' % (index,catalog.enums['E_CommandStyle']['ONESHOT'])]
+    if has_nameplate:lines+=__import__('fraktal_tia_platform').nameplate_setup(t,model,catalog)
     lines += ['    END_IF;']
     if config:
         from fraktal_tia_config import name as config_service
@@ -581,6 +665,10 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
         lines += ['        "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := \'\');']
     lines += ['    END_IF;']
     reaction('CommandStart')
+    if t.unit_modes:
+        kinds=catalog.enums['E_HostEventKind']
+        lines+=['    IF #Core.EvCommandStart AND #Unit.Mode = %d THEN'%catalog.enums['E_Mode']['CHANGEOVER'],
+            '        "FRK_HostEmit"(Kind := %d, Scope := #Status.Name, PartUid := \'\', Subject := \'Model\', Value := '%kinds['CHANGEOVER_STARTED']+('#Model.ModelCode' if config and t.name in config.roots and model.model_config else "''")+', Verdict := 0, Reason := 0);','    END_IF;']
     if strip_comments(logic.get('Cyclic', '')).strip():
         lines += ['    // ---- AUTHORED: cyclic management', logic['Cyclic'], '    // ---- GENERATED: end management']
     if t.unit_modes:
@@ -590,9 +678,15 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
                   '    #Unit.AlarmBlocking := "FRK_AlarmTreeBlocking"(Owner := #Core.RegIndex)'+(' OR "FRK_AlarmRecoveryTreeBlocking"(Scope := #Status.Name)' if model.alarm_recovery_scopes else '')+';']
         lines += ['    "FRK_UnitConsume"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Access := #Access, Response := #HmiResponse, Supported := #SupportedModesPublished);',
                   '    "FRK_UnitMode"(Core := #Core, Unit := #Unit);']
+        lines+=__import__('fraktal_tia_run_styles').frame(t,catalog)
+        lines += ['    "FRK_AlarmShelfRequest"(Scope := #Status.Name, Unit := #Unit, Access := #Access, Response := #HmiResponse, AlarmLog := #AlarmLog);']
+        if t.tower is not None:lines+=__import__('fraktal_tia_tower').config(t)+__import__('fraktal_tia_tower').request()
+        if t.production is not None:lines += __import__('fraktal_tia_operations').request_call()
         reaction('ModeExit')
         lines += ['    "FRK_UnitModeResolve"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #ModePolicy, Timeout := #ParCfg.%s);' % t.timeout]
         reaction('ModeChanged')
+        lines+=['    IF #Core.EvModeChanged THEN',
+            '        "FRK_HostEmit"(Kind := %d, Scope := #Status.Name, PartUid := \'\', Subject := \'Mode\', Value := DINT_TO_STRING(#Unit.Mode), Verdict := 0, Reason := 0);'%catalog.enums['E_HostEventKind']['MODE_CHANGED'],'    END_IF;']
         if t.sequence_view:
             lines += [__import__('fraktal_tia_sequence_view').frame_call('Begin', t, model)]
             lines += __import__('fraktal_tia_profile').prepare(t,catalog)
@@ -649,6 +743,8 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
                   '            #HmiResponse.Diagnostic := WSTRING#\'std.error.hmiRequestRejected\';',
                   '        ELSE',
                   '            "FRK_ConfigUnit"(Scope := #Status.Name, Policy := #ModePolicy, ModelCount := 0, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);']
+            if __import__('fraktal_tia_platform').active_gates(model):
+                lines+=['            IF #Core.ParentIndex = 0 THEN "FRK_EngineeringManifest"(Scope := #Status.Name, Access := #Access, Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage); END_IF;']
             for child in t.children:
                 if config:
                     lines += ['            "%s"(Module := #%s, Access := #Access, RootIndex := "FRK_ConfigRoot"(RegIndex := #Core.RegIndex), ModelIndex := 0, Cursor := #ConfigCursor, Page := #HmiResponse.ConfigPage);' % (config_name(lookup[child.type_name.casefold()]), child.name)]
@@ -699,6 +795,13 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
                   '    IF #Core.RegIndex > 0 THEN "FRK_Registry".Rows[#Core.RegIndex].AlarmBlocking := #AlarmLog.Blocking; END_IF;',
                   '    #Unit.AlarmBlocking := "FRK_AlarmTreeBlocking"(Owner := #Core.RegIndex)'+(' OR "FRK_AlarmRecoveryTreeBlocking"(Scope := #Status.Name)' if model.alarm_recovery_scopes else '')+';']
         lines += ['    "FRK_AccessPersist"(Access := #Access, Unit := #Unit, Response := #HmiResponse, SourcePath := STRING_TO_WSTRING(#Status.Name), AlarmLog := #AlarmLog);']
+        if __import__('fraktal_tia_platform').active_gates(model):lines+=__import__('fraktal_tia_platform').gate_frame()
+        if t.health is not None:lines+=__import__('fraktal_tia_health').frame(t)
+        if t.production is not None:lines += __import__('fraktal_tia_operations').frame(t,catalog)
+        if t.production is not None and model.line and model.line.shifts and config and t.name in config.line_types:
+            lines += __import__('fraktal_tia_operations').shift_frame()
+        if t.tower is not None:lines+=__import__('fraktal_tia_tower').frame()
+        lines+=__import__('fraktal_tia_host_events').frame(t,model,config,catalog)
         if config and t.name in config.line_types:
             lines += ['    IF #Core.ParentIndex = 0 AND "FRK_LineScope"(Scope := #Status.Name) THEN',
                       '        #Line := "FRK_Line".Data.Status; #LineRevisionSeen := #Line.Revision;', '    END_IF;']
@@ -707,6 +810,7 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
                   '    #ModeActivePublished := #Unit.Mode;','    #RunningPublished := #Core.Exec = %d;' % catalog.enums['E_ExecState']['BUSY'],
                   '    #StopPendingPublished := #Unit.StopReq AND #Core.Exec = %d;' % catalog.enums['E_ExecState']['BUSY'],
                   '    #GoodCount := #Unit.Good;','    #NokCount := #Unit.Nok;','    #ReworkCount := #Unit.Rework;','    #NokReason := #Unit.NokReason;']
+        lines+=__import__('fraktal_tia_run_styles').mirror()
     if guarded:
         lines.append('    END_IF;')
     lines += ['    // ---- AUTHORED: unconditional cyclic/derived data', derived]

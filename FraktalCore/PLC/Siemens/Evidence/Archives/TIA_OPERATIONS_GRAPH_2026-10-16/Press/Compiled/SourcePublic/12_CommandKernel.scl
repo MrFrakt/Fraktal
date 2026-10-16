@@ -1,0 +1,535 @@
+// Shared command kernel v0.1. Core 2.2 / 6.1 / 3.14 / 8.11.
+// Generated enum/rationalization values come from Core authorities.
+FUNCTION "FRK_ClockTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    DeltaS : LReal;
+END_VAR
+BEGIN
+    #DeltaS := RUNTIME("FRK_Clock".Mem);
+    IF #DeltaS < 0.0 OR #DeltaS > 60.0 THEN
+        #DeltaS := 0.0;
+    END_IF;
+    "FRK_Clock".AccMs := "FRK_Clock".AccMs + #DeltaS * 1000.0;
+    IF "FRK_Clock".AccMs >= 4294967296.0 THEN
+        "FRK_Clock".AccMs := "FRK_Clock".AccMs - 4294967296.0;
+    END_IF;
+    "FRK_Clock".NowMs := TRUNC_UDINT("FRK_Clock".AccMs);
+END_FUNCTION
+
+FUNCTION "FRK_Elapsed" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    NewMs : UDInt;
+    OldMs : UDInt;
+END_VAR
+VAR_TEMP
+    Wide : ULInt;
+END_VAR
+BEGIN
+    IF #NewMs >= #OldMs THEN
+        #Wide := UDINT_TO_ULINT(#NewMs) - UDINT_TO_ULINT(#OldMs);
+    ELSE
+        #Wide := ULINT#4294967296 + UDINT_TO_ULINT(#NewMs) - UDINT_TO_ULINT(#OldMs);
+    END_IF;
+    #FRK_Elapsed := ULINT_TO_UDINT(#Wide);
+END_FUNCTION
+
+FUNCTION "FRK_Now" : LDT
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP Stamp : DTL; ResultCode : Int; END_VAR
+BEGIN
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN #FRK_Now := DTL_TO_LDT(#Stamp);
+    ELSE #FRK_Now := LDT#1970-01-01-00:00:00.000000000; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ClearDiag" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    #Status.Diagnostic.ReasonCode := 0;
+    #Status.Diagnostic.SourcePath := WSTRING#'';
+    #Status.Diagnostic.Description := WSTRING#'';
+    #Status.Diagnostic.IoTag := '';
+    #Status.Diagnostic.IoAddress := '';
+    #Status.Diagnostic.Severity := 0;
+    #Status.Diagnostic.Category := 0;
+    #Status.Diagnostic.Since := LDT#1970-01-01-00:00:00.000000000;
+    #Status.Diagnostic.TimeSynchronized := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_Rationalize" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Diag : "ST_Diagnostic";
+END_VAR
+BEGIN
+    CASE #Diag.ReasonCode OF
+        10: #Diag.Severity := 1; #Diag.Category := 2;
+        11: #Diag.Severity := 0; #Diag.Category := 2;
+        12: #Diag.Severity := 0; #Diag.Category := 2;
+        13: #Diag.Severity := 1; #Diag.Category := 2;
+        14: #Diag.Severity := 1; #Diag.Category := 2;
+        15: #Diag.Severity := 2; #Diag.Category := 2;
+        16: #Diag.Severity := 0; #Diag.Category := 2;
+        17: #Diag.Severity := 0; #Diag.Category := 2;
+        18: #Diag.Severity := 1; #Diag.Category := 2;
+        19: #Diag.Severity := 0; #Diag.Category := 2;
+        20: #Diag.Severity := 1; #Diag.Category := 2;
+        21: #Diag.Severity := 0; #Diag.Category := 2;
+        2001: #Diag.Severity := 1; #Diag.Category := 0;
+        2002: #Diag.Severity := 0; #Diag.Category := 0;
+        2003: #Diag.Severity := 1; #Diag.Category := 0;
+        2004: #Diag.Severity := 1; #Diag.Category := 0;
+        2005: #Diag.Severity := 0; #Diag.Category := 0;
+        2006: #Diag.Severity := 1; #Diag.Category := 0;
+        2007: #Diag.Severity := 0; #Diag.Category := 0;
+        2008: #Diag.Severity := 0; #Diag.Category := 0;
+        2010: #Diag.Severity := 1; #Diag.Category := 2;
+        2011: #Diag.Severity := 0; #Diag.Category := 0;
+        2012: #Diag.Severity := 1; #Diag.Category := 2;
+        2020: #Diag.Severity := 1; #Diag.Category := 2;
+        2021: #Diag.Severity := 1; #Diag.Category := 2;
+        2022: #Diag.Severity := 2; #Diag.Category := 0;
+        2023: #Diag.Severity := 1; #Diag.Category := 0;
+        2024: #Diag.Severity := 0; #Diag.Category := 0;
+        2025: #Diag.Severity := 0; #Diag.Category := 0;
+        2026: #Diag.Severity := 0; #Diag.Category := 0;
+        2027: #Diag.Severity := 0; #Diag.Category := 0;
+        2030: #Diag.Severity := 0; #Diag.Category := 2;
+        2040: #Diag.Severity := 1; #Diag.Category := 2;
+        2041: #Diag.Severity := 1; #Diag.Category := 2;
+        2042: #Diag.Severity := 0; #Diag.Category := 2;
+        2043: #Diag.Severity := 0; #Diag.Category := 2;
+        2901: #Diag.Severity := 0; #Diag.Category := 2;
+        10101: #Diag.Severity := 1; #Diag.Category := 0;
+        10102: #Diag.Severity := 1; #Diag.Category := 0;
+        10103: #Diag.Severity := 2; #Diag.Category := 0;
+        10111: #Diag.Severity := 1; #Diag.Category := 0;
+        10112: #Diag.Severity := 1; #Diag.Category := 0;
+        10113: #Diag.Severity := 2; #Diag.Category := 0;
+        10114: #Diag.Severity := 1; #Diag.Category := 0;
+        10115: #Diag.Severity := 1; #Diag.Category := 2;
+        10116: #Diag.Severity := 1; #Diag.Category := 0;
+        10401: #Diag.Severity := 1; #Diag.Category := 2;
+        10402: #Diag.Severity := 0; #Diag.Category := 2;
+        10403: #Diag.Severity := 1; #Diag.Category := 2;
+        10404: #Diag.Severity := 0; #Diag.Category := 2;
+        10405: #Diag.Severity := 1; #Diag.Category := 2;
+        10406: #Diag.Severity := 1; #Diag.Category := 2;
+        10501: #Diag.Severity := 0; #Diag.Category := 0;
+        10502: #Diag.Severity := 2; #Diag.Category := 0;
+        10601: #Diag.Severity := 1; #Diag.Category := 0;
+        11001: #Diag.Severity := 1; #Diag.Category := 0;
+        10001: #Diag.Severity := 1; #Diag.Category := 0;
+        10002: #Diag.Severity := 1; #Diag.Category := 0;
+        10003: #Diag.Severity := 1; #Diag.Category := 0;
+        10004: #Diag.Severity := 1; #Diag.Category := 0;
+        10005: #Diag.Severity := 1; #Diag.Category := 0;
+        10201: #Diag.Severity := 1; #Diag.Category := 0;
+        10202: #Diag.Severity := 1; #Diag.Category := 0;
+        10203: #Diag.Severity := 2; #Diag.Category := 2;
+        10204: #Diag.Severity := 1; #Diag.Category := 0;
+        10308: #Diag.Severity := 1; #Diag.Category := 0;
+        10310: #Diag.Severity := 1; #Diag.Category := 0;
+        10304: #Diag.Severity := 2; #Diag.Category := 0;
+        10303: #Diag.Severity := 2; #Diag.Category := 0;
+        10305: #Diag.Severity := 1; #Diag.Category := 0;
+        10311: #Diag.Severity := 1; #Diag.Category := 0;
+        10313: #Diag.Severity := 2; #Diag.Category := 0;
+        10314: #Diag.Severity := 1; #Diag.Category := 0;
+        10315: #Diag.Severity := 2; #Diag.Category := 0;
+        10301: #Diag.Severity := 1; #Diag.Category := 0;
+        10205: #Diag.Severity := 1; #Diag.Category := 0;
+        10206: #Diag.Severity := 0; #Diag.Category := 0;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_Diagnostic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ReasonCode : DInt;
+    Description : WString;
+    Severity : DInt;
+END_VAR
+VAR_IN_OUT
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    #Status.Diagnostic.ReasonCode := #ReasonCode;
+    #Status.Diagnostic.SourcePath := STRING_TO_WSTRING(#Status.Name);
+    #Status.Diagnostic.Description := #Description;
+    #Status.Diagnostic.IoTag := '';
+    #Status.Diagnostic.IoAddress := '';
+    #Status.Diagnostic.Severity := #Severity;
+    #Status.Diagnostic.Category := 0;
+    #Status.Diagnostic.Since := "FRK_Now"();
+    // UTC source alone is not proof of synchronization; quality stays false.
+    #Status.Diagnostic.TimeSynchronized := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_Fault" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ReasonCode : DInt;
+    Description : WString;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Core.Exec = 3 THEN
+        RETURN;
+    END_IF;
+    "FRK_Diagnostic"(Status := #Status, ReasonCode := #ReasonCode, Description := #Description, Severity := 1);
+    "FRK_Rationalize"(Diag := #Status.Diagnostic);
+    #Core.Exec := 3;
+    #Core.Step := 0;
+    #Core.Dispatch := FALSE;
+    #Core.DiagTouched := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AdoptFault" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Diag : "ST_Diagnostic";
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Core.Exec = 3 THEN
+        RETURN;
+    END_IF;
+    #Status.Diagnostic := #Diag;
+    #Core.Exec := 3;
+    #Core.Step := 0;
+    #Core.Dispatch := FALSE;
+    #Core.DiagTouched := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_HoldDiag" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Diag : "ST_Diagnostic";
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Core.Exec <> 1 THEN
+        RETURN;
+    END_IF;
+    #Status.Diagnostic := #Diag;
+    #Status.Diagnostic.Severity := 0;
+    #Core.HoldReq := TRUE;
+    #Core.HoldReason := #Diag.ReasonCode;
+    #Core.DiagTouched := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_Hold" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ReasonCode : DInt;
+    Description : WString;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Core.Exec <> 1 THEN
+        RETURN;
+    END_IF;
+    IF NOT #Core.Held OR #Core.HoldReason <> #ReasonCode THEN
+        "FRK_Diagnostic"(Status := #Status, ReasonCode := #ReasonCode, Description := #Description, Severity := 0);
+    END_IF;
+    #Core.HoldReq := TRUE;
+    #Core.HoldReason := #ReasonCode;
+    #Core.DiagTouched := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_Pending" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Diag : "ST_Diagnostic";
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Core.Exec = 1 AND NOT #Core.DiagTouched THEN
+        #Status.Diagnostic := #Diag;
+        #Status.Diagnostic.Severity := 0;
+        #Core.DiagTouched := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_Complete" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Core.Exec = 1 THEN
+        #Core.Exec := 2;
+        #Core.Step := 0;
+        #Core.Dispatch := FALSE;
+        "FRK_ClearDiag"(Status := #Status);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_Start" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Bool;
+    Timeout : Time;
+    Label : String;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    #Core.CommandLabel := #Label;
+    IF NOT #Supported THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2008, Description := WSTRING#'fraktal.command.unsupported');
+    ELSIF #Timeout <= T#0ms THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2004, Description := WSTRING#'fraktal.command.timeout.invalid');
+    ELSE
+        #Core.TimeoutMs := DINT_TO_UDINT(TIME_TO_DINT(#Timeout));
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_Begin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Execute : Bool;
+    Abort : Bool;
+    Command : DInt;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    #Core.EvInit := NOT #Core.Initialized;
+    #Core.Initialized := TRUE;
+    #Core.EvCommandStart := FALSE;
+    #Core.EvAbort := FALSE;
+    #Core.EvAbortInError := FALSE;
+    #Core.HoldReq := FALSE;
+    #Core.DiagTouched := FALSE;
+    #Core.FaultHandled := FALSE;
+    #Core.HookResult := 0;
+    IF NOT #Execute AND (#Core.Armed OR #Core.ReleasePending) AND (#Core.Exec = 2 OR #Core.Exec = 3 OR #Core.Exec = 4) THEN
+        #Core.Exec := 0;
+        #Core.Armed := FALSE;
+        #Core.HoldReason := 0;
+        "FRK_ClearDiag"(Status := #Status);
+    END_IF;
+    IF #Execute AND NOT #Core.ExecPrev AND (#Core.Exec = 0 OR (#Core.Exec = 3 AND NOT #Core.Armed)) THEN
+        #Core.Exec := 1;
+        #Core.Armed := TRUE;
+        #Core.Command := #Command;
+        #Core.Step := 10;
+        #Core.StartMs := "FRK_Clock".NowMs;
+        #Core.LastNowMs := "FRK_Clock".NowMs;
+        #Core.ActiveMs := 0;
+        #Core.TimeoutMs := 0;
+        #Core.CommandLabel := '';
+        #Core.TimingOpen := TRUE;
+        #Core.Held := FALSE;
+        #Core.HoldReason := 0;
+        "FRK_ClearDiag"(Status := #Status);
+        #Core.EvCommandStart := TRUE;
+    END_IF;
+    #Core.DeltaMs := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Core.LastNowMs);
+    #Core.LastNowMs := "FRK_Clock".NowMs;
+    #Core.ExecPrev := #Execute;
+    #Core.Dispatch := #Core.Exec = 1;
+END_FUNCTION
+
+FUNCTION "FRK_RouteAbort" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Abort : Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+END_VAR
+VAR_TEMP
+    ErrorAbort : Bool;
+END_VAR
+BEGIN
+    IF (#Abort OR #Core.ReleasePending) AND #Core.Exec = 1 THEN
+        #Core.Exec := 4;
+        #Core.Step := 0;
+        #Core.Dispatch := FALSE;
+        #Core.EvAbort := TRUE;
+    END_IF;
+    #ErrorAbort := (#Abort OR #Core.ReleasePending) AND #Core.Exec = 3;
+    #Core.EvAbortInError := #ErrorAbort AND NOT #Core.AbortPrev;
+    #Core.AbortPrev := #ErrorAbort;
+END_FUNCTION
+
+FUNCTION "FRK_TimingUpdate" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT DurationMs : UDInt; END_VAR
+VAR_IN_OUT Row : "ST_TimingRow"; END_VAR
+VAR_TEMP BoundedMs : UDInt; Duration : Time; AverageMs : LInt; END_VAR
+BEGIN
+    #BoundedMs := #DurationMs;
+    IF #BoundedMs > UDINT#2147483647 THEN #BoundedMs := UDINT#2147483647; END_IF;
+    #Duration := DINT_TO_TIME(UDINT_TO_DINT(#BoundedMs));
+    IF #Row.Count < UDINT#4294967295 THEN #Row.Count := #Row.Count + 1; END_IF;
+    #Row.Last := #Duration;
+    IF #Row.Count = 1 OR #Duration < #Row.Minimum THEN #Row.Minimum := #Duration; END_IF;
+    IF #Duration > #Row.Maximum THEN #Row.Maximum := #Duration; END_IF;
+    #AverageMs := DINT_TO_LINT(TIME_TO_DINT(#Row.Avg));
+    #AverageMs := #AverageMs + (UDINT_TO_LINT(#BoundedMs) - #AverageMs) / UDINT_TO_LINT(#Row.Count);
+    #Row.Avg := DINT_TO_TIME(LINT_TO_DINT(#AverageMs));
+END_FUNCTION
+
+FUNCTION "FRK_RecordTiming" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Slot : DInt;
+    DurationMs : UDInt;
+END_VAR
+BEGIN
+    #DurationMs := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Core.StartMs);
+    // TIME's positive domain is bounded; clamp instead of publishing negatives.
+    IF #DurationMs > UDINT#2147483647 THEN
+        #DurationMs := UDINT#2147483647;
+    END_IF;
+    #Core.Timing.LastCmdTime := DINT_TO_TIME(UDINT_TO_DINT(#DurationMs));
+    #Slot := 0;
+    FOR #Index := 1 TO 8 DO
+        IF #Core.Timing.Rows[#Index].Count > 0 AND #Core.Timing.Rows[#Index].Id = #Core.Command THEN
+            #Slot := #Index;
+            EXIT;
+        ELSIF #Slot = 0 AND #Core.Timing.Rows[#Index].Count = 0 THEN
+            #Slot := #Index;
+        END_IF;
+    END_FOR;
+    IF #Slot = 0 THEN
+        #Core.Timing.Truncated := TRUE;
+    ELSE
+        #Core.Timing.Rows[#Slot].Id := #Core.Command;
+        #Core.Timing.Rows[#Slot].Label := #Core.CommandLabel;
+        "FRK_TimingUpdate"(DurationMs := #DurationMs, Row := #Core.Timing.Rows[#Slot]);
+    END_IF;
+    #Core.TimingOpen := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_End" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_OUTPUT
+    Busy : Bool;
+    Done : Bool;
+    Error : Bool;
+    Aborted : Bool;
+    Held : Bool;
+    ErrorID : DWord;
+    Timing : "ST_ModuleTiming";
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+VAR_TEMP
+    ActiveWide : ULInt;
+END_VAR
+BEGIN
+    IF #Core.Exec = 1 THEN
+        IF #Core.Held AND NOT #Core.HoldReq AND NOT #Core.DiagTouched THEN
+            "FRK_ClearDiag"(Status := #Status);
+        END_IF;
+        // HELD suspends progress timeout. Wall-clock command duration includes it.
+        IF NOT #Core.Held AND NOT #Core.HoldReq THEN
+            #ActiveWide := UDINT_TO_ULINT(#Core.ActiveMs) + UDINT_TO_ULINT(#Core.DeltaMs);
+            IF #ActiveWide > ULINT#2147483647 THEN
+                #ActiveWide := ULINT#2147483647;
+            END_IF;
+            #Core.ActiveMs := ULINT_TO_UDINT(#ActiveWide);
+            IF #Core.TimeoutMs > 0 AND #Core.ActiveMs >= #Core.TimeoutMs THEN
+                IF #Status.Diagnostic.ReasonCode = 0 THEN
+                    "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2001, Description := WSTRING#'fraktal.command.timeout');
+                ELSE
+                    #Status.Diagnostic.Severity := 1;
+                    "FRK_Rationalize"(Diag := #Status.Diagnostic);
+                    #Core.Exec := 3;
+                    #Core.Step := 0;
+                    #Core.Dispatch := FALSE;
+                END_IF;
+            END_IF;
+        END_IF;
+    END_IF;
+    #Core.Held := #Core.HoldReq AND #Core.Exec = 1;
+    IF NOT #Core.Held THEN
+        #Core.HoldReason := 0;
+    END_IF;
+    IF #Core.TimingOpen AND #Core.Exec <> 1 THEN
+        "FRK_RecordTiming"(Core := #Core);
+    END_IF;
+    #Busy := #Core.Exec = 1;
+    #Done := #Core.Exec = 2;
+    #Error := #Core.Exec = 3;
+    #Aborted := #Core.Exec = 4;
+    #Held := #Core.Held;
+    #ErrorID := DINT_TO_DWORD(#Status.Diagnostic.ReasonCode);
+    #Timing := #Core.Timing;
+    #Status.State := #Core.Exec;
+    #Status.FaultActive := #Core.Exec = 3;
+    #Core.HoldReq := FALSE;
+    #Core.EvInit := FALSE;
+    #Core.EvCommandStart := FALSE;
+    #Core.EvAbort := FALSE;
+    #Core.EvAbortInError := FALSE;
+    #Core.ReleasePending := FALSE;
+    "FRK_SyncRegistry"(Index := #Core.RegIndex, Status := #Status);
+END_FUNCTION
+
+FUNCTION "FRK_ReleaseCommand" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Execute : Bool;
+END_VAR
+BEGIN
+    #Execute := FALSE;
+    #Core.ReleasePending := TRUE;
+END_FUNCTION

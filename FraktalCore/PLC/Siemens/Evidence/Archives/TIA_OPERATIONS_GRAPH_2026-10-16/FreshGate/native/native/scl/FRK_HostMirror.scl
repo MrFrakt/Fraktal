@@ -1,0 +1,32 @@
+﻿FUNCTION "FRK_HostMirror" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Startup : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seen : UDInt;
+      View : "FRK_HostEvents";
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Slot := "FRK_HostSlot"(Scope := #Scope);
+	IF #Slot < 1 OR #Slot > 6 THEN
+	    RETURN;
+	END_IF;
+	"FRK_HostStore".Rows[#Slot].View.Capacity := 32;
+	IF #Startup OR #Seen <> "FRK_HostStore".Rows[#Slot].Sequence THEN
+	    #View := "FRK_HostStore".Rows[#Slot].View;
+	    #Seen := "FRK_HostStore".Rows[#Slot].Sequence;
+	END_IF;
+	
+END_FUNCTION
+

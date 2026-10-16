@@ -1,0 +1,291 @@
+// Reference-1500 LOCAL_RETAIN adapter. No sessions or plaintext credentials.
+// CRC-32 arithmetic comes from Core F_Crc32; encoding is binding-local, versioned.
+FUNCTION "FRK_AccessUsersCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Work : DWord;
+    Slot : Int;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_LocalUsers".SchemaVersion));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_LocalUsers".Generation);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT("FRK_LocalUsers".Count));
+    // Unused rows are included: an altered dormant credential is not ignored.
+    FOR #Slot := 1 TO @MAX_USERS@ DO
+        #Size := LEN("FRK_LocalUsers".Rows[#Slot].User);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Index := 1 TO #Size DO
+            #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_LocalUsers".Rows[#Slot].User[#Index]));
+        END_FOR;
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT("FRK_LocalUsers".Rows[#Slot].Level));
+        FOR #Index := 0 TO 15 DO
+            #Work := "FRK_CrcByte"(Previous := #Work, Value := "FRK_LocalUsers".Rows[#Slot].Salt[#Index]);
+        END_FOR;
+        FOR #Index := 0 TO 31 DO
+            #Work := "FRK_CrcByte"(Previous := #Work, Value := "FRK_LocalUsers".Rows[#Slot].PinHash[#Index]);
+        END_FOR;
+    END_FOR;
+    #FRK_AccessUsersCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AccessUsersShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Slot : Int;
+    Other : Int;
+END_VAR
+BEGIN
+    #FRK_AccessUsersShape := FALSE;
+    IF "FRK_LocalUsers".Count < 0 OR "FRK_LocalUsers".Count > @MAX_USERS@ THEN RETURN; END_IF;
+    FOR #Slot := 1 TO DINT_TO_INT("FRK_LocalUsers".Count) DO
+        IF "FRK_LocalUsers".Rows[#Slot].User = '' OR "FRK_LocalUsers".Rows[#Slot].Level < @E_AccessLevel.NONE@ OR "FRK_LocalUsers".Rows[#Slot].Level > @E_AccessLevel.ADMIN@ THEN RETURN; END_IF;
+        FOR #Other := 1 TO #Slot - 1 DO
+            IF "FRK_LocalUsers".Rows[#Slot].User = "FRK_LocalUsers".Rows[#Other].User THEN RETURN; END_IF;
+        END_FOR;
+    END_FOR;
+    #FRK_AccessUsersShape := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessUsersCommit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    #FRK_AccessUsersCommit := "FRK_AccessUsersShape"();
+    IF NOT #FRK_AccessUsersCommit THEN RETURN; END_IF;
+    "FRK_LocalUsers".SchemaVersion := 1;
+    "FRK_LocalUsers".Generation := "FRK_AccessNext"(Previous := "FRK_LocalUsers".Generation);
+    "FRK_LocalUsers".Checksum := "FRK_AccessUsersCrc"();
+    "FRK_AccessStorage".UsersCommissioned := TRUE;
+    "FRK_AccessStorage".UsersReady := TRUE;
+    "FRK_AccessStorage".UsersLost := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessRegisterHash" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Record : "ST_UserRecord";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+END_VAR
+BEGIN
+    // Trusted composition/provider seam, never a remote credential editor.
+    #FRK_AccessRegisterHash := FALSE;
+    IF NOT "FRK_AccessStorage".UsersReady OR #Record.User = '' OR #Record.Level < @E_AccessLevel.NONE@ OR #Record.Level > @E_AccessLevel.ADMIN@ THEN RETURN; END_IF;
+    #Slot := 0;
+    FOR #Index := 1 TO DINT_TO_INT("FRK_LocalUsers".Count) DO
+        IF "FRK_LocalUsers".Rows[#Index].User = #Record.User THEN #Slot := #Index; EXIT; END_IF;
+    END_FOR;
+    IF #Slot = 0 THEN
+        IF "FRK_LocalUsers".Count = @MAX_USERS@ THEN RETURN; END_IF;
+        "FRK_LocalUsers".Count := "FRK_LocalUsers".Count + 1;
+        #Slot := DINT_TO_INT("FRK_LocalUsers".Count);
+    END_IF;
+    "FRK_LocalUsers".Rows[#Slot] := #Record;
+    #FRK_AccessRegisterHash := "FRK_AccessUsersCommit"();
+END_FUNCTION
+
+FUNCTION "FRK_AccessStoreBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Accepted : Bool;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    "FRK_AccessStorage".UsersReady := FALSE;
+    "FRK_AccessStorage".UsersLost := FALSE;
+    // A virgin image may accept deliberate composition-root provisioning.
+    IF NOT "FRK_AccessStorage".UsersCommissioned AND "FRK_LocalUsers".SchemaVersion = 0 AND "FRK_LocalUsers".Generation = 0 AND "FRK_LocalUsers".Checksum = DWORD#0 THEN
+        #Accepted := "FRK_AccessUsersCommit"();
+        "FRK_AccessStorage".UsersLost := NOT #Accepted;
+    ELSIF "FRK_AccessStorage".UsersCommissioned AND "FRK_LocalUsers".SchemaVersion = 1 AND "FRK_LocalUsers".Generation > 0 AND "FRK_AccessUsersShape"() THEN
+        "FRK_AccessStorage".UsersReady := "FRK_LocalUsers".Checksum = "FRK_AccessUsersCrc"();
+        "FRK_AccessStorage".UsersLost := NOT "FRK_AccessStorage".UsersReady;
+    ELSE "FRK_AccessStorage".UsersLost := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Image : "FRK_AccessPolicyImage";
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+    IF #Image.Initialized THEN #Work := "FRK_CrcByte"(Previous := #Work, Value := BYTE#1);
+    ELSE #Work := "FRK_CrcByte"(Previous := #Work, Value := BYTE#0); END_IF;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Image.Generation);
+    #Size := LEN(#Image.Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Image.Scope[#Index])); END_FOR;
+    FOR #Index := @E_GatedAction.DATA_READ@ TO @E_GatedAction.CONFIG_SET@ DO
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Policy.Required[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(TIME_TO_DINT(#Image.Policy.SessionTimeout)));
+    #FRK_AccessPolicyCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Policy : "ST_AccessPolicy";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_AccessPolicyShape := FALSE;
+    IF #Policy.SessionTimeout < T#0ms OR #Policy.SessionTimeout > T#604800000ms THEN RETURN; END_IF;
+    FOR #Index := @E_GatedAction.DATA_READ@ TO @E_GatedAction.CONFIG_SET@ DO
+        IF #Policy.Required[#Index] < @E_AccessLevel.NONE@ OR #Policy.Required[#Index] > @E_AccessLevel.ADMIN@ THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_AccessPolicyShape := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Image : "FRK_AccessPolicyImage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_AccessPolicyValid := FALSE;
+    IF NOT #Image.Initialized OR #Image.SchemaVersion <> 1 OR #Image.Scope = '' OR #Image.Generation = 0 OR NOT "FRK_AccessPolicyShape"(Policy := #Image.Policy) THEN RETURN; END_IF;
+    #FRK_AccessPolicyValid := #Image.Checksum = "FRK_AccessPolicyCrc"(Image := #Image);
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicySave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    IF #Access.PolicySlot < 1 OR #Access.PolicySlot > @ROOT_COUNT@ THEN RETURN; END_IF;
+    IF #Scope = '' OR NOT "FRK_AccessPolicyShape"(Policy := #Access.Policy) THEN #Access.PolicyLost := TRUE; RETURN; END_IF;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].SchemaVersion := 1;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Initialized := TRUE;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Scope := #Scope;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Generation := "FRK_AccessNext"(Previous := "FRK_AccessPolicies".Rows[#Access.PolicySlot].Generation);
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Policy := #Access.Policy;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Checksum := "FRK_AccessPolicyCrc"(Image := "FRK_AccessPolicies".Rows[#Access.PolicySlot]);
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    Root : Bool;
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    FreeSlot : Int;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Access.PolicySlot := 0; #Access.PolicyLost := FALSE;
+    #Access.PolicyLossAlarm := 0; #Access.UserLossAlarm := 0;
+    IF NOT #Root THEN RETURN; END_IF;
+    #FreeSlot := 0;
+    FOR #Index := 1 TO @ROOT_COUNT@ DO
+        IF "FRK_AccessPolicies".Rows[#Index].Scope = #Scope THEN
+            IF #Access.PolicySlot <> 0 THEN #Access.PolicyLost := TRUE;
+            ELSE #Access.PolicySlot := #Index; END_IF;
+        ELSIF #FreeSlot = 0 AND NOT "FRK_AccessPolicies".Rows[#Index].Initialized AND "FRK_AccessPolicies".Rows[#Index].Scope = '' AND "FRK_AccessPolicies".Rows[#Index].SchemaVersion = 0 AND "FRK_AccessPolicies".Rows[#Index].Generation = 0 AND "FRK_AccessPolicies".Rows[#Index].Checksum = DWORD#0 THEN
+            #FreeSlot := #Index;
+        END_IF;
+    END_FOR;
+    IF #Access.PolicySlot > 0 THEN
+        IF NOT #Access.PolicyLost AND "FRK_AccessPolicyValid"(Image := "FRK_AccessPolicies".Rows[#Access.PolicySlot]) THEN
+            #Access.Policy := "FRK_AccessPolicies".Rows[#Access.PolicySlot].Policy;
+        ELSE #Access.PolicyLost := TRUE;
+        END_IF;
+    ELSIF #FreeSlot > 0 THEN
+        #Access.PolicySlot := #FreeSlot;
+        "FRK_AccessPolicySave"(Access := #Access, Scope := #Scope);
+    ELSE #Access.PolicyLost := TRUE;
+    END_IF;
+    IF #Access.PolicyLost THEN
+        // Do not silently reopen actions after losing commissioned policy.
+        #Access.Policy := "FRK_AccessStorage".EmptyPolicy;
+        FOR #Index := @E_GatedAction.DATA_READ@ TO @E_GatedAction.CONFIG_SET@ DO #Access.Policy.Required[#Index] := @E_AccessLevel.ADMIN@; END_FOR;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPersist" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Unit : "FRK_Unit";
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+    Response : "ST_HmiResponse";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Accepted : Bool;
+END_VAR
+BEGIN
+    IF #Unit.RequestPending AND #Unit.Request.Kind = @E_HmiRequestKind.ACK_CONFIG_RESTORE@ AND #Access.PolicyLost THEN
+        // Explicit ENGINEER acknowledgement accepts the restrictive fallback.
+        #Response.Accepted := #Access.CurrentLevel >= @E_AccessLevel.ENGINEER@ AND #Access.PolicySlot > 0;
+        IF #Response.Accepted THEN
+            "FRK_AccessPolicySave"(Access := #Access, Scope := WSTRING_TO_STRING(#SourcePath));
+            #Access.PolicyLost := FALSE;
+            #Response.Diagnostic := WSTRING#'';
+        ELSE #Response.Diagnostic := WSTRING#'std.error.configRestoreAckRefused'; END_IF;
+    ELSIF #Unit.RequestPending AND #Response.Accepted AND NOT #Access.PolicyLost AND (#Unit.Request.Kind = @E_HmiRequestKind.SET_ACCESS_LEVEL@ OR #Unit.Request.Kind = @E_HmiRequestKind.SET_SESSION_TIMEOUT@) THEN
+        "FRK_AccessPolicySave"(Access := #Access, Scope := WSTRING_TO_STRING(#SourcePath));
+    END_IF;
+    IF #Access.PolicyLost AND #Access.PolicyLossAlarm = 0 THEN
+        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+        #Diag.ReasonCode := @E_Reason.CONFIG_RESTORE_LOST@;
+        #Diag.Description := WSTRING#'std.error.configRestoreLost';
+        #Diag.SourcePath := #SourcePath;
+        #Access.PolicyLossAlarm := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
+    ELSIF NOT #Access.PolicyLost AND #Access.PolicyLossAlarm > 0 THEN
+        #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Access.PolicyLossAlarm);
+        #Access.PolicyLossAlarm := 0;
+    END_IF;
+    IF "FRK_AccessStorage".UsersLost AND #Access.PolicySlot > 0 AND #Access.UserLossAlarm = 0 THEN
+        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+        #Diag.ReasonCode := @E_Reason.CONFIG_RESTORE_LOST@;
+        #Diag.Description := WSTRING#'std.error.accessRestoreLost';
+        #Diag.SourcePath := #SourcePath;
+        #Access.UserLossAlarm := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
+    ELSIF NOT "FRK_AccessStorage".UsersLost AND #Access.UserLossAlarm > 0 THEN
+        #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Access.UserLossAlarm);
+        #Access.UserLossAlarm := 0;
+    END_IF;
+END_FUNCTION

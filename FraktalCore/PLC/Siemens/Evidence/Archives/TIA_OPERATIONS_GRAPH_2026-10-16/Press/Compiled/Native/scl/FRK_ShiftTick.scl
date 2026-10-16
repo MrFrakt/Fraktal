@@ -1,0 +1,133 @@
+﻿FUNCTION "FRK_ShiftTick" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Now : LDT;
+      Synchronized : Bool;
+      Revision : UDInt;
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Calendar : "ST_ShiftCalendarV3";
+      Book : "FRK_Production";
+      Unit : "FRK_Unit";
+      Oee : "ST_Oee";
+      CurrentShift : Int;
+      StartedAt : LDT;
+      ProductionTarget : UDInt;
+      History : Array[1..8] of "ST_ShiftRecordV3";
+      Count : Int;
+      Truncated : Bool;
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Selected : Int;
+      StartAt : LDT;
+      EndAt : LDT;
+      Target : UDInt;
+      Crossed : Bool;
+      Quality : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ShiftTick := FALSE;
+	IF #Book.ShiftInitialized THEN
+	    IF #Now < #Book.ShiftLastNow THEN
+	        #Book.ShiftSynchronized := FALSE;
+	    END_IF;
+	    #Book.ShiftSynchronized := #Book.ShiftSynchronized AND #Synchronized;
+	    #Book.ShiftLastNow := #Now;
+	    IF #Book.ShiftEnd <> LDT#1970-01-01-00:00:00 AND #Now < #Book.ShiftEnd THEN
+	        RETURN;
+	    END_IF;
+	    IF #Now < #StartedAt THEN
+	        RETURN;
+	    END_IF;
+	    IF #Book.ShiftEnd = LDT#1970-01-01-00:00:00 AND #Book.CalendarRevision = #Revision THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	IF NOT "FRK_ShiftInterval"(Now := #Now, Calendar := #Calendar, ShiftIndex => #Selected, StartAt => #StartAt, EndAt => #EndAt, Target => #Target) THEN
+	    #Book.ShiftSynchronized := FALSE;
+	    RETURN;
+	END_IF;
+	#Crossed := #Book.ShiftInitialized AND #Book.ShiftEnd <> LDT#1970-01-01-00:00:00;
+	IF #Book.ShiftInitialized AND NOT #Crossed AND #Selected = 0 THEN
+	    #Book.ShiftEnd := #EndAt;
+	    #Book.CalendarRevision := #Revision;
+	    RETURN;
+	END_IF;
+	IF #Book.ShiftInitialized THEN
+	    #Quality := #Synchronized;
+	    IF #Crossed AND LDT_TO_LINT(#Now) / LINT#1000000000 > LDT_TO_LINT(#Book.ShiftEnd) / LINT#1000000000 + 1 THEN
+	        #Quality := FALSE;
+	    END_IF;
+	    "FRK_OeeCompute"(Good := #Unit.Good,
+	                     Nok := #Unit.Nok,
+	                     Book := #Book,
+	                     Oee := #Oee);
+	    FOR #Index := 8 TO 2 BY -1 DO
+	        #History[#Index] := #History[#Index - 1];
+	    END_FOR;
+	    IF #Count >= 8 THEN
+	        #Truncated := TRUE;
+	    ELSE
+	        #Count := #Count + 1;
+	    END_IF;
+	    #History[1] := "FRK_ProductionDefaults".Shift;
+	    #History[1].SchemaVersion := 3;
+	    #History[1].ProductionTarget := #ProductionTarget;
+	    #History[1].ShiftIndex := #CurrentShift;
+	    #History[1].StartAt := #StartedAt;
+	    #History[1].EndAt := #Now;
+	    #History[1].TimeSynchronized := #Book.ShiftSynchronized AND #Quality;
+	    #History[1].ManualReset := #Book.ManualReset;
+	    #History[1].GoodCount := #Unit.Good;
+	    #History[1].NokCount := #Unit.Nok;
+	    #History[1].ReworkCount := #Unit.Rework;
+	    #History[1].RunMs := #Oee.RunMs;
+	    #History[1].DownMs := #Oee.DownMs;
+	    #History[1].IdleMs := #Oee.IdleMs;
+	    #History[1].Availability := #Oee.Availability;
+	    #History[1].AvailValid := #Oee.AvailValid;
+	    #History[1].Performance := #Oee.Performance;
+	    #History[1].PerfValid := #Oee.PerfValid;
+	    #History[1].Quality := #Oee.Quality;
+	    #History[1].QualValid := #Oee.QualValid;
+	    #History[1].Oee := #Oee.Oee;
+	    #History[1].OeeValid := #Oee.OeeValid;
+	    #Unit.Good := 0;
+	    #Unit.Nok := 0;
+	    #Unit.Rework := 0;
+	    #Book.GoodBase := 0;
+	    #Book.NokBase := 0;
+	    #Oee.RunMs := 0;
+	    #Oee.DownMs := 0;
+	    #Oee.IdleMs := 0;
+	    "FRK_OeeCompute"(Good := 0,
+	                     Nok := 0,
+	                     Book := #Book,
+	                     Oee := #Oee);
+	    "FRK_AlarmMessage"(AlarmLog := #AlarmLog,
+	                       Reason := 0,
+	                       Description := WSTRING#'std.audit.shiftClosed',
+	                       SourcePath := STRING_TO_WSTRING(#Scope));
+	    #FRK_ShiftTick := TRUE;
+	END_IF;
+	#Book.ShiftInitialized := TRUE;
+	#CurrentShift := #Selected;
+	#StartedAt := #Now;
+	#ProductionTarget := #Target;
+	#Book.ShiftEnd := #EndAt;
+	#Book.ShiftLastNow := #Now;
+	#Book.CalendarRevision := #Revision;
+	#Book.ShiftSynchronized := #Synchronized;
+	#Book.ManualReset := FALSE;
+	
+END_FUNCTION
+

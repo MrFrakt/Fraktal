@@ -28,7 +28,7 @@ class RecoveryTests(unittest.TestCase):
     def test_native_graph_adapters_share_the_correct_scan_boundary(self):
         sources, _, _ = EX.build()
         owners = [text for name, text in sources.items() if name.startswith('28_')]
-        self.assertEqual(len(owners), 2)
+        self.assertEqual(len(owners), 4)  # AUTO, HOME, CHANGEOVER and LoadPosition
         for text in owners:
             self.assertIn('"FRK_SeqGraphBegin"', text)
             self.assertNotIn('"FRK_SeqBegin"', text)

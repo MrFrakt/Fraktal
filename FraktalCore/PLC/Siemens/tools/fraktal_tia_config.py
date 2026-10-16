@@ -1,5 +1,5 @@
 """Typed editable config definitions; station/model persistence owns keyed values."""
-from dataclasses import dataclass
+from dataclasses import dataclass,replace
 import math
 from pathlib import Path
 import re
@@ -43,7 +43,9 @@ def validate_definition(fields, location, *, roles=('ParCfg', 'StationCfg'), lin
     facts = Catalog.read() if fields else None
     for field in fields:
         object_fields(field, ('member', 'key', 'revision', 'label'),
-                      ('minimum', 'maximum', 'requires_ready', 'min_read', 'min_write'), location + '.config')
+                      ('minimum', 'maximum', 'requires_ready', 'min_read', 'min_write', 'capture'), location + '.config')
+        if 'capture' in field and (line or not isinstance(field['capture'],str) or not re.fullmatch(r'(OutImm|OutCmd)\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:0|-?[1-9][0-9]*)\])?',field['capture'])):
+            raise DeclarationError('T-GEN',location,'capture binds a scalar published by the owning module')
         if not isinstance(field['member'], str) or not re.fullmatch('('+'|'.join(map(re.escape, roles))+r')\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:0|-?[1-9][0-9]*)\])?', field['member']):
             raise DeclarationError('T-GEN', location, 'config member selects '+ ' or '.join(roles))
         for name in ('key', 'label'):
@@ -86,12 +88,22 @@ class Field:
     min_write: int
     length: int
     enum_values: tuple[int, ...]
+    capture: str = ''
 
 
 def fields_for(t, catalog):
     from fraktal_tia_declaration import DeclarationError
     if len(t.config) > catalog.capacities['MAX_CONFIG_WRITES']:
         raise DeclarationError('T-WIDTH', t.name, 'editable config exceeds Core per-module capacity')
+    for field in t.config:
+        if field.get('capture'):
+            role,leaf=field['capture'].split('.')
+            source=record_targets(catalog,dict(t.contract)[role]).get(leaf)
+            target_role,target=field['member'].split('.')
+            record=dict(t.contract)['ParCfg'] if target_role=='ParCfg' else t.station_config
+            destination=record_targets(catalog,record).get(target)
+            if source is None or destination is None or source.split(':=')[0].strip().upper()!=destination.split(':=')[0].strip().upper():
+                raise DeclarationError('T-GEN',t.name,'capture source must exist in the public contract and match target storage type')
     return fields_for_records(t.config, {'ParCfg': dict(t.contract).get('ParCfg', ''), 'StationCfg': t.station_config},
                               catalog, {'ParCfg': 'PAR_CFG', 'StationCfg': 'STATION_CFG'}, t.name)
 
@@ -134,7 +146,7 @@ def fields_for_records(values, records, catalog, kinds, location, capacity=None)
                             int(schema[1]), catalog.enums['E_ConfigKind'][kinds[role]],
                             catalog.enums['E_ConfigStorage'][storage], catalog.enums['E_ConfigValueType'][value_type],
                             minimum, maximum, 'minimum' in value, 'maximum' in value,
-                            value.get('requires_ready', True), value.get('min_read', 0), value.get('min_write', 0), length, enum_values))
+                            value.get('requires_ready', True), value.get('min_read', 0), value.get('min_write', 0), length, enum_values,value.get('capture','')))
     return tuple(result)
 
 
@@ -256,10 +268,11 @@ class Layout:
 
     def components(self, t):
         fields = {'Core': '"FRK_Core"', 'Status': '"ST_ModuleStatus"',
+                  'OutImm':'"'+dict(t.contract)['OutImm']+'"','OutCmd':'"'+dict(t.contract)['OutCmd']+'"',
                   'ParCfg': '"'+dict(t.contract)['ParCfg']+'"',
                   'ModePolicy': 'Array[0..%d] of "ST_ModePolicy"'%(len(self.catalog.enums['E_Mode'])-1),
                   'Access': '"FRK_Access"', 'Unit': '"FRK_Unit"',
-                  'HmiResponse': '"ST_HmiResponse"', 'ConfigPersist': '"ST_ConfigPersistStatus"',
+                  'HmiResponse': '"ST_HmiResponse"', 'AlarmLog':'"FRK_AlarmLog"', 'ConfigPersist': '"ST_ConfigPersistStatus"',
                   'ConfigCursor': '"FRK_ConfigCursor"', 'ConfigRev': 'UDInt',
                   'Model': '"ST_ModelId"', 'AvailableModelCount': 'Int', 'ConfigStaged': 'Bool'}
         if t.sequence_view:
@@ -392,12 +405,16 @@ class Layout:
         service = 'FRK_ConfigUnit' if t.unit_modes else 'FRK_ConfigCatalog'
         facet = 'Policy := #Module.ModePolicy, ModelCount := #Module.AvailableModelCount' if t.name in self.roots else ('Policy := #Module.ModePolicy, ModelCount := 0' if t.unit_modes else 'Catalog := #Module.Catalog, Count := #Module.CatalogCount')
         body += ['        "'+service+'"(Scope := #Module.Status.Name, '+facet+', ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);', '    END_IF;']
+        if t.unit_modes and __import__('fraktal_tia_platform').active_gates(self.model):
+            body+=['    IF #ModelIndex = 0 AND #Module.Core.ParentIndex = 0 THEN "FRK_EngineeringManifest"(Scope := #Module.Status.Name, Access := #Access, Cursor := #Cursor, Page := #Page); END_IF;']
         if self.sets and t.name in self.roots:
             body += ['    IF #ModelIndex = 0 AND #Module.Core.ParentIndex = 0 THEN',
                      '        "FRK_ConfigAppend"(Scope := #Module.Status.Name, Item := \'Features/ExportCurrentConfig\', ValueText := WSTRING#\'true\', ValueType := %d, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);'%self.catalog.enums['E_ConfigValueType']['BOOLEAN'],
                      '    END_IF;']
         if t.sequence_view:
             body += ['    IF #ModelIndex = 0 THEN "FRK_ViewManifest"(Scope := #Module.Status.Name, Defs := #Module.SequenceStepDef, Count := #Module.SequenceStepCount, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page); END_IF;']
+        if any(f.capture for f in self.fields[t.name]):
+            body += ['    IF #ModelIndex = 0 THEN "FRK_ConfigAppend"(Scope := #Module.Status.Name, Item := \'Features/CaptureConfig\', ValueText := WSTRING#\'true\', ValueType := %d, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page); END_IF;'%self.catalog.enums['E_ConfigValueType']['BOOLEAN']]
         if t.name in self.roots and self.model.model_config:
             body += ['    IF #ModelIndex = 0 THEN']
             for index, code in enumerate(self.models, 1):
@@ -440,9 +457,12 @@ class Layout:
             body += ['        "'+name(t, 'Def')+'"(FieldIndex := %d);'%index,
                      '        IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN',
                      '            #Matched := TRUE;',
+                     '            "FRK_ConfigScratch".CommittedScope := #Module.Status.Name;',
                      '            IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN RETURN; END_IF;',
                      '            #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);',
-                     '            IF #Access.CurrentLevel < #Level THEN RETURN; END_IF;']
+                     '            IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN',
+                     '                "FRK_ConfigScratch".RejectDescription := WSTRING#\'std.error.accessDenied\';',
+                     '                "FRK_ConfigScratch".RejectReason := %d; RETURN; END_IF;'%self.catalog.enums['E_Reason']['PERMISSIVE_NOT_MET']]
             model_field = f.member.startswith('ParCfg.')
             root_field = model_field and t.name in self.roots
             if not root_field:
@@ -452,15 +472,27 @@ class Layout:
             code = '"FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #Request.DurationMs)' if model_field else "''"
             body += ['            #Code := '+code+';',
                      '            #Inactive := '+('#Code <> "FRK_ConfigStore".ActiveModels[#RootIndex]' if model_field else 'FALSE')+';',
-                     '            IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN RETURN; END_IF;',
+                     '            IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN',
+                     '                "FRK_ConfigScratch".RejectDescription := WSTRING#\'std.release.unitNotReady\';',
+                     '                "FRK_ConfigScratch".RejectReason := %d; RETURN; END_IF;'%self.catalog.enums['E_Reason']['PERMISSIVE_NOT_MET'],
                      ]
-            body += ['            #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Request.TextValue, RootIndex := #RootIndex);',
-                     '            IF NOT #Ok THEN RETURN; END_IF;', '            IF NOT #Inactive THEN',
+            body+=['            #Text := #Request.TextValue;']
+            capture=self.catalog.enums['E_HmiRequestKind']['CAPTURE_CONFIG']
+            if f.capture:
+                body+=['            IF #Request.Kind = %d THEN'%capture,
+                    '                IF #Inactive OR NOT #RootReady THEN RETURN; END_IF;',
+                    *read_value(replace(f,member=f.capture)),
+                    '                #Text := "FRK_ConfigScratch".Entry.ValueText;','            END_IF;']
+            else:body+=['            IF #Request.Kind = %d THEN RETURN; END_IF;'%capture]
+            body += ['            #Ok := "FRK_ConfigPut"(Scope := #Module.Status.Name, ModelCode := #Code, Text := #Text, RootIndex := #RootIndex);',
+                     '            IF NOT #Ok THEN RETURN; END_IF;',
+                     '            "FRK_ConfigScratch".CommittedText := #Text; "FRK_ConfigScratch".CommittedScope := #Module.Status.Name;', '            IF NOT #Inactive THEN',
                      assign_value(f, '#Module.'+f.member), '            END_IF;',
                      '            #'+name(t, 'Write')+' := TRUE;', '            RETURN;', '        END_IF;']
         if t.name in self.line_types:
             body += ['        IF #Module.Core.ParentIndex = 0 AND "FRK_LineScope"(Scope := #Module.Status.Name) THEN',
                      '            #Ok := "FRK_LineWrite"(Request := #Request, Access := #Access, Ready := #RootReady AND "FRK_Line".Ready, State := "FRK_Line".Data, Matched := #Matched);',
+                     '            IF #Ok THEN "FRK_ConfigScratch".CommittedText := #Request.TextValue; "FRK_ConfigScratch".CommittedScope := '+literal(self.model.line.owner)+'; END_IF;',
                      '            IF #Matched THEN #'+name(t, 'Write')+' := #Ok; RETURN; END_IF;', '        END_IF;']
         body += ['    END_IF;']
         if not self.fields[t.name] and t.name not in self.line_types:
@@ -470,7 +502,7 @@ class Layout:
             body += ['    #Ok := '+self.call(self.lookup[child.type_name.casefold()], 'Write', '#Module.'+child.name+'.', Access='#Access', Request='#Request', RootIndex='#RootIndex', RootReady='#RootReady', Matched='#Matched')+';',
                      '    IF #Matched THEN #'+name(t, 'Write')+' := #Ok; RETURN; END_IF;']
         return self.render(t, 'Write', ['Request : "ST_HmiRequest";', 'Access : "FRK_Access";', 'RootIndex : Int;', 'RootReady : Bool;'],
-                        ['Module : "'+t.name+'";', 'Matched : Bool;'], ['Ok : Bool;', 'Level : DInt;', 'Code : String[64];', 'Inactive : Bool;'], body, 'Bool')
+                        ['Module : "'+t.name+'";', 'Matched : Bool;'], ['Ok : Bool;', 'Level : DInt;', 'Code : String[64];', 'Inactive : Bool;', 'Text : WString[255];'], body, 'Bool')
 
     def recipe(self, t):
         body = ['    #'+name(t, 'Recipe')+' := TRUE;']
@@ -524,7 +556,8 @@ class Layout:
             'EnumValues'+PRIVATE+' : Array[1..%d] of DInt;'%max(1, max((len(f.enum_values) for fs in [*self.fields.values(), self.line.fields if self.line else ()] for f in fs), default=0)),
             *[k+PRIVATE+' : '+v+';' for k, v in (
                 ('Storage', 'DInt'), ('Schema', 'UInt'), ('Minimum', 'LReal'), ('Maximum', 'LReal'),
-                ('MaxLength', 'Int'), ('MinRead', 'DInt'), ('MinWrite', 'DInt'))],
+                ('MaxLength', 'Int'), ('MinRead', 'DInt'), ('MinWrite', 'DInt'), ('CommittedText','WString[255]'),('CommittedScope','String[80]'),
+                ('RejectReason','DInt'),('RejectDescription','WString[255]'))],
         ])
         text = DECIMAL_TEMPLATE.read_text('ascii') + '\n' + TEMPLATE.read_text('ascii')
         text = text.replace('#Persist.StorePresent := FALSE;', '#Persist.StorePresent := '+str(bool(self.sets)).upper()+';')
@@ -590,17 +623,34 @@ class Layout:
                  '                #Module.HmiResponse.Accepted := TRUE; #Module.HmiResponse.Diagnostic := WSTRING#\'\';', '            END_IF;']
         body += ['        %d:'%kinds['WRITE_CONFIG'],
                  '            #Module.HmiResponse.Accepted := FALSE;',
-                 '            #Module.HmiResponse.Diagnostic := WSTRING#\'std.error.hmiRequestRejected\';',
+                 '            "FRK_ConfigScratch".RejectDescription := WSTRING#\'std.error.recipeSchemaInvalid\';',
+                 '            "FRK_ConfigScratch".RejectReason := %d;'%self.catalog.enums['E_Reason']['RECIPE_INVALID'],
+                 '            "FRK_ConfigScratch".CommittedScope := #Module.Status.Name;',
+                 '            #Module.HmiResponse.Diagnostic := "FRK_ConfigScratch".RejectDescription;',
                  '            #Module.ConfigPersist.LastRejectScope := #Module.Status.Name;',
                  '            #Module.ConfigPersist.LastRejectKey := #Request.NameValue;',
+                 '            #Module.HmiResponse.Report.Count := 0; #Module.HmiResponse.Report.Released := TRUE;',
+                 '            IF #Request.Kind = %d THEN'%kinds['CAPTURE_CONFIG'],
+                 '                "FRK_ManualCommon"(Core := #Module.Core, Unit := #Module.Unit, Status := #Module.Status, Report := #Module.HmiResponse.Report);',
+                 '                #Ready := #Ready AND #Module.HmiResponse.Report.Released AND #Request.DurationMs = 0;',
+                 '                IF NOT #Ready THEN',
+                 '                    #Module.HmiResponse.Diagnostic := WSTRING#\'std.release.unitNotReady\';',
+                 '                    IF #Module.HmiResponse.Report.Count = 0 THEN "FRK_ReleaseReason"(Report := #Module.HmiResponse.Report, Description := #Module.HmiResponse.Diagnostic, Reason := %d, Path := STRING_TO_WSTRING(#Module.Status.Name), Kind := %d); END_IF;'%(self.catalog.enums['E_Reason']['PERMISSIVE_NOT_MET'],self.catalog.enums['E_ReleaseKind']['OTHER']),
+                 '                    RETURN; END_IF;', '            END_IF;',
                  '            IF #Request.DurationMs <= %d THEN'%len(self.model.model_config),
                  '                #Matched := FALSE;',
                  '                #Module.HmiResponse.Accepted := '+self.call(t, 'Write', '#Module.', Access='#Module.Access', Request='#Request', RootIndex='#RootIndex', RootReady='#Ready', Matched='#Matched')+';',
                  '            END_IF;',
                  '            IF #Module.HmiResponse.Accepted THEN',
+                 '                "FRK_ConfigWriteAudit"(Scope := "FRK_ConfigScratch".CommittedScope, Key := #Request.NameValue, Value := "FRK_ConfigScratch".CommittedText, Captured := #Request.Kind = %d, User := #Module.Unit.RequestUser, AlarmLog := #Module.AlarmLog);'%kinds['CAPTURE_CONFIG'],
                  '                #Module.ConfigRev := "FRK_ConfigRevision"(Previous := #Module.ConfigRev);',
                  '                #Module.HmiResponse.Diagnostic := WSTRING#\'\';',
-                 '                #Module.ConfigPersist.LastRejectScope := \'\'; #Module.ConfigPersist.LastRejectKey := \'\';', '            END_IF;']
+                 '                #Module.ConfigPersist.LastRejectScope := \'\'; #Module.ConfigPersist.LastRejectKey := \'\';',
+                 '            ELSE',
+                 '                #Module.ConfigPersist.LastRejectScope := "FRK_ConfigScratch".CommittedScope;',
+                 '                #Module.HmiResponse.Diagnostic := "FRK_ConfigScratch".RejectDescription;',
+                 '                "FRK_ReleaseReason"(Report := #Module.HmiResponse.Report, Description := #Module.HmiResponse.Diagnostic, Reason := "FRK_ConfigScratch".RejectReason, Path := STRING_TO_WSTRING("FRK_ConfigScratch".CommittedScope), Kind := %d);'%self.catalog.enums['E_ReleaseKind']['OTHER'],
+                 '            END_IF;']
         if self.model.line and self.model.line.role == 'MIRROR':
             body.insert(body.index('            #Module.HmiResponse.Accepted := FALSE;', body.index('        %d:'%kinds['WRITE_CONFIG']))+1, '            #Matched := FALSE;')
             body += ['            IF #Matched AND LEFT(IN := #Request.NameValue, L := 5) = \'line.\' AND NOT #Module.HmiResponse.Accepted THEN',
@@ -634,6 +684,7 @@ class Layout:
                  '            IF #Module.HmiResponse.Accepted THEN "FRK_ConfigStore".Acknowledged[#RootIndex] := TRUE;',
                  '            ELSE #Module.HmiResponse.Diagnostic := WSTRING#\'std.error.configRestoreAckRefused\'; END_IF;',
                  '        ELSE RETURN;', '    END_CASE;']
+        body=[line.replace('        %d:'%kinds['WRITE_CONFIG'],'        %d, %d:'%(kinds['WRITE_CONFIG'],kinds['CAPTURE_CONFIG'])) for line in body]
         return self.render(t, 'Operation', [], ['Module : "'+t.name+'";'],
                         ['RootIndex : Int;', 'Request : "ST_HmiRequest";', 'Ready : Bool;', 'Matched : Bool;', 'Ok : Bool;',
                          'Desired : String[64];', 'Scope : String[80];', 'Key : String[160];'], body)

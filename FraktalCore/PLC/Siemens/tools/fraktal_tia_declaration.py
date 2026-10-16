@@ -93,6 +93,10 @@ class ModuleType:
     station_config: str = ""
     config: tuple[dict, ...] = ()
     sequence_view: tuple[int, ...] = ()
+    production: object = None
+    health: object = None
+    tower: object = None
+    run_styles: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -127,6 +131,8 @@ class Declaration:
     # starts from, instead of the record default (the TC3 recipe seeds).
     model_seeds: tuple[tuple[str, str, str], ...] = ()
     line: object = None
+    nameplates: tuple = ()
+    engineering_gates: tuple = ()
 
     def inventory(self):
         types = {item.name: item for item in self.types}
@@ -187,7 +193,7 @@ def member(value, location):
 
 def validate(value, core=None):
     core = core or CoreFacts.read()
-    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records", "event_sink", "model_config", "config_sets", "alarm_history", "alarm_recovery", "alarm_delivery", "persistence", "line"), "declaration")
+    object_fields(value, ("schema_version", "target_family", "registry_capacity", "types", "roots"), ("records", "event_sink", "model_config", "config_sets", "alarm_history", "alarm_recovery", "alarm_delivery", "persistence", "line", "nameplates", "engineering_gates"), "declaration")
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise DeclarationError("T-GEN", "schema_version", "only declaration version1 is supported")
     if value["target_family"] != "S7-1500":
@@ -210,11 +216,14 @@ def validate(value, core=None):
     frame_members |= {n.casefold() for n in ('SequenceViewEnabled', 'SequenceStepCount', 'SequenceAnnotationCount',
         'Profiler', 'Starved', 'Blocked', 'CurrentStep', 'CurrentStepElapsed', 'CurrentStepTimedOut', 'SequenceSteps', 'ActiveSteps',
         'SequenceAnnotations', 'SequenceStepDef', 'SequenceViewBook', 'SequenceViewTouched', 'SequenceViewDepths', 'SequenceViewVisits')}
+    from fraktal_tia_operations import published_types
+    frame_members |= {'productionbook','productionchanged',*(n.casefold() for n in published_types(1,1))}
+    frame_members |= {'nameplate','engineeringslots','systemhealth','healthbook','healthconfig','signaltower','towerbook','towerconfig','runstyle','supportedrunstylespublished'}
     if value.get('line') is not None:
         frame_members |= {'line', 'linerevisionseen'}
     for index, data in enumerate(items(value["types"], "types")):
         location = f"types[{index}]"
-        object_fields(data, ("name", "tier", "children"), ("type_key", "contract", "hal", "capabilities", "logic", "commands", "timeout", "storage", "unit", "station_config", "config", "sequence_view"), location)
+        object_fields(data, ("name", "tier", "children"), ("type_key", "contract", "hal", "capabilities", "logic", "commands", "timeout", "storage", "unit", "station_config", "config", "sequence_view", "production", "health", "signal_tower"), location)
         name = identifier(data["name"], location + ".name", block=True)
         tier = data["tier"]
         if not isinstance(tier, str) or tier not in core.tiers:
@@ -284,10 +293,10 @@ def validate(value, core=None):
         elif not isinstance(storage, str):
             raise DeclarationError('T-GEN', location, 'private storage must be a record name')
         unit = data.get('unit', {})
-        object_fields(unit, (), ('modes', 'initial', 'run_command'), location + '.unit')
+        object_fields(unit, (), ('modes', 'initial', 'run_command', 'run_styles'), location + '.unit')
         modes, initial, run = (), '', 0
         if unit:
-            object_fields(unit, ('modes', 'initial', 'run_command'), (), location + '.unit')
+            object_fields(unit, ('modes', 'initial', 'run_command'), ('run_styles',), location + '.unit')
             if tier != 'UNIT':
                 raise DeclarationError('T-TIER', location, 'Unit runtime profile belongs only to Units')
             from fraktal_tia_binding import Catalog
@@ -319,7 +328,35 @@ def validate(value, core=None):
             view_sizes = tuple(view[n] for n in ('capacity', 'branches', 'annotations'))
             if not modes or any(type(n) is not int or not (0 if i == 1 else 1) <= n <= limits[i] for i, n in enumerate(view_sizes)):
                 raise DeclarationError('T-GEN', location, 'sequence view requires a Unit profile and bounded Core capacities')
-        types.append(ModuleType(name, tier, key, children, tuple(contract.items()), hal, capabilities, tuple(logic.items()), tuple(commands), timeout, storage, modes, initial, run, station_config, config, view_sizes))
+        production=None
+        if 'production' in data:
+            cfg=data['production']
+            object_fields(cfg, ('ideal_cycle',), ('baseline','degradation_percent'), location+'.production')
+            if not modes or not view_sizes or ('baseline' in cfg)!=('degradation_percent' in cfg):
+                raise DeclarationError('T-GEN',location+'.production','production requires a profiled Unit and paired baseline/band members')
+            if any(not isinstance(v,str) or not re.fullmatch(r'(?:ParCfg|StationCfg)\.[A-Za-z_][A-Za-z0-9_]*',v) for v in cfg.values()):
+                raise DeclarationError('T-GEN',location+'.production','production settings bind scalar config members')
+            production=tuple(cfg.items())
+        health=None
+        if 'health' in data:
+            cfg=data['health']
+            object_fields(cfg, (), ('max_task_cycle','max_task_jitter','require_time_sync'), location+'.health')
+            if not modes or any(not isinstance(v,str) or not re.fullmatch(r'StationCfg\.[A-Za-z_][A-Za-z0-9_]*',v) for v in cfg.values()):
+                raise DeclarationError('T-GEN',location+'.health','health thresholds require a Unit and registered station config members')
+            health=tuple(cfg.items())
+        tower=None
+        if 'signal_tower' in data:
+            cfg=data['signal_tower']
+            object_fields(cfg, (), ('lamp_test_duration','operator_uses_white','horn_on_high'), location+'.signal_tower')
+            if production is None or any(not isinstance(v,str) or not re.fullmatch(r'StationCfg\.[A-Za-z_][A-Za-z0-9_]*',v) for v in cfg.values()):
+                raise DeclarationError('T-GEN',location+'.signal_tower','tower requires production summary and registered station config settings')
+            tower=tuple(cfg.items())
+        styles=unit.get('run_styles',{})
+        if not isinstance(styles,dict) or set(styles)-set(modes):raise DeclarationError('T-GEN',location+'.unit.run_styles','run styles select declared modes')
+        for mode,values in styles.items():
+            if not isinstance(values,list) or not values or any(v not in ('CONTINUOUS','SINGLE_STEP','HOLD_TO_RUN') for v in values) or len(set(values))!=len(values) or 'CONTINUOUS' not in values or not view_sizes:
+                raise DeclarationError('T-GEN',location+'.unit.run_styles','profiled modes select unique Core styles including CONTINUOUS')
+        types.append(ModuleType(name, tier, key, children, tuple(contract.items()), hal, capabilities, tuple(logic.items()), tuple(commands), timeout, storage, modes, initial, run, station_config, config, view_sizes, production, health, tower,tuple((k,tuple(v)) for k,v in styles.items())))
     unique_named(types, "types")
     lookup = {item.name.casefold(): item for item in types}
 
@@ -466,7 +503,33 @@ def validate(value, core=None):
             raise DeclarationError('T-GEN', 'line', 'MIRROR needs a bound F_ image provider')
         if line.source and line.source.casefold() in {*(r.name.casefold() for r in roots), *lookup, *(n.casefold() for n in records), str(event_sink).casefold()}:
             raise DeclarationError('T-COLLIDE', 'line.source', 'provider collides with another project object')
-    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds,line)
+    nameplates=value.get('nameplates',{})
+    if not isinstance(nameplates,dict) or set(nameplates)-{i.path for i in instances}:
+        raise DeclarationError('T-GEN','nameplates','identity metadata selects deployed canonical module paths')
+    from fraktal_tia_binding import Catalog
+    from fraktal_tia_config import width
+    facts=Catalog.read();members={f['name'] for f in facts.records['ST_Nameplate']};uris=[]
+    for path,data in nameplates.items():
+        object_fields(data,(),members,'nameplates.'+path)
+        for field_name,text in data.items():
+            if not isinstance(text,str) or not text.isascii() or len(text)>width(facts,'ST_Nameplate',field_name) or any(ord(c)<32 for c in text):
+                raise DeclarationError('T-WIDTH','nameplates.'+path,'identity field exceeds the Core physical bound')
+        if data.get('ProductUri'):uris.append(data['ProductUri'])
+    if len(uris)!=len(set(uris)):raise DeclarationError('T-GEN','nameplates','nonempty ProductUri identities must be unique')
+    gates=items(value.get('engineering_gates',[]),'engineering_gates')
+    if len(gates)>facts.capacities['MAX_ENGINEERING_GATES']:raise DeclarationError('T-WIDTH','engineering_gates','gate register exceeds Core capacity')
+    names=[]
+    for gate in gates:
+        object_fields(gate,('name','description','active'),(),'engineering_gates')
+        if type(gate['active']) is not bool:raise DeclarationError('T-GEN','engineering_gates','gate activity is a build Boolean, never a runtime operand')
+        for key,field_name in [('name','Name'),('description','DescriptionKey')]:
+            text=gate[key]
+            if not isinstance(text,str) or not text.isascii() or not 1<=len(text)<=width(facts,'ST_EngineeringGate',field_name) or any(ord(c)<32 for c in text):
+                raise DeclarationError('T-WIDTH','engineering_gates','gate identity exceeds its Core bound')
+        names.append(gate['name'])
+    if len(names)!=len(set(names)):raise DeclarationError('T-GEN','engineering_gates','gate names must be unique')
+    return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds,line,
+                       tuple((p,tuple(v.items())) for p,v in nameplates.items()),tuple(tuple(g.items()) for g in gates))
 
 
 def unique_json_object(pairs):

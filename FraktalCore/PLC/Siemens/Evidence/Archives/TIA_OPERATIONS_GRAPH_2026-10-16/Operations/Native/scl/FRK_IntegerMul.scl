@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_IntegerMul" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Factor : UDInt;
+      Addend : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Number : "FRK_ConfigInteger";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Carry : ULInt;
+      Product : ULInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_IntegerMul := FALSE;
+	#Carry := UDINT_TO_ULINT(#Addend);
+	FOR #Index := 0 TO #Number.Used - 1 DO
+	    #Product := UDINT_TO_ULINT(#Number.Limbs[#Index]) * UDINT_TO_ULINT(#Factor) + #Carry;
+	    #Number.Limbs[#Index] := ULINT_TO_UDINT(#Product MOD ULINT#65536);
+	    #Carry := #Product / ULINT#65536;
+	END_FOR;
+	WHILE #Carry > ULINT#0 DO
+	    IF #Number.Used >= 102 THEN
+	        RETURN;
+	    END_IF;
+	    #Number.Limbs[#Number.Used] := ULINT_TO_UDINT(#Carry MOD ULINT#65536);
+	    #Number.Used := #Number.Used + 1;
+	    #Carry := #Carry / ULINT#65536;
+	END_WHILE;
+	#FRK_IntegerMul := TRUE;
+	
+END_FUNCTION
+

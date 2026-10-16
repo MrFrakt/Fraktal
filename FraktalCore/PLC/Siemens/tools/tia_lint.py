@@ -215,7 +215,8 @@ def check_keyword_and_collide(path: pathlib.Path, block: Block) -> list[Finding]
 
 def check_ext(path: pathlib.Path, block: Block, fb_names: set[str]) -> list[Finding]:
     from fraktal_tia_sequence_view import published_types
-    published = CONTRACT | {n.casefold() for n in published_types(1, 0, 1)}
+    from fraktal_tia_operations import published_types as production_types
+    published = CONTRACT | {'line','nameplate','hostevents','systemhealth','signaltower','runstyle','supportedrunstylespublished'} | {n.casefold() for n in published_types(1, 0, 1)} | {n.casefold() for n in production_types(1,1)}
     out = []
     for d in block.decls:
         writable = re.search(r"ExternalWritable\s*:=\s*'True'", d.attrs, re.I)

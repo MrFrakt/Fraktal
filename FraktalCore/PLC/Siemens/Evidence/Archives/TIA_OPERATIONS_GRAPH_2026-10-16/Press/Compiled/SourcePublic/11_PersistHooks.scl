@@ -1,0 +1,100 @@
+FUNCTION "FRK_PersistDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Stamp : LDT;
+    NativeResult : Int;
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > 10 THEN RETURN; END_IF;
+    IF NOT "FRK_PersistConsumers".Rows[#Slot].Dirty THEN
+        #NativeResult := RD_SYS_T(OUT => #Stamp);
+        IF "FRK_PersistConsumers".Rows[#Slot].Ticket = 0 THEN "FRK_PersistConsumers".Rows[#Slot].PendingSince := #Stamp;
+        ELSE "FRK_PersistConsumers".Rows[#Slot].NextSince := #Stamp; END_IF;
+    END_IF;
+    "FRK_PersistConsumers".Rows[#Slot].Dirty := TRUE;
+END_FUNCTION
+FUNCTION "FRK_PersistConfigSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    ModelCode : String;
+    Kind : DInt;
+END_VAR
+BEGIN
+    #FRK_PersistConfigSlot := 0;
+    IF #Scope = 'PressDemo' AND #ModelCode = '' AND #Kind = 1 THEN #FRK_PersistConfigSlot := 1; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = '' AND #Kind = 1 THEN #FRK_PersistConfigSlot := 1; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'ALUMINUM' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 2; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'ALUMINUM' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 2; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'ALUMINUM' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 2; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'ALUMINUM' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 2; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'ALUMINUM' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 2; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'PLASTIC' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 3; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'PLASTIC' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 3; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'PLASTIC' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 3; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'PLASTIC' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 3; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'PLASTIC' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 3; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'STEEL' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 4; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'STEEL' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 4; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'STEEL' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 4; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'STEEL' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 4; RETURN; END_IF;
+    IF #Scope = 'PressDemo' AND #ModelCode = 'STEEL' AND #Kind = 0 THEN #FRK_PersistConfigSlot := 4; RETURN; END_IF;
+END_FUNCTION
+FUNCTION "FRK_PersistUsersDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    "FRK_PersistDirty"(Slot := 10);
+END_FUNCTION
+FUNCTION "FRK_PersistPolicyDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+BEGIN
+    IF #RootIndex = 1 THEN "FRK_PersistDirty"(Slot := 5); END_IF;
+END_FUNCTION
+FUNCTION "FRK_PersistSetDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Ordinal : Int;
+END_VAR
+BEGIN
+    IF #RootIndex = 1 AND #Ordinal = 1 THEN "FRK_PersistDirty"(Slot := 6); END_IF;
+    IF #RootIndex = 1 AND #Ordinal = 2 THEN "FRK_PersistDirty"(Slot := 7); END_IF;
+    IF #RootIndex = 1 AND #Ordinal = 3 THEN "FRK_PersistDirty"(Slot := 8); END_IF;
+    IF #RootIndex = 1 AND #Ordinal = 4 THEN "FRK_PersistDirty"(Slot := 9); END_IF;
+END_FUNCTION
+FUNCTION "FRK_PersistModelDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+BEGIN
+    IF #RootIndex = 1 THEN "FRK_PersistDirty"(Slot := 1); END_IF;
+END_FUNCTION
+FUNCTION "FRK_PersistVirginConfig" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    ModelCode : String;
+    Kind : DInt;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #FRK_PersistVirginConfig := FALSE;
+    #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := #Kind);
+    IF #Slot > 0 THEN #FRK_PersistVirginConfig := "FRK_PersistConsumers".Rows[#Slot].Virgin; END_IF;
+END_FUNCTION

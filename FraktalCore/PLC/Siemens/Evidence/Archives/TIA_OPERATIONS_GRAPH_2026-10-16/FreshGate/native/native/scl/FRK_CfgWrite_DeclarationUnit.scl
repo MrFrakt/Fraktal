@@ -1,0 +1,203 @@
+﻿FUNCTION "FRK_CfgWrite_DeclarationUnit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+      Access : "FRK_Access";
+      RootIndex : Int;
+      RootReady : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      ParCfg : "ST_DeclarationParCfg";
+      StationCfg : "ST_UnitProbeStationCfg";
+      Cell : "FB_DeclarationCell";
+      Satellite : "FB_SatelliteUnit";
+      Matched : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+      Level : DInt;
+      Code : String[64];
+      Inactive : Bool;
+      Text : WString[255];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgWrite_DeclarationUnit := FALSE;
+	IF #Request.TargetPath = STRING_TO_WSTRING(#Status.Name) OR (#Request.TargetPath = WSTRING#'' AND #Core.ParentIndex = 0) THEN
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 1);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 AND #Core.ParentIndex <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #Request.DurationMs);
+	        #Inactive := #Code <> "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.release.unitNotReady';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        #Text := #Request.TextValue;
+	        IF #Request.Kind = 27 THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := #Code, Text := #Text, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_ConfigScratch".CommittedText := #Text;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF NOT #Inactive THEN
+	            #ParCfg.Timeout := DINT_TO_TIME(LINT_TO_DINT("FRK_ConfigScratch".Value.Number));
+	        END_IF;
+	        #FRK_CfgWrite_DeclarationUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 2);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 AND #Core.ParentIndex <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #Request.DurationMs);
+	        #Inactive := #Code <> "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.release.unitNotReady';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        #Text := #Request.TextValue;
+	        IF #Request.Kind = 27 THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := #Code, Text := #Text, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_ConfigScratch".CommittedText := #Text;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF NOT #Inactive THEN
+	            #ParCfg.Preset := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	        END_IF;
+	        #FRK_CfgWrite_DeclarationUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 3);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.release.unitNotReady';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        #Text := #Request.TextValue;
+	        IF #Request.Kind = 27 THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := #Code, Text := #Text, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_ConfigScratch".CommittedText := #Text;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF NOT #Inactive THEN
+	            #StationCfg.SiteLabel := "FRK_ConfigScratch".Value.Text;
+	        END_IF;
+	        #FRK_CfgWrite_DeclarationUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 4);
+	    IF #Request.NameValue = "FRK_ConfigScratch".Entry.WriteKey THEN
+	        #Matched := TRUE;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF DINT_TO_UDINT(#Request.IntValue) <> "FRK_ConfigScratch".Entry.WriteRevision THEN
+	            RETURN;
+	        END_IF;
+	        #Level := MAX(IN1 := #Access.Policy.Required[1], IN2 := "FRK_ConfigScratch".MinWrite);
+	        IF #Access.PolicyLost OR #Access.CurrentLevel < #Level THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.error.accessDenied';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        IF #Request.DurationMs <> 0 THEN
+	            RETURN;
+	        END_IF;
+	        #Code := '';
+	        #Inactive := FALSE;
+	        IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Inactive AND NOT #RootReady THEN
+	            "FRK_ConfigScratch".RejectDescription := WSTRING#'std.release.unitNotReady';
+	            "FRK_ConfigScratch".RejectReason := 2002;
+	            RETURN;
+	        END_IF;
+	        #Text := #Request.TextValue;
+	        IF #Request.Kind = 27 THEN
+	            RETURN;
+	        END_IF;
+	        #Ok := "FRK_ConfigPut"(Scope := #Status.Name, ModelCode := #Code, Text := #Text, RootIndex := #RootIndex);
+	        IF NOT #Ok THEN
+	            RETURN;
+	        END_IF;
+	        "FRK_ConfigScratch".CommittedText := #Text;
+	        "FRK_ConfigScratch".CommittedScope := #Status.Name;
+	        IF NOT #Inactive THEN
+	            #StationCfg.Enabled := "FRK_ConfigScratch".Value.Flag;
+	        END_IF;
+	        #FRK_CfgWrite_DeclarationUnit := TRUE;
+	        RETURN;
+	    END_IF;
+	END_IF;
+	#Ok := "FRK_CfgWrite_DeclarationCell"(Module := #Cell, Access := #Access, Request := #Request, RootIndex := #RootIndex, RootReady := #RootReady, Matched := #Matched);
+	IF #Matched THEN
+	    #FRK_CfgWrite_DeclarationUnit := #Ok;
+	    RETURN;
+	END_IF;
+	#Ok := "FRK_CfgWrite_SatelliteUnit"(Module := #Satellite, Access := #Access, Request := #Request, RootIndex := #RootIndex, RootReady := #RootReady, Matched := #Matched);
+	IF #Matched THEN
+	    #FRK_CfgWrite_DeclarationUnit := #Ok;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

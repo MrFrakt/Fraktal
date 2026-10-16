@@ -50,7 +50,7 @@ def add_controls(out):
         '        "FRK_SeqBegin"(Run := '+c+'Enabled, Reset := '+c+'HelperReset, OwnerIndex := #Owner, ChainIndex := 7, BranchIndex := '+c+'Branch, ViewOffset := '+c+'HelperOffset, ViewDepth := '+c+'Depth, Delta := T#1ms, Seq := '+h+'Seq);',
         '        '+c+'HelperReset := FALSE;',
         '        IF '+c+'Enabled THEN',
-        '            "FRK_SeqStep"(StepNo := '+c+'StepNo, StepName := '+c+'StepName, AwaitingLabel := \'test.helper.await\', AwaitsPath := \'StationA.Cell.Clamp\', TimeClass := 0, ExpectedTime := '+c+'ExpectedTime, Seq := '+h+'Seq, Row := '+h+'Row);',
+        '            "FRK_SeqStep"(Steppable := TRUE, StepNo := '+c+'StepNo, StepName := '+c+'StepName, AwaitingLabel := \'test.helper.await\', AwaitsPath := \'StationA.Cell.Clamp\', TimeClass := 0, ExpectedTime := '+c+'ExpectedTime, Seq := '+h+'Seq, Row := '+h+'Row);',
         '            '+h+'WaitOk := "FRK_SeqAwait"(Label := '+c+'AwaitLabel, Ok := '+c+'AwaitOk, Seq := '+h+'Seq);',
         '            IF '+c+'Annotate THEN "FRK_SeqMessage"(Diag := '+h+'Diag, Seq := '+h+'Seq, AlarmLog := "StationA".AlarmLog); END_IF;',
         '        END_IF;',

@@ -1,0 +1,31 @@
+﻿FUNCTION "FRK_ConfigValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Text : WString;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigValidate := "FRK_ConfigDecode"(Text := #Text,
+	                                          Storage := "FRK_ConfigScratch".Storage, Minimum := "FRK_ConfigScratch".Minimum,
+	                                          Maximum := "FRK_ConfigScratch".Maximum, MaxLength := "FRK_ConfigScratch".MaxLength,
+	                                          Value := "FRK_ConfigScratch".Value);
+	IF NOT #FRK_ConfigValidate OR "FRK_ConfigScratch".EnumCount = 0 THEN
+	    RETURN;
+	END_IF;
+	#FRK_ConfigValidate := FALSE;
+	FOR #Index := 1 TO "FRK_ConfigScratch".EnumCount DO
+	    IF "FRK_ConfigScratch".Value.Number = DINT_TO_LINT("FRK_ConfigScratch".EnumValues[#Index]) THEN
+	        #FRK_ConfigValidate := TRUE;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

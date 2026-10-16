@@ -1,5 +1,24 @@
 # Siemens press demo
 
+Latest qualification (2026-10-16): generator0.22 produces254 grouped sources.
+AUTO, HOME, CHANGEOVER and shared LoadPosition are wired GRAPH; ST permissives
+own the release policy. Optional ST/LD twins remain unwired. Native compile,
+canonical source/interface read-back and independent chart/ladder replay pass.
+The isolated press regression proves single-step/hold-to-run and CHANGEOVER's
+repeat jump880→810, including an answer retained behind pacing. See
+[the operations/GRAPH evidence](../../../../../Specification/Siemens/Evidence/TIA_OPERATIONS_GRAPH_2026-10-16.md)
+and [the live fixture](../../Tests/PressTests_TIA/README.md).
+
+Hardware templates and generated FB/DB/FCs live in `00_System/Hardware`.
+Sequence owners are private; the shared view publishes their chart progress.
+Main remains the root calling routine. Model config schema3 adds unqualified
+ideal/baseline timing values (default0); station config schema2 adds the
+degradation threshold. Machine state/OEE, health, gates, shelving, signal tower
+and host rings are shared services. Full Line integration and physical bench
+commissioning remain open. The saved original `Fraktal` runtime still has the
+`Press_Complete_20261015` image.
+
+
 The current generator0.21 package has185 grouped sources and selects the
 [shared LOAD_DB medium](../../Tests/Persistence/README.md) for station config,
 four named-set slots, private users and root policy (seven documents). Its

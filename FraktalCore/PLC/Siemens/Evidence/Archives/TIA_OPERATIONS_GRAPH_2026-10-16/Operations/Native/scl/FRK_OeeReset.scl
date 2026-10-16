@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_OeeReset" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Good : UDInt;
+      Nok : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Book : "FRK_Production";
+      Oee : "ST_Oee";
+      Trend : Array[1..60] of "ST_OeeSample";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#Book.GoodBase := #Good;
+	#Book.NokBase := #Nok;
+	#Oee.RunMs := 0;
+	#Oee.DownMs := 0;
+	#Oee.IdleMs := 0;
+	#Book.TrendHead := 0;
+	#Book.SampleMs := 0;
+	#Book.ManualReset := TRUE;
+	#Book.HaveClock := FALSE;
+	FOR #Index := 1 TO 60 DO
+	    #Trend[#Index] := "FRK_ProductionDefaults".Sample;
+	END_FOR;
+	"FRK_OeeCompute"(Good := #Good,
+	                 Nok := #Nok,
+	                 Book := #Book,
+	                 Oee := #Oee);
+	
+END_FUNCTION
+

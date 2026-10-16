@@ -1,0 +1,1118 @@
+{"event": "driver", "path": "C:\\Projects\\Fraktal\\FraktalCore\\PLC\\Siemens\\tools\\TiaCli\\bin\\candidate_structure_examples\\Fraktal.Tia.Cli.exe", "sha256": "ba24e6aaa0338b286accaf3d19c0d9dfaf2b394268b57a1a43ff1d330652fc74"}
+{"t":"2026-10-16T17:34:14.0320527Z","event":"tia","mode":"WithoutUserInterface"}
+{"t":"2026-10-16T17:34:14.0732001Z","event":"step","command":"create-project","args":"--dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\TiaGate_Operations_20261016_native04 --name FrkTiaGate"}
+{"t":"2026-10-16T17:34:21.7225927Z","event":"project-created","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\TiaGate_Operations_20261016_native04\\FrkTiaGate\\FrkTiaGate.ap20"}
+{"t":"2026-10-16T17:34:21.7235858Z","event":"step","command":"add-device","args":"--order OrderNumber:6ES7 516-3AP03-0AB0/V3.0 --name PLC_1 --station TiaGate"}
+{"t":"2026-10-16T17:34:33.6790550Z","event":"device-added","station":"TiaGate","order":"OrderNumber:6ES7 516-3AP03-0AB0/V3.0","plc":"PLC_1"}
+{"t":"2026-10-16T17:34:33.6790550Z","event":"step","command":"set-ip","args":"--plc PLC_1 --ip 169.254.212.55 --mask 255.255.0.0 --item PROFINET interface_1"}
+{"t":"2026-10-16T17:34:34.9520798Z","event":"ip-set","interface":"PROFINET interface_1","address":"169.254.212.55","mask":"255.255.0.0"}
+{"t":"2026-10-16T17:34:34.9520798Z","event":"step","command":"set-ip","args":"--plc PLC_1 --ip 172.31.254.55 --mask 255.255.255.0 --item PROFINET interface_2"}
+{"t":"2026-10-16T17:34:35.0344179Z","event":"ip-set","interface":"PROFINET interface_2","address":"172.31.254.55","mask":"255.255.255.0"}
+{"t":"2026-10-16T17:34:35.0344179Z","event":"step","command":"master-secret","args":"--plc PLC_1 --mode none"}
+{"t":"2026-10-16T17:34:35.4425905Z","event":"master-secret","was":"WithoutPassword","now":"None"}
+{"t":"2026-10-16T17:34:35.4425905Z","event":"step","command":"service-set","args":"--plc PLC_1 --service PlcAccessLevelProvider --prop PlcProtectionAccessLevel --value FullAccess"}
+{"t":"2026-10-16T17:34:35.8231165Z","event":"service-set","service":"PlcAccessLevelProvider","prop":"PlcProtectionAccessLevel","was":"NoAccess","now":"FullAccess"}
+{"t":"2026-10-16T17:34:35.8231165Z","event":"step","command":"project-set","args":"--prop IsSimulationDuringBlockCompilationEnabled --value true"}
+{"t":"2026-10-16T17:34:35.8432220Z","event":"project-set","prop":"IsSimulationDuringBlockCompilationEnabled","was":false,"now":true}
+{"t":"2026-10-16T17:34:35.8432220Z","event":"step","command":"save","args":""}
+{"t":"2026-10-16T17:34:35.8940493Z","event":"saved","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\TiaGate_Operations_20261016_native04\\FrkTiaGate\\FrkTiaGate.ap20"}
+{"t":"2026-10-16T17:34:35.8940493Z","event":"step","command":"delete-blocks","args":"--plc PLC_1"}
+{"t":"2026-10-16T17:34:35.9501047Z","event":"block-deleted","name":"Main"}
+{"t":"2026-10-16T17:34:36.1458782Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_000_ST_Diagnostic.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:36.2600867Z","event":"group-created","kind":"types","path":"Framework/Core","name":"Framework"}
+{"t":"2026-10-16T17:34:36.2760282Z","event":"group-created","kind":"types","path":"Framework/Core","name":"Core"}
+{"t":"2026-10-16T17:34:37.9442629Z","event":"source-generated","file":"00_000_ST_Diagnostic.udt","sha256":"835b5df9834c449b0c80d59095282aad9ef9f7cfe95867a9a031b4d2446051e9"}
+{"t":"2026-10-16T17:34:37.9442629Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_001_ST_ModuleStatus.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:38.1691051Z","event":"source-generated","file":"00_001_ST_ModuleStatus.udt","sha256":"5d2f48c83c6435c7576d70345aaa1e3f33ff205e33ff5c698a1f62bc1b675a9b"}
+{"t":"2026-10-16T17:34:38.1691051Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_002_ST_TimingRow.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:38.2359647Z","event":"source-generated","file":"00_002_ST_TimingRow.udt","sha256":"b4631634bd082c8fc71e3c1f9cb094e9ce77941a570054b89dfd09a33550df84"}
+{"t":"2026-10-16T17:34:38.2359647Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_003_ST_ModuleTiming.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:38.3492056Z","event":"source-generated","file":"00_003_ST_ModuleTiming.udt","sha256":"3468f1a62c7b50a38db591a36248f810464d69052c7e9d0997bccca75d711eeb"}
+{"t":"2026-10-16T17:34:38.3492056Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_004_ST_DeclarationParCfg.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:38.4132126Z","event":"group-created","kind":"types","path":"Tests/ConfigBench/DUTs","name":"Tests"}
+{"t":"2026-10-16T17:34:38.4291162Z","event":"group-created","kind":"types","path":"Tests/ConfigBench/DUTs","name":"ConfigBench"}
+{"t":"2026-10-16T17:34:38.4444308Z","event":"group-created","kind":"types","path":"Tests/ConfigBench/DUTs","name":"DUTs"}
+{"t":"2026-10-16T17:34:38.5052463Z","event":"source-generated","file":"00_004_ST_DeclarationParCfg.udt","sha256":"799c7ba448ceaea8cf99595a2d8f0226aef4f3d7c1c9b2f282677e02ebc8cc0d"}
+{"t":"2026-10-16T17:34:38.5052463Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_005_ST_DeclarationParCmd.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:38.5709153Z","event":"source-generated","file":"00_005_ST_DeclarationParCmd.udt","sha256":"fafe5ed5be5a08330ad78a29c7bbc3e24a7cd88449c535fe231e9c28232e003d"}
+{"t":"2026-10-16T17:34:38.5709153Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_006_ST_DeclarationOutCmd.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:38.6331306Z","event":"source-generated","file":"00_006_ST_DeclarationOutCmd.udt","sha256":"8c8ed3aeae6139274847377d10dcb547d0382f761d46474acffb1d1066dc6c13"}
+{"t":"2026-10-16T17:34:38.6331306Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_007_ST_DeclarationOutImm.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:38.6942791Z","event":"source-generated","file":"00_007_ST_DeclarationOutImm.udt","sha256":"10b7948a5fe21cca1ac90885f8dd103a811f78bfcce0e34cf0ef4684408a3153"}
+{"t":"2026-10-16T17:34:38.6942791Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_008_ST_DeclarationLeafHal.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:38.7683178Z","event":"source-generated","file":"00_008_ST_DeclarationLeafHal.udt","sha256":"a2fabe1bc10b4cc5242207d121e32ff7ce147359c6955091b9c5ae6ae2c481f1"}
+{"t":"2026-10-16T17:34:38.7683178Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_009_ST_DeclarationCellHal.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:38.8631571Z","event":"source-generated","file":"00_009_ST_DeclarationCellHal.udt","sha256":"01622f5d19336ec7bf879d3fb61caa420bf78af711c9e0b2a889d3285bc51c15"}
+{"t":"2026-10-16T17:34:38.8631571Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_010_ST_UnitProbeImm.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:38.9500193Z","event":"source-generated","file":"00_010_ST_UnitProbeImm.udt","sha256":"c01fe8b540a4d62bf871f04e77c13af9879d0d52807f121d49b436b8dd85e233"}
+{"t":"2026-10-16T17:34:38.9500193Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_011_ST_UnitProbeDevice.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:39.0207615Z","event":"source-generated","file":"00_011_ST_UnitProbeDevice.udt","sha256":"e867f18e9a78da23dca3591d0a33f60756d7c02375cce4cc93542730b05661f9"}
+{"t":"2026-10-16T17:34:39.0207615Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_012_ST_UnitProbeStationCfg.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:39.0950246Z","event":"source-generated","file":"00_012_ST_UnitProbeStationCfg.udt","sha256":"0bdeb56640bf412b6d549763a6239211c284bdaed85a9eddbecff8d69550a5bc"}
+{"t":"2026-10-16T17:34:39.0950246Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_013_ST_HmiRequest.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.1647459Z","event":"source-generated","file":"00_013_ST_HmiRequest.udt","sha256":"e60cf0524e97f9d577f6344ce8f0df4187bfd0e8716364a521b7582e5f2a47d2"}
+{"t":"2026-10-16T17:34:39.1647459Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_014_ST_ReleaseReason.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.2260865Z","event":"source-generated","file":"00_014_ST_ReleaseReason.udt","sha256":"ab21913a0b893a98e66362005598a9aaa1cd200c2427b8f8ed5be3a041431e57"}
+{"t":"2026-10-16T17:34:39.2260865Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_015_ST_ReleaseReport.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.2901098Z","event":"source-generated","file":"00_015_ST_ReleaseReport.udt","sha256":"959e7c7a1be8b7d68d8a98e05eea4ee6b55bcd3fdefb3f7ac264b52a6535b360"}
+{"t":"2026-10-16T17:34:39.2901098Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_016_ST_ConfigEntry.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.3799100Z","event":"source-generated","file":"00_016_ST_ConfigEntry.udt","sha256":"4c2ba73bca7d793b9f4a0947433de7e6a11bbf36123feec5e707569ad21bfe7c"}
+{"t":"2026-10-16T17:34:39.3799100Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_017_ST_ConfigPage.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.4429743Z","event":"source-generated","file":"00_017_ST_ConfigPage.udt","sha256":"4a831f3a1af7326dea468e4dd313f386495e3d81b55319c8f7984f0a9e7433b4"}
+{"t":"2026-10-16T17:34:39.4429743Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_018_ST_HmiResponse.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.5169005Z","event":"source-generated","file":"00_018_ST_HmiResponse.udt","sha256":"abe47cb85c6c1dca748a5309e04ad001ea8b70b7741e072624cde8c285276679"}
+{"t":"2026-10-16T17:34:39.5169005Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_019_ST_ModePolicy.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.5799264Z","event":"source-generated","file":"00_019_ST_ModePolicy.udt","sha256":"31c007c0227671490088ac9a6b65b20cc66ce35fcb2d83ad70d5f736e9f738dc"}
+{"t":"2026-10-16T17:34:39.5799264Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_020_ST_AccessPolicy.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:39.6519696Z","event":"source-generated","file":"00_020_ST_AccessPolicy.udt","sha256":"cbaa283e5a92a3b9681a96a077ea980cd42008c2cb886c16ad113f3e3df62ee3"}
+{"t":"2026-10-16T17:34:39.6519696Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_021_ST_MeasRecord.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.0308216Z","event":"source-generated","file":"00_021_ST_MeasRecord.udt","sha256":"324b2437470d9318b54ff16778324d0a6b8d9c263141c6ec155300d252fc2b37"}
+{"t":"2026-10-16T17:34:40.0308216Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_022_ST_PartResult.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.0938957Z","event":"source-generated","file":"00_022_ST_PartResult.udt","sha256":"d41ee7082358ee50a8262666e4ff4588ed01ca3efe9de97380d354936be523ce"}
+{"t":"2026-10-16T17:34:40.0938957Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_023_ST_PartContext.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.1677432Z","event":"source-generated","file":"00_023_ST_PartContext.udt","sha256":"751bf9a261b40a77381ca9c6fbc3417870bf5479cd8508bc442fbe0cf27ec5b3"}
+{"t":"2026-10-16T17:34:40.1677432Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_024_ST_UserRecord.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.2320839Z","event":"source-generated","file":"00_024_ST_UserRecord.udt","sha256":"2f168c71f93aa95f34fe441570cbbb33e9f2ac7e9368c526d1e8e68c92ea56cd"}
+{"t":"2026-10-16T17:34:40.2320839Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_025_ST_AlarmEvent.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.2958252Z","event":"source-generated","file":"00_025_ST_AlarmEvent.udt","sha256":"6a29297eab77e7b855d80e16a45a2545b7f26a4e03ba710587e843c72abaac3a"}
+{"t":"2026-10-16T17:34:40.2958252Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_026_ST_DecisionRequest.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.3650779Z","event":"source-generated","file":"00_026_ST_DecisionRequest.udt","sha256":"0ba0db687e96e08f25796f879377411c594e622e0237d7dc40c1649cd1457dfb"}
+{"t":"2026-10-16T17:34:40.3650779Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_027_ST_InnerUnitHal.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.4410929Z","event":"source-generated","file":"00_027_ST_InnerUnitHal.udt","sha256":"a17135736c69e029ef3ddf1833e16aec58c9eabbc52363a627f46280a5001f35"}
+{"t":"2026-10-16T17:34:40.4410929Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_028_ST_SatelliteUnitHal.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.5081421Z","event":"source-generated","file":"00_028_ST_SatelliteUnitHal.udt","sha256":"13d35b0310255a195d4b73058627c3bda81bd499a979bc2adc854bad11b375a8"}
+{"t":"2026-10-16T17:34:40.5081421Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\DUTs --only 00_029_ST_DeclarationUnitHal.udt --group Tests/ConfigBench/DUTs"}
+{"t":"2026-10-16T17:34:40.5739121Z","event":"source-generated","file":"00_029_ST_DeclarationUnitHal.udt","sha256":"3d2c93ece8ce701c193ea725f5698e7357d029ed0f38e78be986eab7bd37b3cd"}
+{"t":"2026-10-16T17:34:40.5739121Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_030_ST_FraktalHal.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.6371634Z","event":"source-generated","file":"00_030_ST_FraktalHal.udt","sha256":"e495a27d7781939d80fc99a2d41f0a31a8c32e91aac9c676db3ca8b6d2aa6e4b"}
+{"t":"2026-10-16T17:34:40.6371634Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_031_ST_CommandInfo.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.6970198Z","event":"source-generated","file":"00_031_ST_CommandInfo.udt","sha256":"d002d7bd0d4908f5738b2e6528b9636af5c232a5b49f32d04451b4d12ac68255"}
+{"t":"2026-10-16T17:34:40.6970198Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_032_ST_Nameplate.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.7562914Z","event":"source-generated","file":"00_032_ST_Nameplate.udt","sha256":"71b33888592d25c123a4521652c0d0588ba85e63a5437507cb3bcdbabc883c5c"}
+{"t":"2026-10-16T17:34:40.7562914Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_033_ST_HostEvent.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.8329999Z","event":"source-generated","file":"00_033_ST_HostEvent.udt","sha256":"de3973cbcb7c18cc64ba730271ddcfb01838f9537232864e0f825572129194ff"}
+{"t":"2026-10-16T17:34:40.8329999Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_034_ST_ConfigRecord.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.8960507Z","event":"source-generated","file":"00_034_ST_ConfigRecord.udt","sha256":"11763e5c210d04dc66302a9478d1d325e1c25bc72fb6c0ab7b7abf625d2b7165"}
+{"t":"2026-10-16T17:34:40.8960507Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_035_ST_ConfigPersistStatus.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:40.9604195Z","event":"source-generated","file":"00_035_ST_ConfigPersistStatus.udt","sha256":"ee04e1091ead8066da6ef17a13dbb384fc33e2bb28f0d8a16afe48e53cd07b04"}
+{"t":"2026-10-16T17:34:40.9604195Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_036_ST_ModelField.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.0222397Z","event":"source-generated","file":"00_036_ST_ModelField.udt","sha256":"dea73a13c1043ae0cf357a15f124ae43b9a7eb3b1e7ea83a0c433a565e02aac4"}
+{"t":"2026-10-16T17:34:41.0222397Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_037_ST_ModelId.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.0830443Z","event":"source-generated","file":"00_037_ST_ModelId.udt","sha256":"448ee7a1de46df808c039e793bf331214bbe7a0e428e6c78c191e0f886338dfd"}
+{"t":"2026-10-16T17:34:41.0830443Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_038_ST_StateFlag.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.1463063Z","event":"source-generated","file":"00_038_ST_StateFlag.udt","sha256":"e9349c8b4580741e336af3c3c0a6d607e7fb9622aec16d566cba64e3d90a77a0"}
+{"t":"2026-10-16T17:34:41.1463063Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_OP000_ST_Oee.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.2170936Z","event":"source-generated","file":"00_OP000_ST_Oee.udt","sha256":"26661739ffb52557054cfa02660c9a2a36bb5fdf80598573a04a3006782ac480"}
+{"t":"2026-10-16T17:34:41.2170936Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_OP001_ST_OeeSample.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.2740632Z","event":"source-generated","file":"00_OP001_ST_OeeSample.udt","sha256":"ca7e72ba987d64bcea3a3af856fdd7a43b16f9d46af81d2222891ab1a16b0bfa"}
+{"t":"2026-10-16T17:34:41.2740632Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_OP002_ST_ShiftRowV3.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.3340723Z","event":"source-generated","file":"00_OP002_ST_ShiftRowV3.udt","sha256":"7d67637fa2a0c005aa771fec932915b7b5c8ec318c4d6adef0daa02d00a8d3b8"}
+{"t":"2026-10-16T17:34:41.3340723Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_OP003_ST_ShiftCalendarV3.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.3944085Z","event":"source-generated","file":"00_OP003_ST_ShiftCalendarV3.udt","sha256":"62066aeb863806e8f57391e0edea0a2160ede70f221dfcb5f78f042fdc7e6840"}
+{"t":"2026-10-16T17:34:41.3944085Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_OP004_ST_ShiftRecordV3.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.4602999Z","event":"source-generated","file":"00_OP004_ST_ShiftRecordV3.udt","sha256":"6a9f4c4cf05fdb941e5ba72a40f48e9b54bf2f4304cb69b041aa02897fa9741a"}
+{"t":"2026-10-16T17:34:41.4602999Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_health_000_ST_TimeQuality.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.5160972Z","event":"source-generated","file":"00_health_000_ST_TimeQuality.udt","sha256":"30db8cb469810d759085991c16deb80677e9179418252954a117f6897694c6bb"}
+{"t":"2026-10-16T17:34:41.5160972Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_health_001_ST_SystemHealthInput.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.5893568Z","event":"source-generated","file":"00_health_001_ST_SystemHealthInput.udt","sha256":"5a284f93ace6eecca4241d8867a7ea81715c5c9f753bb0543791b20b46da6f0b"}
+{"t":"2026-10-16T17:34:41.5893568Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_health_002_ST_SystemHealthStatus.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.6519389Z","event":"source-generated","file":"00_health_002_ST_SystemHealthStatus.udt","sha256":"08f91710863efe83d6d7e950607a28af7a632d57fb821a75c3e09dd3516cc030"}
+{"t":"2026-10-16T17:34:41.6519389Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_health_003_ST_SystemHealthParCfg.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.7142577Z","event":"source-generated","file":"00_health_003_ST_SystemHealthParCfg.udt","sha256":"9042d3c70b5e24254f7cfc020adb5aad5d297ded37096f763b29fdd97568efaa"}
+{"t":"2026-10-16T17:34:41.7142577Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_line_00_ST_LineProbeConfig.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.7772269Z","event":"source-generated","file":"00_line_00_ST_LineProbeConfig.udt","sha256":"2777a4425f2a7915290a051ef1539b7620557a265e7b3fa36e3ec35ed63aee77"}
+{"t":"2026-10-16T17:34:41.7772269Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_line_01_ST_LineStatus.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.8451641Z","event":"source-generated","file":"00_line_01_ST_LineStatus.udt","sha256":"90ba77bcdc8a880883c8014978c20005584feeec37d2d6d2a5444ff8f20f9d1f"}
+{"t":"2026-10-16T17:34:41.8451641Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_line_02_ST_LineRecord.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.9099880Z","event":"source-generated","file":"00_line_02_ST_LineRecord.udt","sha256":"0fd1e7f759554c7d393d60ca1a77e1e877fc8c5a405a918a718194c3a1171f29"}
+{"t":"2026-10-16T17:34:41.9099880Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_line_03_ST_LineImage.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:41.9812561Z","event":"source-generated","file":"00_line_03_ST_LineImage.udt","sha256":"b4dab96d839da5b889e5927a4c9d66e3b723cc29e510d7595479867c0cbcedc1"}
+{"t":"2026-10-16T17:34:41.9812561Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_tower_000_ST_SignalTowerOut.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.0405600Z","event":"source-generated","file":"00_tower_000_ST_SignalTowerOut.udt","sha256":"641bddfc6278a5c9686edbfa31d6f25de2080d812135bd7218442166d7324d6c"}
+{"t":"2026-10-16T17:34:42.0405600Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 00_tower_001_ST_SignalTowerParCfg.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.1104884Z","event":"source-generated","file":"00_tower_001_ST_SignalTowerParCfg.udt","sha256":"cfaa312c8e2d6373f4c1149ae549ca3563679713ce7103329575d6f12e079814"}
+{"t":"2026-10-16T17:34:42.1104884Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 01_FRK_RegistryRow.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.1789915Z","event":"source-generated","file":"01_FRK_RegistryRow.udt","sha256":"488cbc5b202a9176fb82294c975b70184ca5b4a45aa2fac9595f812e6e030242"}
+{"t":"2026-10-16T17:34:42.1789915Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_Access.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.2385128Z","event":"source-generated","file":"02_FRK_Access.udt","sha256":"6c916d6912ba1c5b88aa9e9b264eab6ac4ae61483309e4bed7d493b087ad7dec"}
+{"t":"2026-10-16T17:34:42.2385128Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_AccessPolicyImage.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.3065789Z","event":"source-generated","file":"02_FRK_AccessPolicyImage.udt","sha256":"b93fe4a6e09b494168e4f5b1385be8b3a1ee31de39a948fe449118e91055e8a7"}
+{"t":"2026-10-16T17:34:42.3065789Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_AlarmLog.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.3897018Z","event":"source-generated","file":"02_FRK_AlarmLog.udt","sha256":"30a113c3de66f791e80b1da698c7a7f8886a484ece3914e7eb693647e8cb1cf3"}
+{"t":"2026-10-16T17:34:42.3897018Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_Carrier.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.4519564Z","event":"source-generated","file":"02_FRK_Carrier.udt","sha256":"94b93ec2cfdea09fab0c91701196deece4587a8bedc0eb08d5fc87b0536bec6f"}
+{"t":"2026-10-16T17:34:42.4519564Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_ConfigCursor.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.5057776Z","event":"source-generated","file":"02_FRK_ConfigCursor.udt","sha256":"68095452230e9dd2a4e8cc8fff8160330c9dc563c78a373fca38dc7cb1db9a5e"}
+{"t":"2026-10-16T17:34:42.5057776Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_ConfigInteger.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.5636363Z","event":"source-generated","file":"02_FRK_ConfigInteger.udt","sha256":"6961a1bda277d4e940e5acffb0a532e907bfd6d0d5771077f27938c36a9abf7c"}
+{"t":"2026-10-16T17:34:42.5636363Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_ConfigSlot.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.6366470Z","event":"source-generated","file":"02_FRK_ConfigSlot.udt","sha256":"e50dc175902f58b6ec3ef16fc01684b96c7ac87957b0d33f9a09b5a49929009f"}
+{"t":"2026-10-16T17:34:42.6366470Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_ConfigValue.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.6996729Z","event":"source-generated","file":"02_FRK_ConfigValue.udt","sha256":"951eb27cd3374eafdbdbd90a920c77e372b02df84b7e9ddc220051390ba343cb"}
+{"t":"2026-10-16T17:34:42.6996729Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_Core.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.7720466Z","event":"source-generated","file":"02_FRK_Core.udt","sha256":"9f0b80e214cdda66904ba5a0291475daed5ee1210573807107428196cafe2efd"}
+{"t":"2026-10-16T17:34:42.7720466Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_DecisionSlot.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.8350509Z","event":"source-generated","file":"02_FRK_DecisionSlot.udt","sha256":"eda2bed3fef4e455c102f935f8c45c7da660489698730b258b8a6484807eaa15"}
+{"t":"2026-10-16T17:34:42.8350509Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_HealthBook.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.8967102Z","event":"source-generated","file":"02_FRK_HealthBook.udt","sha256":"60c4dae555ae9d49ae32759c9c98e6bbab37fd350a20b8fa661271e8a178e03a"}
+{"t":"2026-10-16T17:34:42.8967102Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_HostEvents.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:42.9601852Z","event":"source-generated","file":"02_FRK_HostEvents.udt","sha256":"a6e2a07564763c4974b4a1909b1d8ae2f4ac3237f9f2a231a0c1e01a67f9bf08"}
+{"t":"2026-10-16T17:34:42.9601852Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_HostStoreBook.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.0212466Z","event":"source-generated","file":"02_FRK_HostStoreBook.udt","sha256":"a1276fab0f121086b668f02fbfa7b7cbb0a02e896fbfb0c5f4c382465d4c9c04"}
+{"t":"2026-10-16T17:34:43.0212466Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_LineState.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.0851900Z","event":"source-generated","file":"02_FRK_LineState.udt","sha256":"463fd4752081a519ae5d6b045a10a8a28b1b6f711e5349ea72f11fb0fc761289"}
+{"t":"2026-10-16T17:34:43.0851900Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_ManualConditionRow.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.1574785Z","event":"source-generated","file":"02_FRK_ManualConditionRow.udt","sha256":"1c33992f6abca42f490b6f5694014923ef8c0897b24989c4458a927fa5e4d62f"}
+{"t":"2026-10-16T17:34:43.1574785Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_Production.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.2213454Z","event":"source-generated","file":"02_FRK_Production.udt","sha256":"260b836f11a771a66e32fbc87a3ef429c1ef23e2d2dc5915013c4fa332475d64"}
+{"t":"2026-10-16T17:34:43.2213454Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_TestResult.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.2833736Z","event":"source-generated","file":"02_FRK_TestResult.udt","sha256":"c04d0d43a74c78053a140f14e1b1f63d47aaf855c6357be2c08706bda1ea7c4c"}
+{"t":"2026-10-16T17:34:43.2833736Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_TestStatus.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.3442680Z","event":"source-generated","file":"02_FRK_TestStatus.udt","sha256":"9d0f43707bb045a3b9fae2e5fe3a06f1edfe00ce00ddb6541e6d4e0b111d4199"}
+{"t":"2026-10-16T17:34:43.3442680Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_TowerBook.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.4050899Z","event":"source-generated","file":"02_FRK_TowerBook.udt","sha256":"b629ec9a309783d09c80431c92893000092c142cd2700b2ce6d96a83d876ccf4"}
+{"t":"2026-10-16T17:34:43.4050899Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 02_FRK_Unit.udt --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.4804937Z","event":"source-generated","file":"02_FRK_Unit.udt","sha256":"560d3ec32f13289fa512244e02c0453eae81e67b11987a0c6684146d9686d4e0"}
+{"t":"2026-10-16T17:34:43.4804937Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 03_FRK_Clock.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:43.5331006Z","event":"group-created","kind":"blocks","path":"Framework/Core","name":"Framework"}
+{"t":"2026-10-16T17:34:43.5564175Z","event":"group-created","kind":"blocks","path":"Framework/Core","name":"Core"}
+{"t":"2026-10-16T17:34:44.1523811Z","event":"source-generated","file":"03_FRK_Clock.db","sha256":"d57ec67dca249ec8e083ce99a738533daec11cc3ee9112efed69782d379a8608"}
+{"t":"2026-10-16T17:34:44.1523811Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 04_FRK_Registry.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.3073973Z","event":"source-generated","file":"04_FRK_Registry.db","sha256":"b8365711c5a5d1d1d2be1861b42aad544c8eaee3f75e778e7e1df7db1d0e9f0f"}
+{"t":"2026-10-16T17:34:44.3073973Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_AccessPolicies.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.4217773Z","event":"source-generated","file":"05_FRK_AccessPolicies.db","sha256":"a86094a40af1b2953a13ba5bc25950506fb5be059bd4128b615599f394d59a7e"}
+{"t":"2026-10-16T17:34:44.4217773Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_AccessStorage.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.4989693Z","event":"source-generated","file":"05_FRK_AccessStorage.db","sha256":"1c968a3ce294f6c8ebd5657420d2489c5be6cea120b43ef7bdccf0553e70c79f"}
+{"t":"2026-10-16T17:34:44.4989693Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_Carriers.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.6469288Z","event":"source-generated","file":"05_FRK_Carriers.db","sha256":"63cb0d0ca86933801fb9bd374b15994e9f0a8507699e411b119926ba89c09615"}
+{"t":"2026-10-16T17:34:44.6469288Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_ConfigRuntime.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.7197715Z","event":"source-generated","file":"05_FRK_ConfigRuntime.db","sha256":"4fe9ac95495d9cbd99ef7cd43562dc74cd29ec0f477dc0dadb30fbf5bf2181db"}
+{"t":"2026-10-16T17:34:44.7197715Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_ConfigScratch.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.8049416Z","event":"source-generated","file":"05_FRK_ConfigScratch.db","sha256":"3adc5d8dfc0bf37b9400dd865513eaa695843ce944497bc0c4134b5c30daaae0"}
+{"t":"2026-10-16T17:34:44.8049416Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_ConfigStore.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.8959376Z","event":"source-generated","file":"05_FRK_ConfigStore.db","sha256":"2023ca1e1f40e83de4f0b56c37d1266e26856b0edd1d3b228b9277434031aa82"}
+{"t":"2026-10-16T17:34:44.8959376Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_Decisions.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:44.9663266Z","event":"source-generated","file":"05_FRK_Decisions.db","sha256":"6d5f9de4de783d13c63e11ce2ff6f7d2cf77ae53b6d62dee96130d42bfc81e5b"}
+{"t":"2026-10-16T17:34:44.9663266Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_HealthDefaults.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.0399693Z","event":"source-generated","file":"05_FRK_HealthDefaults.db","sha256":"cb167a16d6bd2a8d1955f2b3671d0886dfe468e3f33424347b5fc67c4bfd0419"}
+{"t":"2026-10-16T17:34:45.0399693Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_HealthProbe.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.1101173Z","event":"source-generated","file":"05_FRK_HealthProbe.db","sha256":"a97db1aa761a9a9a82d0ac26d5340b753fdd8388310ca7cd22994940ca82ea38"}
+{"t":"2026-10-16T17:34:45.1101173Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_HostStore.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.1977507Z","event":"source-generated","file":"05_FRK_HostStore.db","sha256":"96031a5aef7cafcffb1e82a31fd98299c0173d63016c65c1bb3396cd9e6f843b"}
+{"t":"2026-10-16T17:34:45.1977507Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_LineDefaults.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.2965497Z","event":"source-generated","file":"05_FRK_LineDefaults.db","sha256":"10dfe504916a8e9e654412abf2016630f6f304f95f4a6519f401579b862faad7"}
+{"t":"2026-10-16T17:34:45.2965497Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_LocalUsers.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.3772589Z","event":"source-generated","file":"05_FRK_LocalUsers.db","sha256":"065f6d770a374e39db5a9968f79e7253973e214f147ef4d9ae9a0f467d5c79d6"}
+{"t":"2026-10-16T17:34:45.3772589Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_ProductionDefaults.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.4592442Z","event":"source-generated","file":"05_FRK_ProductionDefaults.db","sha256":"a3e3893e682e12fb01e148c1ec99b53166ee8732d5b37d2eb4025dd0df5e0b81"}
+{"t":"2026-10-16T17:34:45.4592442Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_ProductionScratch.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.5333225Z","event":"source-generated","file":"05_FRK_ProductionScratch.db","sha256":"5e37075840c5728fc4736b1cb21e3c5bf7e9beb2dbbd2620113441c29046aa09"}
+{"t":"2026-10-16T17:34:45.5333225Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_TowerDefaults.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.6052329Z","event":"source-generated","file":"05_FRK_TowerDefaults.db","sha256":"672581c8b3bafa08910000127b9fc00d8e08af95b2a956735282d1e3653ec334"}
+{"t":"2026-10-16T17:34:45.6052329Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 05_FRK_UnitScratch.db --group Framework/Core"}
+{"t":"2026-10-16T17:34:45.7912093Z","event":"source-generated","file":"05_FRK_UnitScratch.db","sha256":"7de1386a9b7c2b001a34313c775f9db877883ae50014d240d9d8421160e1f9b8"}
+{"t":"2026-10-16T17:34:45.7912093Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 10_Registry.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:47.7333779Z","event":"source-generated","file":"10_Registry.scl","sha256":"e8cac937be75261858875b793ce2ec4d850805091666e605b92897b5ffca1504"}
+{"t":"2026-10-16T17:34:47.7333779Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 12_CommandKernel.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:48.7478642Z","event":"source-generated","file":"12_CommandKernel.scl","sha256":"b4846b3d3af69f5edc8dd1f6effc655026cb6199db9dcd4b823cdbfb7cde86b3"}
+{"t":"2026-10-16T17:34:48.7478642Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 12a_StateServices.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:48.8635056Z","event":"source-generated","file":"12a_StateServices.scl","sha256":"6a0526aace7aac4b0eca801ad8f701b1bb950f26441c789a930a3e9d291d91c9"}
+{"t":"2026-10-16T17:34:48.8635056Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 13_UnitServices.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:52.3049833Z","event":"source-generated","file":"13_UnitServices.scl","sha256":"8a574ad92809c5c2db9fb6debc1dcb203dcbdacdbdba4562d073534628d5dc76"}
+{"t":"2026-10-16T17:34:52.3049833Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 14_ConfigServices.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:53.1850657Z","event":"source-generated","file":"14_ConfigServices.scl","sha256":"bf2b61de130d2fbba632bc061f420d245b259ad53b0eca7da3282e6b59444dd0"}
+{"t":"2026-10-16T17:34:53.1850657Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 16a_ProductionServices.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:53.6052664Z","event":"source-generated","file":"16a_ProductionServices.scl","sha256":"69f0b3473b730412885fe9a36757255bf4d97124bcc1b5079591e319d6453c4c"}
+{"t":"2026-10-16T17:34:53.6052664Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 16b_ConditionEvents.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:53.7470879Z","event":"source-generated","file":"16b_ConditionEvents.scl","sha256":"45962d7865cb5f42b65c2d6d1211358cd4d2d1897aee41e4a6bacdae1fe7c9af"}
+{"t":"2026-10-16T17:34:53.7470879Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 16c_HealthServices.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:54.1602683Z","event":"source-generated","file":"16c_HealthServices.scl","sha256":"b891d8ea61741768a847091eef2bf4df951415732048a115a516dd82de8b616d"}
+{"t":"2026-10-16T17:34:54.1602683Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 16d_SignalTower.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:54.3520658Z","event":"source-generated","file":"16d_SignalTower.scl","sha256":"aba5b487c69f89b917b5ecc6939ed7c8a0a37c78762c3e4e295f3f93a78e4767"}
+{"t":"2026-10-16T17:34:54.3520658Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 17_Line.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:54.8367959Z","event":"source-generated","file":"17_Line.scl","sha256":"0d22af6b45a0540a0b32ce2e77279bda431555807e54aac1c5ef96839d26c70b"}
+{"t":"2026-10-16T17:34:54.8367959Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Framework\\Core --only 19a_TestRuntime.scl --group Framework/Core"}
+{"t":"2026-10-16T17:34:54.9411361Z","event":"source-generated","file":"19a_TestRuntime.scl","sha256":"531632be45ab9f8fe0d90a43f8fa119df05baedd9d47c3e791a1b184708e9d18"}
+{"t":"2026-10-16T17:34:54.9411361Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Modules --only 20_000_FB_DeclarationCylinder.scl --group Tests/ConfigBench/Modules"}
+{"t":"2026-10-16T17:34:55.0048312Z","event":"group-created","kind":"blocks","path":"Tests/ConfigBench/Modules","name":"Tests"}
+{"t":"2026-10-16T17:34:55.0196718Z","event":"group-created","kind":"blocks","path":"Tests/ConfigBench/Modules","name":"ConfigBench"}
+{"t":"2026-10-16T17:34:55.0357579Z","event":"group-created","kind":"blocks","path":"Tests/ConfigBench/Modules","name":"Modules"}
+{"t":"2026-10-16T17:34:55.7787772Z","event":"source-generated","file":"20_000_FB_DeclarationCylinder.scl","sha256":"41e7a72e7cf16a4ff1a8e36f01c7a56018232cf9b165c29880862ecdb27e76b4"}
+{"t":"2026-10-16T17:34:55.7787772Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Modules --only 20_001_FB_DeclarationCell.scl --group Tests/ConfigBench/Modules"}
+{"t":"2026-10-16T17:34:56.3603718Z","event":"source-generated","file":"20_001_FB_DeclarationCell.scl","sha256":"2aea2cb1c41e286d18dda9cf6e7bbe4eae35019092d1d7097a3fd1291e6cb818"}
+{"t":"2026-10-16T17:34:56.3603718Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Modules --only 20_002_FB_InnerUnit.scl --group Tests/ConfigBench/Modules"}
+{"t":"2026-10-16T17:34:57.0652390Z","event":"source-generated","file":"20_002_FB_InnerUnit.scl","sha256":"237b56a6d8555d5b3f5b23a9755ea3db568839d7fb24dd886a1e5757567a8c0a"}
+{"t":"2026-10-16T17:34:57.0652390Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Modules --only 20_003_FB_SatelliteUnit.scl --group Tests/ConfigBench/Modules"}
+{"t":"2026-10-16T17:34:57.8502617Z","event":"source-generated","file":"20_003_FB_SatelliteUnit.scl","sha256":"7b8c82979cead0b2de2c286d34a7aad0789f320d6003a5a47c3be758cb299e63"}
+{"t":"2026-10-16T17:34:57.8502617Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Modules --only 20_004_FB_DeclarationUnit.scl --group Tests/ConfigBench/Modules"}
+{"t":"2026-10-16T17:34:58.8208822Z","event":"source-generated","file":"20_004_FB_DeclarationUnit.scl","sha256":"6fa5eaef3cce6188fa248d1feceef826bf8b71cbbe070657990595328b79dedf"}
+{"t":"2026-10-16T17:34:58.8208822Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\00_System --only 25_GDB_FraktalHal.db --group Tests/ConfigBench/00_System"}
+{"t":"2026-10-16T17:34:58.8771186Z","event":"group-created","kind":"blocks","path":"Tests/ConfigBench/00_System","name":"00_System"}
+{"t":"2026-10-16T17:34:58.9193068Z","event":"source-generated","file":"25_GDB_FraktalHal.db","sha256":"a4e703cadd6851b4098803c4c8cce376cf6ec731cda2844463f841e46e19e6e2"}
+{"t":"2026-10-16T17:34:58.9193068Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\00_System --only 25_StationA.db --group Tests/ConfigBench/00_System"}
+{"t":"2026-10-16T17:34:59.3426955Z","event":"source-generated","file":"25_StationA.db","sha256":"bc2c062ed7b0af70fba753d88f28bc4cddbdd6911db4b22cffe788040923c4c7"}
+{"t":"2026-10-16T17:34:59.3426955Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\00_System --only 25_StationB.db --group Tests/ConfigBench/00_System"}
+{"t":"2026-10-16T17:34:59.5487741Z","event":"source-generated","file":"25_StationB.db","sha256":"8737bdc6055107e2801eacb785ea71cd98be4f37e756a716bc34fd51d0fd91c1"}
+{"t":"2026-10-16T17:34:59.5487741Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Modules --only 37_OperationsTest.scl --group Tests/ConfigBench/Modules"}
+{"t":"2026-10-16T17:34:59.9938317Z","event":"source-generated","file":"37_OperationsTest.scl","sha256":"41986a3b58a0bcd488184f3b470bb6de5e7dfe4c7c2ddf7fb6698d9fb5cd7c9c"}
+{"t":"2026-10-16T17:34:59.9938317Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\00_System --only 30_FB_FraktalMain.scl --group Tests/ConfigBench/00_System"}
+{"t":"2026-10-16T17:35:00.0985514Z","event":"source-generated","file":"30_FB_FraktalMain.scl","sha256":"923a9dbed6447153925a9d9ffb057a6d095443c856c80319640afb2b8cb73f33"}
+{"t":"2026-10-16T17:35:00.0985514Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\00_System --only 35_GDB_FraktalMain.db --group Tests/ConfigBench/00_System"}
+{"t":"2026-10-16T17:35:00.2136258Z","event":"source-generated","file":"35_GDB_FraktalMain.db","sha256":"16ab682f45decde0d2df1727aa70f33324301174fd491aaf33c32f2ea758f4ce"}
+{"t":"2026-10-16T17:35:00.2136258Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Fixtures --only 39_GDB_OperationsResultTest.db --group Tests/ConfigBench/Fixtures"}
+{"t":"2026-10-16T17:35:00.2705088Z","event":"group-created","kind":"blocks","path":"Tests/ConfigBench/Fixtures","name":"Fixtures"}
+{"t":"2026-10-16T17:35:00.3237148Z","event":"source-generated","file":"39_GDB_OperationsResultTest.db","sha256":"17edfbbff3cbf1fa0ffc7307f590b73d7916a1ecfe5eb6841bcb05dfd08500de"}
+{"t":"2026-10-16T17:35:00.3237148Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\Fixtures --only 39_GDB_OperationsTest.db --group Tests/ConfigBench/Fixtures"}
+{"t":"2026-10-16T17:35:00.4327765Z","event":"source-generated","file":"39_GDB_OperationsTest.db","sha256":"2ff8664c267142f551eb2e2b2252a8a2d21addc3d9c4e0a159c105073440774a"}
+{"t":"2026-10-16T17:35:00.4327765Z","event":"step","command":"import-sources","args":"--plc PLC_1 --dir C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\grouped\\Tests\\ConfigBench\\00_System --only 40_Main.scl --group Tests/ConfigBench/00_System"}
+{"t":"2026-10-16T17:35:00.6237802Z","event":"source-generated","file":"40_Main.scl","sha256":"03711c68a1fdd81dd6bbc2c395eb987ca6905a82f82fcdef1739ce12cabf4f17"}
+{"t":"2026-10-16T17:35:00.6237802Z","event":"step","command":"save","args":""}
+{"t":"2026-10-16T17:35:00.7472273Z","event":"saved","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\TiaGate_Operations_20261016_native04\\FrkTiaGate\\FrkTiaGate.ap20"}
+{"t":"2026-10-16T17:35:00.7472273Z","event":"step","command":"compile","args":"--plc PLC_1"}
+{"t":"2026-10-16T17:35:17.8823108Z","event":"compile","state":"Success","errors":0,"warnings":0}
+{"t":"2026-10-16T17:35:17.8905833Z","event":"compile-message","depth":0,"state":"Success","path":"PLC_1","text":""}
+{"t":"2026-10-16T17:35:17.8944658Z","event":"compile-message","depth":1,"state":"Success","path":"PLC data types","text":""}
+{"t":"2026-10-16T17:35:18.1066870Z","event":"compile-message","depth":1,"state":"Success","path":"Program blocks","text":""}
+{"t":"2026-10-16T17:35:18.6624904Z","event":"compile-message","depth":0,"state":"Success","path":null,"text":"Compiling finished (errors: 0; warnings: 0)"}
+{"t":"2026-10-16T17:35:18.6645166Z","event":"step","command":"list-groups","args":"--plc PLC_1"}
+{"t":"2026-10-16T17:35:18.7058150Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Clock","language":"DB"}
+{"t":"2026-10-16T17:35:18.7058150Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Registry","language":"DB"}
+{"t":"2026-10-16T17:35:18.7070587Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessPolicies","language":"DB"}
+{"t":"2026-10-16T17:35:18.7076246Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessStorage","language":"DB"}
+{"t":"2026-10-16T17:35:18.7088210Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Carriers","language":"DB"}
+{"t":"2026-10-16T17:35:18.7088210Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigRuntime","language":"DB"}
+{"t":"2026-10-16T17:35:18.7098571Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigScratch","language":"DB"}
+{"t":"2026-10-16T17:35:18.7108687Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigStore","language":"DB"}
+{"t":"2026-10-16T17:35:18.7120302Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Decisions","language":"DB"}
+{"t":"2026-10-16T17:35:18.7126004Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HealthDefaults","language":"DB"}
+{"t":"2026-10-16T17:35:18.7126004Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HealthProbe","language":"DB"}
+{"t":"2026-10-16T17:35:18.7140056Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HostStore","language":"DB"}
+{"t":"2026-10-16T17:35:18.7145640Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineDefaults","language":"DB"}
+{"t":"2026-10-16T17:35:18.7155146Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LocalUsers","language":"DB"}
+{"t":"2026-10-16T17:35:18.7166445Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ProductionDefaults","language":"DB"}
+{"t":"2026-10-16T17:35:18.7166445Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ProductionScratch","language":"DB"}
+{"t":"2026-10-16T17:35:18.7166445Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_TowerDefaults","language":"DB"}
+{"t":"2026-10-16T17:35:18.7187943Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitScratch","language":"DB"}
+{"t":"2026-10-16T17:35:18.7196859Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_SetIdentity","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7206843Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_SyncRegistry","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7217060Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ClockTick","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7217060Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Elapsed","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7237228Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Now","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7237228Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ClearDiag","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7247270Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Rationalize","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7257693Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Diagnostic","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7267847Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Fault","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7267847Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AdoptFault","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7277825Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HoldDiag","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7290956Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Hold","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7296580Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Pending","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7296580Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Complete","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7311848Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Start","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7317442Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Begin","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7327611Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_RouteAbort","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7327611Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_TimingUpdate","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7327611Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_RecordTiming","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7350120Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_End","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7358993Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ReleaseCommand","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7369089Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_StateSweep","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7369089Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_State","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7379191Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HostSlot","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7393177Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HostEmit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7398590Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HostMirror","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7409061Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigRevision","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7419003Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigBegin","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7419003Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigAppend","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7431458Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigFinish","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7441559Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigCatalog","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7447180Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7457373Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmNotify","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7457373Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmRefresh","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7467276Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmBegin","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7477384Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmRaise","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7487602Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmClose","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7487602Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmGone","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7487602Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmOperatorReset","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7507902Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmMessage","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7517950Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmCapture","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7530351Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmEnd","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7530351Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmTreeBlocking","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7540456Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ReasonShelvable","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7556133Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmUnshelve","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7566239Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmShelve","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7576317Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmShelfTick","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7576317Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AlarmShelfRequest","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7586449Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_Sha256Pin","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7596705Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessCancel","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7606807Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessLogout","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7606807Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessDropSession","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7616764Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessNext","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7626977Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessLogin","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7626977Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessAudit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7642137Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessCyclic","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7648037Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessFinish","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7648037Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_CrcByte","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7669606Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_CrcNumber","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7675244Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessUsersCrc","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7675244Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessUsersShape","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7695535Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessUsersCommit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7695535Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessRegisterHash","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7706588Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessStoreBoot","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7716817Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessPolicyCrc","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7716817Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessPolicyShape","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7732034Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessPolicyValid","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7742177Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessPolicySave","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7748117Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessPolicyBoot","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7748117Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AccessPersist","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7757934Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_RunStylePrepare","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7768476Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_RunStyleRequest","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7768476Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_StepGate","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7779010Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HoldRunBlocked","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7789966Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitPrepare","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7795486Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitSetLocalCarrier","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7795486Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_PartEvent","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7795486Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_PartReceived","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7795486Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_PartStarted","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7795486Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_PartProcessed","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7831145Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_PartAborted","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7846563Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitSetPermit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7918935Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ReleaseReason","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7918935Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitOperation","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7929098Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitMailbox","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7939196Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitConsume","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7939196Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitMode","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7957671Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitModeResolve","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7957671Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitRunStart","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7967760Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DescendantsReady","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7967760Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitFinish","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7988453Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_PathOwned","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7988453Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitRelease","language":"SCL"}
+{"t":"2026-10-16T17:35:18.7999328Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ManualCommon","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8004505Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ManualCondition","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8014469Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ManualApply","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8025128Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ManualFinish","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8035250Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitCascade","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8035250Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_UnitFollow","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8045533Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionRoot","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8055589Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionAudit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8065648Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionClear","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8065648Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionAsk","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8075878Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionSubmit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8085987Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionCyclic","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8085987Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionTake","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8096036Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecisionPublish","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8107974Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_IntegerSet","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8107974Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_IntegerMul","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8117713Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_IntegerShift","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8128059Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_IntegerCompare","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8140471Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_IntegerSubtract","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8151358Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_IntegerBits","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8157308Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecimalDecode","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8169031Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_DecimalFormat","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8169031Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigDecimalText","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8185071Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigWriteAudit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8185071Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigDecode","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8195189Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigEnumText","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8205259Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigValidate","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8205259Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigFind","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8215371Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigPut","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8228105Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigGet","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8228105Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigLoss","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8237937Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigAppendEntry","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8252328Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigStatus","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8258065Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigRoot","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8268265Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigModelCode","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8268265Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConfigBoot","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8280848Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_MachineState","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8295535Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_AddMs","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8295535Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_OeeCompute","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8308877Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_OeeTick","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8318794Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_OeeReset","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8328814Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ShiftValidate","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8338831Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ShiftInterval","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8338831Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ShiftTick","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8350731Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ProductionRequest","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8358789Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_WorkDegradation","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8368243Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_ConditionEvent","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8368243Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_EngineeringTick","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8381850Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_EngineeringManifest","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8387532Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_HealthCyclic","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8397696Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_S7HealthProbe","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8409037Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_TowerTick","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8409037Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_TowerRequest","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8419245Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_TowerFrame","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8432180Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineDef","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8432180Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineValue","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8447504Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineAssign","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8457576Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineBuild","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8467705Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineBoot","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8477870Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineAnnounce","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8477870Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineCommit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8488049Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineWrite","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8498501Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineApply","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8498501Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineTick","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8514881Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineLocalRead","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8514881Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_LineManifest","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8529065Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_TestAssert","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8539177Z","event":"group-member","kind":"block","path":"Framework/Core","name":"FRK_TestPublish","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8738791Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FB_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8748786Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Route_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8748786Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgDef_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8758860Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRestore_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8758860Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Config_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8785429Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgWrite_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8785429Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRecipe_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8796221Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Capture_DeclarationCylinder","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8806528Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FB_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8817066Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Route_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8837110Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgDef_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8847183Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRestore_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8857828Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Config_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8867950Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgWrite_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8867950Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRecipe_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8878006Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Capture_DeclarationCell","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8888514Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Release_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8898664Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FB_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.8908704Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Route_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9007848Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgDef_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9017752Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRestore_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9028445Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Config_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9038684Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgWrite_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9038684Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRecipe_InnerUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9048920Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Release_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9058935Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FB_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9070025Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Route_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9070025Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgDef_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9070025Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRestore_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9091419Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Config_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9097349Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgWrite_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9107348Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRecipe_SatelliteUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9117448Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Release_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9127753Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FB_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9137831Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Route_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9148160Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgDef_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9158078Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRestore_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9158078Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_Config_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9168316Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgWrite_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9178262Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgRecipe_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9188721Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FRK_CfgOperation_DeclarationUnit","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9188721Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Modules","name":"FB_OperationsTest","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9268842Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/00_System","name":"GDB_FraktalHal","language":"DB"}
+{"t":"2026-10-16T17:35:18.9278894Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/00_System","name":"StationA","language":"DB"}
+{"t":"2026-10-16T17:35:18.9278894Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/00_System","name":"StationB","language":"DB"}
+{"t":"2026-10-16T17:35:18.9288998Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/00_System","name":"FB_FraktalMain","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9299457Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/00_System","name":"GDB_FraktalMain","language":"DB"}
+{"t":"2026-10-16T17:35:18.9309156Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/00_System","name":"Main","language":"SCL"}
+{"t":"2026-10-16T17:35:18.9365203Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Fixtures","name":"GDB_OperationsResultTest","language":"DB"}
+{"t":"2026-10-16T17:35:18.9375337Z","event":"group-member","kind":"block","path":"Tests/ConfigBench/Fixtures","name":"GDB_OperationsTest","language":"DB"}
+{"t":"2026-10-16T17:35:18.9585427Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_Diagnostic"}
+{"t":"2026-10-16T17:35:18.9595178Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ModuleStatus"}
+{"t":"2026-10-16T17:35:18.9604986Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_TimingRow"}
+{"t":"2026-10-16T17:35:18.9604986Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ModuleTiming"}
+{"t":"2026-10-16T17:35:18.9604986Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_HmiRequest"}
+{"t":"2026-10-16T17:35:18.9604986Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ReleaseReason"}
+{"t":"2026-10-16T17:35:18.9617697Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ReleaseReport"}
+{"t":"2026-10-16T17:35:18.9617697Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ConfigEntry"}
+{"t":"2026-10-16T17:35:18.9617697Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ConfigPage"}
+{"t":"2026-10-16T17:35:18.9627838Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_HmiResponse"}
+{"t":"2026-10-16T17:35:18.9627838Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ModePolicy"}
+{"t":"2026-10-16T17:35:18.9637942Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_AccessPolicy"}
+{"t":"2026-10-16T17:35:18.9637942Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_MeasRecord"}
+{"t":"2026-10-16T17:35:18.9637942Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_PartResult"}
+{"t":"2026-10-16T17:35:18.9648138Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_PartContext"}
+{"t":"2026-10-16T17:35:18.9648138Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_UserRecord"}
+{"t":"2026-10-16T17:35:18.9648138Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_AlarmEvent"}
+{"t":"2026-10-16T17:35:18.9658089Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_DecisionRequest"}
+{"t":"2026-10-16T17:35:18.9658089Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_InnerUnitHal"}
+{"t":"2026-10-16T17:35:18.9658089Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_SatelliteUnitHal"}
+{"t":"2026-10-16T17:35:18.9669041Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_FraktalHal"}
+{"t":"2026-10-16T17:35:18.9669041Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_CommandInfo"}
+{"t":"2026-10-16T17:35:18.9679084Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_Nameplate"}
+{"t":"2026-10-16T17:35:18.9679084Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_HostEvent"}
+{"t":"2026-10-16T17:35:18.9689090Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ConfigRecord"}
+{"t":"2026-10-16T17:35:18.9689090Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ConfigPersistStatus"}
+{"t":"2026-10-16T17:35:18.9689090Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ModelField"}
+{"t":"2026-10-16T17:35:18.9699190Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ModelId"}
+{"t":"2026-10-16T17:35:18.9704278Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_StateFlag"}
+{"t":"2026-10-16T17:35:18.9704278Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_Oee"}
+{"t":"2026-10-16T17:35:18.9704278Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_OeeSample"}
+{"t":"2026-10-16T17:35:18.9704278Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ShiftRowV3"}
+{"t":"2026-10-16T17:35:18.9704278Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ShiftCalendarV3"}
+{"t":"2026-10-16T17:35:18.9726305Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_ShiftRecordV3"}
+{"t":"2026-10-16T17:35:18.9726305Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_TimeQuality"}
+{"t":"2026-10-16T17:35:18.9734685Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_SystemHealthInput"}
+{"t":"2026-10-16T17:35:18.9734685Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_SystemHealthStatus"}
+{"t":"2026-10-16T17:35:18.9734685Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_SystemHealthParCfg"}
+{"t":"2026-10-16T17:35:18.9744736Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_LineProbeConfig"}
+{"t":"2026-10-16T17:35:18.9744736Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_LineStatus"}
+{"t":"2026-10-16T17:35:18.9744736Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_LineRecord"}
+{"t":"2026-10-16T17:35:18.9754998Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_LineImage"}
+{"t":"2026-10-16T17:35:18.9754998Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_SignalTowerOut"}
+{"t":"2026-10-16T17:35:18.9754998Z","event":"group-member","kind":"type","path":"Framework/Core","name":"ST_SignalTowerParCfg"}
+{"t":"2026-10-16T17:35:18.9754998Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_RegistryRow"}
+{"t":"2026-10-16T17:35:18.9768578Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_Access"}
+{"t":"2026-10-16T17:35:18.9768578Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_AccessPolicyImage"}
+{"t":"2026-10-16T17:35:18.9778638Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_AlarmLog"}
+{"t":"2026-10-16T17:35:18.9778638Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_Carrier"}
+{"t":"2026-10-16T17:35:18.9778638Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_ConfigCursor"}
+{"t":"2026-10-16T17:35:18.9789349Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_ConfigInteger"}
+{"t":"2026-10-16T17:35:18.9795107Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_ConfigSlot"}
+{"t":"2026-10-16T17:35:18.9795107Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_ConfigValue"}
+{"t":"2026-10-16T17:35:18.9795107Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_Core"}
+{"t":"2026-10-16T17:35:18.9795107Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_DecisionSlot"}
+{"t":"2026-10-16T17:35:18.9795107Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_HealthBook"}
+{"t":"2026-10-16T17:35:18.9810162Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_HostEvents"}
+{"t":"2026-10-16T17:35:18.9815942Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_HostBook"}
+{"t":"2026-10-16T17:35:18.9815942Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_LineState"}
+{"t":"2026-10-16T17:35:18.9815942Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_ManualConditionRow"}
+{"t":"2026-10-16T17:35:18.9825935Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_Production"}
+{"t":"2026-10-16T17:35:18.9825935Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_TestResult"}
+{"t":"2026-10-16T17:35:18.9833995Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_TestStatus"}
+{"t":"2026-10-16T17:35:18.9833995Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_TowerBook"}
+{"t":"2026-10-16T17:35:18.9841008Z","event":"group-member","kind":"type","path":"Framework/Core","name":"FRK_Unit"}
+{"t":"2026-10-16T17:35:19.0003831Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_DeclarationParCfg"}
+{"t":"2026-10-16T17:35:19.0013877Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_DeclarationParCmd"}
+{"t":"2026-10-16T17:35:19.0013877Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_DeclarationOutCmd"}
+{"t":"2026-10-16T17:35:19.0013877Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_DeclarationOutImm"}
+{"t":"2026-10-16T17:35:19.0025477Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_DeclarationLeafHal"}
+{"t":"2026-10-16T17:35:19.0040493Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_DeclarationCellHal"}
+{"t":"2026-10-16T17:35:19.0040493Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_UnitProbeImm"}
+{"t":"2026-10-16T17:35:19.0054495Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_UnitProbeDevice"}
+{"t":"2026-10-16T17:35:19.0066396Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_UnitProbeStationCfg"}
+{"t":"2026-10-16T17:35:19.0066396Z","event":"group-member","kind":"type","path":"Tests/ConfigBench/DUTs","name":"ST_DeclarationUnitHal"}
+{"t":"2026-10-16T17:35:19.0103002Z","event":"step","command":"export","args":"--plc PLC_1 --out C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaSpikes\\TiaGate_Operations_20261016_native04\\native\\native --scl true"}
+{"t":"2026-10-16T17:35:19.2747309Z","event":"exported","name":"FRK_Clock","language":"DB","sha256":"9eab9a3ab3af092577f62ffb9793004812c6e02d8e3e69850a009bd82fb20767"}
+{"t":"2026-10-16T17:35:19.3237648Z","event":"exported","name":"FRK_Registry","language":"DB","sha256":"56c43a186c742e3d05ff774161ee65ece9613ba72e495f8f007985d0ffeabc59"}
+{"t":"2026-10-16T17:35:19.3617815Z","event":"exported","name":"FRK_AccessPolicies","language":"DB","sha256":"f472d716f8e1533167c42757e53b05e503b29eccf01b2d2c4a714a6b059642b4"}
+{"t":"2026-10-16T17:35:19.3899739Z","event":"exported","name":"FRK_AccessStorage","language":"DB","sha256":"4015a2302cd02d12e12d8815156eb5dabceb1591591c123a3956bd80e11caf18"}
+{"t":"2026-10-16T17:35:19.4906049Z","event":"exported","name":"FRK_Carriers","language":"DB","sha256":"2a1808c018cb68b5299c03fa9fb58352b2eb8ec608987e8e131ede38bd601b06"}
+{"t":"2026-10-16T17:35:19.5169580Z","event":"exported","name":"FRK_ConfigRuntime","language":"DB","sha256":"7c672bcbe7875b95dc0d53316df4fa56aa0e8713da4966c5a6cd8e5e829f208d"}
+{"t":"2026-10-16T17:35:19.5408692Z","event":"exported","name":"FRK_ConfigScratch","language":"DB","sha256":"d3c8efb1ac75650e31e03ab3f699f39f755dbfb837e520450cf6c4367403f710"}
+{"t":"2026-10-16T17:35:19.5747895Z","event":"exported","name":"FRK_ConfigStore","language":"DB","sha256":"8c5ad26b36ce51c16ea248d361dc613e0a132df78924b41d37e54ef86199e46f"}
+{"t":"2026-10-16T17:35:19.6009109Z","event":"exported","name":"FRK_Decisions","language":"DB","sha256":"525aa081557801fc5037866f50bfe14ce93bc8e076feba9753c5a48623fe4d52"}
+{"t":"2026-10-16T17:35:19.6259374Z","event":"exported","name":"FRK_HealthDefaults","language":"DB","sha256":"890c04dffafdee23e587bd110bf60b2887e10ff4060a0c76b70b074083844e60"}
+{"t":"2026-10-16T17:35:19.6503131Z","event":"exported","name":"FRK_HealthProbe","language":"DB","sha256":"cc1df6a626b0387a77a517da877f28229ec13bb4a70f34080d6aa8ba5aec4163"}
+{"t":"2026-10-16T17:35:19.6960988Z","event":"exported","name":"FRK_HostStore","language":"DB","sha256":"b9919fe21e4e4502e0de26c2f85e17b05eb61e266c9ca164cd1355ff64a3c49e"}
+{"t":"2026-10-16T17:35:19.7200736Z","event":"exported","name":"FRK_LineDefaults","language":"DB","sha256":"4251cd8d8dff904126a11fb894fe6936983c0b3d08561a9490ff4c0a0e4a96be"}
+{"t":"2026-10-16T17:35:19.7472214Z","event":"exported","name":"FRK_LocalUsers","language":"DB","sha256":"81bd30739f5d92e222cd840e1b6f9b4f961dd962c8ba6f0cb17c2a208b3c0fe9"}
+{"t":"2026-10-16T17:35:19.7757521Z","event":"exported","name":"FRK_ProductionDefaults","language":"DB","sha256":"51d04d4933e704fe9d96d0a4014995e74a0f4aaf117515122dccf6d253aba33f"}
+{"t":"2026-10-16T17:35:19.8019370Z","event":"exported","name":"FRK_ProductionScratch","language":"DB","sha256":"6d4b105b7ee9e0edf5ae9a25533fce1cc1308b79da03c4b3e9c35262a77c4e29"}
+{"t":"2026-10-16T17:35:19.8278341Z","event":"exported","name":"FRK_TowerDefaults","language":"DB","sha256":"77e6f800b2fad9225a2ad89a5d7c54ef80e6187cf21c2eac2a2c3dbccc9de189"}
+{"t":"2026-10-16T17:35:19.8539958Z","event":"exported","name":"FRK_UnitScratch","language":"DB","sha256":"0b5d70214180555eb5035d5d8c81de38f5b64c2aefae77a0b2dca72dcf67df42"}
+{"t":"2026-10-16T17:35:20.0397216Z","event":"exported","name":"FRK_SetIdentity","language":"SCL","sha256":"3be604482120463b697a94b73285f3bc439ed3537a994357c1f8377ca5fabe67"}
+{"t":"2026-10-16T17:35:20.0809380Z","event":"exported","name":"FRK_SyncRegistry","language":"SCL","sha256":"e874201ae1902d004ade1f2f03871212cadf7f998308155304c4eccd1c6e2b2e"}
+{"t":"2026-10-16T17:35:20.1307754Z","event":"exported","name":"FRK_ClockTick","language":"SCL","sha256":"d3c5c572bc4d05dca4a79b966be469085f3329da7cfad063233d5fcb9d2b63fb"}
+{"t":"2026-10-16T17:35:20.1713739Z","event":"exported","name":"FRK_Elapsed","language":"SCL","sha256":"622eb1ab5cbc3c73bdbad2ac756d67f33bf2736c9433f6e0e77b0bee3acbd9e7"}
+{"t":"2026-10-16T17:35:20.2081708Z","event":"exported","name":"FRK_Now","language":"SCL","sha256":"18a6388ab76d9cead51278a093561d28b325088a9cca7fb4ce576c9f37039e1d"}
+{"t":"2026-10-16T17:35:20.2411953Z","event":"exported","name":"FRK_ClearDiag","language":"SCL","sha256":"4179c232d9a0afd89b9507ce9502842e4aa8ec594334d05806434a862128c1c8"}
+{"t":"2026-10-16T17:35:20.2771236Z","event":"exported","name":"FRK_Rationalize","language":"SCL","sha256":"06a493c027f4c6be0d881b5804baa87ed48b2cc940824802e45e235fda797203"}
+{"t":"2026-10-16T17:35:20.3250576Z","event":"exported","name":"FRK_Diagnostic","language":"SCL","sha256":"807116f6524db4b3c16f1887aca7f207beacd545624aa90dadede26133f6d5e1"}
+{"t":"2026-10-16T17:35:20.3739136Z","event":"exported","name":"FRK_Fault","language":"SCL","sha256":"f6a14ba322e464bfa4ca9bc6ee89fedbd480e8ac476d8185664a4d260f74391b"}
+{"t":"2026-10-16T17:35:20.4102112Z","event":"exported","name":"FRK_AdoptFault","language":"SCL","sha256":"0138c579e086d9ff0f245434f240d3fa3a56522baed1ab8f067f0c4e8ff4b659"}
+{"t":"2026-10-16T17:35:20.4417242Z","event":"exported","name":"FRK_HoldDiag","language":"SCL","sha256":"f17462fec40c28a610aa80b90981e67fd2b8c9154c375ad07a3c9208d3b1aca2"}
+{"t":"2026-10-16T17:35:20.4707589Z","event":"exported","name":"FRK_Hold","language":"SCL","sha256":"656303a1b47452b3202c1314f1bb893e199534aef27f4021c2d5bd421c530c3d"}
+{"t":"2026-10-16T17:35:20.4990682Z","event":"exported","name":"FRK_Pending","language":"SCL","sha256":"7ff1db1a34c23b4e002ecfe3e1efd771fb64dde7179a9e9b82c96673c6756cd8"}
+{"t":"2026-10-16T17:35:20.5278793Z","event":"exported","name":"FRK_Complete","language":"SCL","sha256":"8bb21fdd1b554b08b8e43692a29c2558496724b23dbc204f8ca38c7a3ecbad97"}
+{"t":"2026-10-16T17:35:20.5650368Z","event":"exported","name":"FRK_Start","language":"SCL","sha256":"4bf2b0f2277518e180523c8a9985aa4bb92dc82e859ea5bff074927518384c6c"}
+{"t":"2026-10-16T17:35:20.5990508Z","event":"exported","name":"FRK_Begin","language":"SCL","sha256":"3d6cb20d1c8bf1b59507041c8a46ca0b709d4b5f5ad56933bc351a07a47c12d9"}
+{"t":"2026-10-16T17:35:20.6298625Z","event":"exported","name":"FRK_RouteAbort","language":"SCL","sha256":"7bbe41fe709b0601aed5282178796ac29b0696a4951c8ba4c1a0c87c0e968a66"}
+{"t":"2026-10-16T17:35:20.6778507Z","event":"exported","name":"FRK_TimingUpdate","language":"SCL","sha256":"a0aea1954788828e9822972987543a05c5d7a649a05780f90efb8ee4f1db9609"}
+{"t":"2026-10-16T17:35:20.7173030Z","event":"exported","name":"FRK_RecordTiming","language":"SCL","sha256":"06b22c074188ebf86847fbf00614cebecce163a0252fe624d9fc891a6e241940"}
+{"t":"2026-10-16T17:35:20.7542453Z","event":"exported","name":"FRK_End","language":"SCL","sha256":"b469062a09710e3f244d210a30b18a206c8dde1c213374bd5a168c00db983142"}
+{"t":"2026-10-16T17:35:20.7800005Z","event":"exported","name":"FRK_ReleaseCommand","language":"SCL","sha256":"cbad8deeecfd5f3d0e182b57d77b653d1f56bf22e4ba2895d9d16018756716a2"}
+{"t":"2026-10-16T17:35:20.8087583Z","event":"exported","name":"FRK_StateSweep","language":"SCL","sha256":"ad00a9145bd6ac1e7b47319984a65db59af13cf0066411b54973094b39a699ff"}
+{"t":"2026-10-16T17:35:20.8405177Z","event":"exported","name":"FRK_State","language":"SCL","sha256":"78179acb8301b4175a16dbb241f2df529234c314dfe7f04436f604d2b68fea58"}
+{"t":"2026-10-16T17:35:20.8706230Z","event":"exported","name":"FRK_HostSlot","language":"SCL","sha256":"366effdbe710663ce682fa3ecda875e54232967e496ea8618da6aff1f8a82669"}
+{"t":"2026-10-16T17:35:20.9087195Z","event":"exported","name":"FRK_HostEmit","language":"SCL","sha256":"272a94df288df7dffbc8b6ff2d84235bde11fd8193b6285d2c264c9e442dcb9f"}
+{"t":"2026-10-16T17:35:20.9335824Z","event":"exported","name":"FRK_HostMirror","language":"SCL","sha256":"5241b61d7b0576b7e89cffddf745144adb5d3b7fa74661acf4ac4746d353bfa5"}
+{"t":"2026-10-16T17:35:20.9663563Z","event":"exported","name":"FRK_ConfigRevision","language":"SCL","sha256":"8fd29f92ca14332d11db6fa4e864d15865111ae1e68ec77f21b2497eaac94dfb"}
+{"t":"2026-10-16T17:35:20.9979216Z","event":"exported","name":"FRK_ConfigBegin","language":"SCL","sha256":"46bce5da312226658a0685f9b6cc4fe87f8aa7772563c1a2af578d74bcdb4ed3"}
+{"t":"2026-10-16T17:35:21.0308229Z","event":"exported","name":"FRK_ConfigAppend","language":"SCL","sha256":"c50cb8ab7ecefe7ddb9e695e1c3d95b045b201f4fa4691376a36369b67966e75"}
+{"t":"2026-10-16T17:35:21.0627486Z","event":"exported","name":"FRK_ConfigFinish","language":"SCL","sha256":"6467b8df584180f098757635f60c2029bfff534a177e7d1cc7f257bb29e534bb"}
+{"t":"2026-10-16T17:35:21.1007506Z","event":"exported","name":"FRK_ConfigCatalog","language":"SCL","sha256":"a42c39bef3a2b65c6fc64b44402804eaa50f94e42565dcea237d6e5e7e7c0c44"}
+{"t":"2026-10-16T17:35:21.1411684Z","event":"exported","name":"FRK_ConfigUnit","language":"SCL","sha256":"4b719e19bdeb6f0108ce631c35433b501865901098afd3fd64c1c2927f613044"}
+{"t":"2026-10-16T17:35:21.1678370Z","event":"exported","name":"FRK_AlarmNotify","language":"SCL","sha256":"0e914b001853043d01ac8a5817d5a2160b27472dda3b499556b81a3ca751485c"}
+{"t":"2026-10-16T17:35:21.1926809Z","event":"exported","name":"FRK_AlarmRefresh","language":"SCL","sha256":"e38d756db32fa47021e9dd43df7d6ba06209a276eca7301f1558a078d060827f"}
+{"t":"2026-10-16T17:35:21.2208516Z","event":"exported","name":"FRK_AlarmBegin","language":"SCL","sha256":"9a20d621b25f779b13c762bf767f6e91d9c7be447119e6f9feab1f6f5fbebde5"}
+{"t":"2026-10-16T17:35:21.2618407Z","event":"exported","name":"FRK_AlarmRaise","language":"SCL","sha256":"a72bc99e8c4c7092326af9fd9f79354c5622f35d27c2706c36ef00faf30d9767"}
+{"t":"2026-10-16T17:35:21.2891785Z","event":"exported","name":"FRK_AlarmClose","language":"SCL","sha256":"f69fd10175e3515f1d9fa3129d12762f79c06a18bee87a7d658aaf954ccbb5f4"}
+{"t":"2026-10-16T17:35:21.3297148Z","event":"exported","name":"FRK_AlarmGone","language":"SCL","sha256":"d68b6abc1b4185d0480570da9547777e5d9a2566a991f840a875d3e5661a2c73"}
+{"t":"2026-10-16T17:35:21.3676036Z","event":"exported","name":"FRK_AlarmOperatorReset","language":"SCL","sha256":"eb9e91cb5ed47336742e175200be9b36fa6331aa5ac80816feb9ebb4be891cf5"}
+{"t":"2026-10-16T17:35:21.3995486Z","event":"exported","name":"FRK_AlarmMessage","language":"SCL","sha256":"7ca45aa226fa53689e1e0718b17a2e83938fb216bddcee2bcb02f21dcfb9cb5c"}
+{"t":"2026-10-16T17:35:21.4317310Z","event":"exported","name":"FRK_AlarmCapture","language":"SCL","sha256":"6834ea0fbda437d7c482be429d4061e2b889da6adb6eaca66fb9c3fafa6e3bac"}
+{"t":"2026-10-16T17:35:21.4606026Z","event":"exported","name":"FRK_AlarmEnd","language":"SCL","sha256":"72737c51db679ed0fa96f54eb85a7036d5bb60a48267a77ba22fa9b1065db035"}
+{"t":"2026-10-16T17:35:21.4876429Z","event":"exported","name":"FRK_AlarmTreeBlocking","language":"SCL","sha256":"cdf3d7cc35c31f9ddee176a9b45e6bea88d0e2dd8ecf71046bb8262e64eba8b9"}
+{"t":"2026-10-16T17:35:21.5146668Z","event":"exported","name":"FRK_ReasonShelvable","language":"SCL","sha256":"de943248df326131c7edbbd51ce51de9d65f5bcf920d8ab899c45c3615cccd11"}
+{"t":"2026-10-16T17:35:21.5445879Z","event":"exported","name":"FRK_AlarmUnshelve","language":"SCL","sha256":"f38b2390ef6de51c83e2909ac6ba39ba46b97989d92b4660744a4beed3c21625"}
+{"t":"2026-10-16T17:35:21.5844965Z","event":"exported","name":"FRK_AlarmShelve","language":"SCL","sha256":"c4a625aae2424f6a833b2f1ded5621e8e6cc873e91f6a4b09d9db90c29d3e217"}
+{"t":"2026-10-16T17:35:21.6173365Z","event":"exported","name":"FRK_AlarmShelfTick","language":"SCL","sha256":"ca15909d886c3bf24b8860b41c753c2198cdd8b52f7b6d7f02893f4431588039"}
+{"t":"2026-10-16T17:35:21.6614511Z","event":"exported","name":"FRK_AlarmShelfRequest","language":"SCL","sha256":"c8f24a728284c5f9c944ad19a69b11ed955c81c2becace97369adb09b935e106"}
+{"t":"2026-10-16T17:35:21.7292271Z","event":"exported","name":"FRK_Sha256Pin","language":"SCL","sha256":"c4c2c619df683a78794e9cf581666a8effa7c315de60cbe02bed71c8cf603519"}
+{"t":"2026-10-16T17:35:21.7589796Z","event":"exported","name":"FRK_AccessCancel","language":"SCL","sha256":"f6dd60442f4a7cbcdc770db393e06f64eccc3ff6db9cd0441c461e3fbf7e8998"}
+{"t":"2026-10-16T17:35:21.7870396Z","event":"exported","name":"FRK_AccessLogout","language":"SCL","sha256":"af5f7418158852b73cdd948ec1585dbd54bb4ee9c1897abb80bab1054bf02842"}
+{"t":"2026-10-16T17:35:21.8171655Z","event":"exported","name":"FRK_AccessDropSession","language":"SCL","sha256":"36a88157e53d3d5822072cbfc2528b0e902f0a7a85dd4b6022bd0ed0e0e69fa4"}
+{"t":"2026-10-16T17:35:21.8582728Z","event":"exported","name":"FRK_AccessNext","language":"SCL","sha256":"b8e672cda9459ca3484cc4d72c0e0c8c14ea68f0ee2994018e656c67d424c068"}
+{"t":"2026-10-16T17:35:21.8992542Z","event":"exported","name":"FRK_AccessLogin","language":"SCL","sha256":"bcf1443502e79e0623e678af61464d565c09277f65c8df36dd6ff03015839ed2"}
+{"t":"2026-10-16T17:35:21.9324289Z","event":"exported","name":"FRK_AccessAudit","language":"SCL","sha256":"b2f0f710f27184c6bb47d242f9095843eccdd4e9b3deddee1d391872223fb4d4"}
+{"t":"2026-10-16T17:35:21.9749773Z","event":"exported","name":"FRK_AccessCyclic","language":"SCL","sha256":"e5aef43c985e17339127fe7c38ba844c904f18757593b4c389c8cdb5d9a625a9"}
+{"t":"2026-10-16T17:35:22.0143153Z","event":"exported","name":"FRK_AccessFinish","language":"SCL","sha256":"051e600a6dfef3397e60755f9a112c894161086a1761d4039d17147d59fb2f33"}
+{"t":"2026-10-16T17:35:22.0475835Z","event":"exported","name":"FRK_CrcByte","language":"SCL","sha256":"71c0c517eca9c1d1574612d49f7f26bfc0bdd294ce6b31a94e4f03040c31ff59"}
+{"t":"2026-10-16T17:35:22.0844304Z","event":"exported","name":"FRK_CrcNumber","language":"SCL","sha256":"51f9b9453078f02a09fef034f1ecd362b535d2b6c0c3f8f0a3ccf7db4b0efed8"}
+{"t":"2026-10-16T17:35:22.1249013Z","event":"exported","name":"FRK_AccessUsersCrc","language":"SCL","sha256":"0fa69ce04b60ca8642032ab0d8aa71f5acc4c65c75a515d717bf288cf376d1d4"}
+{"t":"2026-10-16T17:35:22.1617239Z","event":"exported","name":"FRK_AccessUsersShape","language":"SCL","sha256":"3d9256d8364df333d9853f0e61cd63da9ff1860e439acb9c2bebcce498eea2fc"}
+{"t":"2026-10-16T17:35:22.1905520Z","event":"exported","name":"FRK_AccessUsersCommit","language":"SCL","sha256":"b042544b374281c3c6aa809da9f859195cac9c6b82a15c6cb67504c289315fd6"}
+{"t":"2026-10-16T17:35:22.2297065Z","event":"exported","name":"FRK_AccessRegisterHash","language":"SCL","sha256":"2a35b92e814cea9c86cd70f15b592960318bf2ae0186962c66150f255ca5c4bf"}
+{"t":"2026-10-16T17:35:22.2569467Z","event":"exported","name":"FRK_AccessStoreBoot","language":"SCL","sha256":"7371136c0b7cbe63ebdc5f53fd56735f90db6743ff0777b38174b3e4e8af8c9c"}
+{"t":"2026-10-16T17:35:22.2918368Z","event":"exported","name":"FRK_AccessPolicyCrc","language":"SCL","sha256":"addec15a361c5295e1264b153724056c853beca0031c9ae8e290fd5d85ee65a8"}
+{"t":"2026-10-16T17:35:22.3198554Z","event":"exported","name":"FRK_AccessPolicyShape","language":"SCL","sha256":"b99a8e36699da091bb8591ec0ea438670f0bacb0263355e0b36ce4a54f7dbc71"}
+{"t":"2026-10-16T17:35:22.3495698Z","event":"exported","name":"FRK_AccessPolicyValid","language":"SCL","sha256":"27cfe6920894d345e50ed9ae5290cdf520a5f6f278f5215edaeab32e126672d0"}
+{"t":"2026-10-16T17:35:22.3807645Z","event":"exported","name":"FRK_AccessPolicySave","language":"SCL","sha256":"af999e47ab2601278be9317a7c4b45b286af5dc662602cb12dab81f793e8956c"}
+{"t":"2026-10-16T17:35:22.4256195Z","event":"exported","name":"FRK_AccessPolicyBoot","language":"SCL","sha256":"33003b6121da73c4173b75d223163e846b29dc6a1f0819acc33f2f5c6e62da6c"}
+{"t":"2026-10-16T17:35:22.4668178Z","event":"exported","name":"FRK_AccessPersist","language":"SCL","sha256":"b8e8fc5ff58b49aa6af2e0fe1a388c6b2838acd3054100aa25d5e2afa304458b"}
+{"t":"2026-10-16T17:35:22.4978078Z","event":"exported","name":"FRK_RunStylePrepare","language":"SCL","sha256":"dbdd475005d9eec82f1b246c19cd27fc191a8fe02752cd7cf3c74009eda6b053"}
+{"t":"2026-10-16T17:35:22.5321036Z","event":"exported","name":"FRK_RunStyleRequest","language":"SCL","sha256":"607b0f0f4441f675e2e80ed8665b0d2506039dd301ba36819d1033200482e0d6"}
+{"t":"2026-10-16T17:35:22.5590949Z","event":"exported","name":"FRK_StepGate","language":"SCL","sha256":"3d025c1dbb70dd99b5ab7d8b1999de8bb664c405e3371759c7e3797fa93ec738"}
+{"t":"2026-10-16T17:35:22.5849291Z","event":"exported","name":"FRK_HoldRunBlocked","language":"SCL","sha256":"1951862ab34b57f101ba38c8ad631b714f133b6d5d1c289c11888b13b64b1f0e"}
+{"t":"2026-10-16T17:35:22.6150927Z","event":"exported","name":"FRK_UnitPrepare","language":"SCL","sha256":"dd86c121714dbd0e3d8b98ea027f813644fa78eb89870e7c4268937774ae02a0"}
+{"t":"2026-10-16T17:35:22.6388484Z","event":"exported","name":"FRK_UnitSetLocalCarrier","language":"SCL","sha256":"7231ab131cb4b55faffad53535802e58b1f9aca3dca6f853521815e15e68a75a"}
+{"t":"2026-10-16T17:35:22.6680630Z","event":"exported","name":"FRK_PartEvent","language":"SCL","sha256":"244b6a9afb6f75f4a0ec0d5bb42f81bfda237d873ed34de5180801b5165b9642"}
+{"t":"2026-10-16T17:35:22.7037397Z","event":"exported","name":"FRK_PartReceived","language":"SCL","sha256":"8d33aac4f4119a570118fe98bbfb63d96e498b5013f917b148d68d503e665a1f"}
+{"t":"2026-10-16T17:35:22.7312067Z","event":"exported","name":"FRK_PartStarted","language":"SCL","sha256":"d02168775f1399ea69ef9a5d52e820cbba408fd1c39b9115b87b8927c3eb2302"}
+{"t":"2026-10-16T17:35:22.7677208Z","event":"exported","name":"FRK_PartProcessed","language":"SCL","sha256":"0b09d11afbb3a6e64f65a01065dbc267ee439e5aa5ce98ed72fa21d40489ccbd"}
+{"t":"2026-10-16T17:35:22.7987718Z","event":"exported","name":"FRK_PartAborted","language":"SCL","sha256":"f7f86dc7fd214ed1d71e425357df8cd02e3cb77d242ed6b01d761372b6a34f66"}
+{"t":"2026-10-16T17:35:22.8216364Z","event":"exported","name":"FRK_UnitSetPermit","language":"SCL","sha256":"ab7f35a8155f975fa05abd8a9694169938ec29aac256c5d358dc48c014883c16"}
+{"t":"2026-10-16T17:35:22.8530977Z","event":"exported","name":"FRK_ReleaseReason","language":"SCL","sha256":"497e446781984dcdcf32b2a2388063ae21cf97c2b507f70a039cb19d15d39416"}
+{"t":"2026-10-16T17:35:22.9141110Z","event":"exported","name":"FRK_UnitOperation","language":"SCL","sha256":"7dcd35af8445d106a52a520ec1cd10c311d99e2e489fa09f734250e781416510"}
+{"t":"2026-10-16T17:35:22.9421653Z","event":"exported","name":"FRK_UnitMailbox","language":"SCL","sha256":"74f13c1a21bb3a24a3c209a70dfe33ed44443a6da3d6a2ae24810e7ba4739c2b"}
+{"t":"2026-10-16T17:35:22.9680471Z","event":"exported","name":"FRK_UnitConsume","language":"SCL","sha256":"f93d6e72c2d32517406c87c9548fb4c0322fb7d00ab2a400dcb87e5426ac2a3d"}
+{"t":"2026-10-16T17:35:22.9917534Z","event":"exported","name":"FRK_UnitMode","language":"SCL","sha256":"46e0958b20f00eed03f972ff714f2744ec70d8221360ecda9bf4a9ff25404afb"}
+{"t":"2026-10-16T17:35:23.0317650Z","event":"exported","name":"FRK_UnitModeResolve","language":"SCL","sha256":"c3c75813efe5927b905484fc52f49bb9a782cc9e574e4764e9916009861d934d"}
+{"t":"2026-10-16T17:35:23.0558409Z","event":"exported","name":"FRK_UnitRunStart","language":"SCL","sha256":"ebca038927c79c302d8b6cf5491fd7a6de2bd7d107528cad20f56e7ea4869b2c"}
+{"t":"2026-10-16T17:35:23.0839938Z","event":"exported","name":"FRK_DescendantsReady","language":"SCL","sha256":"115018f4122c1ea0ff4d160839b744b2e1bf6b7b50278763fe6218ca80e14129"}
+{"t":"2026-10-16T17:35:23.1158063Z","event":"exported","name":"FRK_UnitFinish","language":"SCL","sha256":"2ae350d7fb03ac8a5c09d012861ade4be10d2964d1455cf15fa77f1734a52667"}
+{"t":"2026-10-16T17:35:23.1476203Z","event":"exported","name":"FRK_PathOwned","language":"SCL","sha256":"0dd0f24ba2b0aa9691db54d5edb0f2f5140ce21acd8e868ddc5cb78f3f974317"}
+{"t":"2026-10-16T17:35:23.1879525Z","event":"exported","name":"FRK_UnitRelease","language":"SCL","sha256":"146ec87cf388dda14493bd2845854f80803a5424a682855bc9c9baa41fd2dae7"}
+{"t":"2026-10-16T17:35:23.2166551Z","event":"exported","name":"FRK_ManualCommon","language":"SCL","sha256":"81cc4e8594e3f5be5d634f37a74a93a2e4911cfeb987535c1a4eeeaca780723a"}
+{"t":"2026-10-16T17:35:23.2479872Z","event":"exported","name":"FRK_ManualCondition","language":"SCL","sha256":"985bb70380651dc0bf37e21098418d911255350b66b614439b839facbda89a42"}
+{"t":"2026-10-16T17:35:23.2919368Z","event":"exported","name":"FRK_ManualApply","language":"SCL","sha256":"b4a37c1da75ea0612261e5b665d420f0895c74cce40efaed89a035bd0b86bc02"}
+{"t":"2026-10-16T17:35:23.3206295Z","event":"exported","name":"FRK_ManualFinish","language":"SCL","sha256":"068bd52cdb48e4b16b4a5cc2c5ff2114e0ec93e0e49cfe7713cd5a50981cfb93"}
+{"t":"2026-10-16T17:35:23.3578966Z","event":"exported","name":"FRK_UnitCascade","language":"SCL","sha256":"28bbe27690647b468c79428b629ca67c96bcc5df633638c6aca836a25f6d6f75"}
+{"t":"2026-10-16T17:35:23.3967821Z","event":"exported","name":"FRK_UnitFollow","language":"SCL","sha256":"87c1df442d8befd33fe3ff570f772e16ff9a45f6dbec4f1df0e103fc94773d0c"}
+{"t":"2026-10-16T17:35:23.4308835Z","event":"exported","name":"FRK_DecisionRoot","language":"SCL","sha256":"94e100f321af6f703bbcf57d29049e6ff0dce2db5d7a963c3dc46bd987e275c5"}
+{"t":"2026-10-16T17:35:23.4660284Z","event":"exported","name":"FRK_DecisionAudit","language":"SCL","sha256":"a0fdf348bb289be873df9d46bacff2fc6157273036e18303f62c613b7b1b103e"}
+{"t":"2026-10-16T17:35:23.4970969Z","event":"exported","name":"FRK_DecisionClear","language":"SCL","sha256":"bcb3a4129afb66ee64969467a036aed2f77ad5306b91c8282919b6402ca57586"}
+{"t":"2026-10-16T17:35:23.5290889Z","event":"exported","name":"FRK_DecisionAsk","language":"SCL","sha256":"e9ad6c43e49e77b7bb8563dfae7fcd5e647ad2eb6486664cfbef143e6f6760dd"}
+{"t":"2026-10-16T17:35:23.5617565Z","event":"exported","name":"FRK_DecisionSubmit","language":"SCL","sha256":"0c4cfd0ac542f8e7278baebd8aa5c19c2de36b81dfbd0042dfd0bee4e3bc47cd"}
+{"t":"2026-10-16T17:35:23.6007370Z","event":"exported","name":"FRK_DecisionCyclic","language":"SCL","sha256":"85915d977c4efe79a8d184e6419d599ce8917839921b41cc32938e5c83c28bdd"}
+{"t":"2026-10-16T17:35:23.6323753Z","event":"exported","name":"FRK_DecisionTake","language":"SCL","sha256":"8176050efa678f5f58f8d5b55cffe826b5bb356623950efd3d04cb2a8a967d3a"}
+{"t":"2026-10-16T17:35:23.6620637Z","event":"exported","name":"FRK_DecisionPublish","language":"SCL","sha256":"83cf5a21cb311dcbee19f93f838371cda49721929ec72bd438965330b8131e34"}
+{"t":"2026-10-16T17:35:23.6954212Z","event":"exported","name":"FRK_IntegerSet","language":"SCL","sha256":"14871a967352fd0bfabaeb052c0f481e1236412eed43fe9cfee84dfd71c96406"}
+{"t":"2026-10-16T17:35:23.7323638Z","event":"exported","name":"FRK_IntegerMul","language":"SCL","sha256":"a7e82d689db126d17bfbc6bb570661ab6e3943d8321634ca572ff56a47770920"}
+{"t":"2026-10-16T17:35:23.7694208Z","event":"exported","name":"FRK_IntegerShift","language":"SCL","sha256":"7195e1d253bf646349ae1c000daa1f6d13e55fa4d7ae2123b7f2624cf9c77c3d"}
+{"t":"2026-10-16T17:35:23.7962146Z","event":"exported","name":"FRK_IntegerCompare","language":"SCL","sha256":"f42561ebd2ada9d6145e39703fa0dddb82b5fa5697c4bd2343477168690bd536"}
+{"t":"2026-10-16T17:35:23.8323877Z","event":"exported","name":"FRK_IntegerSubtract","language":"SCL","sha256":"e218d82fc6a330941d130b807bd82bd3b8ff10919af3d459bf922335bd55bade"}
+{"t":"2026-10-16T17:35:23.8606829Z","event":"exported","name":"FRK_IntegerBits","language":"SCL","sha256":"b5eaa4dfa3430cdadfd612dd0568e462fc3cf7cec610eef3ad8c1d76d7f6cf72"}
+{"t":"2026-10-16T17:35:23.9065956Z","event":"exported","name":"FRK_DecimalDecode","language":"SCL","sha256":"71eb5354e96e48f1ca2ffc7e1379e5a33e8effd7b87340cc787ff1a931c46bd4"}
+{"t":"2026-10-16T17:35:23.9565802Z","event":"exported","name":"FRK_DecimalFormat","language":"SCL","sha256":"9576617dd20335b37a1d16a620198d444442a4dc6d386123b36ec580252e7611"}
+{"t":"2026-10-16T17:35:23.9804240Z","event":"exported","name":"FRK_ConfigDecimalText","language":"SCL","sha256":"abf7feb758b54283b8fec7b6c1ebde4b58a83615b975272e9da783952f040799"}
+{"t":"2026-10-16T17:35:24.0240065Z","event":"exported","name":"FRK_ConfigWriteAudit","language":"SCL","sha256":"acf906444f21db76a35e2d216937efd94a1486752e6cc0d58f853915aa7cdb9e"}
+{"t":"2026-10-16T17:35:24.0645322Z","event":"exported","name":"FRK_ConfigDecode","language":"SCL","sha256":"b673eb20a76380d84e431c16e09d1a58619651e517e4b74bf4c769ce19725f42"}
+{"t":"2026-10-16T17:35:24.0927939Z","event":"exported","name":"FRK_ConfigEnumText","language":"SCL","sha256":"00d3b33b3619ba4fd66301ad5ab1b9ca1dde98d2e9d682f90597d2d1d117ee95"}
+{"t":"2026-10-16T17:35:24.1287061Z","event":"exported","name":"FRK_ConfigValidate","language":"SCL","sha256":"a91f01b92770051818460fbcfd23b2415e5cf4026cf982488b752b1ac9247aa6"}
+{"t":"2026-10-16T17:35:24.1615937Z","event":"exported","name":"FRK_ConfigFind","language":"SCL","sha256":"288464428d02a2e790191e3dfbee89c95a86c682566c874c61f51b6fc916e09c"}
+{"t":"2026-10-16T17:35:24.1986183Z","event":"exported","name":"FRK_ConfigPut","language":"SCL","sha256":"383a46ca8c71fdd1e0ae0510ee0d9f4dc0ea100208f273185b0ccc84d253f418"}
+{"t":"2026-10-16T17:35:24.2397315Z","event":"exported","name":"FRK_ConfigGet","language":"SCL","sha256":"9084cb858e45905628fd3433409f34c41c9a21fcb953f93dee8ac2636c2f8f2f"}
+{"t":"2026-10-16T17:35:24.2664159Z","event":"exported","name":"FRK_ConfigLoss","language":"SCL","sha256":"6af8d88d801740200f4e7ae98b72694a1c90d7e78be9572925fc1e9e18f91fda"}
+{"t":"2026-10-16T17:35:24.3015933Z","event":"exported","name":"FRK_ConfigAppendEntry","language":"SCL","sha256":"a9dc4428a0a5141e4fdb177ce879f979b18e24a3e5209562b7c479486c283e3c"}
+{"t":"2026-10-16T17:35:24.3353675Z","event":"exported","name":"FRK_ConfigStatus","language":"SCL","sha256":"a739e86c8c0acc956ba0e1e79f73f759f15e4311e581d5dd0a96fb099057529f"}
+{"t":"2026-10-16T17:35:24.3654642Z","event":"exported","name":"FRK_ConfigRoot","language":"SCL","sha256":"997749236db7c19b2be3e66bb30f5c7cb28f2eef19ed2d1711f4c8770bdf360e"}
+{"t":"2026-10-16T17:35:24.3926314Z","event":"exported","name":"FRK_ConfigModelCode","language":"SCL","sha256":"b7389595f7c7947f02bd26b1fb01067d7831443d5d1eff4a8013929cf5ebd925"}
+{"t":"2026-10-16T17:35:24.4291878Z","event":"exported","name":"FRK_ConfigBoot","language":"SCL","sha256":"1008f3e22347b283650385abbd691f2a51a56702f5bf6fa227d6e8cb81c22935"}
+{"t":"2026-10-16T17:35:24.4580725Z","event":"exported","name":"FRK_MachineState","language":"SCL","sha256":"9031e14f98ee2c8b8fd247ee0c0f86efeaa56b1882b1913155455410bfa6d2f5"}
+{"t":"2026-10-16T17:35:24.4823348Z","event":"exported","name":"FRK_AddMs","language":"SCL","sha256":"172adf3097dd065fb4b087d15da39eff5f11589e6e59ad39e6f583c1593051a0"}
+{"t":"2026-10-16T17:35:24.5243488Z","event":"exported","name":"FRK_OeeCompute","language":"SCL","sha256":"4d22640505cd394d7c0e1852b2faa0c7e5c6954ce3bc5c4fc6e3a05864dc6696"}
+{"t":"2026-10-16T17:35:24.5591776Z","event":"exported","name":"FRK_OeeTick","language":"SCL","sha256":"b4dcd31f4630b00558be6627864c35415556342149a6489f8286ddb78ac8e2c2"}
+{"t":"2026-10-16T17:35:24.5844290Z","event":"exported","name":"FRK_OeeReset","language":"SCL","sha256":"72889aee5d217bbc21ee71c458312f1c8361cb4ad2c0e8dec480243e3c9cda21"}
+{"t":"2026-10-16T17:35:24.6225729Z","event":"exported","name":"FRK_ShiftValidate","language":"SCL","sha256":"7b4be2ccb868f3783a68457d17e8ef6f3290bdc5341ee5fdfac6a927c6dc9f31"}
+{"t":"2026-10-16T17:35:24.6619631Z","event":"exported","name":"FRK_ShiftInterval","language":"SCL","sha256":"1639b45f903c28e66a1485b63b8d89a36a99a0876ba0441dd9eb7bf31696e40b"}
+{"t":"2026-10-16T17:35:24.6999233Z","event":"exported","name":"FRK_ShiftTick","language":"SCL","sha256":"d19743387a1015b38ba184457c81cefa3294353fe69173c41ebfefda03359373"}
+{"t":"2026-10-16T17:35:24.7326330Z","event":"exported","name":"FRK_ProductionRequest","language":"SCL","sha256":"4d4b0639fd21738f73738568708a8098a5b45f98cb637331f41575bcb53ee664"}
+{"t":"2026-10-16T17:35:24.7658772Z","event":"exported","name":"FRK_WorkDegradation","language":"SCL","sha256":"91996c0facb43192590fb3d86fe7601e867702af4636f92ec8e39dcae8609cbb"}
+{"t":"2026-10-16T17:35:24.7967430Z","event":"exported","name":"FRK_ConditionEvent","language":"SCL","sha256":"b6a5dc4a77f940668df030954f6df69b2ea9538f66322bee237f5051d92d42fd"}
+{"t":"2026-10-16T17:35:24.8250004Z","event":"exported","name":"FRK_EngineeringTick","language":"SCL","sha256":"579e82533e8cf8fe151ff0278efadb8a0dadeef06987a0bfe0b030c27a950f49"}
+{"t":"2026-10-16T17:35:24.8529941Z","event":"exported","name":"FRK_EngineeringManifest","language":"SCL","sha256":"a935f5e8c97e91e4de74f4e06e88967770a1c54a7267aa8dd45939aa27d12e80"}
+{"t":"2026-10-16T17:35:24.8939740Z","event":"exported","name":"FRK_HealthCyclic","language":"SCL","sha256":"f1361bff7f291393813bebac0a76552a258ad463bb7acc26165eecfb5d594ad8"}
+{"t":"2026-10-16T17:35:24.9348878Z","event":"exported","name":"FRK_S7HealthProbe","language":"SCL","sha256":"089c5aa0a02440d0c86206bb998297af65b73751bf749abf2d0d636a4762856d"}
+{"t":"2026-10-16T17:35:24.9748221Z","event":"exported","name":"FRK_TowerTick","language":"SCL","sha256":"68d5c34bb9da46d7addf8585540497afa9723613e3af21bd3f334020747189eb"}
+{"t":"2026-10-16T17:35:25.0110333Z","event":"exported","name":"FRK_TowerRequest","language":"SCL","sha256":"b343bae0bb80f51bcc184f0f19c5c45c877561f78248db8c9ca424f9b9a732d0"}
+{"t":"2026-10-16T17:35:25.0420805Z","event":"exported","name":"FRK_TowerFrame","language":"SCL","sha256":"a2b6d15a86060ce3721f31ae44f8d8842b4079a05f1d8ee825fa927c9c055b93"}
+{"t":"2026-10-16T17:35:25.0831397Z","event":"exported","name":"FRK_LineDef","language":"SCL","sha256":"0fdf5c1527873268918821ad09a435ba6fd3af7aca2c1e16a5dfb27546b33646"}
+{"t":"2026-10-16T17:35:25.1190099Z","event":"exported","name":"FRK_LineValue","language":"SCL","sha256":"e4acd3112eacf6aa7703c5c073b6a8498fa189d039245058b7469740df47de11"}
+{"t":"2026-10-16T17:35:25.1541376Z","event":"exported","name":"FRK_LineAssign","language":"SCL","sha256":"82f449ca7367ee5619ee3f63d9eff15e430b8876e5be2c30026edff7abae402b"}
+{"t":"2026-10-16T17:35:25.1868717Z","event":"exported","name":"FRK_LineBuild","language":"SCL","sha256":"f6ec5d00be546a34abe6a3f63d8693a21d01ae7acceee127d625b9c74a4dff18"}
+{"t":"2026-10-16T17:35:25.2164334Z","event":"exported","name":"FRK_LineBoot","language":"SCL","sha256":"23fe60cefb364b8a3e35103662e9ff4bcb6bb91c6a5918a1dc337f4000c15d81"}
+{"t":"2026-10-16T17:35:25.2468238Z","event":"exported","name":"FRK_LineAnnounce","language":"SCL","sha256":"f3f12aba59bb6046172721d5218a7c0a131bda73b711e213764d605fe293cb63"}
+{"t":"2026-10-16T17:35:25.2701107Z","event":"exported","name":"FRK_LineCommit","language":"SCL","sha256":"e62b865fa2e0d45cb06f392100ce4287bf88c67d06bb0353860ebf6a66733424"}
+{"t":"2026-10-16T17:35:25.3051260Z","event":"exported","name":"FRK_LineWrite","language":"SCL","sha256":"8de0b855939e3cba79ff4bea99f48276eb62dbe39ff01be7103164fcce32b3fd"}
+{"t":"2026-10-16T17:35:25.3478530Z","event":"exported","name":"FRK_LineApply","language":"SCL","sha256":"2a4d7c19a631d68d272e55ad0d4904c21f2257e0260a4197f7b8905ecf140c88"}
+{"t":"2026-10-16T17:35:25.3747189Z","event":"exported","name":"FRK_LineTick","language":"SCL","sha256":"ef577f91cfee7afe101f81d270fc5a036e4fa38cd247920b8d1103ec5c826f09"}
+{"t":"2026-10-16T17:35:25.4158242Z","event":"exported","name":"FRK_LineLocalRead","language":"SCL","sha256":"6ecf9cd04990a3c9573465f31e88225b451caaea0f1211617b7562cee72f10ed"}
+{"t":"2026-10-16T17:35:25.4522069Z","event":"exported","name":"FRK_LineManifest","language":"SCL","sha256":"f3d140666de98ad6cf29bcd975c56ef68d149b5c232dabcae01ef8b62fd2e7ae"}
+{"t":"2026-10-16T17:35:25.4804716Z","event":"exported","name":"FRK_TestAssert","language":"SCL","sha256":"939e62d70ae5dbc2fae6614298377a1f5445297d9c66fa890078defa1ba38e7f"}
+{"t":"2026-10-16T17:35:25.5072770Z","event":"exported","name":"FRK_TestPublish","language":"SCL","sha256":"adfa5cb3a53e83a52a17ca1d623b9848eb5998171ea7d9418597eea518fa27de"}
+{"t":"2026-10-16T17:35:25.5989821Z","event":"exported","name":"FB_DeclarationCylinder","language":"SCL","sha256":"ba74fc35a97380e93fa7c54d5ca8416b1fdfca477a9670082d772c9de5ca8cae"}
+{"t":"2026-10-16T17:35:25.6412158Z","event":"exported","name":"FRK_Route_DeclarationCylinder","language":"SCL","sha256":"7a16762905fd958790466598da497d75dee215d170977431b4390f9620efe1be"}
+{"t":"2026-10-16T17:35:25.6802854Z","event":"exported","name":"FRK_CfgDef_DeclarationCylinder","language":"SCL","sha256":"243b74346035c1506d59c805e88641dc7cfde0b95bcd02b9438e1681d006c1f1"}
+{"t":"2026-10-16T17:35:25.7213647Z","event":"exported","name":"FRK_CfgRestore_DeclarationCylinder","language":"SCL","sha256":"c11d4921f0135a9f051659c72eabf843b6dad0c70f5fbc3b54f96a5762770cb3"}
+{"t":"2026-10-16T17:35:25.7601072Z","event":"exported","name":"FRK_Config_DeclarationCylinder","language":"SCL","sha256":"59558053656a9b0cf066b6c3cddeb1d9be70821b3387a490c056496727b40a05"}
+{"t":"2026-10-16T17:35:25.8103853Z","event":"exported","name":"FRK_CfgWrite_DeclarationCylinder","language":"SCL","sha256":"eaaa5905595172999a08541f0d40f79dab6b62068a8ab492c690b60979e26774"}
+{"t":"2026-10-16T17:35:25.8575415Z","event":"exported","name":"FRK_CfgRecipe_DeclarationCylinder","language":"SCL","sha256":"d887d589fde50c1b0e74f3f878fe69b5f684620b9c87dc8481ad44911cf7f746"}
+{"t":"2026-10-16T17:35:25.8874771Z","event":"exported","name":"FRK_Capture_DeclarationCylinder","language":"SCL","sha256":"fb635b21e907ced92aef074bfba9b75978031d919ded0a24507dc2cd23e975f8"}
+{"t":"2026-10-16T17:35:25.9422071Z","event":"exported","name":"FB_DeclarationCell","language":"SCL","sha256":"38e8fea3a71eff7ae001663f344bfa93ed53f39b89815c7843a54174d3f6f177"}
+{"t":"2026-10-16T17:35:25.9885740Z","event":"exported","name":"FRK_Route_DeclarationCell","language":"SCL","sha256":"605d83bbd091a6f5663124cc210ff1f8164b6a376ab8f5197bace1f7a65e06ad"}
+{"t":"2026-10-16T17:35:26.0232224Z","event":"exported","name":"FRK_CfgDef_DeclarationCell","language":"SCL","sha256":"ab12dbae4f71b0b95ddd8b17d27ef3371c6a714d921970e6a706c1934451386e"}
+{"t":"2026-10-16T17:35:26.0682028Z","event":"exported","name":"FRK_CfgRestore_DeclarationCell","language":"SCL","sha256":"87405c0f0558c51f94fe0178ff37e438983e7bda67db8efce2faca7a7bfa5f69"}
+{"t":"2026-10-16T17:35:26.1132645Z","event":"exported","name":"FRK_Config_DeclarationCell","language":"SCL","sha256":"8d003540ace6650b07a571e414f2f9d39e1f7209f0aa2e9245b43d9cff61fb83"}
+{"t":"2026-10-16T17:35:26.1751654Z","event":"exported","name":"FRK_CfgWrite_DeclarationCell","language":"SCL","sha256":"d623c146d1167624b8a9d77d0120f86f6866a0eb838ba23f9afcd2a5df6275e8"}
+{"t":"2026-10-16T17:35:26.2173749Z","event":"exported","name":"FRK_CfgRecipe_DeclarationCell","language":"SCL","sha256":"80f1b4e62d75abdbdaeac9556a311f8dd21c6905b1872ac1bac73c8545f702cf"}
+{"t":"2026-10-16T17:35:26.2541652Z","event":"exported","name":"FRK_Capture_DeclarationCell","language":"SCL","sha256":"a6b1888547066ba59dabc8ec5ba49fb705e91ab35b02dd5a059476fce7de8166"}
+{"t":"2026-10-16T17:35:26.2812573Z","event":"exported","name":"FRK_Release_InnerUnit","language":"SCL","sha256":"ea74732310c7e6a114c73fbbf845131cc29827f2bb3b4ed6957480293b15e961"}
+{"t":"2026-10-16T17:35:26.3600847Z","event":"exported","name":"FB_InnerUnit","language":"SCL","sha256":"e23997ec82a3b2986d43daa36ffa445b991d023cd242501e21099ab9e2cee183"}
+{"t":"2026-10-16T17:35:26.3961581Z","event":"exported","name":"FRK_Route_InnerUnit","language":"SCL","sha256":"6a075a9a04f56c3e71a4e8d209cd293ba13e5ef061d1f9c213ea60ab6c647910"}
+{"t":"2026-10-16T17:35:26.4392849Z","event":"exported","name":"FRK_CfgDef_InnerUnit","language":"SCL","sha256":"e80bd01303b85ea1f6bf3406e0ba0ea1ec14c77008700ffd7e32d77dfd673408"}
+{"t":"2026-10-16T17:35:26.4901747Z","event":"exported","name":"FRK_CfgRestore_InnerUnit","language":"SCL","sha256":"1bce71b118c6376514c042cd5b543dd08b11ba29d5a25d40468e3c45b9c22b42"}
+{"t":"2026-10-16T17:35:26.5410488Z","event":"exported","name":"FRK_Config_InnerUnit","language":"SCL","sha256":"9e14e17b2ba19e3fa56e59d75e12f733273da9b4f7d0a67df619bdd1389e4fc1"}
+{"t":"2026-10-16T17:35:26.5991039Z","event":"exported","name":"FRK_CfgWrite_InnerUnit","language":"SCL","sha256":"a39a408f9615146cc0917183f649dfc8e4ae23b447dff9640f4533267371b65a"}
+{"t":"2026-10-16T17:35:26.6392119Z","event":"exported","name":"FRK_CfgRecipe_InnerUnit","language":"SCL","sha256":"77a43ed0c8e46cb323de1601f4cf1a4b5c50682a14c13ecd55c7f9d0eb23f6f7"}
+{"t":"2026-10-16T17:35:26.6702413Z","event":"exported","name":"FRK_Release_SatelliteUnit","language":"SCL","sha256":"8020f7706c45cf503779227bf3d006d97358329dd2fd3242dfdd7930c8901bbb"}
+{"t":"2026-10-16T17:35:26.8102063Z","event":"exported","name":"FB_SatelliteUnit","language":"SCL","sha256":"7973d893acb00541f21fd20a836d4375c43e0ee529790a342824c3616ad6cf66"}
+{"t":"2026-10-16T17:35:26.8609463Z","event":"exported","name":"FRK_Route_SatelliteUnit","language":"SCL","sha256":"3964152cb2a234bd509e5cefd741f70ce73873e91650384f58666e2e8074e2e5"}
+{"t":"2026-10-16T17:35:26.8989289Z","event":"exported","name":"FRK_CfgDef_SatelliteUnit","language":"SCL","sha256":"7f2980d868e657262f385f838abebaeeb1ff18737ce145a0c0900e0b64f21c64"}
+{"t":"2026-10-16T17:35:26.9511284Z","event":"exported","name":"FRK_CfgRestore_SatelliteUnit","language":"SCL","sha256":"b9dba315381cf7a98acb82ecb41348043ebc983b803f504aad48745934802cb1"}
+{"t":"2026-10-16T17:35:27.0131577Z","event":"exported","name":"FRK_Config_SatelliteUnit","language":"SCL","sha256":"02cbc97cfda1bb7a6b8ba9d94797f99314501d19a4792dde92ba39a0b9a7a662"}
+{"t":"2026-10-16T17:35:27.0812448Z","event":"exported","name":"FRK_CfgWrite_SatelliteUnit","language":"SCL","sha256":"66dc208849ea1a024d9ffc609a9aa90de3dc0cef30dff80758450881c838cc62"}
+{"t":"2026-10-16T17:35:27.1382162Z","event":"exported","name":"FRK_CfgRecipe_SatelliteUnit","language":"SCL","sha256":"45fb91aff3165934c4f41518e33396ae76416d905b7904c55e16c8d748cda2dd"}
+{"t":"2026-10-16T17:35:27.1712623Z","event":"exported","name":"FRK_Release_DeclarationUnit","language":"SCL","sha256":"c7b44b2c8bcdfee1cb3ea5b01fac6ac0f50566cd2f4d2f9713ed9db0afa93671"}
+{"t":"2026-10-16T17:35:27.2771770Z","event":"exported","name":"FB_DeclarationUnit","language":"SCL","sha256":"cc7fcb01d2bc441be65fe8b3aad0d17b38d3f0503f2ccdc422c5b29e4f204657"}
+{"t":"2026-10-16T17:35:27.3423405Z","event":"exported","name":"FRK_Route_DeclarationUnit","language":"SCL","sha256":"b1f80cfac5e0c0012b60b4f05dd02de6a4571fc4f6b743cfec0337e949489b96"}
+{"t":"2026-10-16T17:35:27.3771822Z","event":"exported","name":"FRK_CfgDef_DeclarationUnit","language":"SCL","sha256":"209d93aac4f916b1f3aa375cd62ca310dd84f7fef3455133d9dc955e8e3d16bc"}
+{"t":"2026-10-16T17:35:27.4262482Z","event":"exported","name":"FRK_CfgRestore_DeclarationUnit","language":"SCL","sha256":"7a75100c6ba6550a096f036ef925bf0b6cab2d57831efb0a0a685e4e66447d7b"}
+{"t":"2026-10-16T17:35:27.5231844Z","event":"exported","name":"FRK_Config_DeclarationUnit","language":"SCL","sha256":"f27715e96c1d31a03aeaf305a7c50a6bb117749ef14fa5a9c4723f1a2c6b39fa"}
+{"t":"2026-10-16T17:35:27.5921605Z","event":"exported","name":"FRK_CfgWrite_DeclarationUnit","language":"SCL","sha256":"58d6f1dfe314865592b54a23c57742b3884eb637a4040980616f9939a2db0fe8"}
+{"t":"2026-10-16T17:35:27.6490223Z","event":"exported","name":"FRK_CfgRecipe_DeclarationUnit","language":"SCL","sha256":"6f3084370e2e9ab110c870ec667d0a82de52c044356d5e45a7a0317bd899f632"}
+{"t":"2026-10-16T17:35:27.7164333Z","event":"exported","name":"FRK_CfgOperation_DeclarationUnit","language":"SCL","sha256":"21a0d8ff42a1f17109b71d040e82ca555b438a58b6d59117c328fc6010a2b90f"}
+{"t":"2026-10-16T17:35:27.8463955Z","event":"exported","name":"FB_OperationsTest","language":"SCL","sha256":"ba41bf74ffbeec01e632e40dea2324134b76198a2d1821fbddb91f769f49991c"}
+{"t":"2026-10-16T17:35:27.8850785Z","event":"exported","name":"GDB_FraktalHal","language":"DB","sha256":"1a112c626a1b6b67c0fed5fba487cdffd3578b7fe781f0794d11b7da3354a84c"}
+{"t":"2026-10-16T17:35:27.9563662Z","event":"exported","name":"StationA","language":"DB","sha256":"6ee748281307b91689dc502bee0ed8e8570baad76589f396a8375ec1ee62ac37"}
+{"t":"2026-10-16T17:35:28.0281878Z","event":"exported","name":"StationB","language":"DB","sha256":"0032d3a59bfe0ea24eaf6b8a98824ccdf6f13247ec59181300dd5760c4621042"}
+{"t":"2026-10-16T17:35:28.0714975Z","event":"exported","name":"FB_FraktalMain","language":"SCL","sha256":"6870457b5742eb5ccb00f90fb20a90b182c6707b406ecb2e7b26dea3d4d1cc0b"}
+{"t":"2026-10-16T17:35:28.1068350Z","event":"exported","name":"GDB_FraktalMain","language":"DB","sha256":"6e67fbb50d2dfb082ae0bc7a2c90cd35c7e92e41b31cf63aafaf1e954fa30a0a"}
+{"t":"2026-10-16T17:35:28.1583236Z","event":"exported","name":"Main","language":"SCL","sha256":"dfa71b6702227e7fd80ef4ebcc1430f37775ad1d3f764a9e5e522898a0f89372"}
+{"t":"2026-10-16T17:35:28.1982925Z","event":"exported","name":"GDB_OperationsResultTest","language":"DB","sha256":"fcc35223e7af2981716270badc5a414b5bff98ec77af04b8a18e42c1a9b70ac7"}
+{"t":"2026-10-16T17:35:28.2291634Z","event":"exported","name":"GDB_OperationsTest","language":"DB","sha256":"86b989c4949e2b0615c636ffd29b35cc4580c6404a6bf6610c400cd9211aa3e2"}
+{"t":"2026-10-16T17:35:29.4723805Z","event":"source-exported","name":"FRK_Clock","sha256":"b9d681370e682330242feab2da6053e63ac80b43288abd82aa2896c374550de5"}
+{"t":"2026-10-16T17:35:29.4853606Z","event":"source-exported","name":"FRK_Registry","sha256":"8146ba226403ccad11adcf40f3af86352465481e82ca84739304da0d8ad14c23"}
+{"t":"2026-10-16T17:35:29.4992504Z","event":"source-exported","name":"FRK_AccessPolicies","sha256":"3d9c81b7b553c35c96c174a1c1b06bd65d7af3a9f7e3426086fb35b50cebfa46"}
+{"t":"2026-10-16T17:35:29.5072284Z","event":"source-exported","name":"FRK_AccessStorage","sha256":"4c0da2f7a1fcb44845bf80a1b9f5f5359bc4d128ff831fccabd5ba5a841de51b"}
+{"t":"2026-10-16T17:35:29.6151333Z","event":"source-exported","name":"FRK_Carriers","sha256":"88afb1c5444ea88c562f0f4cdd7495bc7e6e9346fa97c9478681062268ede30b"}
+{"t":"2026-10-16T17:35:29.6231816Z","event":"source-exported","name":"FRK_ConfigRuntime","sha256":"fb7981f2430562f1757ec404fda47b6e8fd496ebe454a03d682132d6fc4b707c"}
+{"t":"2026-10-16T17:35:29.6303523Z","event":"source-exported","name":"FRK_ConfigScratch","sha256":"44b042872bbb34a692485774901dfe793ca0e457f2c0d7bf3cd3b40a409249bd"}
+{"t":"2026-10-16T17:35:29.6461690Z","event":"source-exported","name":"FRK_ConfigStore","sha256":"90c85ab0cbcbfc306288a304c7b35924f28c8805f11d294125182fed3115b990"}
+{"t":"2026-10-16T17:35:29.6531363Z","event":"source-exported","name":"FRK_Decisions","sha256":"b2eb1ce675cf7a0244e99bfbf792dcdaff54a474cc680615e4535fff2d34d87a"}
+{"t":"2026-10-16T17:35:29.6591843Z","event":"source-exported","name":"FRK_HealthDefaults","sha256":"de99fcc5cd67d641080fde88430d8def4a49d027aa85b28ddb030602c6256809"}
+{"t":"2026-10-16T17:35:29.6714108Z","event":"source-exported","name":"FRK_HealthProbe","sha256":"a2c3e75777b7ebc005ddbb365e658c116fd204ad3b5344309179f6e62eb37590"}
+{"t":"2026-10-16T17:35:29.6874517Z","event":"source-exported","name":"FRK_HostStore","sha256":"577dd06abde63c01ef8469990d2c217ed845098c0492ed8b1bcb6d80c18441e9"}
+{"t":"2026-10-16T17:35:29.6993056Z","event":"source-exported","name":"FRK_LineDefaults","sha256":"3c31dec553eae28534352c618cdb062a8e70fb480da3accff18ba41e872e79f5"}
+{"t":"2026-10-16T17:35:29.7074488Z","event":"source-exported","name":"FRK_LocalUsers","sha256":"9473dd919df3c5af53cca6823d2d182f3a2e10b2722f1ad1871639f8cc14102c"}
+{"t":"2026-10-16T17:35:29.7140534Z","event":"source-exported","name":"FRK_ProductionDefaults","sha256":"4765d3a30f015886039501436abe3184abbcf580cdc491924b6d168888744431"}
+{"t":"2026-10-16T17:35:29.7224598Z","event":"source-exported","name":"FRK_ProductionScratch","sha256":"6295d41bfaef2bf03ed63c36413496a45a35e80bf22b649a0c672dca843cb127"}
+{"t":"2026-10-16T17:35:29.7282736Z","event":"source-exported","name":"FRK_TowerDefaults","sha256":"ea533647a4ca913a52854439743bb34c8bf5dafc0f001a373cbd6cc8b006a5f2"}
+{"t":"2026-10-16T17:35:29.7361764Z","event":"source-exported","name":"FRK_UnitScratch","sha256":"a72624b7820f208d7362f32df519e7f039c55f8ead2fcfa83d90b8373abfb5cd"}
+{"t":"2026-10-16T17:35:29.8014979Z","event":"source-exported","name":"FRK_SetIdentity","sha256":"b1b861cde0cc79d55554e7b7cf9b9ea8a87c7f2eaf94003bd7db7d5f53f5931a"}
+{"t":"2026-10-16T17:35:29.8163283Z","event":"source-exported","name":"FRK_SyncRegistry","sha256":"3d0281fbcdb0031f27cb08ef4eb93b229df53dc809de27a3c89e1ca0e3bfc73f"}
+{"t":"2026-10-16T17:35:29.8294820Z","event":"source-exported","name":"FRK_ClockTick","sha256":"4f97d56ef08840924b5c705a2b979b631542071c6c788e7728f3a5bf07d822cf"}
+{"t":"2026-10-16T17:35:29.8401422Z","event":"source-exported","name":"FRK_Elapsed","sha256":"aac0b4fc8665fee82040d00050fed920819703f46924fd79b41462b49996fd54"}
+{"t":"2026-10-16T17:35:29.8550574Z","event":"source-exported","name":"FRK_Now","sha256":"57e62a28064668f2e38a2805dbc3bad2b1632dc09f35c4561535c752923466b2"}
+{"t":"2026-10-16T17:35:29.8663894Z","event":"source-exported","name":"FRK_ClearDiag","sha256":"bf6950753186f6750d2dc7e2e1824692ed7757e3a5a89640fbb8cd6ea9fe8480"}
+{"t":"2026-10-16T17:35:29.8913632Z","event":"source-exported","name":"FRK_Rationalize","sha256":"48856a96bac6410a248a0c203dc38a7012031c441ba2c8dcf9045e6cac2c2baf"}
+{"t":"2026-10-16T17:35:29.9176679Z","event":"source-exported","name":"FRK_Diagnostic","sha256":"97806ae780ef730ca43e46eefeed0798dd0a18ad98480df9bc197b6b74cea3ce"}
+{"t":"2026-10-16T17:35:29.9297323Z","event":"source-exported","name":"FRK_Fault","sha256":"0357ec67990ec8b82c9940f0bf63abf06dfa4e5938ad4448a4ab2700bd52d066"}
+{"t":"2026-10-16T17:35:29.9424452Z","event":"source-exported","name":"FRK_AdoptFault","sha256":"4287a1f092d66442c62f37e9dc8a20b73e77de8b994c3f9023dd03387180356b"}
+{"t":"2026-10-16T17:35:29.9594482Z","event":"source-exported","name":"FRK_HoldDiag","sha256":"14da4e435c2493a07cab0e33bba0372feb0be7d1124480283b906031200ee3eb"}
+{"t":"2026-10-16T17:35:29.9733526Z","event":"source-exported","name":"FRK_Hold","sha256":"0d608c04c9169b0113dd8f9b6a814feae6fcc8626a0f65b3be95b4cf49fa4549"}
+{"t":"2026-10-16T17:35:29.9904844Z","event":"source-exported","name":"FRK_Pending","sha256":"c3bba402957aab8fcda0776f6826e3a0fd6f4fcce4716a4bfd5968c6268d354c"}
+{"t":"2026-10-16T17:35:30.0038400Z","event":"source-exported","name":"FRK_Complete","sha256":"baadb5ed492dffbee320c17d88582f63d46ab79f89de8e9348e21b00ccaf61a7"}
+{"t":"2026-10-16T17:35:30.0175598Z","event":"source-exported","name":"FRK_Start","sha256":"a65c55d55257066001cbab844719a391088b9288266612f4d0611b20c2bf1d27"}
+{"t":"2026-10-16T17:35:30.0354325Z","event":"source-exported","name":"FRK_Begin","sha256":"3583af1699d251ce6e00957b99a04dc4d2ebced5d747f30232abb6efb5d9a4b5"}
+{"t":"2026-10-16T17:35:30.0456462Z","event":"source-exported","name":"FRK_RouteAbort","sha256":"fd03acb4086d40173b21399b69587fb1bd46cc7a007d396611849a329f053b1a"}
+{"t":"2026-10-16T17:35:30.0616382Z","event":"source-exported","name":"FRK_TimingUpdate","sha256":"a6834b3e548bb6c645d3499ff7bff7679333da346965ba72f7d8bb4be869173a"}
+{"t":"2026-10-16T17:35:30.0767726Z","event":"source-exported","name":"FRK_RecordTiming","sha256":"b8ce76e104c82bca321ff6d2e2a417d09223aaf065d98f7e5fa6903291ef4463"}
+{"t":"2026-10-16T17:35:30.0940841Z","event":"source-exported","name":"FRK_End","sha256":"d2fdaf093a838f143e5e2604bd6197ca8675ec7cc4c1ebaf89fc676d05165540"}
+{"t":"2026-10-16T17:35:30.1032803Z","event":"source-exported","name":"FRK_ReleaseCommand","sha256":"98c82e2e6d76c9aafaf51fcd0c07d18702df05148b7edf616d3ef07695b52fc0"}
+{"t":"2026-10-16T17:35:30.1273057Z","event":"source-exported","name":"FRK_StateSweep","sha256":"93c1a072ccdc8ae1f732e993a2d858f1fe7da7121c3ab7a296cc01ee409a660c"}
+{"t":"2026-10-16T17:35:30.1440483Z","event":"source-exported","name":"FRK_State","sha256":"31aaa23a12a8397752eaa85a9606498528fac091f8fd0e021feafea86d3e81f5"}
+{"t":"2026-10-16T17:35:30.1551949Z","event":"source-exported","name":"FRK_HostSlot","sha256":"863501a8196c8a96162ac19ee6fb13ce432b5da6c61c6182e2968853bbf26f91"}
+{"t":"2026-10-16T17:35:30.1703072Z","event":"source-exported","name":"FRK_HostEmit","sha256":"7d4b5cf32fe81b059ee4b0ea0455860cbec31e346e695d4cccf297d3858ec437"}
+{"t":"2026-10-16T17:35:30.1899826Z","event":"source-exported","name":"FRK_HostMirror","sha256":"5fc01cbe3d4d9d189096d6e9f1bf8c5b51db452cae911ef751470d0eb002cbdc"}
+{"t":"2026-10-16T17:35:30.2089328Z","event":"source-exported","name":"FRK_ConfigRevision","sha256":"99433cd47c862f8c202fac2cf30e9560366efee1ded39452ac7d63d7b3232807"}
+{"t":"2026-10-16T17:35:30.2280042Z","event":"source-exported","name":"FRK_ConfigBegin","sha256":"24d7af7a67d719b2eee2d669adc899c1fc7515b5bd4ce992f921263d65d0fb2a"}
+{"t":"2026-10-16T17:35:30.2431338Z","event":"source-exported","name":"FRK_ConfigAppend","sha256":"a405cc92ce404b38f95ecea8920d86362dd18a64b8f70a916ec6624e82ad7043"}
+{"t":"2026-10-16T17:35:30.2603542Z","event":"source-exported","name":"FRK_ConfigFinish","sha256":"a3c353b0f684901cdfb2b7565e1374e80475ac67d47fd1eb08f81bb36da883fc"}
+{"t":"2026-10-16T17:35:30.2760420Z","event":"source-exported","name":"FRK_ConfigCatalog","sha256":"e5e71894de79be6a6ebf0017afbab178fb2335e2b83e710af9d3a708c95cfb21"}
+{"t":"2026-10-16T17:35:30.2982536Z","event":"source-exported","name":"FRK_ConfigUnit","sha256":"919188337dc535dcb18e9082be67a725fcc64c6c12558ac82459a4a8c8ad2e44"}
+{"t":"2026-10-16T17:35:30.3073446Z","event":"source-exported","name":"FRK_AlarmNotify","sha256":"b0802d3b4bb3ea5d3509ab96a7829e2ba9ced78072c99c2786f85cf3a5687340"}
+{"t":"2026-10-16T17:35:30.3300487Z","event":"source-exported","name":"FRK_AlarmRefresh","sha256":"99f4dda75632d02e364a63fa622b381b3f060d8df4bc5491f876715ecadebc91"}
+{"t":"2026-10-16T17:35:30.3530122Z","event":"source-exported","name":"FRK_AlarmBegin","sha256":"a06f93a2c6893224e9a7d3ee6bfe0949fde74d6fc7ebbd3ee58472a19a14e588"}
+{"t":"2026-10-16T17:35:30.3820813Z","event":"source-exported","name":"FRK_AlarmRaise","sha256":"f509e5931d5aa88791db6fa8e0284dbff03feff360ed1760b5bd8bff86a9f1b6"}
+{"t":"2026-10-16T17:35:30.4019410Z","event":"source-exported","name":"FRK_AlarmClose","sha256":"0d9f51ed28567bff79f43313ae3b3fdfbd615f668ba764c5d7f160d3c54bb6e3"}
+{"t":"2026-10-16T17:35:30.4172981Z","event":"source-exported","name":"FRK_AlarmGone","sha256":"97a9a0d15cb3a40532dd82623e9a5f5c374700de84be384735cb75c23c4e7dc1"}
+{"t":"2026-10-16T17:35:30.4393949Z","event":"source-exported","name":"FRK_AlarmOperatorReset","sha256":"1362b3b80bcb8dc782f65a68726acf69707329b5ba9c587cff0f2f1b35ffe195"}
+{"t":"2026-10-16T17:35:30.4531292Z","event":"source-exported","name":"FRK_AlarmMessage","sha256":"ecb84a21b9c0bbc136de941045a4da020a77afad2371100149bd9bde0c72e2fd"}
+{"t":"2026-10-16T17:35:30.4760631Z","event":"source-exported","name":"FRK_AlarmCapture","sha256":"2899b9c7af493966738680dc70191d42c39e9d9beb0c73591d3147eb65d5dc83"}
+{"t":"2026-10-16T17:35:30.4913999Z","event":"source-exported","name":"FRK_AlarmEnd","sha256":"c24cb97624adefd284391d931eeef8b8208690e6af64a6dc10743bdd9c26579a"}
+{"t":"2026-10-16T17:35:30.5033097Z","event":"source-exported","name":"FRK_AlarmTreeBlocking","sha256":"db8c8387744124cf91f524adc0052d134a12af73dac45e2ac10453c007bac000"}
+{"t":"2026-10-16T17:35:30.5116132Z","event":"source-exported","name":"FRK_ReasonShelvable","sha256":"59dffe4cff9baad23fee5a14b3ce2100687bd1b63d58c06d9e9e8aee0051df98"}
+{"t":"2026-10-16T17:35:30.5333995Z","event":"source-exported","name":"FRK_AlarmUnshelve","sha256":"aed9d0b59bd5299bc6c7f3ebfbdf0c1eb955431df65452534ff3efffa34c29f0"}
+{"t":"2026-10-16T17:35:30.5502570Z","event":"source-exported","name":"FRK_AlarmShelve","sha256":"5e75cfa3655f2475cb6a9a11bf06ed26927badfb521a34e0c012a1f837a3c046"}
+{"t":"2026-10-16T17:35:30.5650247Z","event":"source-exported","name":"FRK_AlarmShelfTick","sha256":"e2ed6c940a91b5c57a20115d0f782f284ddbface896860fb9e0aada99f893a79"}
+{"t":"2026-10-16T17:35:30.5801893Z","event":"source-exported","name":"FRK_AlarmShelfRequest","sha256":"4342fbab19cd3a9eb8cc364aa951516b3dcce8c9ab13b9c1a637fadcee2bcfdc"}
+{"t":"2026-10-16T17:35:30.6093571Z","event":"source-exported","name":"FRK_Sha256Pin","sha256":"c538f8ad3fc0583d5ea922190cfbf1862d747f344c33abd9661c93bcc269f5a7"}
+{"t":"2026-10-16T17:35:30.6281966Z","event":"source-exported","name":"FRK_AccessCancel","sha256":"d12919d707a200b5630462e31b5a9854cdc6d3d3c5a86ab7023cd639a9a20d3d"}
+{"t":"2026-10-16T17:35:30.6393321Z","event":"source-exported","name":"FRK_AccessLogout","sha256":"3ff48309fc0eb1c60d118c78bed51e3bc72325cc300e9204fc6596851c2c4527"}
+{"t":"2026-10-16T17:35:30.6521823Z","event":"source-exported","name":"FRK_AccessDropSession","sha256":"dbfd1c1c767a409d9b94d0e810ea845f865a937a38bd915daee5c6b784514d44"}
+{"t":"2026-10-16T17:35:30.6630251Z","event":"source-exported","name":"FRK_AccessNext","sha256":"26cec0f7c693bbee2045ed1ba95b650586da0427f02f421fa38e0d5a4d15abd2"}
+{"t":"2026-10-16T17:35:30.6832561Z","event":"source-exported","name":"FRK_AccessLogin","sha256":"36f536881ee40173df8a1d74a78b5de1f605bd1db3915ce91d5c4c9c09142c8a"}
+{"t":"2026-10-16T17:35:30.7044830Z","event":"source-exported","name":"FRK_AccessAudit","sha256":"9f6bdc9ca65c3f369afa58908898651fe9582d9745300185f3242a161f5ebd02"}
+{"t":"2026-10-16T17:35:30.7228528Z","event":"source-exported","name":"FRK_AccessCyclic","sha256":"29fd3372c673b8b3e6f173d58de883db378a18ea000148e576f263886b57bcfa"}
+{"t":"2026-10-16T17:35:30.7397814Z","event":"source-exported","name":"FRK_AccessFinish","sha256":"552a61c501dd2ef7f2a1a4057fcbecc2a33918f894c8b2f09294a9cf1782dfd6"}
+{"t":"2026-10-16T17:35:30.7537869Z","event":"source-exported","name":"FRK_CrcByte","sha256":"1f1dd5263d830bde80503414a0af41afd2d8808042572ab112dc20ceb3719067"}
+{"t":"2026-10-16T17:35:30.7727704Z","event":"source-exported","name":"FRK_CrcNumber","sha256":"6585e9cc2387bda00506974916b583cf577564d68629241eadae466b22ea2584"}
+{"t":"2026-10-16T17:35:30.7978005Z","event":"source-exported","name":"FRK_AccessUsersCrc","sha256":"b9bc5081211b892591af1a6436097e929771362e6f72440442657d30cdafaa77"}
+{"t":"2026-10-16T17:35:30.8144623Z","event":"source-exported","name":"FRK_AccessUsersShape","sha256":"713a72c5c187f8915fd6238dcb190865809b5ccf0e9df72961be744bd6350e26"}
+{"t":"2026-10-16T17:35:30.8235573Z","event":"source-exported","name":"FRK_AccessUsersCommit","sha256":"af70ecc2dbc4a115e8977230064fe0146da55e766fe1fc26a95395761a1f5f8f"}
+{"t":"2026-10-16T17:35:30.8387743Z","event":"source-exported","name":"FRK_AccessRegisterHash","sha256":"224a98db6daa8bbe542846fb66d679ce52d1450168706c5a64e7cdd4362ce23f"}
+{"t":"2026-10-16T17:35:30.8508129Z","event":"source-exported","name":"FRK_AccessStoreBoot","sha256":"8ea5f7ec39ec3d7bd324cbdb9d67641d35042d6d945c313836fa2fe0d0dec2ae"}
+{"t":"2026-10-16T17:35:30.8637225Z","event":"source-exported","name":"FRK_AccessPolicyCrc","sha256":"4e313fec736237118eb247ff83924b0df83847824987ac8df99ecc77323a1467"}
+{"t":"2026-10-16T17:35:30.8818456Z","event":"source-exported","name":"FRK_AccessPolicyShape","sha256":"4ce2bc071bb27239bd845e704efd77504b7d9eb71bbdba1b6eb0a29115b2c214"}
+{"t":"2026-10-16T17:35:30.8996316Z","event":"source-exported","name":"FRK_AccessPolicyValid","sha256":"de183f13a34afdd406030f32fc36919490bee7c8458703d36b2dfb0429fe7d3b"}
+{"t":"2026-10-16T17:35:30.9199791Z","event":"source-exported","name":"FRK_AccessPolicySave","sha256":"d9c53637e4d06dc20187ccce9ac9f03db4ebd4961e5127b4a03abf877d9c849e"}
+{"t":"2026-10-16T17:35:30.9338575Z","event":"source-exported","name":"FRK_AccessPolicyBoot","sha256":"5df208b9e6fd7961581539ab1efbb9c433880c732f5c3e985bf599be03fe623a"}
+{"t":"2026-10-16T17:35:30.9536633Z","event":"source-exported","name":"FRK_AccessPersist","sha256":"8cbae9e7d5f561cb104733e23579965c8acd9a413f20c5318e3335b9776d3169"}
+{"t":"2026-10-16T17:35:30.9644290Z","event":"source-exported","name":"FRK_RunStylePrepare","sha256":"537d0b9b860fe8091f3b9b4bd3b11adfcd31f5beebd01aa0f451abb7f893e40e"}
+{"t":"2026-10-16T17:35:30.9785453Z","event":"source-exported","name":"FRK_RunStyleRequest","sha256":"46919b875ad22fba08b2fde4bea32b02f23c94acdaedfda71f81ca6f2218e5c8"}
+{"t":"2026-10-16T17:35:30.9917985Z","event":"source-exported","name":"FRK_StepGate","sha256":"1f1422b858549a2a4eefe12a911084b6d9a634f3a235ee282a719ff6af8139fc"}
+{"t":"2026-10-16T17:35:31.0077810Z","event":"source-exported","name":"FRK_HoldRunBlocked","sha256":"8f721e3c8baa04e54b4c21cdbc9b876131d07569ad83cd9a508c32fad2920619"}
+{"t":"2026-10-16T17:35:31.0234661Z","event":"source-exported","name":"FRK_UnitPrepare","sha256":"61f5ef526397ef192b5a97c7238d8f004aad0e36cbdced4bccbea7421936547f"}
+{"t":"2026-10-16T17:35:31.0346526Z","event":"source-exported","name":"FRK_UnitSetLocalCarrier","sha256":"4027a53e48cf34511dc31f3ce3fc6728a6f3b667bcc943890fd2f4a202877ba2"}
+{"t":"2026-10-16T17:35:31.0488021Z","event":"source-exported","name":"FRK_PartEvent","sha256":"4ef5f7ca2660890f4c239d80fd594607175ee213a7e7a6663cd03da18eef7d16"}
+{"t":"2026-10-16T17:35:31.0685291Z","event":"source-exported","name":"FRK_PartReceived","sha256":"aa4aa781afeb4b1ea44bffa08395e76258f198b9b0fe6a9fcb6d4b09e6cd0e46"}
+{"t":"2026-10-16T17:35:31.0817105Z","event":"source-exported","name":"FRK_PartStarted","sha256":"4299fde2dbec810f3e51727130c580aad309f9960d7f6d7f9a07017ac31e1527"}
+{"t":"2026-10-16T17:35:31.1128277Z","event":"source-exported","name":"FRK_PartProcessed","sha256":"6a386e630a1bdbb9f62eb2311cc2c259a17be21b09e674540bfd475d7407e077"}
+{"t":"2026-10-16T17:35:31.1278710Z","event":"source-exported","name":"FRK_PartAborted","sha256":"2c070ad0b21c1d3496d3af9256b8b3ec700f0798b14848f99bb3bbd17cce622e"}
+{"t":"2026-10-16T17:35:31.1384685Z","event":"source-exported","name":"FRK_UnitSetPermit","sha256":"fde7198962dbe6a943b25c7ced323037e35c0fddf93bdc80d0c952fb6f87f93d"}
+{"t":"2026-10-16T17:35:31.1504984Z","event":"source-exported","name":"FRK_ReleaseReason","sha256":"5451f6d84b16f008aea988a170acc44b30f18d3fbe6ed6feb8268c603ee51ea6"}
+{"t":"2026-10-16T17:35:31.1744954Z","event":"source-exported","name":"FRK_UnitOperation","sha256":"3608d72f76741a53b4cd2682171a2130faae12537e951ba8b6212d4f477a30b1"}
+{"t":"2026-10-16T17:35:31.1918779Z","event":"source-exported","name":"FRK_UnitMailbox","sha256":"99ac0ef39d87faf984200dc1745649b11f2e8a4f9952b7ff0ffbe875cd925944"}
+{"t":"2026-10-16T17:35:31.2046352Z","event":"source-exported","name":"FRK_UnitConsume","sha256":"abeba6dedc9804ff027ad94eb47b11a71c6d5437431e3fa83eb588bd7bfd32bc"}
+{"t":"2026-10-16T17:35:31.2227569Z","event":"source-exported","name":"FRK_UnitMode","sha256":"fd3c611863c43dcfa86ed1d1a4f524fc3b0612a9335a97a6ef6183c6559b7fe4"}
+{"t":"2026-10-16T17:35:31.2385246Z","event":"source-exported","name":"FRK_UnitModeResolve","sha256":"298af95ec74b2a823ef8929d7aef53100ef0c7bec59d4b3a65cbfc469e1e8939"}
+{"t":"2026-10-16T17:35:31.2497056Z","event":"source-exported","name":"FRK_UnitRunStart","sha256":"a5d3416c9898c5e0f8e531f6da508166aed41993e6fab577d2ccbdc2b1bad431"}
+{"t":"2026-10-16T17:35:31.2635987Z","event":"source-exported","name":"FRK_DescendantsReady","sha256":"640c1bdab8f81a1e05fca683183eea86a375917403c7482e8d510a3321c67ef5"}
+{"t":"2026-10-16T17:35:31.2791272Z","event":"source-exported","name":"FRK_UnitFinish","sha256":"9e7a9843a970500313b28521909ad0a7c290eedcff8647d6759482c461ac1b85"}
+{"t":"2026-10-16T17:35:31.2918449Z","event":"source-exported","name":"FRK_PathOwned","sha256":"8465bc5ecd3389ad51a8c4a7b4e5f61dbf4cb848810864cc216439d739ce4d04"}
+{"t":"2026-10-16T17:35:31.3208803Z","event":"source-exported","name":"FRK_UnitRelease","sha256":"1df17c41f46d055431615d3b4354875a19e596b7d675cde719b70fddb54d564d"}
+{"t":"2026-10-16T17:35:31.3363854Z","event":"source-exported","name":"FRK_ManualCommon","sha256":"073350cad6c273ecd5cb89fd39a051fe079861eb00bea4dbb0463eb05b1266f6"}
+{"t":"2026-10-16T17:35:31.3487524Z","event":"source-exported","name":"FRK_ManualCondition","sha256":"ec729607ca20cedd0c7c43e7cc306c5b8d74d441eec5f9214d5bc238dc1d8a0a"}
+{"t":"2026-10-16T17:35:31.3636564Z","event":"source-exported","name":"FRK_ManualApply","sha256":"ca756400d15f35a0935bff08c5482b4ce826a46f46e6c30be8709e167c1c1958"}
+{"t":"2026-10-16T17:35:31.3726547Z","event":"source-exported","name":"FRK_ManualFinish","sha256":"a260b68dd02a1f82e8835b50b48c1dffbdd32e936d28a15e321cfb43ebb21d59"}
+{"t":"2026-10-16T17:35:31.3894528Z","event":"source-exported","name":"FRK_UnitCascade","sha256":"e9a51d6a00bca2839a5c5f0d74868dfc10ecd37b90c4556214f333d0ec0c5c09"}
+{"t":"2026-10-16T17:35:31.4017279Z","event":"source-exported","name":"FRK_UnitFollow","sha256":"253aea598c445a83dafbfa3496e643f7fe5c36adc18a4dc4b9756f44461333eb"}
+{"t":"2026-10-16T17:35:31.4248366Z","event":"source-exported","name":"FRK_DecisionRoot","sha256":"d87eee437f7ee2d4e188277ab6fd9016b8c273d474666e310897e16bae440481"}
+{"t":"2026-10-16T17:35:31.4434100Z","event":"source-exported","name":"FRK_DecisionAudit","sha256":"7be446b25ad298d8ca83a963160bddeda14d9f46f6644e1007578f806284fd4b"}
+{"t":"2026-10-16T17:35:31.4626081Z","event":"source-exported","name":"FRK_DecisionClear","sha256":"356b3ce7d606d6dad9f271a269bfa3e2e9e091b67a1b93962d8a966e377ac41e"}
+{"t":"2026-10-16T17:35:31.4797933Z","event":"source-exported","name":"FRK_DecisionAsk","sha256":"2b7f79bc1bd8331fde28a3173cbb7c4cab79f54687e64e256eb693de79b0e88b"}
+{"t":"2026-10-16T17:35:31.4929023Z","event":"source-exported","name":"FRK_DecisionSubmit","sha256":"ef208277bdea8437c93ea75bf9237ec9017c661c81bc5e1e9cb6a918091827a3"}
+{"t":"2026-10-16T17:35:31.5228574Z","event":"source-exported","name":"FRK_DecisionCyclic","sha256":"a6ab7d72ad8206c95671795166af277a22a93a0c5e4529053577eecf77e46842"}
+{"t":"2026-10-16T17:35:31.5401668Z","event":"source-exported","name":"FRK_DecisionTake","sha256":"1613d546831ff8eeed0ed4be699f73bddd8c0b9a0eaf5577823de64e2b2f72a2"}
+{"t":"2026-10-16T17:35:31.5530778Z","event":"source-exported","name":"FRK_DecisionPublish","sha256":"00dc64acb92bd7e85a7b2c9af1dd16e0663771f3f3349fc1b14d5240a8be5d3e"}
+{"t":"2026-10-16T17:35:31.5650079Z","event":"source-exported","name":"FRK_IntegerSet","sha256":"84bc49af8d20a538d9ecc25e74f4241732f2a78efe079550a91dedac1bfdb383"}
+{"t":"2026-10-16T17:35:31.5742269Z","event":"source-exported","name":"FRK_IntegerMul","sha256":"a64c248be5f41123ea0c2bfb121b9e0e7ca7a265ceb8b74aae9c43ea01a35825"}
+{"t":"2026-10-16T17:35:31.5881622Z","event":"source-exported","name":"FRK_IntegerShift","sha256":"9feb77db9cd9e5133bdc4bc967367ca857876115b521700c61ec78be3a667e87"}
+{"t":"2026-10-16T17:35:31.5993012Z","event":"source-exported","name":"FRK_IntegerCompare","sha256":"d35dce0fd78769b2a28ddfa42a5c4e55fa0ff2c290c22918484b8cef8833576d"}
+{"t":"2026-10-16T17:35:31.6121556Z","event":"source-exported","name":"FRK_IntegerSubtract","sha256":"19e25481b6a85e3817abbd184d399b6908e6f66024562837e136925652a23574"}
+{"t":"2026-10-16T17:35:31.6233015Z","event":"source-exported","name":"FRK_IntegerBits","sha256":"68d0b90a271f987ed41a55a208892c4f9a12315827d59cd946b3cd6b504a6cc3"}
+{"t":"2026-10-16T17:35:31.6482940Z","event":"source-exported","name":"FRK_DecimalDecode","sha256":"a76a2f567c1b67d7d30e79f4869cd72598e5e0328ec1513cc1f4e78db947dff1"}
+{"t":"2026-10-16T17:35:31.6671101Z","event":"source-exported","name":"FRK_DecimalFormat","sha256":"c0ca57736ef60b84b08d1997d2ce48a84433bd165f05ae5de0ead9f44ab24df1"}
+{"t":"2026-10-16T17:35:31.6870280Z","event":"source-exported","name":"FRK_ConfigDecimalText","sha256":"6f573ede914f2235aa0f6d73e3020917ed979101a309a149548b5c57345873aa"}
+{"t":"2026-10-16T17:35:31.7127399Z","event":"source-exported","name":"FRK_ConfigWriteAudit","sha256":"45fd8777b27cfc44aee527a1022f64138342339c44f586ce875807244f4fc5da"}
+{"t":"2026-10-16T17:35:31.7319467Z","event":"source-exported","name":"FRK_ConfigDecode","sha256":"246dd1f83953eef8e0c92dca6b6722f0842414c786d64e6f4eddc4f96724dcb4"}
+{"t":"2026-10-16T17:35:31.7487859Z","event":"source-exported","name":"FRK_ConfigEnumText","sha256":"bcf3a932da7a2cc6a05d074d34e241f1646beea3c43b698627d59bbd0d100621"}
+{"t":"2026-10-16T17:35:31.7625607Z","event":"source-exported","name":"FRK_ConfigValidate","sha256":"3d90ccea8c54f1ab28e78f3a5304ea96825686e4840cb4b7744aadfa415b2846"}
+{"t":"2026-10-16T17:35:31.7801030Z","event":"source-exported","name":"FRK_ConfigFind","sha256":"9ff1203767aa0d5d2623a530095f69a05a7073e59d8e5ba347d9e068e98569b4"}
+{"t":"2026-10-16T17:35:31.8009074Z","event":"source-exported","name":"FRK_ConfigPut","sha256":"538ec94968ca0164a9d2d91445f954cf2ef50b555ea743a4958fdde17d04164d"}
+{"t":"2026-10-16T17:35:31.8219256Z","event":"source-exported","name":"FRK_ConfigGet","sha256":"0540764f8f1341894982376be62fb04c91f32f9d23c0108e5fb7f934efc52db3"}
+{"t":"2026-10-16T17:35:31.8340286Z","event":"source-exported","name":"FRK_ConfigLoss","sha256":"c66949439c1ec8a614ff42e772e3457cd8c4c5f5de2a12dffd976e094987bbc4"}
+{"t":"2026-10-16T17:35:31.8468571Z","event":"source-exported","name":"FRK_ConfigAppendEntry","sha256":"4fd3c6c5a634b93ff4f002ca7de6b1dbd1630f1f23e5341f7638964b8ecf6a6f"}
+{"t":"2026-10-16T17:35:31.8670803Z","event":"source-exported","name":"FRK_ConfigStatus","sha256":"b6dba060494a782d9036193dba711e04075ce1ce277dabc5e91768d2a7df9bf3"}
+{"t":"2026-10-16T17:35:31.8859366Z","event":"source-exported","name":"FRK_ConfigRoot","sha256":"344e9f8eadbfd4c87e5ae13a7a58db5e31d5ef8178b6397370baea8bb450df56"}
+{"t":"2026-10-16T17:35:31.8986710Z","event":"source-exported","name":"FRK_ConfigModelCode","sha256":"95e72b7cf47a3bcea0169749e33be8ff78fb40bd7f22c0a04a71f6d8a786c20e"}
+{"t":"2026-10-16T17:35:31.9114005Z","event":"source-exported","name":"FRK_ConfigBoot","sha256":"1fb92872ed0fbd0dea5860bd16008cc4dc7495981422d6de1db23144a3d894bf"}
+{"t":"2026-10-16T17:35:31.9212215Z","event":"source-exported","name":"FRK_MachineState","sha256":"b61093683f8eb4f8c34e0a7efe1b779ac09fed9c4f7103a24b3063dd6416b1c7"}
+{"t":"2026-10-16T17:35:31.9293661Z","event":"source-exported","name":"FRK_AddMs","sha256":"5c1ce3d2b29419997d4a98db26827e33d5c8b04bf19caae7f194b14307bcbe19"}
+{"t":"2026-10-16T17:35:31.9440990Z","event":"source-exported","name":"FRK_OeeCompute","sha256":"93c163256c9341675c23c1b331c41d94d287ced55b20e6e376220e74c591d2cf"}
+{"t":"2026-10-16T17:35:31.9565640Z","event":"source-exported","name":"FRK_OeeTick","sha256":"4706a78e28ca0717cb5dbb4eccf3f0870538d7f6bcc2eb7f21352625f7c34d02"}
+{"t":"2026-10-16T17:35:31.9745874Z","event":"source-exported","name":"FRK_OeeReset","sha256":"a52cd9062bd80b162248e567a32c327efd08e7d026bcf9ed8d9f88511394f5ed"}
+{"t":"2026-10-16T17:35:31.9903680Z","event":"source-exported","name":"FRK_ShiftValidate","sha256":"d69d03594828451a1e1c370babd0a8a452a9793489eb00fead73b02e5df1a960"}
+{"t":"2026-10-16T17:35:32.0132961Z","event":"source-exported","name":"FRK_ShiftInterval","sha256":"de585fa6ec8a4f8812cd9ebd551013e9dbfbd14ba17db6046bec1ee696bd3836"}
+{"t":"2026-10-16T17:35:32.0425130Z","event":"source-exported","name":"FRK_ShiftTick","sha256":"c51a5bf475fdd1a9e3b39174a45e1b86429c708414d3f21317dd010dc5f8a1ad"}
+{"t":"2026-10-16T17:35:32.0663243Z","event":"source-exported","name":"FRK_ProductionRequest","sha256":"6a9b9ae080448c10411071ee54f07a45de646032d806237896aac9b2c2c47f6f"}
+{"t":"2026-10-16T17:35:32.0874479Z","event":"source-exported","name":"FRK_WorkDegradation","sha256":"b716eeba9df37bc8fbab6d9954802a3fba72605b50b2b385752afd7492bd4ef9"}
+{"t":"2026-10-16T17:35:32.1274468Z","event":"source-exported","name":"FRK_ConditionEvent","sha256":"1f7617c7adf2fb1f58021bb7457c7198a00d29507489f9e46b03f59487bdb4e7"}
+{"t":"2026-10-16T17:35:32.1484148Z","event":"source-exported","name":"FRK_EngineeringTick","sha256":"edfdc2f94ad4c16e56d43c103eb0c97ca3c083a66ef6d23525e962aec4c8727c"}
+{"t":"2026-10-16T17:35:32.1676455Z","event":"source-exported","name":"FRK_EngineeringManifest","sha256":"9dc3a08426d9b55fcbe7f46aa2df71c9345ab26bcfb1defe8fa9537d71a42a1a"}
+{"t":"2026-10-16T17:35:32.1873795Z","event":"source-exported","name":"FRK_HealthCyclic","sha256":"0404373fdda2a9ffa2adc56309194822bc6381b2a3a36b3fad2bf8ea9e7a59bc"}
+{"t":"2026-10-16T17:35:32.2044200Z","event":"source-exported","name":"FRK_S7HealthProbe","sha256":"0ac5ffcebf5c5470c964503ae09c358b9ef156d056f40211110e006ffb2a7b3f"}
+{"t":"2026-10-16T17:35:32.2262472Z","event":"source-exported","name":"FRK_TowerTick","sha256":"f883745a0bd16a884dd541941e8a538f22a19f2c6bac3401f726cc702a739a11"}
+{"t":"2026-10-16T17:35:32.2515455Z","event":"source-exported","name":"FRK_TowerRequest","sha256":"4701dfb244745785912e0813322888594d36de484405af923e43bde4c4378142"}
+{"t":"2026-10-16T17:35:32.2693053Z","event":"source-exported","name":"FRK_TowerFrame","sha256":"cb507cd1c9126ec8d203fcc1bd2322a46b05b95f28d7342aef6e38902222c96a"}
+{"t":"2026-10-16T17:35:32.2979104Z","event":"source-exported","name":"FRK_LineDef","sha256":"fde611d7287bc4832098261748b7161743fd67e63097e2a66083896bf4071336"}
+{"t":"2026-10-16T17:35:32.3167280Z","event":"source-exported","name":"FRK_LineValue","sha256":"05ac1931349277051af011decb5d04d80a06e3067cfafcafbd774acf1b9336ac"}
+{"t":"2026-10-16T17:35:32.3296230Z","event":"source-exported","name":"FRK_LineAssign","sha256":"858ab90eea4c97eefdbd85b0643ddcbf572b4c989b69b7558e666fe41947a194"}
+{"t":"2026-10-16T17:35:32.3556619Z","event":"source-exported","name":"FRK_LineBuild","sha256":"9605fb58d0c6f282595396993135ac979130008f91a62eece95b6029ce1dd250"}
+{"t":"2026-10-16T17:35:32.3796955Z","event":"source-exported","name":"FRK_LineBoot","sha256":"b9a505355b0bf2bd3a5d490b8ff276bccc0d8b2fa178268d7776e50ef069b841"}
+{"t":"2026-10-16T17:35:32.3956476Z","event":"source-exported","name":"FRK_LineAnnounce","sha256":"7d343e0cfa46ed69f22b89b16be4248eb3a1ea005514d3f1489b098e2624ec82"}
+{"t":"2026-10-16T17:35:32.4103601Z","event":"source-exported","name":"FRK_LineCommit","sha256":"5bc7dcca91ad33f0503b42c94f2b1c574361660cfc2e3b1594a06451767b43f8"}
+{"t":"2026-10-16T17:35:32.4334174Z","event":"source-exported","name":"FRK_LineWrite","sha256":"3aee6d0c8337bbb2b8a51a758a0b6e944720f26b4d567e24744c2c4637ac75ab"}
+{"t":"2026-10-16T17:35:32.4548046Z","event":"source-exported","name":"FRK_LineApply","sha256":"aa195f316f36ea11c7b250278310038c7c6c8affdd212ceed6c8df644481b88c"}
+{"t":"2026-10-16T17:35:32.4738188Z","event":"source-exported","name":"FRK_LineTick","sha256":"cd5a1a2dfd233fbb0379001f053f9c9ce17b0ad3865ffe5dd4adc51b699c8fbc"}
+{"t":"2026-10-16T17:35:32.4876934Z","event":"source-exported","name":"FRK_LineLocalRead","sha256":"851411caeb1534798524c5644f352e2d29bae5211498cc462cc972bce887aadd"}
+{"t":"2026-10-16T17:35:32.5055715Z","event":"source-exported","name":"FRK_LineManifest","sha256":"42e6c715377733c06dd251ebdbbc139d3fac12cecece80f49dc300c764faec91"}
+{"t":"2026-10-16T17:35:32.5241177Z","event":"source-exported","name":"FRK_TestAssert","sha256":"81c9e3f40949dc3ce4d267edd6a2563184d1cf739f8162999a556f80e5b00def"}
+{"t":"2026-10-16T17:35:32.5409421Z","event":"source-exported","name":"FRK_TestPublish","sha256":"54fed1772ecbdd07e37d3c1ca8097997d5aaf138ac13812603c1b3b3c43e0b61"}
+{"t":"2026-10-16T17:35:32.5751219Z","event":"source-exported","name":"FB_DeclarationCylinder","sha256":"f2e6174445330b2a7933c8845056cf4e1eb247e6587d8748c38a04ce4398e3d3"}
+{"t":"2026-10-16T17:35:32.5952681Z","event":"source-exported","name":"FRK_Route_DeclarationCylinder","sha256":"a4c16318365c40ecff67d41e4070256d7bf143d01a3726109d9a2d19fe11c124"}
+{"t":"2026-10-16T17:35:32.6260730Z","event":"source-exported","name":"FRK_CfgDef_DeclarationCylinder","sha256":"97bb2852f1782dc928798c7ed7261f8d6727bf5c37fde728747dbc53fcb5d0ac"}
+{"t":"2026-10-16T17:35:32.6521380Z","event":"source-exported","name":"FRK_CfgRestore_DeclarationCylinder","sha256":"bc21c7ad7f0effb12d26c67c37236f65f759f804bff1af5acc22d2b3a2f711c6"}
+{"t":"2026-10-16T17:35:32.6772212Z","event":"source-exported","name":"FRK_Config_DeclarationCylinder","sha256":"c0f0337b5361d3fd8bc554de9cfc120ce987b8bf90c1e93a00469445e4a52afc"}
+{"t":"2026-10-16T17:35:32.7072993Z","event":"source-exported","name":"FRK_CfgWrite_DeclarationCylinder","sha256":"39a0d27c1e028e583559df8332d5705e3021b6e60f2d053f36a497e44ddbec4c"}
+{"t":"2026-10-16T17:35:32.7286159Z","event":"source-exported","name":"FRK_CfgRecipe_DeclarationCylinder","sha256":"e3a63783e3f975331c10dde63f74bf5000e97aee9ff1544a8ae47b4b1b43d949"}
+{"t":"2026-10-16T17:35:32.7512466Z","event":"source-exported","name":"FRK_Capture_DeclarationCylinder","sha256":"ac1e879e7d5cca227023ff9ee65655ea4898d590edc5cb0e7e6f99bd0c9f9eb0"}
+{"t":"2026-10-16T17:35:32.7842951Z","event":"source-exported","name":"FB_DeclarationCell","sha256":"cf0f6de8f47bf8d39f6405a3e22e20accdb50786dd42b418831a588827a8b2e0"}
+{"t":"2026-10-16T17:35:32.8086310Z","event":"source-exported","name":"FRK_Route_DeclarationCell","sha256":"62ab2b9a71f1f0371ad34c8cbdb6d457e0dd7d526625244d7392fd048aec6d11"}
+{"t":"2026-10-16T17:35:32.8243351Z","event":"source-exported","name":"FRK_CfgDef_DeclarationCell","sha256":"80996babb8a0db6a5fbce500346cf438a4cd58f0bc230144067ed25069d61c63"}
+{"t":"2026-10-16T17:35:32.8425753Z","event":"source-exported","name":"FRK_CfgRestore_DeclarationCell","sha256":"5977fb50baa920ed34e7318852dad9c0ae5f1d4a11353bc116260a964ebd3c7a"}
+{"t":"2026-10-16T17:35:32.8631235Z","event":"source-exported","name":"FRK_Config_DeclarationCell","sha256":"c43e8a16e0b98e186c9824cf48a16984c28adbfa861d6e1e9dde16a177b62044"}
+{"t":"2026-10-16T17:35:32.8894131Z","event":"source-exported","name":"FRK_CfgWrite_DeclarationCell","sha256":"683c4cfe625ca5e59641f9bcc7b97b0937bc421f03990326adf0d5b50dd7cfd2"}
+{"t":"2026-10-16T17:35:32.9049775Z","event":"source-exported","name":"FRK_CfgRecipe_DeclarationCell","sha256":"d4654845a0ecd40fabfaf7c1c1b865ef50cc2f1a876abb461c0453ab2602094e"}
+{"t":"2026-10-16T17:35:32.9188043Z","event":"source-exported","name":"FRK_Capture_DeclarationCell","sha256":"f29d1676bc046611e92c97045609c1790644709fe782d2a737713d1831460e3d"}
+{"t":"2026-10-16T17:35:32.9322937Z","event":"source-exported","name":"FRK_Release_InnerUnit","sha256":"dd23a4b47b2dcb7309115f462aa1fcf8cc32f8d22143f99d0cd1817d3f94c519"}
+{"t":"2026-10-16T17:35:32.9810460Z","event":"source-exported","name":"FB_InnerUnit","sha256":"b2235a71e8d93597f1be24ead11b8430fb3c0e5e52300dbf0b6019d5272a9931"}
+{"t":"2026-10-16T17:35:33.0062407Z","event":"source-exported","name":"FRK_Route_InnerUnit","sha256":"a8f3c7cecd42c2635fac0bd49d7cadffd2888b8747ecf482a72970921ad38f37"}
+{"t":"2026-10-16T17:35:33.0253065Z","event":"source-exported","name":"FRK_CfgDef_InnerUnit","sha256":"1c60f3e6b93f1308fd1cd5b4dd16b9433cecfedf0dd9565107d917de14b7686c"}
+{"t":"2026-10-16T17:35:33.0461102Z","event":"source-exported","name":"FRK_CfgRestore_InnerUnit","sha256":"c8b22bf504e7bff807f58cfdb515a1018d1abdc3f8a3046d341f5eac05d25db0"}
+{"t":"2026-10-16T17:35:33.0744897Z","event":"source-exported","name":"FRK_Config_InnerUnit","sha256":"3f4ce1f0e46984456aa72d7b61549059226f4cb03d6a8db62945e8603ba73bee"}
+{"t":"2026-10-16T17:35:33.1058901Z","event":"source-exported","name":"FRK_CfgWrite_InnerUnit","sha256":"9e62a4ff57cb9a42e1e2302c08091e4f86e0854b8bfab97318bdf1e44affccf6"}
+{"t":"2026-10-16T17:35:33.1241719Z","event":"source-exported","name":"FRK_CfgRecipe_InnerUnit","sha256":"4ee58dbac41a795caf77842980526bea53186242c4626962a07d29c2f2bc5225"}
+{"t":"2026-10-16T17:35:33.1432172Z","event":"source-exported","name":"FRK_Release_SatelliteUnit","sha256":"fe6c6508c456331c5753ee33bcfb002741525c0b55d56440845e0bd4b9fb93e6"}
+{"t":"2026-10-16T17:35:33.1958085Z","event":"source-exported","name":"FB_SatelliteUnit","sha256":"9dfa26188a32c8efb83bb4524ebd50383bc35a369f25b9bea4e4ff1fc5e5429a"}
+{"t":"2026-10-16T17:35:33.2119708Z","event":"source-exported","name":"FRK_Route_SatelliteUnit","sha256":"8e8a2c8614e86105b26e6a0099c431170c6638e64e04ef3a7b9c2ea2631dc286"}
+{"t":"2026-10-16T17:35:33.2360796Z","event":"source-exported","name":"FRK_CfgDef_SatelliteUnit","sha256":"001f83507e9a489ea9244c4324073256aa7120a49b49ce49fc3e7c85136776ab"}
+{"t":"2026-10-16T17:35:33.2621006Z","event":"source-exported","name":"FRK_CfgRestore_SatelliteUnit","sha256":"0d08908225a52b78f8773df8b8740c1a755f662216c5c54dbcecb7b4de8dc15a"}
+{"t":"2026-10-16T17:35:33.2891179Z","event":"source-exported","name":"FRK_Config_SatelliteUnit","sha256":"3eb069481e9a5c9b5f11b7268f760dd2b5986aed42e862ae685c39ad5670037e"}
+{"t":"2026-10-16T17:35:33.3158331Z","event":"source-exported","name":"FRK_CfgWrite_SatelliteUnit","sha256":"806c997b5545a498c257fd7f69414f817221477e24ff609f029c3246071ec256"}
+{"t":"2026-10-16T17:35:33.3628825Z","event":"source-exported","name":"FRK_CfgRecipe_SatelliteUnit","sha256":"3fd28af6bff37fcb68eae8f9c44c4da9fa1c50852d5dc96d8f48719481375733"}
+{"t":"2026-10-16T17:35:33.3731620Z","event":"source-exported","name":"FRK_Release_DeclarationUnit","sha256":"9af15452bb547b60676c6698fca0ae9087c1cf6bd6afc796b1451c179484beed"}
+{"t":"2026-10-16T17:35:33.4211485Z","event":"source-exported","name":"FB_DeclarationUnit","sha256":"cb70589aa9e2d13a8c8274295f38759ea62ff71115f07b1be3943ef7943ea659"}
+{"t":"2026-10-16T17:35:33.4371699Z","event":"source-exported","name":"FRK_Route_DeclarationUnit","sha256":"3481c8ba6ef59f9ea85421d08a7994a2778aaed71f9ef52a7450c2ac42b7a486"}
+{"t":"2026-10-16T17:35:33.4538064Z","event":"source-exported","name":"FRK_CfgDef_DeclarationUnit","sha256":"7f7eb36586ce08db00d585a060af19c803f0428165d824bd51fd80fe2d49542f"}
+{"t":"2026-10-16T17:35:33.4821001Z","event":"source-exported","name":"FRK_CfgRestore_DeclarationUnit","sha256":"cbd643a61d303865797abff34d4d5a049429bb72437eb8fb69f0af917a1baa11"}
+{"t":"2026-10-16T17:35:33.5088659Z","event":"source-exported","name":"FRK_Config_DeclarationUnit","sha256":"a1a89a2709f34c1a44d6ca1155f0bc5db326c3c16277a176a673f44efbcfac64"}
+{"t":"2026-10-16T17:35:33.5398825Z","event":"source-exported","name":"FRK_CfgWrite_DeclarationUnit","sha256":"d52df9410f16c864d1bcfd1c4ec6ed59d43103b2f2b8bdd678bbbe5bfe05fdf3"}
+{"t":"2026-10-16T17:35:33.5600846Z","event":"source-exported","name":"FRK_CfgRecipe_DeclarationUnit","sha256":"c7b4fa104f193ee1048f3e5476105f6072665ebddc0bde9deae5830d6078f175"}
+{"t":"2026-10-16T17:35:33.5899229Z","event":"source-exported","name":"FRK_CfgOperation_DeclarationUnit","sha256":"52e080f013afbec7123fe72f322dca81f1ecadec7fd98a6fac46cbcff616d358"}
+{"t":"2026-10-16T17:35:33.6601595Z","event":"source-exported","name":"FB_OperationsTest","sha256":"3013769353eda57aea0a7c2b8061c76416ad50247872407acc2e31497e8909fb"}
+{"t":"2026-10-16T17:35:33.6711457Z","event":"source-exported","name":"GDB_FraktalHal","sha256":"cb2f2440bd00be2485556dd9730d6dc2e45c4a28a792c4b2b71d233b9b050f1b"}
+{"t":"2026-10-16T17:35:33.7210004Z","event":"source-exported","name":"StationA","sha256":"5fb5a7ba3a4595e25c4217a62c00bc6215ade7a80728811c3ce39ddf047e605e"}
+{"t":"2026-10-16T17:35:33.7727332Z","event":"source-exported","name":"StationB","sha256":"c1577a57949fa217d5ab55b85bb3dd89c0744f5ab265a814326fcc968a1d2935"}
+{"t":"2026-10-16T17:35:33.7851642Z","event":"source-exported","name":"FB_FraktalMain","sha256":"1a42fa6aec427fe1bed0aaa75c95d7605e3d98d19b0d3b984258e6ebaf2b1c6e"}
+{"t":"2026-10-16T17:35:33.8008888Z","event":"source-exported","name":"GDB_FraktalMain","sha256":"857419124db77f6046ca9968f14bb67631e78f8660d634c30a69b691e561fb34"}
+{"t":"2026-10-16T17:35:33.8170457Z","event":"source-exported","name":"Main","sha256":"38280c4dd092e89e583919b77c6e9d027c1e8e242557d03a3bcdd0bca5f08521"}
+{"t":"2026-10-16T17:35:33.8289076Z","event":"source-exported","name":"GDB_OperationsResultTest","sha256":"624d4200f398b8d790c80d510747f87b645b99760930ba7b5dd63fb1382bc411"}
+{"t":"2026-10-16T17:35:33.8491300Z","event":"source-exported","name":"GDB_OperationsTest","sha256":"ace382d392834782fd048efbb51a3b068c916894b44b633d2c88a29aa8378bd3"}
+{"t":"2026-10-16T17:35:33.8633320Z","event":"source-exported","name":"ST_Diagnostic","sha256":"670df558a418c36938a7368ab6eb93fe7aee89ca3559b2b132e667a14257475d"}
+{"t":"2026-10-16T17:35:33.8709869Z","event":"source-exported","name":"ST_ModuleStatus","sha256":"52f7b184f7c9ff95251abc0d099162f4aabeb3f2c292879f8d9a65407be703c1"}
+{"t":"2026-10-16T17:35:33.8801818Z","event":"source-exported","name":"ST_TimingRow","sha256":"a5f39c3a96088a7fad34560f8138a379a76ec30e2430045e5af913af931cb718"}
+{"t":"2026-10-16T17:35:33.8912012Z","event":"source-exported","name":"ST_ModuleTiming","sha256":"ea5944d7c4530475990d740ee53a41f4c60851dc3caac7977681b2ddc85d5e56"}
+{"t":"2026-10-16T17:35:33.8967400Z","event":"source-exported","name":"ST_HmiRequest","sha256":"41d30dcc5236eb799a0e5fe3f3333f500b84958a6cb70ee4c9da9612cce07af5"}
+{"t":"2026-10-16T17:35:33.9060826Z","event":"source-exported","name":"ST_ReleaseReason","sha256":"2b84c04ab94042418f709e2fe089ff609391c5460b60743205be2a1730921fac"}
+{"t":"2026-10-16T17:35:33.9116178Z","event":"source-exported","name":"ST_ReleaseReport","sha256":"ba403263a4f23532342ef2ca84fcf4590919d329d9296633d3690c73f3ba62ed"}
+{"t":"2026-10-16T17:35:33.9209388Z","event":"source-exported","name":"ST_ConfigEntry","sha256":"b85339044306db125025854da5d128f91f30e651fec049fc91c8abd053dabb48"}
+{"t":"2026-10-16T17:35:33.9281722Z","event":"source-exported","name":"ST_ConfigPage","sha256":"afcfd991da1c6923312417afeec81c7de3b01e22315b582e8710041c21604780"}
+{"t":"2026-10-16T17:35:33.9360679Z","event":"source-exported","name":"ST_HmiResponse","sha256":"ae5fa4a534ae657a115a16b9a06de5f82359867d16777fbe30c20dbd2d2007bc"}
+{"t":"2026-10-16T17:35:33.9421881Z","event":"source-exported","name":"ST_ModePolicy","sha256":"30504823368464a5fe688b0fea2aa9b5fef91cf5e289060dafe2d55d6eb37fef"}
+{"t":"2026-10-16T17:35:33.9549481Z","event":"source-exported","name":"ST_AccessPolicy","sha256":"b701674b8775bdb4bec291e8972b71e4e99f30a61747a7d77a92ae0de0958cc1"}
+{"t":"2026-10-16T17:35:33.9628422Z","event":"source-exported","name":"ST_MeasRecord","sha256":"647f459fdf19f3045781da01bc953bca9795024a53c2d3e999fab8ac2cc0b318"}
+{"t":"2026-10-16T17:35:33.9708036Z","event":"source-exported","name":"ST_PartResult","sha256":"11eede9ff1471e4196d197986c46bbb8530eb430980869dfa1592e8309e9bf96"}
+{"t":"2026-10-16T17:35:33.9850720Z","event":"source-exported","name":"ST_PartContext","sha256":"af8e83f677459702602a90ec814957d67293825a1b331b650d4c465eac661564"}
+{"t":"2026-10-16T17:35:33.9911305Z","event":"source-exported","name":"ST_UserRecord","sha256":"f29f17827ded3eab855756fe06bc912c6aac8220b7a5ba18b9b7927acbdea4a1"}
+{"t":"2026-10-16T17:35:34.0058593Z","event":"source-exported","name":"ST_AlarmEvent","sha256":"f77e65ad3b78810a9723eb7c3a70a3e2a4bf7088d9c95fff4d4313e42d639ccf"}
+{"t":"2026-10-16T17:35:34.0148610Z","event":"source-exported","name":"ST_DecisionRequest","sha256":"338e39c9ac9b9592f97def1b34931aaa824e13c320408dd68e2719674d4c5a68"}
+{"t":"2026-10-16T17:35:34.0217130Z","event":"source-exported","name":"ST_InnerUnitHal","sha256":"37e0dd80b3e7493cf26f30aeb296fb4b6c1bb6f692da4304d882bc59878e65c3"}
+{"t":"2026-10-16T17:35:34.0345043Z","event":"source-exported","name":"ST_SatelliteUnitHal","sha256":"265102267a31606312bf158f4de71d6ef385553abe88beb0ecdd2207f5b8f5bb"}
+{"t":"2026-10-16T17:35:34.0427406Z","event":"source-exported","name":"ST_FraktalHal","sha256":"87779b31e1942a630583547884483d020263656c5f17cf6f9ffb190d451d5fb7"}
+{"t":"2026-10-16T17:35:34.0499999Z","event":"source-exported","name":"ST_CommandInfo","sha256":"02275d0c358578c80b60843f572c045aad6262f27d10f2232ef04a02f01f7307"}
+{"t":"2026-10-16T17:35:34.0554639Z","event":"source-exported","name":"ST_Nameplate","sha256":"6790ec682bb927947682d944a06733ae903687b79f3a4a8c647b8b916bce3ee4"}
+{"t":"2026-10-16T17:35:34.0667840Z","event":"source-exported","name":"ST_HostEvent","sha256":"754784b03622c4965e8d060fd9519d36b268d1e484365f6b10f314608679d841"}
+{"t":"2026-10-16T17:35:34.0779623Z","event":"source-exported","name":"ST_ConfigRecord","sha256":"50b2bc6b303d45554ed9ec17f73bf7d6b48b791cd01eb9e0e718d845accd05c3"}
+{"t":"2026-10-16T17:35:34.0860897Z","event":"source-exported","name":"ST_ConfigPersistStatus","sha256":"d81389689f35692081a86a2a6842b481b5caf624e8ac694ff68120bb20328d94"}
+{"t":"2026-10-16T17:35:34.0977698Z","event":"source-exported","name":"ST_ModelField","sha256":"93ee03d07de46ad65942becedaa040fb05a4297a481b6461603cca707cb8c2ba"}
+{"t":"2026-10-16T17:35:34.1060589Z","event":"source-exported","name":"ST_ModelId","sha256":"55db014619df3a3070548121bf58bc25ea3a6f03d1ffea1dcd6f8b9207571cf4"}
+{"t":"2026-10-16T17:35:34.1119396Z","event":"source-exported","name":"ST_StateFlag","sha256":"f1cd3300d6d275082ffd5265576759c0af19b3b99ef87826679bee6a0ae46222"}
+{"t":"2026-10-16T17:35:34.1178556Z","event":"source-exported","name":"ST_Oee","sha256":"04edaa5426386ab507f832df9c599709889f87f2fe1195896653b818c08f2c0f"}
+{"t":"2026-10-16T17:35:34.1269697Z","event":"source-exported","name":"ST_OeeSample","sha256":"0713653156c82f0ed6d05cf7c40d43ddd99f6137348d58097066eac927dbf582"}
+{"t":"2026-10-16T17:35:34.1400774Z","event":"source-exported","name":"ST_ShiftRowV3","sha256":"2ee56a9e2cfae7dc610e710224effa74b5ba495e773501dd03e78fcb1d0bc5b6"}
+{"t":"2026-10-16T17:35:34.1461005Z","event":"source-exported","name":"ST_ShiftCalendarV3","sha256":"95b065559b4dcafcf1f199de94ea4f189844913e34aaae2c9b4e337a0622c7b2"}
+{"t":"2026-10-16T17:35:34.1543216Z","event":"source-exported","name":"ST_ShiftRecordV3","sha256":"f4d025a2c9a2381ddde36c4e90ac6fddf655bfeaa0d04e3ad66a6f7ec72b90e8"}
+{"t":"2026-10-16T17:35:34.1680522Z","event":"source-exported","name":"ST_TimeQuality","sha256":"fdc522b4b72be14e4bbe3f14ed899fc10291e0814a538097337d7e87da3a53c8"}
+{"t":"2026-10-16T17:35:34.1742755Z","event":"source-exported","name":"ST_SystemHealthInput","sha256":"02ac9f0a31dc8cfed63ee8be2c284eb67f2d58c31c2cbff1e09abec6db33154c"}
+{"t":"2026-10-16T17:35:34.1798725Z","event":"source-exported","name":"ST_SystemHealthStatus","sha256":"e14c45f31cb040284403b6d289d933ae487f4db26e289b7ee36d984c28b35581"}
+{"t":"2026-10-16T17:35:34.1857864Z","event":"source-exported","name":"ST_SystemHealthParCfg","sha256":"0776421f0493861dfebd4608d1a3d1571c45f1a6cf220018310c617d8d1d4339"}
+{"t":"2026-10-16T17:35:34.2010008Z","event":"source-exported","name":"ST_LineProbeConfig","sha256":"2dd15efa6e0a7cd36bc916c6700e38486c94cb68e1e52dab3156d18fa33ac475"}
+{"t":"2026-10-16T17:35:34.2081206Z","event":"source-exported","name":"ST_LineStatus","sha256":"e59afdfc4c04a9c8d375d9b4544892b87f7f2b7d5ee1bbac7916adb03cdd86c0"}
+{"t":"2026-10-16T17:35:34.2128174Z","event":"source-exported","name":"ST_LineRecord","sha256":"b305d41f973377bbd0564f36aaead542efd914d43eee3561768b8e523569e7eb"}
+{"t":"2026-10-16T17:35:34.2218609Z","event":"source-exported","name":"ST_LineImage","sha256":"3565ddbceef5db0b00cfa7a2ef1793ac3f98b607d80a641d419c03a58fde19f2"}
+{"t":"2026-10-16T17:35:34.2278270Z","event":"source-exported","name":"ST_SignalTowerOut","sha256":"c50858bbb2ce8a98b778f98a8efe41f5f7a10d7fded1ba8ebabf22042bedfe6b"}
+{"t":"2026-10-16T17:35:34.2410558Z","event":"source-exported","name":"ST_SignalTowerParCfg","sha256":"35dc64ae38805e8fa31a8f13ba3c1cc3b83a63f74678134d7c02acf1d18da80a"}
+{"t":"2026-10-16T17:35:34.2479407Z","event":"source-exported","name":"FRK_RegistryRow","sha256":"0872ab86d8f51236046f9d1a068c4faac46c6b9ef5e1900544cd3414039ecedc"}
+{"t":"2026-10-16T17:35:34.2618476Z","event":"source-exported","name":"FRK_Access","sha256":"3ca94b21238b328c656480387eb6fe18e0d5a37ee736c1caff21a0ae5899f900"}
+{"t":"2026-10-16T17:35:34.2709475Z","event":"source-exported","name":"FRK_AccessPolicyImage","sha256":"15e8d89ee7392eb82bd2077cad6525b33ac3924834af05f2cd36cea22b512026"}
+{"t":"2026-10-16T17:35:34.2858869Z","event":"source-exported","name":"FRK_AlarmLog","sha256":"9e5273b29b9a94bb223f35beb9b987208a03bd7a97fe81a37a262e1859e08aaf"}
+{"t":"2026-10-16T17:35:34.2946672Z","event":"source-exported","name":"FRK_Carrier","sha256":"73c866b25a2b246378b800a2c50a4aba396601a8cfc548990b515c9c121fa65a"}
+{"t":"2026-10-16T17:35:34.3070153Z","event":"source-exported","name":"FRK_ConfigCursor","sha256":"50e0c0704bcd5295e197fa1d210d987da4ea9da89016bb5306b0b3a77728372e"}
+{"t":"2026-10-16T17:35:34.3216017Z","event":"source-exported","name":"FRK_ConfigInteger","sha256":"da3fbc3468e9ebf455415918a12d3fa49ba9f981a815abfd6b00ce825ae7a206"}
+{"t":"2026-10-16T17:35:34.3372155Z","event":"source-exported","name":"FRK_ConfigSlot","sha256":"9b3163566b9019899bda07848a6eee0e114d58c66a1145b2494f305da679aac1"}
+{"t":"2026-10-16T17:35:34.3483976Z","event":"source-exported","name":"FRK_ConfigValue","sha256":"437e29e9ba32b28594fdbddd81c6d72f9f5503d9c68ee4b5333a1f7604a0ee2c"}
+{"t":"2026-10-16T17:35:34.3561193Z","event":"source-exported","name":"FRK_Core","sha256":"5664063a6be7bcf752e8cca096615ca29282baae12446461f310c77b92b8c2f9"}
+{"t":"2026-10-16T17:35:34.3636841Z","event":"source-exported","name":"FRK_DecisionSlot","sha256":"9f981d0313e3ae4dcdcc8e66b2b4876a2299ede4fc4d266a64949231331b1e67"}
+{"t":"2026-10-16T17:35:34.3692424Z","event":"source-exported","name":"FRK_HealthBook","sha256":"0215d4df838df71afecc837be32184b67a2efed26070d51bb193f1ae0807ee99"}
+{"t":"2026-10-16T17:35:34.3785311Z","event":"source-exported","name":"FRK_HostEvents","sha256":"ef76bc2e69ccac01a233e01e1353857d46e1b08d7f038e7d9e61cfc3d3fcc934"}
+{"t":"2026-10-16T17:35:34.3865038Z","event":"source-exported","name":"FRK_HostBook","sha256":"89bbf6c1c5993b131e36c6c170e3b8dff7171279481fc44a1a4da8cdea7ff216"}
+{"t":"2026-10-16T17:35:34.3934651Z","event":"source-exported","name":"FRK_LineState","sha256":"23ff93cab7dc4b44af0b75904569e7fb04772a04f96c27d6caaae97ab1fae80f"}
+{"t":"2026-10-16T17:35:34.3995390Z","event":"source-exported","name":"FRK_ManualConditionRow","sha256":"3af812e6b6979a73dc92b021d44ee11340ba752c24aee24b13fee24fc3da4645"}
+{"t":"2026-10-16T17:35:34.4144991Z","event":"source-exported","name":"FRK_Production","sha256":"2f26d24d4a9bfff00f92d0484c8d2a1e378102f8dd9258ee596fad3b21d38bce"}
+{"t":"2026-10-16T17:35:34.4235131Z","event":"source-exported","name":"FRK_TestResult","sha256":"72a295941da35c831c8ae12739d64083a14c6b1a12aae883b8c3781a1faff87c"}
+{"t":"2026-10-16T17:35:34.4363080Z","event":"source-exported","name":"FRK_TestStatus","sha256":"2abfb13d1b81ef751ff9b514aa83cf8a36e4348f6d6d6276f1d835431815f1e1"}
+{"t":"2026-10-16T17:35:34.4473330Z","event":"source-exported","name":"FRK_TowerBook","sha256":"4a7951a53a654696a2b04e7d25cb0574e8d8a40444515cd888ebcfd595833cb5"}
+{"t":"2026-10-16T17:35:34.4573107Z","event":"source-exported","name":"FRK_Unit","sha256":"6ac65d1415b816b5b7997793f6bf624323a3adeee9894d4512145f5f0bdb4453"}
+{"t":"2026-10-16T17:35:34.4633856Z","event":"source-exported","name":"ST_DeclarationParCfg","sha256":"9fe91090fe19c2f508f2c90fed00a0da47013c9b8b0f1c7cf8ef8a31d6fce878"}
+{"t":"2026-10-16T17:35:34.4755442Z","event":"source-exported","name":"ST_DeclarationParCmd","sha256":"c96b8ef0ef08f91b5b6f08c66538f6e5187245217c29d394acff4dcd56182d41"}
+{"t":"2026-10-16T17:35:34.4863259Z","event":"source-exported","name":"ST_DeclarationOutCmd","sha256":"d2a6bf5921183fdda47fe18737f69f51a96b7a547ec51ab94bab113b43408dde"}
+{"t":"2026-10-16T17:35:34.4942250Z","event":"source-exported","name":"ST_DeclarationOutImm","sha256":"602b865be1d6cf35a5fe57803d80b857b6f8732a8717f85a374b9ac0d18748de"}
+{"t":"2026-10-16T17:35:34.5021423Z","event":"source-exported","name":"ST_DeclarationLeafHal","sha256":"01eecc08cb50ee0e69fb3e45dd065bb99d8026964e142c64d9c6e20374865611"}
+{"t":"2026-10-16T17:35:34.5143393Z","event":"source-exported","name":"ST_DeclarationCellHal","sha256":"65bc3adbaa2f1aa6377c33967cb92934619f5a91f26e8271160a687b878c1f79"}
+{"t":"2026-10-16T17:35:34.5227157Z","event":"source-exported","name":"ST_UnitProbeImm","sha256":"0d4d4fd8da504e35aedc154da306705d64acf1e89c52e7292b6a61e16debe28c"}
+{"t":"2026-10-16T17:35:34.5286314Z","event":"source-exported","name":"ST_UnitProbeDevice","sha256":"95f6c8562bfb85fbdd2d41ff86eaf99a45e70e31fe59e0c5c3a795018bace7e9"}
+{"t":"2026-10-16T17:35:34.5422075Z","event":"source-exported","name":"ST_UnitProbeStationCfg","sha256":"1c0d9b36713f26c8fa8bd6ddbe04790f75214fa0031496842a13a6b33561d47d"}
+{"t":"2026-10-16T17:35:34.5517558Z","event":"source-exported","name":"ST_DeclarationUnitHal","sha256":"77ab30a1909ac1b679e83dbd58b45f9472740521f2e1f19393dac6d2985b7343"}
+{"t":"2026-10-16T17:35:34.5517558Z","event":"step","command":"save","args":""}
+{"t":"2026-10-16T17:35:34.6515777Z","event":"saved","path":"C:\\Users\\Siemens\\AppData\\Local\\Fraktal\\TiaStations\\TiaGate_Operations_20261016_native04\\FrkTiaGate\\FrkTiaGate.ap20"}
+{"t":"2026-10-16T17:35:34.6515777Z","event":"plan-complete","steps":132,"tolerated-failures":0}

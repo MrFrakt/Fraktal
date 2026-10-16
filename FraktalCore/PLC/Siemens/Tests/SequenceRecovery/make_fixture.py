@@ -55,7 +55,7 @@ VAR_IN_OUT Seq : "FRK_SequenceCtx"; Target : "FB_DeclarationCylinder";
     Core : "FRK_Core"; Status : "ST_ModuleStatus"; END_VAR
 VAR_TEMP EventNow : Bool; END_VAR
 BEGIN
-    "FRK_SeqStep"(Seq := #Seq, Row := "GDB_RecoveryWork".Row, StepNo := #StepNo,
+    "FRK_SeqStep"(Steppable := TRUE, Seq := #Seq, Row := "GDB_RecoveryWork".Row, StepNo := #StepNo,
         StepName := 'test.recovery', AwaitingLabel := 'test.recovery.command', AwaitsPath := #Target.Status.Name,
         TimeClass := @E_TimeClass.WORK@, ExpectedTime := T#0ms);
     CASE #StepNo OF

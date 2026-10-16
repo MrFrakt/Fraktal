@@ -13,29 +13,29 @@
           <Section Name="Input">
             <Member Name="Run" Datatype="Bool">
               <AttributeList>
-                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">true</BooleanAttribute>
-                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">true</BooleanAttribute>
+                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">false</BooleanAttribute>
+                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">false</BooleanAttribute>
                 <BooleanAttribute Name="ExternalWritable" SystemDefined="true">false</BooleanAttribute>
               </AttributeList>
             </Member>
             <Member Name="Reset" Datatype="Bool">
               <AttributeList>
-                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">true</BooleanAttribute>
-                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">true</BooleanAttribute>
+                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">false</BooleanAttribute>
+                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">false</BooleanAttribute>
                 <BooleanAttribute Name="ExternalWritable" SystemDefined="true">false</BooleanAttribute>
               </AttributeList>
             </Member>
             <Member Name="OwnerIndex" Datatype="DInt">
               <AttributeList>
-                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">true</BooleanAttribute>
-                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">true</BooleanAttribute>
+                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">false</BooleanAttribute>
+                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">false</BooleanAttribute>
                 <BooleanAttribute Name="ExternalWritable" SystemDefined="true">false</BooleanAttribute>
               </AttributeList>
             </Member>
             <Member Name="Delta" Datatype="Time">
               <AttributeList>
-                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">true</BooleanAttribute>
-                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">true</BooleanAttribute>
+                <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">false</BooleanAttribute>
+                <BooleanAttribute Name="ExternalVisible" SystemDefined="true">false</BooleanAttribute>
                 <BooleanAttribute Name="ExternalWritable" SystemDefined="true">false</BooleanAttribute>
               </AttributeList>
             </Member>
@@ -472,6 +472,7 @@
               <Parts>
                 <Call UId="21">
                   <CallInfo Name="FRK_SeqStep" BlockType="FC">
+                    <Parameter Name="Steppable" Section="Input" Type="Bool" />
                     <Parameter Name="StepNo" Section="Input" Type="DInt" />
                     <Parameter Name="StepName" Section="Input" Type="String" />
                     <Parameter Name="AwaitingLabel" Section="Input" Type="String" />
@@ -490,20 +491,20 @@
                 </Access>
                 <Access Scope="LiteralConstant" UId="27">
                   <Constant>
-                    <ConstantType>DInt</ConstantType>
-                    <ConstantValue>0</ConstantValue>
+                    <ConstantType>Bool</ConstantType>
+                    <ConstantValue>TRUE</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="29">
                   <Constant>
-                    <ConstantType>String</ConstantType>
-                    <ConstantValue>'project.step.pressHomeInitialize'</ConstantValue>
+                    <ConstantType>DInt</ConstantType>
+                    <ConstantValue>0</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="31">
                   <Constant>
                     <ConstantType>String</ConstantType>
-                    <ConstantValue>''</ConstantValue>
+                    <ConstantValue>'project.step.pressHomeInitialize'</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="33">
@@ -514,22 +515,28 @@
                 </Access>
                 <Access Scope="LiteralConstant" UId="35">
                   <Constant>
+                    <ConstantType>String</ConstantType>
+                    <ConstantValue>''</ConstantValue>
+                  </Constant>
+                </Access>
+                <Access Scope="LiteralConstant" UId="37">
+                  <Constant>
                     <ConstantType>DInt</ConstantType>
                     <ConstantValue>0</ConstantValue>
                   </Constant>
                 </Access>
-                <Access Scope="LocalVariable" UId="37">
+                <Access Scope="LocalVariable" UId="39">
                   <Symbol>
                     <Component Name="Seq" />
                     <Component Name="NoTimeGuard" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="39">
+                <Access Scope="LocalVariable" UId="41">
                   <Symbol>
                     <Component Name="Seq" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="41">
+                <Access Scope="LocalVariable" UId="43">
                   <Symbol>
                     <Component Name="Row1" />
                   </Symbol>
@@ -550,34 +557,38 @@
                 </Wire>
                 <Wire UId="28">
                   <IdentCon UId="27" />
-                  <NameCon UId="21" Name="StepNo" />
+                  <NameCon UId="21" Name="Steppable" />
                 </Wire>
                 <Wire UId="30">
                   <IdentCon UId="29" />
-                  <NameCon UId="21" Name="StepName" />
+                  <NameCon UId="21" Name="StepNo" />
                 </Wire>
                 <Wire UId="32">
                   <IdentCon UId="31" />
-                  <NameCon UId="21" Name="AwaitingLabel" />
+                  <NameCon UId="21" Name="StepName" />
                 </Wire>
                 <Wire UId="34">
                   <IdentCon UId="33" />
-                  <NameCon UId="21" Name="AwaitsPath" />
+                  <NameCon UId="21" Name="AwaitingLabel" />
                 </Wire>
                 <Wire UId="36">
                   <IdentCon UId="35" />
-                  <NameCon UId="21" Name="TimeClass" />
+                  <NameCon UId="21" Name="AwaitsPath" />
                 </Wire>
                 <Wire UId="38">
                   <IdentCon UId="37" />
-                  <NameCon UId="21" Name="ExpectedTime" />
+                  <NameCon UId="21" Name="TimeClass" />
                 </Wire>
                 <Wire UId="40">
                   <IdentCon UId="39" />
-                  <NameCon UId="21" Name="Seq" />
+                  <NameCon UId="21" Name="ExpectedTime" />
                 </Wire>
                 <Wire UId="42">
                   <IdentCon UId="41" />
+                  <NameCon UId="21" Name="Seq" />
+                </Wire>
+                <Wire UId="44">
+                  <IdentCon UId="43" />
                   <NameCon UId="21" Name="Row" />
                 </Wire>
               </Wires>
@@ -812,6 +823,7 @@
               <Parts>
                 <Call UId="21">
                   <CallInfo Name="FRK_SeqStep" BlockType="FC">
+                    <Parameter Name="Steppable" Section="Input" Type="Bool" />
                     <Parameter Name="StepNo" Section="Input" Type="DInt" />
                     <Parameter Name="StepName" Section="Input" Type="String" />
                     <Parameter Name="AwaitingLabel" Section="Input" Type="String" />
@@ -830,47 +842,53 @@
                 </Access>
                 <Access Scope="LiteralConstant" UId="27">
                   <Constant>
-                    <ConstantType>DInt</ConstantType>
-                    <ConstantValue>900</ConstantValue>
+                    <ConstantType>Bool</ConstantType>
+                    <ConstantValue>TRUE</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="29">
                   <Constant>
-                    <ConstantType>String</ConstantType>
-                    <ConstantValue>'project.step.pressHomeRam'</ConstantValue>
+                    <ConstantType>DInt</ConstantType>
+                    <ConstantValue>900</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="31">
                   <Constant>
                     <ConstantType>String</ConstantType>
+                    <ConstantValue>'project.step.pressHomeRam'</ConstantValue>
+                  </Constant>
+                </Access>
+                <Access Scope="LiteralConstant" UId="33">
+                  <Constant>
+                    <ConstantType>String</ConstantType>
                     <ConstantValue>'PressRam.RETRACT'</ConstantValue>
                   </Constant>
                 </Access>
-                <Access Scope="LocalVariable" UId="33">
+                <Access Scope="LocalVariable" UId="35">
                   <Symbol>
                     <Component Name="PressRam" />
                     <Component Name="Status" />
                     <Component Name="Name" />
                   </Symbol>
                 </Access>
-                <Access Scope="LiteralConstant" UId="35">
+                <Access Scope="LiteralConstant" UId="37">
                   <Constant>
                     <ConstantType>DInt</ConstantType>
                     <ConstantValue>0</ConstantValue>
                   </Constant>
                 </Access>
-                <Access Scope="LocalVariable" UId="37">
+                <Access Scope="LocalVariable" UId="39">
                   <Symbol>
                     <Component Name="Seq" />
                     <Component Name="NoTimeGuard" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="39">
+                <Access Scope="LocalVariable" UId="41">
                   <Symbol>
                     <Component Name="Seq" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="41">
+                <Access Scope="LocalVariable" UId="43">
                   <Symbol>
                     <Component Name="Row2" />
                   </Symbol>
@@ -891,34 +909,38 @@
                 </Wire>
                 <Wire UId="28">
                   <IdentCon UId="27" />
-                  <NameCon UId="21" Name="StepNo" />
+                  <NameCon UId="21" Name="Steppable" />
                 </Wire>
                 <Wire UId="30">
                   <IdentCon UId="29" />
-                  <NameCon UId="21" Name="StepName" />
+                  <NameCon UId="21" Name="StepNo" />
                 </Wire>
                 <Wire UId="32">
                   <IdentCon UId="31" />
-                  <NameCon UId="21" Name="AwaitingLabel" />
+                  <NameCon UId="21" Name="StepName" />
                 </Wire>
                 <Wire UId="34">
                   <IdentCon UId="33" />
-                  <NameCon UId="21" Name="AwaitsPath" />
+                  <NameCon UId="21" Name="AwaitingLabel" />
                 </Wire>
                 <Wire UId="36">
                   <IdentCon UId="35" />
-                  <NameCon UId="21" Name="TimeClass" />
+                  <NameCon UId="21" Name="AwaitsPath" />
                 </Wire>
                 <Wire UId="38">
                   <IdentCon UId="37" />
-                  <NameCon UId="21" Name="ExpectedTime" />
+                  <NameCon UId="21" Name="TimeClass" />
                 </Wire>
                 <Wire UId="40">
                   <IdentCon UId="39" />
-                  <NameCon UId="21" Name="Seq" />
+                  <NameCon UId="21" Name="ExpectedTime" />
                 </Wire>
                 <Wire UId="42">
                   <IdentCon UId="41" />
+                  <NameCon UId="21" Name="Seq" />
+                </Wire>
+                <Wire UId="44">
+                  <IdentCon UId="43" />
                   <NameCon UId="21" Name="Row" />
                 </Wire>
               </Wires>
@@ -1217,6 +1239,7 @@
               <Parts>
                 <Call UId="21">
                   <CallInfo Name="FRK_SeqStep" BlockType="FC">
+                    <Parameter Name="Steppable" Section="Input" Type="Bool" />
                     <Parameter Name="StepNo" Section="Input" Type="DInt" />
                     <Parameter Name="StepName" Section="Input" Type="String" />
                     <Parameter Name="AwaitingLabel" Section="Input" Type="String" />
@@ -1235,47 +1258,53 @@
                 </Access>
                 <Access Scope="LiteralConstant" UId="27">
                   <Constant>
-                    <ConstantType>DInt</ConstantType>
-                    <ConstantValue>910</ConstantValue>
+                    <ConstantType>Bool</ConstantType>
+                    <ConstantValue>TRUE</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="29">
                   <Constant>
-                    <ConstantType>String</ConstantType>
-                    <ConstantValue>'project.step.pressHomeDoorAndSlide'</ConstantValue>
+                    <ConstantType>DInt</ConstantType>
+                    <ConstantValue>910</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="31">
                   <Constant>
                     <ConstantType>String</ConstantType>
+                    <ConstantValue>'project.step.pressHomeDoorAndSlide'</ConstantValue>
+                  </Constant>
+                </Access>
+                <Access Scope="LiteralConstant" UId="33">
+                  <Constant>
+                    <ConstantType>String</ConstantType>
                     <ConstantValue>'Door.RETRACT'</ConstantValue>
                   </Constant>
                 </Access>
-                <Access Scope="LocalVariable" UId="33">
+                <Access Scope="LocalVariable" UId="35">
                   <Symbol>
                     <Component Name="Door" />
                     <Component Name="Status" />
                     <Component Name="Name" />
                   </Symbol>
                 </Access>
-                <Access Scope="LiteralConstant" UId="35">
+                <Access Scope="LiteralConstant" UId="37">
                   <Constant>
                     <ConstantType>DInt</ConstantType>
                     <ConstantValue>0</ConstantValue>
                   </Constant>
                 </Access>
-                <Access Scope="LocalVariable" UId="37">
+                <Access Scope="LocalVariable" UId="39">
                   <Symbol>
                     <Component Name="Seq" />
                     <Component Name="NoTimeGuard" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="39">
+                <Access Scope="LocalVariable" UId="41">
                   <Symbol>
                     <Component Name="Seq" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="41">
+                <Access Scope="LocalVariable" UId="43">
                   <Symbol>
                     <Component Name="Row3" />
                   </Symbol>
@@ -1296,34 +1325,38 @@
                 </Wire>
                 <Wire UId="28">
                   <IdentCon UId="27" />
-                  <NameCon UId="21" Name="StepNo" />
+                  <NameCon UId="21" Name="Steppable" />
                 </Wire>
                 <Wire UId="30">
                   <IdentCon UId="29" />
-                  <NameCon UId="21" Name="StepName" />
+                  <NameCon UId="21" Name="StepNo" />
                 </Wire>
                 <Wire UId="32">
                   <IdentCon UId="31" />
-                  <NameCon UId="21" Name="AwaitingLabel" />
+                  <NameCon UId="21" Name="StepName" />
                 </Wire>
                 <Wire UId="34">
                   <IdentCon UId="33" />
-                  <NameCon UId="21" Name="AwaitsPath" />
+                  <NameCon UId="21" Name="AwaitingLabel" />
                 </Wire>
                 <Wire UId="36">
                   <IdentCon UId="35" />
-                  <NameCon UId="21" Name="TimeClass" />
+                  <NameCon UId="21" Name="AwaitsPath" />
                 </Wire>
                 <Wire UId="38">
                   <IdentCon UId="37" />
-                  <NameCon UId="21" Name="ExpectedTime" />
+                  <NameCon UId="21" Name="TimeClass" />
                 </Wire>
                 <Wire UId="40">
                   <IdentCon UId="39" />
-                  <NameCon UId="21" Name="Seq" />
+                  <NameCon UId="21" Name="ExpectedTime" />
                 </Wire>
                 <Wire UId="42">
                   <IdentCon UId="41" />
+                  <NameCon UId="21" Name="Seq" />
+                </Wire>
+                <Wire UId="44">
+                  <IdentCon UId="43" />
                   <NameCon UId="21" Name="Row" />
                 </Wire>
               </Wires>
@@ -1686,6 +1719,7 @@
               <Parts>
                 <Call UId="21">
                   <CallInfo Name="FRK_SeqStep" BlockType="FC">
+                    <Parameter Name="Steppable" Section="Input" Type="Bool" />
                     <Parameter Name="StepNo" Section="Input" Type="DInt" />
                     <Parameter Name="StepName" Section="Input" Type="String" />
                     <Parameter Name="AwaitingLabel" Section="Input" Type="String" />
@@ -1704,20 +1738,20 @@
                 </Access>
                 <Access Scope="LiteralConstant" UId="27">
                   <Constant>
-                    <ConstantType>DInt</ConstantType>
-                    <ConstantValue>999</ConstantValue>
+                    <ConstantType>Bool</ConstantType>
+                    <ConstantValue>TRUE</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="29">
                   <Constant>
-                    <ConstantType>String</ConstantType>
-                    <ConstantValue>'project.step.pressHomeComplete'</ConstantValue>
+                    <ConstantType>DInt</ConstantType>
+                    <ConstantValue>999</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="31">
                   <Constant>
                     <ConstantType>String</ConstantType>
-                    <ConstantValue>''</ConstantValue>
+                    <ConstantValue>'project.step.pressHomeComplete'</ConstantValue>
                   </Constant>
                 </Access>
                 <Access Scope="LiteralConstant" UId="33">
@@ -1728,22 +1762,28 @@
                 </Access>
                 <Access Scope="LiteralConstant" UId="35">
                   <Constant>
+                    <ConstantType>String</ConstantType>
+                    <ConstantValue>''</ConstantValue>
+                  </Constant>
+                </Access>
+                <Access Scope="LiteralConstant" UId="37">
+                  <Constant>
                     <ConstantType>DInt</ConstantType>
                     <ConstantValue>0</ConstantValue>
                   </Constant>
                 </Access>
-                <Access Scope="LocalVariable" UId="37">
+                <Access Scope="LocalVariable" UId="39">
                   <Symbol>
                     <Component Name="Seq" />
                     <Component Name="NoTimeGuard" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="39">
+                <Access Scope="LocalVariable" UId="41">
                   <Symbol>
                     <Component Name="Seq" />
                   </Symbol>
                 </Access>
-                <Access Scope="LocalVariable" UId="41">
+                <Access Scope="LocalVariable" UId="43">
                   <Symbol>
                     <Component Name="Row4" />
                   </Symbol>
@@ -1764,34 +1804,38 @@
                 </Wire>
                 <Wire UId="28">
                   <IdentCon UId="27" />
-                  <NameCon UId="21" Name="StepNo" />
+                  <NameCon UId="21" Name="Steppable" />
                 </Wire>
                 <Wire UId="30">
                   <IdentCon UId="29" />
-                  <NameCon UId="21" Name="StepName" />
+                  <NameCon UId="21" Name="StepNo" />
                 </Wire>
                 <Wire UId="32">
                   <IdentCon UId="31" />
-                  <NameCon UId="21" Name="AwaitingLabel" />
+                  <NameCon UId="21" Name="StepName" />
                 </Wire>
                 <Wire UId="34">
                   <IdentCon UId="33" />
-                  <NameCon UId="21" Name="AwaitsPath" />
+                  <NameCon UId="21" Name="AwaitingLabel" />
                 </Wire>
                 <Wire UId="36">
                   <IdentCon UId="35" />
-                  <NameCon UId="21" Name="TimeClass" />
+                  <NameCon UId="21" Name="AwaitsPath" />
                 </Wire>
                 <Wire UId="38">
                   <IdentCon UId="37" />
-                  <NameCon UId="21" Name="ExpectedTime" />
+                  <NameCon UId="21" Name="TimeClass" />
                 </Wire>
                 <Wire UId="40">
                   <IdentCon UId="39" />
-                  <NameCon UId="21" Name="Seq" />
+                  <NameCon UId="21" Name="ExpectedTime" />
                 </Wire>
                 <Wire UId="42">
                   <IdentCon UId="41" />
+                  <NameCon UId="21" Name="Seq" />
+                </Wire>
+                <Wire UId="44">
+                  <IdentCon UId="43" />
                   <NameCon UId="21" Name="Row" />
                 </Wire>
               </Wires>

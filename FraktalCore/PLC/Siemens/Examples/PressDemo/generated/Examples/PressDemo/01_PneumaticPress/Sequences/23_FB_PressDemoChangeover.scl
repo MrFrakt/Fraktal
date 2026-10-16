@@ -2,20 +2,18 @@ FUNCTION_BLOCK "FB_PressDemoChangeover"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 VAR_INPUT
-    Run : Bool;
-    Reset : Bool;
-    OwnerIndex : DInt;
-    Delta : Time;
-    ModelCode : String;
-    SourcePath : String[80];
+    Run {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    Reset {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    OwnerIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Delta {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+    ModelCode {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String;
+    SourcePath {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String[80];
 END_VAR
 VAR_IN_OUT
-    PressRam {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    Door {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    PartSlide {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_CylinderCM";
-    AlarmLog {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_AlarmLog";
-END_VAR
-VAR_OUTPUT
+    PressRam : "FB_CylinderCM";
+    Door : "FB_CylinderCM";
+    PartSlide : "FB_CylinderCM";
+    AlarmLog : "FRK_AlarmLog";
 END_VAR
 VAR
     Seq {ExternalWritable := 'False'} : "FRK_SequenceCtx";
@@ -52,40 +50,40 @@ BEGIN
     CASE #Seq.ScanStep OF
         0:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 0, StepName := 'project.step.pressChangeoverInitialize', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row1);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 0, StepName := 'project.step.pressChangeoverInitialize', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row1);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := TRUE, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 800, OnJump1 := -1);
             END_IF;
         800:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 800, StepName := 'project.step.pressChangeoverValidateModel', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row2);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 800, StepName := 'project.step.pressChangeoverValidateModel', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row2);
                 #Ready5 := "F_PressDemoModelSelected"(Seq := #Seq, ModelCode := #ModelCode);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 810, OnJump1 := -1);
             END_IF;
         810:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 810, StepName := 'project.step.pressReturnToLoad', AwaitingLabel := 'project.condition.LoadDone', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row3);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 810, StepName := 'project.step.pressReturnToLoad', AwaitingLabel := 'project.condition.LoadDone', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row3);
                 #Ready1 := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.LoadDone', Ok := #LoadDone);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready1, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 870, OnJump1 := -1);
             END_IF;
         870:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 870, StepName := 'project.step.pressChangeoverRequestConfirmation', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row4);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 870, StepName := 'project.step.pressChangeoverRequestConfirmation', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row4);
                 #Ready5 := "F_PressDemoChangeoverAsk"(Seq := #Seq, SourcePath := #SourcePath, AlarmLog := #AlarmLog);
                 "FRK_SeqReady"(Seq := #Seq, Ok1 := #Ready5, Ok2 := TRUE, Ok3 := TRUE, Ok4 := TRUE, Ok5 := TRUE);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 880, OnJump1 := -1);
             END_IF;
         880:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 880, StepName := 'project.step.pressChangeoverAwaitConfirmation', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row5);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 880, StepName := 'project.step.pressChangeoverAwaitConfirmation', AwaitingLabel := '', AwaitsPath := '', TimeClass := 3, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row5);
                 "F_PressDemoChangeoverAnswer"(Seq := #Seq, AlarmLog := #AlarmLog);
                 "FRK_SeqRoute"(Seq := #Seq, OnAdvance := 999, OnJump1 := 810);
             END_IF;
         999:
             IF #Seq.Running AND NOT #Seq.Error THEN
-                "FRK_SeqStep"(StepNo := 999, StepName := 'project.step.pressChangeoverComplete', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row6);
+                "FRK_SeqStep"(Steppable := TRUE, StepNo := 999, StepName := 'project.step.pressChangeoverComplete', AwaitingLabel := '', AwaitsPath := '', TimeClass := 0, ExpectedTime := #Seq.NoTimeGuard, Seq := #Seq, Row := #Row6);
                 "FRK_SeqComplete"(Seq := #Seq);
             END_IF;
         ELSE

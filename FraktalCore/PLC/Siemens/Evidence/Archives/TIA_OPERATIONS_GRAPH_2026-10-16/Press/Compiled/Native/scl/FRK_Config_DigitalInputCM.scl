@@ -1,0 +1,34 @@
+﻿FUNCTION "FRK_Config_DigitalInputCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Access : "FRK_Access";
+      RootIndex : Int;
+      ModelIndex : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_DigitalInputCM";
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #ModelIndex = 0 THEN
+	    "FRK_ConfigCatalog"(Scope := #Module.Status.Name,
+	                        Catalog := #Module.Catalog,
+	                        Count := #Module.CatalogCount,
+	                        ReadLevel := #Access.Policy.Required[0],
+	                        Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                        Cursor := #Cursor,
+	                        Page := #Page);
+	END_IF;
+	
+END_FUNCTION
+

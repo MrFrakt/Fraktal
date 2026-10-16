@@ -1,0 +1,279 @@
+// Core 8.5/8.11: accounting belongs to the Unit frame, never the application.
+FUNCTION "FRK_MachineState" : DInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Exec : DInt; Mode : DInt; Blocking : Bool; Starved : Bool; Blocked : Bool; StopRequested : Bool; END_VAR
+BEGIN
+    IF #Exec = 3 OR #Blocking THEN #FRK_MachineState := 4;
+    ELSIF #Mode = 3 THEN #FRK_MachineState := 5;
+    ELSIF #Exec = 1 AND #Mode = 0 THEN
+        IF #Blocked THEN #FRK_MachineState := 2;
+        ELSIF #Starved THEN #FRK_MachineState := 3;
+        ELSE #FRK_MachineState := 0; END_IF;
+    ELSIF #StopRequested THEN #FRK_MachineState := 6;
+    ELSE #FRK_MachineState := 1; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AddMs" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Value : UDInt; Delta : UDInt; END_VAR
+BEGIN
+    IF #Delta > UDINT#4294967295 - #Value THEN #FRK_AddMs := UDINT#4294967295;
+    ELSE #FRK_AddMs := #Value + #Delta; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_OeeCompute" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Good : UDInt; Nok : UDInt; END_VAR
+VAR_IN_OUT Book : "FRK_Production"; Oee : "ST_Oee"; END_VAR
+VAR_TEMP GoodDelta : UDInt; NokDelta : UDInt; Total : LReal; Denominator : LReal; END_VAR
+BEGIN
+    // A deliberate counter reset cannot underflow the OEE count origin.
+    IF #Good < #Book.GoodBase THEN #Book.GoodBase := 0; END_IF;
+    IF #Nok < #Book.NokBase THEN #Book.NokBase := 0; END_IF;
+    #GoodDelta := #Good - #Book.GoodBase; #NokDelta := #Nok - #Book.NokBase;
+    #Total := UDINT_TO_LREAL(#GoodDelta) + UDINT_TO_LREAL(#NokDelta);
+    #Denominator := UDINT_TO_LREAL(#Oee.RunMs) + UDINT_TO_LREAL(#Oee.DownMs);
+    #Oee.AvailValid := #Denominator > 0.0;
+    #Oee.Availability := 0.0;
+    IF #Oee.AvailValid THEN #Oee.Availability := LREAL_TO_REAL(UDINT_TO_LREAL(#Oee.RunMs) / #Denominator); END_IF;
+    #Oee.PerfValid := #Oee.IdealCycleMs > 0 AND #Oee.RunMs > 0;
+    #Oee.Performance := 0.0;
+    IF #Oee.PerfValid THEN #Oee.Performance := LREAL_TO_REAL(MIN(IN1 := LREAL#1.0, IN2 := UDINT_TO_LREAL(#Oee.IdealCycleMs) * #Total / UDINT_TO_LREAL(#Oee.RunMs))); END_IF;
+    #Oee.QualValid := #Total > 0.0;
+    #Oee.Quality := 0.0;
+    IF #Oee.QualValid THEN #Oee.Quality := LREAL_TO_REAL(UDINT_TO_LREAL(#GoodDelta) / #Total); END_IF;
+    #Oee.Oee := 1.0; #Oee.OeeValid := FALSE;
+    IF #Oee.AvailValid THEN #Oee.Oee := #Oee.Oee * #Oee.Availability; #Oee.OeeValid := TRUE; END_IF;
+    IF #Oee.PerfValid THEN #Oee.Oee := #Oee.Oee * #Oee.Performance; #Oee.OeeValid := TRUE; END_IF;
+    IF #Oee.QualValid THEN #Oee.Oee := #Oee.Oee * #Oee.Quality; #Oee.OeeValid := TRUE; END_IF;
+    IF NOT #Oee.OeeValid THEN #Oee.Oee := 0.0; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_OeeTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT NowMs : UDInt; Exec : DInt; Blocking : Bool; Good : UDInt; Nok : UDInt; IdealCycleMs : UDInt; END_VAR
+VAR_IN_OUT Book : "FRK_Production"; Oee : "ST_Oee"; Trend : Array[1..60] of "ST_OeeSample"; END_VAR
+VAR_TEMP DeltaMs : UDInt; END_VAR
+BEGIN
+    #Oee.IdealCycleMs := #IdealCycleMs;
+    #DeltaMs := 0;
+    IF #Book.HaveClock THEN #DeltaMs := "FRK_Elapsed"(OldMs := #Book.LastMs, NewMs := #NowMs); END_IF;
+    #Book.LastMs := #NowMs; #Book.HaveClock := TRUE;
+    IF #Exec = 3 OR #Blocking THEN #Oee.DownMs := "FRK_AddMs"(Value := #Oee.DownMs, Delta := #DeltaMs);
+    ELSIF #Exec = 1 THEN #Oee.RunMs := "FRK_AddMs"(Value := #Oee.RunMs, Delta := #DeltaMs);
+    ELSE #Oee.IdleMs := "FRK_AddMs"(Value := #Oee.IdleMs, Delta := #DeltaMs); END_IF;
+    "FRK_OeeCompute"(Good := #Good, Nok := #Nok, Book := #Book, Oee := #Oee);
+    #Book.SampleMs := "FRK_AddMs"(Value := #Book.SampleMs, Delta := #DeltaMs);
+    IF #Book.SampleMs >= 60000 THEN
+        #Book.SampleMs := #Book.SampleMs MOD 60000;
+        #Book.TrendHead := (#Book.TrendHead MOD 60) + 1;
+        #Trend[#Book.TrendHead].Availability := #Oee.Availability;
+        #Trend[#Book.TrendHead].Performance := #Oee.Performance;
+        #Trend[#Book.TrendHead].Quality := #Oee.Quality;
+        #Trend[#Book.TrendHead].Oee := #Oee.Oee;
+        #Trend[#Book.TrendHead].OeeValid := #Oee.OeeValid;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_OeeReset" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Good : UDInt; Nok : UDInt; END_VAR
+VAR_IN_OUT Book : "FRK_Production"; Oee : "ST_Oee"; Trend : Array[1..60] of "ST_OeeSample"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #Book.GoodBase := #Good; #Book.NokBase := #Nok;
+    #Oee.RunMs := 0; #Oee.DownMs := 0; #Oee.IdleMs := 0;
+    #Book.TrendHead := 0; #Book.SampleMs := 0; #Book.ManualReset := TRUE; #Book.HaveClock := FALSE;
+    FOR #Index := 1 TO 60 DO #Trend[#Index] := "FRK_ProductionDefaults".Sample; END_FOR;
+    "FRK_OeeCompute"(Good := #Good, Nok := #Nok, Book := #Book, Oee := #Oee);
+END_FUNCTION
+
+// Version3 uses half-open weekly intervals, including Sunday/Monday wrap.
+FUNCTION "FRK_ShiftValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Calendar : "ST_ShiftCalendarV3"; END_VAR
+VAR_TEMP Index : Int; Peer : Int; DayIndex : Int; PeerDay : Int; WeekDelta : Int;
+    StartA : DInt; EndA : DInt; StartB : DInt; EndB : DInt; END_VAR
+BEGIN
+    #FRK_ShiftValidate := FALSE;
+    IF #Calendar.SchemaVersion <> 3 OR #Calendar.UtcOffsetMin < -840 OR #Calendar.UtcOffsetMin > 840 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 5 DO
+        IF #Calendar.Rows[#Index].StartMin < -1 OR #Calendar.Rows[#Index].StartMin > 1439
+            OR #Calendar.Rows[#Index].DurationMin < 1 OR #Calendar.Rows[#Index].DurationMin > 1440
+            OR #Calendar.Rows[#Index].ActiveDays < 0 OR #Calendar.Rows[#Index].ActiveDays > 127
+            OR #Calendar.Rows[#Index].ProductionTarget < 0 THEN RETURN; END_IF;
+    END_FOR;
+    FOR #Index := 1 TO 5 DO
+        IF #Calendar.Rows[#Index].StartMin >= 0 THEN
+            FOR #DayIndex := 0 TO 6 DO
+                IF (DINT_TO_DWORD(#Calendar.Rows[#Index].ActiveDays) AND SHL(IN := DWORD#1, N := INT_TO_UINT(#DayIndex))) <> DWORD#0 THEN
+                    #StartA := #DayIndex * 1440 + #Calendar.Rows[#Index].StartMin;
+                    #EndA := #StartA + #Calendar.Rows[#Index].DurationMin;
+                    FOR #Peer := #Index TO 5 DO
+                        IF #Calendar.Rows[#Peer].StartMin >= 0 THEN
+                            FOR #PeerDay := 0 TO 6 DO
+                                IF (#Peer <> #Index OR #PeerDay <> #DayIndex)
+                                    AND (DINT_TO_DWORD(#Calendar.Rows[#Peer].ActiveDays) AND SHL(IN := DWORD#1, N := INT_TO_UINT(#PeerDay))) <> DWORD#0 THEN
+                                    FOR #WeekDelta := -1 TO 1 DO
+                                        #StartB := #PeerDay * 1440 + #Calendar.Rows[#Peer].StartMin + #WeekDelta * 10080;
+                                        #EndB := #StartB + #Calendar.Rows[#Peer].DurationMin;
+                                        IF #StartA < #EndB AND #StartB < #EndA THEN RETURN; END_IF;
+                                    END_FOR;
+                                END_IF;
+                            END_FOR;
+                        END_IF;
+                    END_FOR;
+                END_IF;
+            END_FOR;
+        END_IF;
+    END_FOR;
+    #FRK_ShiftValidate := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ShiftInterval" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Now : LDT; END_VAR
+VAR_OUTPUT ShiftIndex : Int; StartAt : LDT; EndAt : LDT; Target : UDInt; END_VAR
+VAR_IN_OUT Calendar : "ST_ShiftCalendarV3"; END_VAR
+VAR_TEMP NowSec : LInt; LocalSec : LInt; DayNo : LInt; WeekStart : LInt;
+    StartSec : LInt; EndSec : LInt; NextSec : LInt; Index : Int; DayIndex : Int; WeekDelta : Int; END_VAR
+BEGIN
+    #FRK_ShiftInterval := FALSE;
+    #ShiftIndex := 0; #StartAt := #Now; #EndAt := LDT#1970-01-01-00:00:00; #Target := 0;
+    IF NOT "FRK_ShiftValidate"(Calendar := #Calendar) THEN RETURN; END_IF;
+    #NowSec := LDT_TO_LINT(#Now) / LINT#1000000000;
+    IF #NowSec < 0 OR #NowSec > LINT#4294967295 THEN RETURN; END_IF;
+    #LocalSec := #NowSec + DINT_TO_LINT(#Calendar.UtcOffsetMin) * LINT#60;
+    #DayNo := #LocalSec / LINT#86400;
+    IF #LocalSec < 0 THEN #DayNo := (#LocalSec - LINT#86399) / LINT#86400; END_IF;
+    #WeekStart := (#DayNo - ((#DayNo + 10) MOD 7)) * LINT#86400;
+    #NextSec := LINT#4294967296;
+    FOR #Index := 1 TO 5 DO
+        IF #Calendar.Rows[#Index].StartMin >= 0 AND #Calendar.Rows[#Index].ActiveDays > 0 THEN
+            FOR #DayIndex := 0 TO 6 DO
+                IF (DINT_TO_DWORD(#Calendar.Rows[#Index].ActiveDays) AND SHL(IN := DWORD#1, N := INT_TO_UINT(#DayIndex))) <> DWORD#0 THEN
+                    FOR #WeekDelta := -1 TO 1 DO
+                        #StartSec := #WeekStart + INT_TO_LINT(#WeekDelta) * LINT#604800 + INT_TO_LINT(#DayIndex) * LINT#86400
+                            + DINT_TO_LINT(#Calendar.Rows[#Index].StartMin) * LINT#60 - DINT_TO_LINT(#Calendar.UtcOffsetMin) * LINT#60;
+                        #EndSec := #StartSec + DINT_TO_LINT(#Calendar.Rows[#Index].DurationMin) * LINT#60;
+                        IF #StartSec <= #NowSec AND #NowSec < #EndSec THEN
+                            #ShiftIndex := #Index;
+                            IF #StartSec >= 0 THEN #StartAt := LINT_TO_LDT(#StartSec * LINT#1000000000); END_IF;
+                            IF #EndSec <= LINT#4294967295 THEN #EndAt := LINT_TO_LDT(#EndSec * LINT#1000000000); END_IF;
+                            #Target := DINT_TO_UDINT(#Calendar.Rows[#Index].ProductionTarget);
+                        END_IF;
+                        IF #StartSec > #NowSec AND #StartSec < #NextSec THEN #NextSec := #StartSec; END_IF;
+                    END_FOR;
+                END_IF;
+            END_FOR;
+        END_IF;
+    END_FOR;
+    IF #ShiftIndex = 0 AND #NextSec <= LINT#4294967295 THEN #EndAt := LINT_TO_LDT(#NextSec * LINT#1000000000); END_IF;
+    #FRK_ShiftInterval := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ShiftTick" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Now : LDT; Synchronized : Bool; Revision : UDInt; Scope : String; END_VAR
+VAR_IN_OUT Calendar : "ST_ShiftCalendarV3"; Book : "FRK_Production"; Unit : "FRK_Unit"; Oee : "ST_Oee";
+    CurrentShift : Int; StartedAt : LDT; ProductionTarget : UDInt;
+    History : Array[1..8] of "ST_ShiftRecordV3"; Count : Int; Truncated : Bool; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Index : Int; Selected : Int; StartAt : LDT; EndAt : LDT; Target : UDInt; Crossed : Bool; Quality : Bool; END_VAR
+BEGIN
+    #FRK_ShiftTick := FALSE;
+    IF #Book.ShiftInitialized THEN
+        IF #Now < #Book.ShiftLastNow THEN #Book.ShiftSynchronized := FALSE; END_IF;
+        #Book.ShiftSynchronized := #Book.ShiftSynchronized AND #Synchronized;
+        #Book.ShiftLastNow := #Now;
+        IF #Book.ShiftEnd <> LDT#1970-01-01-00:00:00 AND #Now < #Book.ShiftEnd THEN RETURN; END_IF;
+        IF #Now < #StartedAt THEN RETURN; END_IF;
+        IF #Book.ShiftEnd = LDT#1970-01-01-00:00:00 AND #Book.CalendarRevision = #Revision THEN RETURN; END_IF;
+    END_IF;
+    IF NOT "FRK_ShiftInterval"(Now := #Now, Calendar := #Calendar, ShiftIndex => #Selected, StartAt => #StartAt, EndAt => #EndAt, Target => #Target) THEN
+        #Book.ShiftSynchronized := FALSE; RETURN;
+    END_IF;
+    #Crossed := #Book.ShiftInitialized AND #Book.ShiftEnd <> LDT#1970-01-01-00:00:00;
+    IF #Book.ShiftInitialized AND NOT #Crossed AND #Selected = 0 THEN
+        #Book.ShiftEnd := #EndAt; #Book.CalendarRevision := #Revision; RETURN;
+    END_IF;
+    IF #Book.ShiftInitialized THEN
+        #Quality := #Synchronized;
+        IF #Crossed AND LDT_TO_LINT(#Now) / LINT#1000000000 > LDT_TO_LINT(#Book.ShiftEnd) / LINT#1000000000 + 1 THEN #Quality := FALSE; END_IF;
+        "FRK_OeeCompute"(Good := #Unit.Good, Nok := #Unit.Nok, Book := #Book, Oee := #Oee);
+        FOR #Index := 8 TO 2 BY -1 DO #History[#Index] := #History[#Index - 1]; END_FOR;
+        IF #Count >= 8 THEN #Truncated := TRUE; ELSE #Count := #Count + 1; END_IF;
+        #History[1] := "FRK_ProductionDefaults".Shift;
+        #History[1].SchemaVersion := 3; #History[1].ProductionTarget := #ProductionTarget;
+        #History[1].ShiftIndex := #CurrentShift; #History[1].StartAt := #StartedAt; #History[1].EndAt := #Now;
+        #History[1].TimeSynchronized := #Book.ShiftSynchronized AND #Quality; #History[1].ManualReset := #Book.ManualReset;
+        #History[1].GoodCount := #Unit.Good; #History[1].NokCount := #Unit.Nok; #History[1].ReworkCount := #Unit.Rework;
+        #History[1].RunMs := #Oee.RunMs; #History[1].DownMs := #Oee.DownMs; #History[1].IdleMs := #Oee.IdleMs;
+        #History[1].Availability := #Oee.Availability; #History[1].AvailValid := #Oee.AvailValid;
+        #History[1].Performance := #Oee.Performance; #History[1].PerfValid := #Oee.PerfValid;
+        #History[1].Quality := #Oee.Quality; #History[1].QualValid := #Oee.QualValid;
+        #History[1].Oee := #Oee.Oee; #History[1].OeeValid := #Oee.OeeValid;
+        #Unit.Good := 0; #Unit.Nok := 0; #Unit.Rework := 0;
+        #Book.GoodBase := 0; #Book.NokBase := 0;
+        #Oee.RunMs := 0; #Oee.DownMs := 0; #Oee.IdleMs := 0;
+        "FRK_OeeCompute"(Good := 0, Nok := 0, Book := #Book, Oee := #Oee);
+        "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := 0, Description := WSTRING#'std.audit.shiftClosed', SourcePath := STRING_TO_WSTRING(#Scope));
+        #FRK_ShiftTick := TRUE;
+    END_IF;
+    #Book.ShiftInitialized := TRUE; #CurrentShift := #Selected; #StartedAt := #Now; #ProductionTarget := #Target;
+    #Book.ShiftEnd := #EndAt; #Book.ShiftLastNow := #Now; #Book.CalendarRevision := #Revision;
+    #Book.ShiftSynchronized := #Synchronized; #Book.ManualReset := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_ProductionRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; END_VAR
+VAR_IN_OUT Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse";
+    Book : "FRK_Production"; Oee : "ST_Oee"; Trend : Array[1..60] of "ST_OeeSample"; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> 18 THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Access.CurrentLevel >= #Access.Policy.Required[1] THEN
+        "FRK_OeeReset"(Good := #Unit.Good, Nok := #Unit.Nok, Book := #Book, Oee := #Oee, Trend := #Trend);
+        "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := 0, Description := WSTRING#'std.audit.oeeReset', SourcePath := STRING_TO_WSTRING(#Scope));
+        #Response.Accepted := TRUE; #Response.Diagnostic := WSTRING#'';
+        #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    ELSE
+        "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := 2002, Path := STRING_TO_WSTRING(#Scope), Kind := 4);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_WorkDegradation" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT CycleNo : UDInt; WorkMs : UDInt; BaselineMs : UDInt; BandPercent : UInt; END_VAR
+VAR_IN_OUT Book : "FRK_Production"; END_VAR
+VAR_TEMP Above : Bool; END_VAR
+BEGIN
+    #FRK_WorkDegradation := FALSE;
+    IF #BaselineMs = 0 THEN #Book.Degraded := FALSE; #Book.WorkSamples := 0; #Book.WorkTotalMs := 0.0; RETURN; END_IF;
+    IF #Book.BaselineSeen <> #BaselineMs OR #Book.BandSeen <> #BandPercent THEN
+        #Book.WorkSamples := 0; #Book.WorkTotalMs := 0.0; #Book.Degraded := FALSE;
+        IF #Book.BaselineSeen <> 0 THEN
+            #Book.CycleSeen := #CycleNo; #Book.BaselineSeen := #BaselineMs; #Book.BandSeen := #BandPercent; RETURN;
+        END_IF;
+        #Book.BaselineSeen := #BaselineMs; #Book.BandSeen := #BandPercent;
+    END_IF;
+    IF #CycleNo = 0 OR #CycleNo = #Book.CycleSeen THEN RETURN; END_IF;
+    #Book.CycleSeen := #CycleNo;
+    IF #Book.WorkSamples = UDINT#4294967295 THEN #Book.WorkSamples := 0; #Book.WorkTotalMs := 0.0; END_IF;
+    #Book.WorkSamples := #Book.WorkSamples + 1;
+    #Book.WorkTotalMs := #Book.WorkTotalMs + UDINT_TO_LREAL(#WorkMs);
+    #Above := #Book.WorkTotalMs / UDINT_TO_LREAL(#Book.WorkSamples) > UDINT_TO_LREAL(#BaselineMs) * (1.0 + UINT_TO_LREAL(#BandPercent) / 100.0);
+    #FRK_WorkDegradation := #Above AND NOT #Book.Degraded;
+    #Book.Degraded := #Above;
+END_FUNCTION

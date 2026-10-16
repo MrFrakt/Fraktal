@@ -1,0 +1,56 @@
+﻿FUNCTION "FRK_S7HealthProbe" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// RT_INFO MODE25 is the native completed-OB cycle, in nanoseconds (LTIME).
+// Controller memory/CPU, IPC and PN/DC remain unavailable until qualified.
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Cycle : LTime;
+      ResultCode : Int;
+      ClockResult : Int;
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      CycleUs : LInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Startup THEN
+	    "FRK_HealthProbe".HaveSample := FALSE;
+	END_IF;
+	#ResultCode := RT_INFO(MODE := UINT#25, OB := 0, INFO := #Cycle);
+	#CycleUs := LTIME_TO_LINT(#Cycle) / LINT#1000;
+	"FRK_HealthProbe".Input.TaskAvailable := "FRK_HealthProbe".HaveSample AND #ResultCode = 0 AND #CycleUs >= 0 AND #CycleUs <= LINT#4294967295;
+	IF "FRK_HealthProbe".Input.TaskAvailable THEN
+	    "FRK_HealthProbe".Input.TaskCycleUs := LINT_TO_UDINT(#CycleUs);
+	    IF "FRK_HealthProbe".Input.TaskCycleUs >= "FRK_HealthProbe".LastCycleUs THEN
+	        "FRK_HealthProbe".Input.TaskJitterUs := "FRK_HealthProbe".Input.TaskCycleUs - "FRK_HealthProbe".LastCycleUs;
+	    ELSE
+	        "FRK_HealthProbe".Input.TaskJitterUs := "FRK_HealthProbe".LastCycleUs - "FRK_HealthProbe".Input.TaskCycleUs;
+	    END_IF;
+	    "FRK_HealthProbe".LastCycleUs := "FRK_HealthProbe".Input.TaskCycleUs;
+	ELSE
+	    "FRK_HealthProbe".Input.TaskCycleUs := 0;
+	    "FRK_HealthProbe".Input.TaskJitterUs := 0;
+	END_IF;
+	"FRK_HealthProbe".HaveSample := TRUE;
+	"FRK_HealthProbe".Input.TaskOverrun := FALSE;
+	"FRK_HealthProbe".Input.ControllerAvailable := FALSE;
+	"FRK_HealthProbe".Input.IpcAvailable := FALSE;
+	"FRK_HealthProbe".Input.FanAvailable := FALSE;
+	"FRK_HealthProbe".Input.StorageAvailable := FALSE;
+	"FRK_HealthProbe".Input.FieldbusAvailable := FALSE;
+	"FRK_HealthProbe".Input.DcAvailable := FALSE;
+	#ClockResult := RD_SYS_T(OUT => #Stamp);
+	"FRK_HealthProbe".Input.TimeQuality.Available := #ClockResult = 0;
+	"FRK_HealthProbe".Input.TimeQuality.Synchronized := FALSE;
+	"FRK_HealthProbe".Input.TimeQuality.Source := 'RD_SYS_T (sync unqualified)';
+	IF #ClockResult = 0 THEN
+	    "FRK_HealthProbe".Input.TimeQuality.ObservedAt := DTL_TO_LDT(#Stamp);
+	END_IF;
+	
+END_FUNCTION
+

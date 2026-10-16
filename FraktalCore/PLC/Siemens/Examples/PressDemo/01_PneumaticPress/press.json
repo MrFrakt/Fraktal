@@ -219,7 +219,7 @@
       "chain_index": 4,
       "loop": false,
       "process": "changeover",
-      "language": "ST",
+      "language": "GRAPH",
       "load_step": 810,
       "load_chain_index": 5,
       "steps": [
@@ -394,6 +394,15 @@
   },
   "station_config": [
     {
+      "name": "DegradationPercent",
+      "type": "UINT",
+      "default": "10",
+      "key": "degradationPercent",
+      "label": "project.config.degradationPercent",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    {
       "name": "RequireTwoHandStart",
       "type": "BOOL",
       "default": "TRUE",
@@ -402,6 +411,24 @@
     }
   ],
   "model_fields": [
+    {
+      "name": "IdealCycleMs",
+      "type": "UDINT",
+      "default": "0",
+      "key": "idealCycleMs",
+      "label": "project.config.idealCycleMs",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    {
+      "name": "BaselineWorkMs",
+      "type": "UDINT",
+      "default": "0",
+      "key": "baselineWorkMs",
+      "label": "project.config.baselineWorkMs",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
     {
       "name": "Timeout",
       "type": "TIME",

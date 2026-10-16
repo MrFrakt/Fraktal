@@ -52,7 +52,7 @@ BEGIN
     "GDB_SequenceDiagnosticTest".Seq.Elapsed := "GDB_SequenceDiagnosticTest".Elapsed;
     #SelectedPath := #Target.Status.Name;
     IF "GDB_SequenceDiagnosticTest".Scenario = 2 THEN #SelectedPath := #Container.Status.Name; END_IF;
-    "FRK_SeqStep"(StepNo := "GDB_SequenceDiagnosticTest".StepNo, StepName := 'test.diagnostic.step',
+    "FRK_SeqStep"(Steppable := TRUE, StepNo := "GDB_SequenceDiagnosticTest".StepNo, StepName := 'test.diagnostic.step',
         AwaitingLabel := 'test.await', AwaitsPath := #SelectedPath, TimeClass := @E_TimeClass.WORK@,
         ExpectedTime := "GDB_SequenceDiagnosticTest".Guard, Seq := "GDB_SequenceDiagnosticTest".Seq,
         Row := "GDB_SequenceDiagnosticTest".Row);
