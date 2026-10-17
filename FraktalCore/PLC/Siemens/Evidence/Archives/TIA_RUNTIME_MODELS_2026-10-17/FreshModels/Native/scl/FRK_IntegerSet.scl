@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_IntegerSet" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Bounded exact decimal/binary conversion. Integer limbs are base 65536.
+// No native decimal conversion: measured VAL_STRG/STRG_VAL lose IEEE values.
+   VAR_INPUT 
+      Value : ULInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Number : "FRK_ConfigInteger";
+   END_VAR
+
+   VAR_TEMP 
+      Remaining : ULInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Number.Used := 0;
+	#Remaining := #Value;
+	WHILE #Remaining > ULINT#0 DO
+	    #Number.Limbs[#Number.Used] := ULINT_TO_UDINT(#Remaining MOD ULINT#65536);
+	    #Number.Used := #Number.Used + 1;
+	    #Remaining := #Remaining / ULINT#65536;
+	END_WHILE;
+	
+END_FUNCTION
+

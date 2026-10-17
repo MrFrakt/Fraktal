@@ -184,7 +184,7 @@ VAR_INPUT
     ModelCode : String;
 END_VAR
 VAR_TEMP
-    Index : Int;
+    Index : DInt;
 END_VAR
 BEGIN
     #FRK_ConfigFind := 0;
@@ -193,10 +193,96 @@ BEGIN
             AND "FRK_ConfigStore".Rows[#Index].Record.Scope = #Scope
             AND "FRK_ConfigStore".Rows[#Index].Record.WriteKey = #Key
             AND "FRK_ConfigStore".Rows[#Index].ModelCode = #ModelCode THEN
-            #FRK_ConfigFind := #Index;
+            #FRK_ConfigFind := DINT_TO_INT(#Index);
             RETURN;
         END_IF;
     END_FOR;
+END_FUNCTION
+
+// Every accepted memory commit has one optional medium notification path.
+FUNCTION "FRK_ConfigRecordValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; Record : "ST_ConfigRecord"; END_VAR
+BEGIN
+    #FRK_ConfigRecordValid := FALSE;
+    IF #Record.Scope <> #Scope OR #Record.WriteKey <> "FRK_ConfigScratch".Entry.WriteKey
+        OR #Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision
+        OR #Record.Kind <> "FRK_ConfigScratch".Entry.ConfigKind
+        OR #Record.ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
+    #FRK_ConfigRecordValid := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING(#Record.ValueText));
+END_FUNCTION
+
+FUNCTION "FRK_ConfigReserve" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; Key : String; ModelCode : String; END_VAR
+VAR_IN_OUT Reserved : Array[1..@MAX_SET_RECORDS@] of Int; END_VAR
+VAR_TEMP Found : Int; Candidate : DInt; Prior : Int; CandidateFree : Bool; END_VAR
+BEGIN
+    #FRK_ConfigReserve := 0;
+    #Found := "FRK_ConfigFind"(Scope := #Scope, Key := #Key, ModelCode := #ModelCode);
+    IF #Found > 0 THEN
+        FOR #Prior := 1 TO @MAX_SET_RECORDS@ DO IF #Reserved[#Prior] = #Found THEN RETURN; END_IF; END_FOR;
+        #FRK_ConfigReserve := #Found; RETURN;
+    END_IF;
+    FOR #Candidate := 1 TO @POOL_CAPACITY@ DO
+        #CandidateFree := NOT "FRK_ConfigStore".Rows[#Candidate].Used;
+        FOR #Prior := 1 TO @MAX_SET_RECORDS@ DO
+            IF #Reserved[#Prior] = DINT_TO_INT(#Candidate) THEN #CandidateFree := FALSE; END_IF;
+        END_FOR;
+        IF #CandidateFree THEN #FRK_ConfigReserve := DINT_TO_INT(#Candidate); RETURN; END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigChanged" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; ModelCode : String; Kind : DInt; END_VAR
+BEGIN
+    RETURN;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigCommit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT SlotIndex : Int; ModelCode : String; Schema : UInt; Record : "ST_ConfigRecord"; END_VAR
+VAR_TEMP Changed : Bool; END_VAR
+BEGIN
+    IF #SlotIndex < 1 OR #SlotIndex > @POOL_CAPACITY@ THEN RETURN; END_IF;
+    #Changed := NOT "FRK_ConfigStore".Rows[#SlotIndex].Used
+        OR "FRK_ConfigStore".Rows[#SlotIndex].SchemaVersion <> #Schema
+        OR "FRK_ConfigStore".Rows[#SlotIndex].ModelCode <> #ModelCode
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.Scope <> #Record.Scope
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.WriteKey <> #Record.WriteKey
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.Revision <> #Record.Revision
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.Kind <> #Record.Kind
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.ValueType <> #Record.ValueType
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.ValueText <> #Record.ValueText;
+    "FRK_ConfigStore".Rows[#SlotIndex].SchemaVersion := #Schema;
+    "FRK_ConfigStore".Rows[#SlotIndex].ModelCode := #ModelCode;
+    "FRK_ConfigStore".Rows[#SlotIndex].Record := #Record;
+    "FRK_ConfigStore".Rows[#SlotIndex].Used := TRUE;
+    IF #Changed THEN "FRK_ConfigChanged"(Scope := #Record.Scope, ModelCode := #ModelCode, Kind := #Record.Kind); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigActiveChanged" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RootIndex : Int; END_VAR
+BEGIN
+    RETURN;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigSetActiveModel" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RootIndex : Int; ModelCode : String; END_VAR
+BEGIN
+    IF #RootIndex < 1 OR #RootIndex > @ROOT_COUNT@ THEN RETURN; END_IF;
+    IF "FRK_ConfigStore".ActiveModels[#RootIndex] = #ModelCode THEN RETURN; END_IF;
+    "FRK_ConfigStore".ActiveModels[#RootIndex] := #ModelCode;
+    "FRK_ConfigActiveChanged"(RootIndex := #RootIndex);
 END_FUNCTION
 
 FUNCTION "FRK_ConfigPut" : Bool
@@ -209,7 +295,9 @@ VAR_INPUT
     RootIndex : Int;
 END_VAR
 VAR_TEMP
-    Index : Int;
+    Index : DInt;
+    Candidate : DInt;
+    Record : "ST_ConfigRecord";
 END_VAR
 BEGIN
     #FRK_ConfigPut := FALSE;
@@ -219,20 +307,18 @@ BEGIN
     IF NOT "FRK_ConfigValidate"(Text := #Text) THEN RETURN; END_IF;
     #Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
     IF #Index = 0 THEN
-        FOR #Index := 1 TO @POOL_CAPACITY@ DO
-            IF NOT "FRK_ConfigStore".Rows[#Index].Used THEN EXIT; END_IF;
+        FOR #Candidate := 1 TO @POOL_CAPACITY@ DO
+            IF NOT "FRK_ConfigStore".Rows[#Candidate].Used THEN #Index := #Candidate; EXIT; END_IF;
         END_FOR;
     END_IF;
     IF #Index < 1 OR #Index > @POOL_CAPACITY@ THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
-    "FRK_ConfigStore".Rows[#Index].SchemaVersion := "FRK_ConfigScratch".Schema;
-    "FRK_ConfigStore".Rows[#Index].ModelCode := #ModelCode;
-    "FRK_ConfigStore".Rows[#Index].Record.Scope := #Scope;
-    "FRK_ConfigStore".Rows[#Index].Record.WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
-    "FRK_ConfigStore".Rows[#Index].Record.Revision := "FRK_ConfigScratch".Entry.WriteRevision;
-    "FRK_ConfigStore".Rows[#Index].Record.Kind := "FRK_ConfigScratch".Entry.ConfigKind;
-    "FRK_ConfigStore".Rows[#Index].Record.ValueType := "FRK_ConfigScratch".Entry.ValueType;
-    "FRK_ConfigStore".Rows[#Index].Record.ValueText := WSTRING_TO_STRING(#Text);
-    "FRK_ConfigStore".Rows[#Index].Used := TRUE;
+    #Record.Scope := #Scope;
+    #Record.WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
+    #Record.Revision := "FRK_ConfigScratch".Entry.WriteRevision;
+    #Record.Kind := "FRK_ConfigScratch".Entry.ConfigKind;
+    #Record.ValueType := "FRK_ConfigScratch".Entry.ValueType;
+    #Record.ValueText := WSTRING_TO_STRING(#Text);
+    "FRK_ConfigCommit"(SlotIndex := DINT_TO_INT(#Index), ModelCode := #ModelCode, Schema := "FRK_ConfigScratch".Schema, Record := #Record);
     "FRK_ConfigRuntime".Failed[#RootIndex] := FALSE;
     #FRK_ConfigPut := TRUE;
 END_FUNCTION

@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_DocCapture_D019" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Length : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocCapture_D019 := FALSE;
+	"FRK_PersistImages".D019.SchemaVersion := 1;
+	"FRK_PersistImages".D019.Scope := 'StationA';
+	"FRK_PersistImages".D019.Image := "FRK_ClassPolicies".Rows[1];
+	IF NOT "FRK_ClassValid"(Image := "FRK_PersistImages".D019.Image) THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 0 TO 2153 DO
+	    "FRK_PersistBuffers".D019Data[#Index] := BYTE#0;
+	END_FOR;
+	#Position := 24;
+	#NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D019, DEST_ARRAY => "FRK_PersistBuffers".D019Data, POS := #Position);
+	IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2154 THEN
+	    RETURN;
+	END_IF;
+	#Length := #Position - 24;
+	#FRK_DocCapture_D019 := TRUE;
+	
+END_FUNCTION
+

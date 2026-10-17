@@ -1,0 +1,79 @@
+﻿FUNCTION "FRK_SeqViewStep" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Branch : DInt;
+      Depth : Int;
+      Visit : UDInt;
+      StepName : String;
+      AwaitingLabel : String;
+      AwaitsPath : String;
+      TimeClass : DInt;
+      ExpectedTime : Time;
+      Elapsed : Time;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewRecord"(StepNo := #StepNo,
+	                         Branch := #Branch,
+	                         Depth := #Depth,
+	                         Visit := #Visit,
+	                         StepName := #StepName,
+	                         AwaitingLabel := #AwaitingLabel,
+	                         AwaitsPath := #AwaitsPath,
+	                         TimeClass := #TimeClass,
+	                         ExpectedTime := #ExpectedTime,
+	                         Elapsed := #Elapsed,
+	                         Owner := #Owner,
+	                         Defs := "FRK_Views".V001.Defs,
+	                         Rows := "FRK_Views".V001.Rows,
+	                         Cursors := "FRK_Views".V001.Cursors,
+	                         Notes := "FRK_Views".V001.Notes,
+	                         Count := "FRK_Views".V001.Count,
+	                         NoteCount := "FRK_Views".V001.NoteCount,
+	                         Current := "FRK_Views".V001.Current,
+	                         Book := "FRK_Views".V001.Book,
+	                         Touched := "FRK_Views".V001.Touched,
+	                         Depths := "FRK_Views".V001.Depths,
+	                         Visits := "FRK_Views".V001.Visits,
+	                         GuardInputs := "FRK_Views".V001.GuardInputs,
+	                         GuardDefaults := "FRK_Views".V001.GuardDefaults,
+	                         GuardTouched := "FRK_Views".V001.GuardTouched);
+	    13:
+	        "FRK_ViewRecord"(StepNo := #StepNo,
+	                         Branch := #Branch,
+	                         Depth := #Depth,
+	                         Visit := #Visit,
+	                         StepName := #StepName,
+	                         AwaitingLabel := #AwaitingLabel,
+	                         AwaitsPath := #AwaitsPath,
+	                         TimeClass := #TimeClass,
+	                         ExpectedTime := #ExpectedTime,
+	                         Elapsed := #Elapsed,
+	                         Owner := #Owner,
+	                         Defs := "FRK_Views".V013.Defs,
+	                         Rows := "FRK_Views".V013.Rows,
+	                         Cursors := "FRK_Views".V013.Cursors,
+	                         Notes := "FRK_Views".V013.Notes,
+	                         Count := "FRK_Views".V013.Count,
+	                         NoteCount := "FRK_Views".V013.NoteCount,
+	                         Current := "FRK_Views".V013.Current,
+	                         Book := "FRK_Views".V013.Book,
+	                         Touched := "FRK_Views".V013.Touched,
+	                         Depths := "FRK_Views".V013.Depths,
+	                         Visits := "FRK_Views".V013.Visits,
+	                         GuardInputs := "FRK_Views".V013.GuardInputs,
+	                         GuardDefaults := "FRK_Views".V013.GuardDefaults,
+	                         GuardTouched := "FRK_Views".V013.GuardTouched);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

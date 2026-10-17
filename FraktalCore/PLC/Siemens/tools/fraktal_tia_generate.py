@@ -13,7 +13,7 @@ from fraktal_tia_binding import Catalog, PRIVATE, READONLY, REPO, literal, type_
 import fraktal_tia_declaration as DECL
 
 HERE = Path(__file__).resolve().parent
-VERSION = "0.23"
+VERSION = "0.24"
 KIND = "fraktal.tia.generated.frames.v1"
 ROLES = ("ParCfg", "ParCmd", "OutCmd", "OutImm")
 RESERVED_BLOCKS = {"frk_core", "frk_registry", "frk_registryrow", "frk_setidentity",
@@ -64,7 +64,8 @@ def definition(model):
             **({'nameplates':{path:dict(values) for path,values in model.nameplates}} if model.nameplates else {}),
             **({'engineering_gates':[dict(g) for g in model.engineering_gates]} if model.engineering_gates else {}),
             **({'data_classes':{root:[dict(row) for row in rows] for root,rows in model.data_classes}} if model.data_classes else {}),
-            **({'model_config': {'models': list(model.model_config), 'initial': model.initial_model}} if model.model_config else {}),
+            **({'model_config': {'models': list(model.model_config), 'initial': model.initial_model,
+                                **({'capacity':model.model_capacity} if model.model_capacity else {})}} if model.model_config else {}),
             **({'config_sets': {'capacity': model.config_set_capacity}} if model.config_set_capacity else {}),
             **({'alarm_history': {'scopes': list(model.alarm_history_scopes)}} if model.alarm_history_scopes else {}),
             **({'alarm_recovery': {'scopes': list(model.alarm_recovery_scopes)}} if model.alarm_recovery_scopes else {}),
@@ -109,6 +110,8 @@ def state_calls(body, catalog):
 
 
 def build(model, shared_runtime=False, *, line_workbench=False):
+    if model.model_capacity and not shared_runtime:
+        raise DECL.DeclarationError('T-GEN', 'model_config.capacity', 'runtime model profile requires the shared Unit runtime')
     if model.line and not line_workbench:
         raise DECL.DeclarationError('T-GEN', 'line', 'Line profile is incomplete (Core 1.5); isolated line_workbench only until shifts and owner sets are qualified')
     catalog = Catalog.read(model.records)
@@ -182,7 +185,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
                 raise DECL.DeclarationError('T-CORE', t.name, 'authored region writes Unit lifecycle storage')
             if re.search(r'#(?:ConfigRev|ConfigCursor|Catalog|CatalogCount)\b[^;]*:=|"FRK_Config\w*"\s*\(', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'manifest revision, pager and catalog belong to the generated frame')
-            if config_runtime and re.search(r'#(?:\w+\.)*(?:ParCfg|StationCfg|ConfigPersist|Model|ConfigStage\w*|ConfigDefault\w*|ConfigStaged|AvailableModelCount|AvailableModels|ConfigSets|ConfigSetCount|ConfigSetDocument|ConfigSetDocumentLine|ConfigSetDocumentLines)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Cfg|Set|Json)\w*"\s*\(|"FRK_(?:Config(?:Store|Scratch|Runtime)|Set(?:Store|Runtime))"', code, re.I):
+            if config_runtime and re.search(r'#(?:\w+\.)*(?:ParCfg|StationCfg|ConfigPersist|Model|ModelCapacity|ModelGenerationSeen|ConfigStage\w*|ConfigDefault\w*|ConfigStaged|AvailableModelCount|AvailableModels|ConfigSets|ConfigSetCount|ConfigSetDocument|ConfigSetDocumentLine|ConfigSetDocumentLines)(?:\[[^\]]*\]|\.\w+)*\s*:=|"FRK_(?:Cfg|Set|Json|Model)\w*"\s*\(|"FRK_(?:Config(?:Store|Scratch|Runtime)|Set(?:Store|Runtime)|Model(?:Store|Runtime))"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'editable config, staging and model identity belong to the owning handlers')
             if model.line and re.search(r'#(?:Line|LineRevisionSeen)(?:\.\w+)*\s*:=|"FRK_Line\w*"', code, re.I):
                 raise DECL.DeclarationError('T-CORE', t.name, 'line config and publication belong to the shared owner and generated frame')
@@ -320,6 +323,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
     type_ids = {t.name: index for index, t in enumerate(model.types, 1)}
     if config:
         config.prepare(ordered)
+        sources.update(config.definition_sources)
     ready = catalog.enums["E_ExecState"]["READY"]
     for index, t in enumerate(ordered):
         text = frame(t, model, lookup, hal_names, type_ids[t.name], ready, catalog, unit_runtime, config, shared_runtime)
@@ -340,6 +344,10 @@ def build(model, shared_runtime=False, *, line_workbench=False):
     if config:
         sources.update(config.sources())
         calls.insert(0, '    "FRK_ConfigBoot"(Startup := #Startup);')
+        if config.runtime_models:
+            calls.insert(0,'    "FRK_ModelBoot"(Startup := #Startup);')
+            if not model.persistence_min_write_ms:
+                calls.insert(0,'    "FRK_ModelPrepare"(Startup := #Startup);')
         if config.sets:
             calls.insert(1, '    "FRK_SetBoot"(Startup := #Startup);')
         if config.line:
@@ -434,6 +442,12 @@ def build(model, shared_runtime=False, *, line_workbench=False):
             runtime_metadata['authority_inputs'].update(medium.inputs())
             runtime_metadata['persistence']={'medium':'LOAD_DB','header_bytes':persistence_facts['header_bytes'],'minimum_write_ms':model.persistence_min_write_ms,
                 'documents':[{'index':d.index,'key':d.key,'root':d.root,'role':d.role,'capacity':d.capacity} for d in medium.documents]}
+        if config and config.runtime_models:
+            from fraktal_tia_models import TEMPLATE as model_template
+            runtime_metadata['authority_inputs'][model_template.relative_to(REPO).as_posix()]=hashlib.sha256(model_template.read_bytes()).hexdigest()
+            runtime_metadata['models']={'capacity':model.model_capacity,'seed_count':len(model.model_config),
+                'retention':'LOAD_DB' if model.persistence_min_write_ms else 'LOCAL_RETAIN',
+                'records_per_root':{str(root):len(rows) for root,rows in config.runtime_models.entries.items()}}
     # The same global namespace holds framework FCs/DBs and project roots.
     # Derive it from emitted declarations, so a new service cannot shadow a root.
     emitted = [n.casefold() for body in sources.values() for n in re.findall(
@@ -537,6 +551,12 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
     outputs = [n + READONLY + ' : ' + v + ';' for n, v in [('Busy','Bool'), ('Done','Bool'), ('Error','Bool'),
                ('Aborted','Bool'), ('Held','Bool'), ('ErrorID','DWord'), ('Timing','"ST_ModuleTiming"'),
                ('OutCmd','"' + contract['OutCmd'] + '"'), ('OutImm','"' + contract['OutImm'] + '"')]]
+    # A record read by lifecycle services is owned static data (TIA §3.3).
+    # Capture consumes the published value before the late cyclic assignment;
+    # S7 warns if that same value is declared as an unassigned FB output.
+    captured = config.capture_roles(t) if config else []
+    owned_outputs = [d for d in outputs if any(d.startswith(role+' ') for role in captured)]
+    outputs = [d for d in outputs if d not in owned_outputs]
     owned_par_cfg = config and any(f.member.startswith('ParCfg.') for f in config.fields[t.name])
     has_nameplate=bool(t.unit_modes or any(i.type_name==t.name and i.path in dict(model.nameplates) for i in model.instances))
     if owned_par_cfg:
@@ -545,6 +565,7 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
              'FUNCTION_BLOCK "' + t.name + '"', "{ S7_Optimized_Access := 'TRUE' }", 'VERSION : 0.1',
              'VAR_INPUT', *['    ' + x for x in inputs], 'END_VAR', 'VAR_OUTPUT', *['    ' + x for x in outputs],
              'END_VAR', 'VAR_IN_OUT', '    Hal : "%s";' % hals[t.name], 'END_VAR', 'VAR',
+             *['    '+d for d in owned_outputs],
              '    Status%s : "ST_ModuleStatus";' % READONLY, '    Core%s : "FRK_Core";' % PRIVATE,
              *(['    Nameplate'+READONLY+' : "ST_Nameplate";'] if has_nameplate else []),
              *(__import__('fraktal_tia_platform').gate_declarations(model) if t.unit_modes else []),
@@ -612,10 +633,11 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
         if config.fields[t.name]:
             lines += ['    IF #Startup THEN '+config.call(t, 'Restore', '#')+'; END_IF;']
         if t.name in config.roots:
-            lines += ['    #ConfigRootIndex := "FRK_ConfigRoot"(RegIndex := #Core.RegIndex);',
-                      '    IF #Core.ParentIndex = 0 THEN #AvailableModelCount := %d; ELSE #AvailableModelCount := 0; END_IF;'%len(model.model_config)]
-            for index, code in enumerate(model.model_config, 1):
-                lines += ['    #AvailableModels[%d].ModelCode := %s;'%(index, literal(code))]
+            lines += ['    #ConfigRootIndex := "FRK_ConfigRoot"(RegIndex := #Core.RegIndex);']
+            if not config.runtime_models:
+                lines += ['    IF #Core.ParentIndex = 0 THEN #AvailableModelCount := %d; ELSE #AvailableModelCount := 0; END_IF;'%len(model.model_config)]
+                for index, code in enumerate(model.model_config, 1):
+                    lines += ['    #AvailableModels[%d].ModelCode := %s;'%(index, literal(code))]
     if has_states:
         lines += ['    "FRK_StateSweep"(Flags := #StateFlags, Count := #StateFlagCount, Touched := #StateTouched, Startup := #Startup);']
     if guarded:
@@ -735,6 +757,8 @@ def frame(t, model, lookup, hals, type_id, ready, catalog, unit_runtime=False, c
         lines += ['    #Unit.CascadePending := FALSE;']
         if config and t.name in config.roots:
             lines += ['    "FRK_ConfigScratch".AccessRejected := FALSE;']
+            if config.runtime_models:
+                lines += ['    '+config.call(t,'ModelOperation','#')+';']
             lines += ['    '+config.call(t, 'Operation', '#')+';']
             if config.sets:
                 lines += ['    '+config.call(t, 'SetOperation', '#', Startup='#Startup')+';',

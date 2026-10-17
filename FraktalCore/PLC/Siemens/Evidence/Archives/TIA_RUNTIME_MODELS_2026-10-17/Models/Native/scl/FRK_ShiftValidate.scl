@@ -1,0 +1,65 @@
+﻿FUNCTION "FRK_ShiftValidate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Version3 uses half-open weekly intervals, including Sunday/Monday wrap.
+   VAR_IN_OUT 
+      Calendar : "ST_ShiftCalendarV3";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Peer : Int;
+      DayIndex : Int;
+      PeerDay : Int;
+      WeekDelta : Int;
+      StartA : DInt;
+      EndA : DInt;
+      StartB : DInt;
+      EndB : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ShiftValidate := FALSE;
+	IF #Calendar.SchemaVersion <> 3 OR #Calendar.UtcOffsetMin < -840 OR #Calendar.UtcOffsetMin > 840 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 5 DO
+	    IF #Calendar.Rows[#Index].StartMin < -1 OR #Calendar.Rows[#Index].StartMin > 1439
+	        OR #Calendar.Rows[#Index].DurationMin < 1 OR #Calendar.Rows[#Index].DurationMin > 1440
+	        OR #Calendar.Rows[#Index].ActiveDays < 0 OR #Calendar.Rows[#Index].ActiveDays > 127
+	        OR #Calendar.Rows[#Index].ProductionTarget < 0 THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	FOR #Index := 1 TO 5 DO
+	    IF #Calendar.Rows[#Index].StartMin >= 0 THEN
+	        FOR #DayIndex := 0 TO 6 DO
+	            IF (DINT_TO_DWORD(#Calendar.Rows[#Index].ActiveDays) AND SHL(IN := DWORD#1, N := INT_TO_UINT(#DayIndex))) <> DWORD#0 THEN
+	                #StartA := #DayIndex * 1440 + #Calendar.Rows[#Index].StartMin;
+	                #EndA := #StartA + #Calendar.Rows[#Index].DurationMin;
+	                FOR #Peer := #Index TO 5 DO
+	                    IF #Calendar.Rows[#Peer].StartMin >= 0 THEN
+	                        FOR #PeerDay := 0 TO 6 DO
+	                            IF (#Peer <> #Index OR #PeerDay <> #DayIndex)
+	                                AND (DINT_TO_DWORD(#Calendar.Rows[#Peer].ActiveDays) AND SHL(IN := DWORD#1, N := INT_TO_UINT(#PeerDay))) <> DWORD#0 THEN
+	                                FOR #WeekDelta := -1 TO 1 DO
+	                                    #StartB := #PeerDay * 1440 + #Calendar.Rows[#Peer].StartMin + #WeekDelta * 10080;
+	                                    #EndB := #StartB + #Calendar.Rows[#Peer].DurationMin;
+	                                    IF #StartA < #EndB AND #StartB < #EndA THEN
+	                                        RETURN;
+	                                    END_IF;
+	                                END_FOR;
+	                            END_IF;
+	                        END_FOR;
+	                    END_IF;
+	                END_FOR;
+	            END_IF;
+	        END_FOR;
+	    END_IF;
+	END_FOR;
+	#FRK_ShiftValidate := TRUE;
+	
+END_FUNCTION
+

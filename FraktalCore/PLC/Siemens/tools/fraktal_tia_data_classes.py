@@ -90,11 +90,12 @@ def build(model, catalog, sources):
             for member,key in (('ClassId','id'),('LabelKey','label'),('ReadLevel','read_level'),('WriteLevel','write_level')):
                 defaults += ['        #Access.Classes[%d].%s := %s;'%(i,member,literal(row[key]) if key in ('id','label') else str(row[key]))]
         defaults += ['    END_IF;']
-    text += TEMPLATE.read_text('ascii').replace('@DEFAULTS@','\n'.join(defaults)).replace('@CLASS_COUNT@',str(count)).replace('@ROOT_COUNT@',str(len(model.roots)))
+    text += TEMPLATE.read_text('ascii').replace('@CLASS_COUNT@',str(count)).replace('@ROOT_COUNT@',str(len(model.roots)))
     for enum,members in catalog.enums.items():
         for member,value in members.items(): text = text.replace('@'+enum+'.'+member+'@',str(value))
-    assert '@' not in text
-    return text
+    assert text.count('@DEFAULTS@')==1
+    assert '@' not in text.replace('@DEFAULTS@','')
+    return text.replace('@DEFAULTS@','\n'.join(defaults))
 
 
 def adapt(model, sources):

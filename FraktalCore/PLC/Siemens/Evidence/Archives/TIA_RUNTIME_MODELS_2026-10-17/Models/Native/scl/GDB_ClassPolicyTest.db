@@ -1,0 +1,25 @@
+﻿DATA_BLOCK "GDB_ClassPolicyTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR 
+      PoisonPulse : Bool;
+      DamagePulse : Bool;
+      Done { ExternalWritable := 'False'} : Bool;
+      Poisoned { ExternalWritable := 'False'} : Bool;
+      Damaged { ExternalWritable := 'False'} : Bool;
+      Checks { ExternalWritable := 'False'} : Int;
+      Failures { ExternalWritable := 'False'} : Int;
+      FirstFailure { ExternalWritable := 'False'} : Int;
+      ClassDocument { ExternalWritable := 'False'} : Int;
+      ClassGeneration { ExternalWritable := 'False'} : UDInt;
+      Result { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_TestResult";
+      EmptyImage { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_ClassPolicyImage";
+   END_VAR
+
+
+BEGIN
+   ClassDocument := 19;
+
+END_DATA_BLOCK
+

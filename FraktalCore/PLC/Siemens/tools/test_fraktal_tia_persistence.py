@@ -58,7 +58,11 @@ class PersistenceDeclaration(unittest.TestCase):
         walks=[s for s in sources.values() if 'FUNCTION "FRK_CfgSetWalk_' in s]
         self.assertTrue(walks)
         for source in walks:
-            self.assertIn('"FRK_PersistDirty"(Slot := "FRK_PersistConfigSlot"',source)
+            self.assertIn('"FRK_ConfigCommit"(',source)
+        commit=sources['14_ConfigServices.scl']
+        self.assertIn('IF #Changed THEN "FRK_ConfigChanged"(',commit)
+        self.assertIn('"FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := #Kind)',commit)
+        self.assertIn('"FRK_PersistModelDirty"(RootIndex := #RootIndex)',commit)
 
     def test_restore_barrier_withdraws_selected_view_through_owning_quiesce(self):
         self.value['types'][0]['sequence_view']={'capacity':4,'branches':2,'annotations':2}

@@ -1,0 +1,61 @@
+﻿FUNCTION "FRK_ConfigBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Known : Bool;
+      ModelIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	"FRK_ConfigRuntime".Fresh := "FRK_ConfigStore".SchemaVersion = 0;
+	IF "FRK_ConfigStore".SchemaVersion <> 1 THEN
+	    FOR #Index := 1 TO 212 DO
+	        "FRK_ConfigStore".Rows[#Index].Used := FALSE;
+	    END_FOR;
+	    IF NOT "FRK_ConfigRuntime".Fresh THEN
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    END_IF;
+	    "FRK_ConfigStore".ActiveModels[1] := 'MODEL_A';
+	    IF NOT "FRK_ConfigRuntime".Fresh THEN
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    END_IF;
+	    "FRK_ConfigStore".ActiveModels[2] := 'MODEL_A';
+	    "FRK_ConfigStore".SchemaVersion := 1;
+	END_IF;
+	#Known := FALSE;
+	FOR #ModelIndex := 1 TO "FRK_ModelStore".Rows[1].Count DO
+	    IF "FRK_ConfigStore".ActiveModels[1] = "FRK_ModelStore".Rows[1].Codes[#ModelIndex] THEN
+	        #Known := TRUE;
+	    END_IF;
+	END_FOR;
+	IF NOT #Known THEN
+	    "FRK_ConfigStore".ActiveModels[1] := 'MODEL_A';
+	    "FRK_ConfigLoss"(RootIndex := 1,
+	                     Scope := 'StationA');
+	END_IF;
+	#Known := FALSE;
+	FOR #ModelIndex := 1 TO "FRK_ModelStore".Rows[2].Count DO
+	    IF "FRK_ConfigStore".ActiveModels[2] = "FRK_ModelStore".Rows[2].Codes[#ModelIndex] THEN
+	        #Known := TRUE;
+	    END_IF;
+	END_FOR;
+	IF NOT #Known THEN
+	    "FRK_ConfigStore".ActiveModels[2] := 'MODEL_A';
+	    "FRK_ConfigLoss"(RootIndex := 2,
+	                     Scope := 'StationB');
+	END_IF;
+	
+END_FUNCTION
+

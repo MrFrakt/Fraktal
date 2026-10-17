@@ -1,0 +1,41 @@
+﻿FUNCTION "FRK_SeqViewAwait" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Branch : DInt;
+      Label : String;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V001.Defs,
+	                        Cursors := "FRK_Views".V001.Cursors,
+	                        Count := "FRK_Views".V001.Count,
+	                        Current := "FRK_Views".V001.Current,
+	                        Book := "FRK_Views".V001.Book);
+	    13:
+	        "FRK_ViewAwait"(StepNo := #StepNo,
+	                        Branch := #Branch,
+	                        Label := #Label,
+	                        Ok := #Ok,
+	                        Defs := "FRK_Views".V013.Defs,
+	                        Cursors := "FRK_Views".V013.Cursors,
+	                        Count := "FRK_Views".V013.Count,
+	                        Current := "FRK_Views".V013.Current,
+	                        Book := "FRK_Views".V013.Book);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

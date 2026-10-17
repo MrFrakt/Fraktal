@@ -1,0 +1,104 @@
+﻿FUNCTION "F_ClassPolicyBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Image : "FRK_ClassPolicyImage";
+      Access : "FRK_Access";
+   END_VAR
+
+
+BEGIN
+	
+	"GDB_ClassPolicyTest".ClassGeneration := "FRK_ClassPolicies".Rows[1].Generation;
+	IF "GDB_ClassPolicyTest".PoisonPulse THEN
+	    "FRK_ClassPolicies".Rows[1].Rows[1].WriteLevel := 0;
+	    "FRK_ClassPolicies".Rows[1].Rows[1].ReadLevel := 0;
+	    "FRK_ClassPolicies".Rows[1].Checksum := DWORD#0;
+	    "GDB_ClassPolicyTest".PoisonPulse := FALSE;
+	    "GDB_ClassPolicyTest".Poisoned := TRUE;
+	END_IF;
+	IF "GDB_ClassPolicyTest".DamagePulse THEN
+	    "FRK_PersistAnchors".RowsA[19].Checksum := "FRK_PersistAnchors".RowsA[19].Checksum XOR DWORD#1;
+	    "FRK_PersistAnchors".RowsB[19].Checksum := "FRK_PersistAnchors".RowsB[19].Checksum XOR DWORD#1;
+	    "GDB_ClassPolicyTest".DamagePulse := FALSE;
+	    "GDB_ClassPolicyTest".Damaged := TRUE;
+	END_IF;
+	IF "GDB_ClassPolicyTest".Done OR NOT "FRK_ClassValid"(Image := "FRK_ClassPolicies".Rows[1]) THEN
+	    RETURN;
+	END_IF;
+	#Image := "FRK_ClassPolicies".Rows[1];
+	"FRK_TestAssert"(Condition := "FRK_ClassValid"(Image := #Image),
+	                 Code := 1,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image := "FRK_ClassPolicies".Rows[1];
+	#Image.Count := 0;
+	"FRK_TestAssert"(Condition := NOT "FRK_ClassValid"(Image := #Image),
+	                 Code := 2,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image := "FRK_ClassPolicies".Rows[1];
+	#Image.Count := 9;
+	"FRK_TestAssert"(Condition := NOT "FRK_ClassValid"(Image := #Image),
+	                 Code := 3,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image := "FRK_ClassPolicies".Rows[1];
+	#Image.Rows[1].WriteLevel := 5;
+	"FRK_TestAssert"(Condition := NOT "FRK_ClassValid"(Image := #Image),
+	                 Code := 4,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image := "FRK_ClassPolicies".Rows[1];
+	#Image.Rows[2].ClassId := #Image.Rows[1].ClassId;
+	"FRK_TestAssert"(Condition := NOT "FRK_ClassValid"(Image := #Image),
+	                 Code := 5,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image := "FRK_ClassPolicies".Rows[1];
+	#Image.Rows[1].ClassId := '';
+	"FRK_TestAssert"(Condition := NOT "FRK_ClassValid"(Image := #Image),
+	                 Code := 6,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image := "FRK_ClassPolicies".Rows[1];
+	#Image.Checksum := #Image.Checksum XOR DWORD#1;
+	"FRK_TestAssert"(Condition := NOT "FRK_ClassValid"(Image := #Image),
+	                 Code := 7,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image := "GDB_ClassPolicyTest".EmptyImage;
+	"FRK_TestAssert"(Condition := "FRK_ClassVirgin"(Image := #Image),
+	                 Code := 8,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Image.Rows[8].WriteLevel := 1;
+	"FRK_TestAssert"(Condition := NOT "FRK_ClassVirgin"(Image := #Image),
+	                 Code := 9,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Access := "StationA".Access;
+	#Access.Policy.Required[0] := 4;
+	#Access.Policy.Required[1] := 4;
+	#Access.Classes[1].ReadLevel := 0;
+	#Access.Classes[1].WriteLevel := 1;
+	"FRK_TestAssert"(Condition := "FRK_DataLevel"(Access := #Access, ClassId := 'public', Minimum := 0, ForWrite := FALSE) = 0,
+	                 Code := 10,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	"FRK_TestAssert"(Condition := "FRK_DataLevel"(Access := #Access, ClassId := 'public', Minimum := 0, ForWrite := TRUE) = 1,
+	                 Code := 11,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	"FRK_TestAssert"(Condition := "FRK_DataLevel"(Access := #Access, ClassId := 'public', Minimum := 3, ForWrite := TRUE) = 3,
+	                 Code := 12,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	"FRK_TestAssert"(Condition := "FRK_DataLevel"(Access := #Access, ClassId := 'unknown', Minimum := 0, ForWrite := TRUE) = 4,
+	                 Code := 13,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	"FRK_TestAssert"(Condition := "FRK_DataLevel"(Access := #Access, ClassId := '', Minimum := 0, ForWrite := TRUE) = 4,
+	                 Code := 14,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	"FRK_TestAssert"(Condition := "FRK_DataLevel"(Access := #Access, ClassId := 'public', Minimum := 5, ForWrite := TRUE) = 4,
+	                 Code := 15,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	#Access.ClassesLost := TRUE;
+	"FRK_TestAssert"(Condition := NOT "FRK_DataPolicyReady"(Access := #Access),
+	                 Code := 16,
+	                 Result := "GDB_ClassPolicyTest".Result);
+	"GDB_ClassPolicyTest".Checks := "GDB_ClassPolicyTest".Result.Checks;
+	"GDB_ClassPolicyTest".Failures := "GDB_ClassPolicyTest".Result.Failures;
+	"GDB_ClassPolicyTest".FirstFailure := "GDB_ClassPolicyTest".Result.FirstFailure;
+	"GDB_ClassPolicyTest".Done := NOT "GDB_ClassPolicyTest".Result.ProtocolError;
+	
+END_FUNCTION
+

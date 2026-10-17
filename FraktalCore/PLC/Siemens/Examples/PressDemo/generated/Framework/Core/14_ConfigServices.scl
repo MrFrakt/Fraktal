@@ -570,57 +570,115 @@ VAR_INPUT
     ModelCode : String;
 END_VAR
 VAR_TEMP
-    Index : Int;
+    Index : DInt;
 END_VAR
 BEGIN
     #FRK_ConfigFind := 0;
-    FOR #Index := 1 TO 17 DO
+    FOR #Index := 1 TO 22 DO
         IF "FRK_ConfigStore".Rows[#Index].Used
             AND "FRK_ConfigStore".Rows[#Index].Record.Scope = #Scope
             AND "FRK_ConfigStore".Rows[#Index].Record.WriteKey = #Key
             AND "FRK_ConfigStore".Rows[#Index].ModelCode = #ModelCode THEN
-            #FRK_ConfigFind := #Index;
+            #FRK_ConfigFind := DINT_TO_INT(#Index);
             RETURN;
         END_IF;
     END_FOR;
 END_FUNCTION
 
-FUNCTION "FRK_ConfigPutRaw" : Bool
+// Every accepted memory commit has one optional medium notification path.
+FUNCTION "FRK_ConfigRecordValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; Record : "ST_ConfigRecord"; END_VAR
+BEGIN
+    #FRK_ConfigRecordValid := FALSE;
+    IF #Record.Scope <> #Scope OR #Record.WriteKey <> "FRK_ConfigScratch".Entry.WriteKey
+        OR #Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision
+        OR #Record.Kind <> "FRK_ConfigScratch".Entry.ConfigKind
+        OR #Record.ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
+    #FRK_ConfigRecordValid := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING(#Record.ValueText));
+END_FUNCTION
+
+FUNCTION "FRK_ConfigReserve" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; Key : String; ModelCode : String; END_VAR
+VAR_IN_OUT Reserved : Array[1..32] of Int; END_VAR
+VAR_TEMP Found : Int; Candidate : DInt; Prior : Int; CandidateFree : Bool; END_VAR
+BEGIN
+    #FRK_ConfigReserve := 0;
+    #Found := "FRK_ConfigFind"(Scope := #Scope, Key := #Key, ModelCode := #ModelCode);
+    IF #Found > 0 THEN
+        FOR #Prior := 1 TO 32 DO IF #Reserved[#Prior] = #Found THEN RETURN; END_IF; END_FOR;
+        #FRK_ConfigReserve := #Found; RETURN;
+    END_IF;
+    FOR #Candidate := 1 TO 22 DO
+        #CandidateFree := NOT "FRK_ConfigStore".Rows[#Candidate].Used;
+        FOR #Prior := 1 TO 32 DO
+            IF #Reserved[#Prior] = DINT_TO_INT(#Candidate) THEN #CandidateFree := FALSE; END_IF;
+        END_FOR;
+        IF #CandidateFree THEN #FRK_ConfigReserve := DINT_TO_INT(#Candidate); RETURN; END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigChanged" : Void
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 VAR_INPUT
     Scope : String;
     ModelCode : String;
-    Text : WString;
-    RootIndex : Int;
+    Kind : DInt;
 END_VAR
 VAR_TEMP
-    Index : Int;
+    Slot : Int;
 END_VAR
 BEGIN
-    #FRK_ConfigPutRaw := FALSE;
+    #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := #Kind);
+    IF #Slot > 0 THEN "FRK_PersistDirty"(Slot := #Slot); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigCommit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT SlotIndex : Int; ModelCode : String; Schema : UInt; Record : "ST_ConfigRecord"; END_VAR
+VAR_TEMP Changed : Bool; END_VAR
+BEGIN
+    IF #SlotIndex < 1 OR #SlotIndex > 22 THEN RETURN; END_IF;
+    #Changed := NOT "FRK_ConfigStore".Rows[#SlotIndex].Used
+        OR "FRK_ConfigStore".Rows[#SlotIndex].SchemaVersion <> #Schema
+        OR "FRK_ConfigStore".Rows[#SlotIndex].ModelCode <> #ModelCode
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.Scope <> #Record.Scope
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.WriteKey <> #Record.WriteKey
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.Revision <> #Record.Revision
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.Kind <> #Record.Kind
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.ValueType <> #Record.ValueType
+        OR "FRK_ConfigStore".Rows[#SlotIndex].Record.ValueText <> #Record.ValueText;
+    "FRK_ConfigStore".Rows[#SlotIndex].SchemaVersion := #Schema;
+    "FRK_ConfigStore".Rows[#SlotIndex].ModelCode := #ModelCode;
+    "FRK_ConfigStore".Rows[#SlotIndex].Record := #Record;
+    "FRK_ConfigStore".Rows[#SlotIndex].Used := TRUE;
+    IF #Changed THEN "FRK_ConfigChanged"(Scope := #Record.Scope, ModelCode := #ModelCode, Kind := #Record.Kind); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigActiveChanged" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+BEGIN
+    "FRK_PersistModelDirty"(RootIndex := #RootIndex);
+END_FUNCTION
+
+FUNCTION "FRK_ConfigSetActiveModel" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RootIndex : Int; ModelCode : String; END_VAR
+BEGIN
     IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
-    IF "FRK_ConfigRuntime".Unavailable THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
-    IF LEN(#Scope) > 80 OR LEN(#Text) > 80 THEN RETURN; END_IF;
-    IF NOT "FRK_ConfigValidate"(Text := #Text) THEN RETURN; END_IF;
-    #Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
-    IF #Index = 0 THEN
-        FOR #Index := 1 TO 17 DO
-            IF NOT "FRK_ConfigStore".Rows[#Index].Used THEN EXIT; END_IF;
-        END_FOR;
-    END_IF;
-    IF #Index < 1 OR #Index > 17 THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
-    "FRK_ConfigStore".Rows[#Index].SchemaVersion := "FRK_ConfigScratch".Schema;
-    "FRK_ConfigStore".Rows[#Index].ModelCode := #ModelCode;
-    "FRK_ConfigStore".Rows[#Index].Record.Scope := #Scope;
-    "FRK_ConfigStore".Rows[#Index].Record.WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
-    "FRK_ConfigStore".Rows[#Index].Record.Revision := "FRK_ConfigScratch".Entry.WriteRevision;
-    "FRK_ConfigStore".Rows[#Index].Record.Kind := "FRK_ConfigScratch".Entry.ConfigKind;
-    "FRK_ConfigStore".Rows[#Index].Record.ValueType := "FRK_ConfigScratch".Entry.ValueType;
-    "FRK_ConfigStore".Rows[#Index].Record.ValueText := WSTRING_TO_STRING(#Text);
-    "FRK_ConfigStore".Rows[#Index].Used := TRUE;
-    "FRK_ConfigRuntime".Failed[#RootIndex] := FALSE;
-    #FRK_ConfigPutRaw := TRUE;
+    IF "FRK_ConfigStore".ActiveModels[#RootIndex] = #ModelCode THEN RETURN; END_IF;
+    "FRK_ConfigStore".ActiveModels[#RootIndex] := #ModelCode;
+    "FRK_ConfigActiveChanged"(RootIndex := #RootIndex);
 END_FUNCTION
 
 FUNCTION "FRK_ConfigPut" : Bool
@@ -633,19 +691,32 @@ VAR_INPUT
     RootIndex : Int;
 END_VAR
 VAR_TEMP
-    Stored : Int;
-    Changed : Bool;
-    Slot : Int;
+    Index : DInt;
+    Candidate : DInt;
+    Record : "ST_ConfigRecord";
 END_VAR
 BEGIN
-    #Stored := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
-    #Changed := #Stored = 0;
-    IF #Stored > 0 THEN #Changed := "FRK_ConfigStore".Rows[#Stored].SchemaVersion <> "FRK_ConfigScratch".Schema OR "FRK_ConfigStore".Rows[#Stored].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision OR "FRK_ConfigStore".Rows[#Stored].Record.ValueText <> WSTRING_TO_STRING(#Text); END_IF;
-    #FRK_ConfigPut := "FRK_ConfigPutRaw"(Scope := #Scope, ModelCode := #ModelCode, Text := #Text, RootIndex := #RootIndex);
-    IF #FRK_ConfigPut AND #Changed THEN
-        #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := "FRK_ConfigScratch".Entry.ConfigKind);
-        IF #Slot > 0 THEN "FRK_PersistDirty"(Slot := #Slot); END_IF;
+    #FRK_ConfigPut := FALSE;
+    IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
+    IF "FRK_ConfigRuntime".Unavailable THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
+    IF LEN(#Scope) > 80 OR LEN(#Text) > 80 THEN RETURN; END_IF;
+    IF NOT "FRK_ConfigValidate"(Text := #Text) THEN RETURN; END_IF;
+    #Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
+    IF #Index = 0 THEN
+        FOR #Candidate := 1 TO 22 DO
+            IF NOT "FRK_ConfigStore".Rows[#Candidate].Used THEN #Index := #Candidate; EXIT; END_IF;
+        END_FOR;
     END_IF;
+    IF #Index < 1 OR #Index > 22 THEN "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE; RETURN; END_IF;
+    #Record.Scope := #Scope;
+    #Record.WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
+    #Record.Revision := "FRK_ConfigScratch".Entry.WriteRevision;
+    #Record.Kind := "FRK_ConfigScratch".Entry.ConfigKind;
+    #Record.ValueType := "FRK_ConfigScratch".Entry.ValueType;
+    #Record.ValueText := WSTRING_TO_STRING(#Text);
+    "FRK_ConfigCommit"(SlotIndex := DINT_TO_INT(#Index), ModelCode := #ModelCode, Schema := "FRK_ConfigScratch".Schema, Record := #Record);
+    "FRK_ConfigRuntime".Failed[#RootIndex] := FALSE;
+    #FRK_ConfigPut := TRUE;
 END_FUNCTION
 
 FUNCTION "FRK_ConfigGet" : Bool
@@ -779,13 +850,10 @@ END_VAR
 BEGIN
     #FRK_ConfigModelCode := '';
     IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
+    IF NOT "FRK_ModelRuntime".Rows[#RootIndex].Ready THEN RETURN; END_IF;
     IF #ModelIndex = 0 THEN #FRK_ConfigModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]; RETURN; END_IF;
-    CASE #ModelIndex OF
-        1: #FRK_ConfigModelCode := 'ALUMINUM';
-        2: #FRK_ConfigModelCode := 'PLASTIC';
-        3: #FRK_ConfigModelCode := 'STEEL';
-        ELSE RETURN;
-    END_CASE;
+    IF #ModelIndex > INT_TO_UDINT("FRK_ModelStore".Rows[#RootIndex].Count) THEN RETURN; END_IF;
+    #FRK_ConfigModelCode := "FRK_ModelStore".Rows[#RootIndex].Codes[#ModelIndex];
 END_FUNCTION
 FUNCTION "FRK_ConfigBoot" : Void
 { S7_Optimized_Access := 'TRUE' }
@@ -794,18 +862,24 @@ VAR_INPUT
     Startup : Bool;
 END_VAR
 VAR_TEMP
-    Index : Int;
+    Index : DInt;
+    Known : Bool;
+    ModelIndex : Int;
 END_VAR
 BEGIN
     IF NOT #Startup THEN RETURN; END_IF;
     "FRK_ConfigRuntime".Fresh := "FRK_ConfigStore".SchemaVersion = 0;
     IF "FRK_ConfigStore".SchemaVersion <> 1 THEN
-        FOR #Index := 1 TO 17 DO "FRK_ConfigStore".Rows[#Index].Used := FALSE; END_FOR;
+        FOR #Index := 1 TO 22 DO "FRK_ConfigStore".Rows[#Index].Used := FALSE; END_FOR;
         IF NOT "FRK_ConfigRuntime".Fresh THEN "FRK_ConfigLoss"(RootIndex := 1, Scope := 'PressDemo'); END_IF;
         "FRK_ConfigStore".ActiveModels[1] := 'ALUMINUM';
         "FRK_ConfigStore".SchemaVersion := 1;
     END_IF;
-    IF "FRK_ConfigStore".ActiveModels[1] <> 'ALUMINUM' AND "FRK_ConfigStore".ActiveModels[1] <> 'PLASTIC' AND "FRK_ConfigStore".ActiveModels[1] <> 'STEEL' THEN
+    #Known := FALSE;
+    FOR #ModelIndex := 1 TO "FRK_ModelStore".Rows[1].Count DO
+        IF "FRK_ConfigStore".ActiveModels[1] = "FRK_ModelStore".Rows[1].Codes[#ModelIndex] THEN #Known := TRUE; END_IF;
+    END_FOR;
+    IF NOT #Known THEN
         "FRK_ConfigStore".ActiveModels[1] := 'ALUMINUM';
         "FRK_ConfigLoss"(RootIndex := 1, Scope := 'PressDemo');
     END_IF;

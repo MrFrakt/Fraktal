@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_ClassVirgin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Image : "FRK_ClassPolicyImage";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ClassVirgin := FALSE;
+	IF #Image.Scope <> '' OR #Image.SchemaVersion <> 0 OR #Image.Generation <> 0 OR #Image.Count <> 0 OR #Image.Checksum <> DWORD#0 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 8 DO
+	    IF #Image.Rows[#Index].ClassId <> '' OR #Image.Rows[#Index].LabelKey <> '' OR #Image.Rows[#Index].ReadLevel <> 0 OR #Image.Rows[#Index].WriteLevel <> 0 THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_ClassVirgin := TRUE;
+	
+END_FUNCTION
+

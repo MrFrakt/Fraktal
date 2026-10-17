@@ -1,0 +1,171 @@
+﻿FUNCTION "FRK_DocCapture_D011" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Length : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+      Targets : Array[1..26] of Int;
+      Prior : Int;
+      Reserved : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocCapture_D011 := FALSE;
+	"FRK_PersistImages".D011.SchemaVersion := 1;
+	"FRK_PersistImages".D011.Scope := 'StationB';
+	"FRK_PersistImages".D011.Kind := 0;
+	"FRK_PersistImages".D011.ModelCode := 'MODEL_B';
+	"FRK_PersistImages".D011.ActiveModel := "FRK_ConfigStore".ActiveModels[2];
+	"FRK_PersistImages".D011.Count := 26;
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[1] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[2] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'idealCycleMs', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[3] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB', Key := 'baselineMs', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[4] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[5] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[6] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[7] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[8] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[9] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[10] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[11] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[12] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[13] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[14] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[15] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[16] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[17] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[18] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[19] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[20] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[21] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[22] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Clamp', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[23] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Clamp', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[24] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Gate', Key := 'timeout', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[25] := "FRK_ConfigStore".Rows[#Stored];
+	#Stored := "FRK_ConfigFind"(Scope := 'StationB.Satellite.Inner.Cell.Gate', Key := 'preset', ModelCode := 'MODEL_B');
+	IF #Stored = 0 THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D011.Rows[26] := "FRK_ConfigStore".Rows[#Stored];
+	FOR #Index := 0 TO 12325 DO
+	    "FRK_PersistBuffers".D011Data[#Index] := BYTE#0;
+	END_FOR;
+	#Position := 24;
+	#NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D011, DEST_ARRAY => "FRK_PersistBuffers".D011Data, POS := #Position);
+	IF #NativeResult <> 0 OR #Position < 24 OR #Position > 12326 THEN
+	    RETURN;
+	END_IF;
+	#Length := #Position - 24;
+	#FRK_DocCapture_D011 := TRUE;
+	
+END_FUNCTION
+

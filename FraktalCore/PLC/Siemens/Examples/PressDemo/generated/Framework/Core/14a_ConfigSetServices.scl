@@ -65,9 +65,11 @@ VAR_INPUT
     Access : "FRK_Access";
     Ready : Bool;
     WriteAccess : Bool;
+    ReserveTarget : Bool;
 END_VAR
 VAR_TEMP
     Index : Int;
+    TargetSlot : Int;
     Ok : Bool;
 END_VAR
 BEGIN
@@ -81,13 +83,15 @@ BEGIN
         IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Scope) THEN RETURN; END_IF;
         IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready THEN RETURN; END_IF;
     END_IF;
-    IF "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Revision <> "FRK_ConfigScratch".Entry.WriteRevision
-        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].Kind <> "FRK_ConfigScratch".Entry.ConfigKind
-        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN RETURN; END_IF;
-    #Ok := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING("FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index].ValueText));
+    #Ok := "FRK_ConfigRecordValid"(Scope := #Scope, Record := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index]);
     IF NOT #Ok THEN RETURN; END_IF;
-    // Existing keyed slots are reserved before commit: commit cannot allocate.
-    IF #WriteAccess AND "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) = 0 THEN RETURN; END_IF;
+    // Reserve every destination before commit, including a missing cache row.
+    IF #ReserveTarget THEN
+        #TargetSlot := "FRK_ConfigReserve"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode, Reserved := "FRK_SetRuntime".Work[#RootIndex].Targets);
+        IF #TargetSlot < 1 OR #TargetSlot > 22 THEN RETURN; END_IF;
+        "FRK_SetRuntime".Work[#RootIndex].Targets[#Index] := #TargetSlot;
+    END_IF;
+    "FRK_SetRuntime".Work[#RootIndex].Schemas[#Index] := "FRK_ConfigScratch".Schema;
     "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := TRUE;
     "FRK_SetRuntime".Work[#RootIndex].Matched := "FRK_SetRuntime".Work[#RootIndex].Matched + 1;
     #FRK_SetCheck := #Index;
@@ -296,11 +300,7 @@ BEGIN
         OR LEN("FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName) = 0
         OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount < 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount > 5 THEN RETURN; END_IF;
     IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 0 THEN
-        #KnownModel := FALSE;
-        FOR #ModelIndex := 1 TO 3 DO
-            IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode = "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := INT_TO_UDINT(#ModelIndex)) THEN #KnownModel := TRUE; END_IF;
-        END_FOR;
-        IF NOT #KnownModel THEN RETURN; END_IF;
+        IF LEN("FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) < 1 THEN RETURN; END_IF;
     ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN RETURN;
     END_IF;
     FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
@@ -385,6 +385,10 @@ END_VAR
 BEGIN
     "FRK_SetRuntime".Work[#RootIndex].Matched := 0;
     FOR #Index := 1 TO 5 DO "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := FALSE; END_FOR;
+    FOR #Index := 1 TO 32 DO
+        "FRK_SetRuntime".Work[#RootIndex].Targets[#Index] := 0;
+        "FRK_SetRuntime".Work[#RootIndex].Schemas[#Index] := 0;
+    END_FOR;
 END_FUNCTION
 
 FUNCTION "FRK_SetValidateEnd" : Bool

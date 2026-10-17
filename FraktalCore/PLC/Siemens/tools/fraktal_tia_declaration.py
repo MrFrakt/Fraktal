@@ -134,6 +134,7 @@ class Declaration:
     nameplates: tuple = ()
     engineering_gates: tuple = ()
     data_classes: tuple = ()
+    model_capacity: int = 0
 
     def inventory(self):
         types = {item.name: item for item in self.types}
@@ -422,10 +423,10 @@ def validate(value, core=None):
     elif not isinstance(event_sink,str):
         raise DeclarationError('T-GEN','event_sink','sink must be a function name')
     model_config = value.get('model_config', {})
-    object_fields(model_config, (), ('models', 'initial', 'seeds'), 'model_config')
-    models, initial_model, seeds = (), '', ()
+    object_fields(model_config, (), ('models', 'initial', 'seeds', 'capacity'), 'model_config')
+    models, initial_model, seeds, model_capacity = (), '', (), 0
     if model_config:
-        object_fields(model_config, ('models', 'initial'), ('seeds',), 'model_config')
+        object_fields(model_config, ('models', 'initial'), ('seeds', 'capacity'), 'model_config')
         models = tuple(items(model_config['models'], 'model_config.models'))
         from fraktal_tia_config import width
         from fraktal_tia_binding import Catalog
@@ -435,6 +436,11 @@ def validate(value, core=None):
         initial_model = model_config['initial']
         if initial_model not in models:
             raise DeclarationError('T-GEN', 'model_config', 'initial model must be in the catalog')
+        model_capacity = model_config.get('capacity', 0)
+        if type(model_capacity) is not int or model_capacity < 0 or (model_capacity and not len(models) <= model_capacity <= Catalog.read().capacities['MAX_RECIPES']):
+            raise DeclarationError('T-WIDTH', 'model_config.capacity', 'runtime capacity must cover all seeds within the Core recipe bound, or be zero')
+        if model_capacity and any(ord(c)>126 for code in models for c in code):
+            raise DeclarationError('T-ASCII','model_config.models','runtime catalog identities use printable ASCII')
         rows = []
         seeded = model_config.get('seeds', {})
         if not isinstance(seeded, dict):
@@ -532,7 +538,7 @@ def validate(value, core=None):
     from fraktal_tia_data_classes import validate_classes
     classes = validate_classes(value.get('data_classes', {}), roots, types, facts)
     return Declaration(capacity, tuple(types), roots, tuple(instances), core, tuple(records.items()),event_sink,models,initial_model,set_capacity,tuple(scopes),tuple(recovery_scopes),tuple(delivery_scopes),delivery_capacity,stream,minimum_write_ms,queue_capacity,seeds,line,
-                       tuple((p,tuple(v.items())) for p,v in nameplates.items()),tuple(tuple(g.items()) for g in gates),classes)
+                       tuple((p,tuple(v.items())) for p,v in nameplates.items()),tuple(tuple(g.items()) for g in gates),classes,model_capacity)
 
 
 def unique_json_object(pairs):

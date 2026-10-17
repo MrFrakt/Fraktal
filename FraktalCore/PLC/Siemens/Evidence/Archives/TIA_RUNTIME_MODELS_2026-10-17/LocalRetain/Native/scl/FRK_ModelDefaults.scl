@@ -1,0 +1,30 @@
+﻿FUNCTION "FRK_ModelDefaults" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex < 1 OR #RootIndex > 2 THEN
+	    RETURN;
+	END_IF;
+	"FRK_ModelStore".Rows[#RootIndex] := "FRK_ModelRuntime".BlankCatalog;
+	"FRK_ModelStore".Rows[#RootIndex].SchemaVersion := 1;
+	"FRK_ModelStore".Rows[#RootIndex].Capacity := 3;
+	"FRK_ModelStore".Rows[#RootIndex].Count := 2;
+	"FRK_ModelStore".Rows[#RootIndex].Generation := 1;
+	IF #RootIndex = 1 THEN
+	    "FRK_ModelStore".Rows[#RootIndex].Scope := 'StationA';
+	END_IF;
+	IF #RootIndex = 2 THEN
+	    "FRK_ModelStore".Rows[#RootIndex].Scope := 'StationB';
+	END_IF;
+	"FRK_ModelStore".Rows[#RootIndex].Codes[1] := 'MODEL_A';
+	"FRK_ModelStore".Rows[#RootIndex].Codes[2] := 'MODEL_B';
+	"FRK_ModelStore".Rows[#RootIndex].Checksum := "FRK_ModelCrc"(Catalog := "FRK_ModelStore".Rows[#RootIndex]);
+	
+END_FUNCTION
+

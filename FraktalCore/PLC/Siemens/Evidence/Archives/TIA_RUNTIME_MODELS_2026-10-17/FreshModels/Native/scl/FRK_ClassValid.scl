@@ -1,0 +1,36 @@
+﻿FUNCTION "FRK_ClassValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Image : "FRK_ClassPolicyImage";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Other : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ClassValid := FALSE;
+	IF #Image.SchemaVersion <> 1 OR #Image.Scope = '' OR #Image.Generation = 0
+	    OR #Image.Count < 1 OR #Image.Count > 8 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO #Image.Count DO
+	    IF #Image.Rows[#Index].ClassId = '' OR #Image.Rows[#Index].LabelKey = ''
+	        OR #Image.Rows[#Index].ReadLevel < 0 OR #Image.Rows[#Index].ReadLevel > 4
+	        OR #Image.Rows[#Index].WriteLevel < 0 OR #Image.Rows[#Index].WriteLevel > 4 THEN
+	        RETURN;
+	    END_IF;
+	    FOR #Other := 1 TO #Index - 1 DO
+	        IF #Image.Rows[#Index].ClassId = #Image.Rows[#Other].ClassId THEN
+	            RETURN;
+	        END_IF;
+	    END_FOR;
+	END_FOR;
+	#FRK_ClassValid := #Image.Checksum = "FRK_ClassCrc"(Image := #Image);
+	
+END_FUNCTION
+

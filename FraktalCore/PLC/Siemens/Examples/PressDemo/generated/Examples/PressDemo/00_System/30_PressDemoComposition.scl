@@ -21,6 +21,7 @@ BEGIN
     END_IF;
     "FRK_ClockTick"();
     IF #Startup THEN #MediaBoot := TRUE; END_IF;
+    "FRK_ModelPrepare"(Startup := #Startup);
     "FRK_PersistEnter"(Startup := #Startup);
     "FRK_DocBoot"(Startup := #Startup, Ready := #MediaReady);
     IF NOT #MediaReady THEN
@@ -30,8 +31,9 @@ BEGIN
     #RootStartup := #MediaBoot; #MediaBoot := FALSE;
     "FRK_AlarmRecoveryPrepare"(Startup := #RootStartup);
     "FRK_AccessStoreBoot"(Startup := #RootStartup);
-    "FRK_ConfigBoot"(Startup := #RootStartup);
+    "FRK_ModelBoot"(Startup := #RootStartup);
     "FRK_SetBoot"(Startup := #RootStartup);
+    "FRK_ConfigBoot"(Startup := #RootStartup);
     "FRK_S7HealthProbe"(Startup := #RootStartup);
     "PressDemo"(ParentIndex := 0, Startup := #RootStartup, Hal := "GDB_FraktalHal".Data.PressDemo, BoundPath := WSTRING#'PressDemo');
     "FRK_DocCyclic"();

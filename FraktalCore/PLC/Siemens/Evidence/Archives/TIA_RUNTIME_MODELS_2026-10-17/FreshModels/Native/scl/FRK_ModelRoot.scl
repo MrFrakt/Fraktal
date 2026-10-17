@@ -1,0 +1,22 @@
+﻿FUNCTION "FRK_ModelRoot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelRoot := 0;
+	IF #Scope = 'StationA' THEN
+	    #FRK_ModelRoot := 1;
+	    RETURN;
+	END_IF;
+	IF #Scope = 'StationB' THEN
+	    #FRK_ModelRoot := 2;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

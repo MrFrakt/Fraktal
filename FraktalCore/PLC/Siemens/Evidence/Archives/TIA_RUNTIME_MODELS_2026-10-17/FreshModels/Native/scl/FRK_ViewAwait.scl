@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_ViewAwait" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      StepNo : DInt;
+      Branch : DInt;
+      Label : String;
+      Ok : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Defs : Array[*] of "ST_SequenceStepDef";
+      Cursors : Array[*] of "ST_SequenceCursor";
+      Count : Int;
+      Current : "ST_StepRecord";
+      Book : "FRK_ViewBook";
+   END_VAR
+
+
+BEGIN
+	
+	IF #Branch <> 0 OR #Cursors[0].RowIdx < 1 OR #Cursors[0].RowIdx > #Count THEN
+	    RETURN;
+	END_IF;
+	IF #Defs[#Cursors[0].RowIdx].StepNo <> #StepNo THEN
+	    RETURN;
+	END_IF;
+	IF #Book.CondIndex < 8 THEN
+	    #Book.CondIndex := #Book.CondIndex + 1;
+	    #Current.Conds[#Book.CondIndex].Label := #Label;
+	    #Current.Conds[#Book.CondIndex].Ok := #Ok;
+	END_IF;
+	IF NOT #Ok AND NOT #Book.PendingFound THEN
+	    #Current.AwaitingLabel := #Label;
+	    #Book.PendingFound := TRUE;
+	END_IF;
+	
+END_FUNCTION
+

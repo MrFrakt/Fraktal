@@ -1,0 +1,49 @@
+﻿FUNCTION "FRK_ModelValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Catalog : "FRK_ModelCatalog";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Other : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelValid := FALSE;
+	IF #RootIndex < 1 OR #RootIndex > 1 OR "FRK_ModelRoot"(Scope := #Catalog.Scope) <> #RootIndex THEN
+	    RETURN;
+	END_IF;
+	IF #Catalog.SchemaVersion <> 1 OR #Catalog.Generation = 0 OR #Catalog.Capacity <> 4
+	    OR #Catalog.Count < 3 OR #Catalog.Count > 4 THEN
+	    RETURN;
+	END_IF;
+	IF #Catalog.Codes[1] <> 'ALUMINUM' OR #Catalog.Codes[2] <> 'PLASTIC' OR #Catalog.Codes[3] <> 'STEEL' THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO #Catalog.Count DO
+	    IF NOT "FRK_ModelCodeValid"(Code := #Catalog.Codes[#Index]) THEN
+	        RETURN;
+	    END_IF;
+	    FOR #Other := 1 TO #Index - 1 DO
+	        IF #Catalog.Codes[#Index] = #Catalog.Codes[#Other] THEN
+	            RETURN;
+	        END_IF;
+	    END_FOR;
+	END_FOR;
+	FOR #Index := #Catalog.Count + 1 TO 4 DO
+	    IF #Catalog.Codes[#Index] <> '' THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_ModelValid := #Catalog.Checksum = "FRK_ModelCrc"(Catalog := #Catalog);
+	
+END_FUNCTION
+

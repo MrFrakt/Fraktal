@@ -1,0 +1,25 @@
+﻿FUNCTION "FRK_ConfigDecimalText" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Number : LReal;
+   END_VAR
+
+   VAR_TEMP 
+      Text : WString[80];
+      RoundTrip : LReal;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigDecimalText := WSTRING#'';
+	#Text := "FRK_DecimalFormat"(Number := #Number);
+	#Ok := "FRK_DecimalDecode"(Text := #Text, SinglePrecision := FALSE, Value := #RoundTrip);
+	IF #Ok AND #RoundTrip = #Number THEN
+	    #FRK_ConfigDecimalText := #Text;
+	END_IF;
+	
+END_FUNCTION
+

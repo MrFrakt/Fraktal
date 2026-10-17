@@ -1,0 +1,3614 @@
+// Core 11.6 fixed vocabulary and shape; stores exist only for deployed Units.
+FUNCTION "FRK_HostSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_HostSlot := 0;
+    IF #Scope = 'StationA' THEN #FRK_HostSlot := 1; RETURN; END_IF;
+    IF #Scope = 'StationA.Satellite' THEN #FRK_HostSlot := 2; RETURN; END_IF;
+    IF #Scope = 'StationA.Satellite.Inner' THEN #FRK_HostSlot := 3; RETURN; END_IF;
+    IF #Scope = 'StationB' THEN #FRK_HostSlot := 4; RETURN; END_IF;
+    IF #Scope = 'StationB.Satellite' THEN #FRK_HostSlot := 5; RETURN; END_IF;
+    IF #Scope = 'StationB.Satellite.Inner' THEN #FRK_HostSlot := 6; RETURN; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_HostEmit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Kind : DInt;
+    Scope : String;
+    PartUid : String;
+    Subject : String;
+    Value : String;
+    Verdict : DInt;
+    Reason : DInt;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Head : Int;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    #Slot := "FRK_HostSlot"(Scope := #Scope);
+    IF #Slot < 1 OR #Slot > 6 THEN RETURN; END_IF;
+    // An invalid enum or over-width untrusted argument never truncates a record.
+    CASE #Kind OF
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10: #Head := "FRK_HostStore".Rows[#Slot].View.RingHead;
+        ELSE RETURN;
+    END_CASE;
+    IF LEN(#PartUid) > 64 OR LEN(#Subject) > 80 OR LEN(#Value) > 80 THEN RETURN; END_IF;
+    IF "FRK_HostStore".Rows[#Slot].Sequence = UDINT#4294967295 THEN
+        "FRK_HostStore".Rows[#Slot].Sequence := 1;
+        "FRK_HostStore".Rows[#Slot].View.Wrapped := TRUE;
+    ELSE
+        "FRK_HostStore".Rows[#Slot].Sequence := "FRK_HostStore".Rows[#Slot].Sequence + 1;
+    END_IF;
+    #Head := (#Head MOD 32) + 1;
+    "FRK_HostStore".Rows[#Slot].View.Capacity := 32;
+    "FRK_HostStore".Rows[#Slot].View.RingHead := #Head;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Sequence := "FRK_HostStore".Rows[#Slot].Sequence;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Kind := #Kind;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].StationPath := STRING_TO_WSTRING(#Scope);
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].PartUid := #PartUid;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Subject := #Subject;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Value := #Value;
+    // RD_SYS_T availability is not synchronization qualification (Core 2.7).
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN
+        "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Stamp := DTL_TO_LDT(#Stamp);
+    ELSE
+        "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Stamp := LDT#1970-01-01-00:00:00.000000000;
+    END_IF;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].TimeSynchronized := FALSE;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Verdict := #Verdict;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].ReasonCode := #Reason;
+    IF "FRK_HostStore".Rows[#Slot].View.Count < 32 THEN
+        "FRK_HostStore".Rows[#Slot].View.Count := "FRK_HostStore".Rows[#Slot].View.Count + 1;
+    ELSE
+        "FRK_HostStore".Rows[#Slot].View.Wrapped := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_HostMirror" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Startup : Bool;
+END_VAR
+VAR_IN_OUT
+    Seen : UDInt;
+    View : "FRK_HostEvents";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := "FRK_HostSlot"(Scope := #Scope);
+    IF #Slot < 1 OR #Slot > 6 THEN RETURN; END_IF;
+    "FRK_HostStore".Rows[#Slot].View.Capacity := 32;
+    IF #Startup OR #Seen <> "FRK_HostStore".Rows[#Slot].Sequence THEN
+        #View := "FRK_HostStore".Rows[#Slot].View;
+        #Seen := "FRK_HostStore".Rows[#Slot].Sequence;
+    END_IF;
+END_FUNCTION
+
+// Core 3.10.2: deterministic typed walk, one bounded response window.
+// Static facets carry no write capability. Every reused slot is cleared.
+FUNCTION "FRK_ConfigRevision" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Previous : UDInt;
+END_VAR
+VAR_TEMP
+    Stamp : DTL;
+    ResultCode : Int;
+    Generation : ULInt;
+END_VAR
+BEGIN
+    #FRK_ConfigRevision := #Previous + 1;
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN
+        #Generation := LDT_TO_ULINT(DTL_TO_LDT(#Stamp)) / ULINT#1000000;
+        #FRK_ConfigRevision := ULINT_TO_UDINT(#Generation MOD ULINT#4294967296);
+    END_IF;
+    IF #FRK_ConfigRevision = #Previous THEN #FRK_ConfigRevision := #Previous + 1; END_IF;
+    IF #FRK_ConfigRevision = 0 THEN #FRK_ConfigRevision := 1; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    PageIndex : DInt;
+    Revision : UDInt;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #Cursor.Position := 0;
+    #Cursor.First := 0;
+    #Page.Revision := #Revision;
+    #Page.PageIndex := 0;
+    IF #PageIndex >= 0 AND #PageIndex <= 32767 THEN
+        #Cursor.First := #PageIndex * 16;
+        #Page.PageIndex := DINT_TO_INT(#PageIndex);
+    END_IF;
+    #Page.PageCount := 1;
+    #Page.EntryCount := 0;
+    "FRK_UnitScratch".EmptyConfigEntry.ValueType := 1;
+    "FRK_UnitScratch".EmptyConfigEntry.Readable := TRUE;
+    FOR #Index := 1 TO 16 DO
+        #Page.Entries[#Index] := "FRK_UnitScratch".EmptyConfigEntry;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigAppend" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Item : String;
+    ValueText : WString;
+    ValueType : DInt;
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Slot : DInt;
+END_VAR
+BEGIN
+    #Slot := #Cursor.Position - #Cursor.First;
+    #Cursor.Position := #Cursor.Position + 1;
+    IF #Slot < 0 OR #Slot >= 16 THEN RETURN; END_IF;
+    #Slot := #Slot + 1;
+    #Page.Entries[#Slot].Scope := STRING_TO_WSTRING(#Scope);
+    #Page.Entries[#Slot].Item := STRING_TO_WSTRING(#Item);
+    #Page.Entries[#Slot].ValueType := #ValueType;
+    #Page.Entries[#Slot].ReadLevel := #ReadLevel;
+    #Page.Entries[#Slot].Readable := #Readable;
+    IF #Readable THEN #Page.Entries[#Slot].ValueText := #ValueText; END_IF;
+    #Page.EntryCount := DINT_TO_INT(#Slot);
+END_FUNCTION
+
+FUNCTION "FRK_ConfigFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+BEGIN
+    #Page.PageCount := DINT_TO_INT((#Cursor.Position + 16 - 1) / 16);
+    IF #Page.PageCount < 1 THEN #Page.PageCount := 1; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigCatalog" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Count : Int;
+    Catalog : Array[1..12] of "ST_CommandInfo";
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    IndexText : String[8];
+    Prefix : String[254];
+    Item : String[254];
+END_VAR
+BEGIN
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'CatalogCount', ValueText := STRING_TO_WSTRING(INT_TO_STRING(#Count)), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    FOR #Index := 1 TO #Count DO
+        IF #Index > 12 THEN EXIT; END_IF;
+        #IndexText := INT_TO_STRING(#Index);
+        IF #IndexText[1] = '+' THEN #IndexText := DELETE(IN := #IndexText, L := 1, P := 1); END_IF;
+        #Prefix := CONCAT(IN1 := 'Catalog/Catalog[', IN2 := #IndexText);
+        #Prefix := CONCAT(IN1 := #Prefix, IN2 := ']/');
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Value');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Catalog[#Index].Value)), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Label');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(#Catalog[#Index].Label), ValueType := 1, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Style');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Catalog[#Index].Style)), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_ConfigUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Policy : Array[0..6] of "ST_ModePolicy";
+    ModelCount : Int;
+    ReadLevel : DInt;
+    Readable : Bool;
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    IndexText : String[8];
+    Prefix : String[254];
+    Item : String[254];
+END_VAR
+BEGIN
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'CatalogCount', ValueText := WSTRING#'0', ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'AvailableModelCount', ValueText := INT_TO_WSTRING(#ModelCount), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    FOR #Index := 0 TO 6 DO
+        #IndexText := INT_TO_STRING(#Index);
+        IF #IndexText[1] = '+' THEN #IndexText := DELETE(IN := #IndexText, L := 1, P := 1); END_IF;
+        #Prefix := CONCAT(IN1 := 'ModePolicy/ModePolicy[', IN2 := #IndexText);
+        #Prefix := CONCAT(IN1 := #Prefix, IN2 := ']/');
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Shield');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Policy[#Index].Shield)), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+        #Item := CONCAT(IN1 := #Prefix, IN2 := 'Style');
+        "FRK_ConfigAppend"(Scope := #Scope, Item := #Item, ValueText := STRING_TO_WSTRING(DINT_TO_STRING(#Policy[#Index].Style)), ValueType := 0, ReadLevel := #ReadLevel, Readable := #Readable, Cursor := #Cursor, Page := #Page);
+    END_FOR;
+END_FUNCTION
+
+// Core 8.3: one owning active list / closed ring, with optional event callback.
+FUNCTION "FRK_AlarmNotify" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    RETURN; // No event sink supplied by the composition declaration.
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRefresh" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #AlarmLog.NActive := 0;
+    #AlarmLog.Blocking := FALSE;
+    FOR #Index := 1 TO 16 DO
+        IF #AlarmLog.Active[#Index].State <> 0 THEN
+            #AlarmLog.NActive := #AlarmLog.NActive + 1;
+            IF #AlarmLog.Active[#Index].ResetClass = 1 THEN #AlarmLog.Blocking := TRUE; END_IF;
+        END_IF;
+    END_FOR;
+    "FRK_AlarmRecoveryRefresh"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    FOR #Index := 1 TO 16 DO
+        #AlarmLog.Touched[#Index] := FALSE;
+        IF #Startup THEN
+            #AlarmLog.Active[#Index] := "FRK_UnitScratch".EmptyEvent;
+            #AlarmLog.Automatic[#Index] := FALSE;
+            #AlarmLog.ComeMs[#Index] := 0;
+        END_IF;
+    END_FOR;
+    IF #Startup THEN
+        FOR #Index := 1 TO 64 DO #AlarmLog.Ring[#Index] := "FRK_UnitScratch".EmptyEvent; END_FOR;
+        #AlarmLog.RingHead := 0;
+        #AlarmLog.RingUsed := 0;
+        #AlarmLog.Truncated := FALSE;
+    END_IF;
+    IF #Startup AND #AlarmLog.HistorySlot > 0 THEN "FRK_AlarmHistoryClear"(AlarmLog := #AlarmLog); END_IF;
+    IF #Startup THEN "FRK_AlarmRecoveryClear"(AlarmLog := #AlarmLog); END_IF;
+    "FRK_AlarmShelfTick"(AlarmLog := #AlarmLog);
+    "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRaise" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Diag : "ST_Diagnostic";
+    ResetClass : DInt;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Stamp : DTL;
+    ResultCode : Int;
+    Rational : "ST_Diagnostic";
+END_VAR
+BEGIN
+    #FRK_AlarmRaise := 0;
+    IF #ResetClass < 0 OR #ResetClass > 1
+        OR #Diag.Severity < 0 OR #Diag.Severity > 2
+        OR #Diag.Category < 0 OR #Diag.Category > 2
+        OR #Diag.SourcePath = WSTRING#'' OR #Diag.Description = WSTRING#'' THEN RETURN; END_IF;
+    #Slot := "FRK_AlarmRecoveryClaim"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := #ResetClass); IF #Slot > 0 THEN #FRK_AlarmRaise := #Slot; RETURN; END_IF;
+    FOR #Slot := 1 TO 16 DO
+        IF #AlarmLog.Active[#Slot].State = 0 THEN
+            #Rational := #Diag;
+            "FRK_Rationalize"(Diag := #Rational);
+            #AlarmLog.Active[#Slot] := "FRK_UnitScratch".EmptyEvent;
+            #AlarmLog.Active[#Slot].ReasonCode := #Rational.ReasonCode;
+            #AlarmLog.Active[#Slot].Description := #Rational.Description;
+            #AlarmLog.Active[#Slot].SourcePath := #Rational.SourcePath;
+            #AlarmLog.Active[#Slot].IoTag := #Rational.IoTag;
+            #AlarmLog.Active[#Slot].IoAddress := #Rational.IoAddress;
+            #AlarmLog.Active[#Slot].Severity := #Rational.Severity;
+            #AlarmLog.Active[#Slot].Category := #Rational.Category;
+            #AlarmLog.Active[#Slot].ResetClass := #ResetClass;
+            #AlarmLog.Active[#Slot].State := 1;
+            #AlarmLog.ComeMs[#Slot] := "FRK_Clock".NowMs;
+            #AlarmLog.ShelfDuration[#Slot] := 0;
+            #AlarmLog.ElapsedBefore[#Slot] := 0; #AlarmLog.Recovering[#Slot] := FALSE;
+            #AlarmLog.Automatic[#Slot] := FALSE;
+            #AlarmLog.Touched[#Slot] := FALSE;
+            #ResultCode := RD_SYS_T(OUT => #Stamp);
+            IF #ResultCode = 0 THEN #AlarmLog.Active[#Slot].ComeAt := DTL_TO_LDT(#Stamp); END_IF;
+            // The UTC source has no proven synchronization witness yet.
+            #AlarmLog.Active[#Slot].ComeTimeSynchronized := FALSE;
+            "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+            "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog, EventSlot := #Slot);
+            
+            "FRK_AlarmNotify"(AlarmLog := #AlarmLog, Ev := #AlarmLog.Active[#Slot]);
+            #FRK_AlarmRaise := #Slot;
+            RETURN;
+        END_IF;
+    END_FOR;
+    IF NOT #AlarmLog.Truncated THEN
+        #AlarmLog.Truncated := TRUE;
+        "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmClose" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > 16 THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#Slot].State = 0 THEN RETURN; END_IF;
+    #AlarmLog.Active[#Slot].State := 0;
+    
+    "FRK_AlarmRecoveryClosePrepare"(AlarmLog := #AlarmLog, EventSlot := #Slot);
+    IF #AlarmLog.RingHead < 0 OR #AlarmLog.RingHead > 64 THEN #AlarmLog.RingHead := 0; END_IF;
+    #AlarmLog.RingHead := (#AlarmLog.RingHead MOD 64) + 1;
+    IF #AlarmLog.RingUsed >= 64 THEN #AlarmLog.Truncated := TRUE;
+    ELSE #AlarmLog.RingUsed := #AlarmLog.RingUsed + 1; END_IF;
+    #AlarmLog.Ring[#AlarmLog.RingHead] := #AlarmLog.Active[#Slot];
+    "FRK_AlarmHistoryAppend"(AlarmLog := #AlarmLog);
+    "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog, EventSlot := #Slot);
+    #AlarmLog.Automatic[#Slot] := FALSE;
+    "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+    "FRK_AlarmNotify"(AlarmLog := #AlarmLog, Ev := #AlarmLog.Ring[#AlarmLog.RingHead]);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmGone" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Span : UDInt;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmGone := FALSE;
+    IF #Slot < 1 OR #Slot > 16 THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#Slot].State <> 1 THEN RETURN; END_IF;
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN #AlarmLog.Active[#Slot].GoneAt := DTL_TO_LDT(#Stamp); END_IF;
+    #AlarmLog.Active[#Slot].GoneTimeSynchronized := FALSE;
+    #Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #Slot);
+    #AlarmLog.Active[#Slot].Duration := DINT_TO_TIME(UDINT_TO_DINT(#Span));
+    IF #AlarmLog.Active[#Slot].ResetClass = 0 THEN
+        "FRK_AlarmClose"(AlarmLog := #AlarmLog, Slot := #Slot);
+    ELSE
+        #AlarmLog.Active[#Slot].State := 2;
+        #AlarmLog.Automatic[#Slot] := FALSE;
+        "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog, EventSlot := #Slot);
+    END_IF;
+    #FRK_AlarmGone := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmOperatorReset" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Gone : Bool;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    FOR #Slot := 1 TO 16 DO
+        IF #AlarmLog.Active[#Slot].State <> 0 AND #AlarmLog.Active[#Slot].ResetClass = 1 THEN
+            IF #AlarmLog.Active[#Slot].State = 1 THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+            #ResultCode := RD_SYS_T(OUT => #Stamp);
+            IF #ResultCode = 0 THEN #AlarmLog.Active[#Slot].ResetAt := DTL_TO_LDT(#Stamp); END_IF;
+            #AlarmLog.Active[#Slot].ResetTimeSynchronized := FALSE;
+            "FRK_AlarmClose"(AlarmLog := #AlarmLog, Slot := #Slot);
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmMessage" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Reason : DInt;
+    Description : WString;
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Slot : Int;
+    Gone : Bool;
+END_VAR
+BEGIN
+    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+    #Diag.ReasonCode := #Reason;
+    #Diag.Description := #Description;
+    #Diag.SourcePath := #SourcePath;
+    #Diag.Severity := 0;
+    #Diag.Category := 2;
+    #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+    IF #Slot > 0 THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmCapture" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #Core.FaultSlot;
+    IF #Slot < 1 OR #Slot > 16 THEN #Slot := 0;
+    ELSIF NOT #AlarmLog.Automatic[#Slot] OR #AlarmLog.Active[#Slot].State <> 1
+        OR #AlarmLog.Active[#Slot].SourcePath <> #Status.Diagnostic.SourcePath
+        OR #AlarmLog.Active[#Slot].ReasonCode <> #Status.Diagnostic.ReasonCode
+        OR #AlarmLog.Active[#Slot].Description <> #Status.Diagnostic.Description THEN #Slot := 0; END_IF;
+    IF #Core.Exec = 3 AND NOT #Core.FaultHandled THEN
+        IF #Slot = 0 THEN
+            // Adopted first-outs share one active occurrence within this log.
+            FOR #Slot := 1 TO 16 DO
+                IF #AlarmLog.Automatic[#Slot] AND #AlarmLog.Active[#Slot].State = 1
+                    AND #AlarmLog.Active[#Slot].SourcePath = #Status.Diagnostic.SourcePath
+                    AND #AlarmLog.Active[#Slot].ReasonCode = #Status.Diagnostic.ReasonCode
+                    AND #AlarmLog.Active[#Slot].Description = #Status.Diagnostic.Description THEN EXIT; END_IF;
+            END_FOR;
+            IF #Slot > 16 THEN #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Status.Diagnostic, ResetClass := 1); END_IF;
+        END_IF;
+        IF #Slot > 0 THEN IF NOT #AlarmLog.Automatic[#Slot] THEN #AlarmLog.Automatic[#Slot] := TRUE; "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog, EventSlot := #Slot); END_IF; #AlarmLog.Recovering[#Slot] := FALSE; #AlarmLog.Automatic[#Slot] := TRUE; #AlarmLog.Touched[#Slot] := TRUE; END_IF;
+        #Core.FaultSlot := #Slot;
+    ELSE
+        #Core.FaultSlot := 0;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Gone : Bool;
+END_VAR
+BEGIN
+    FOR #Slot := 1 TO 16 DO
+        IF #AlarmLog.Automatic[#Slot] AND NOT #AlarmLog.Touched[#Slot] THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmTreeBlocking" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Ancestor : DInt;
+    Depth : DInt;
+END_VAR
+BEGIN
+    #FRK_AlarmTreeBlocking := TRUE;
+    IF "FRK_Registry".Fault OR #Owner < 1 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Count > 32 THEN RETURN; END_IF;
+    FOR #Index := 1 TO "FRK_Registry".Count DO
+        IF "FRK_Registry".Rows[#Index].AlarmBlocking THEN
+            #Ancestor := #Index;
+            FOR #Depth := 1 TO 32 DO
+                IF #Ancestor = #Owner THEN RETURN; END_IF;
+                IF #Ancestor = 0 THEN EXIT; END_IF;
+                IF #Ancestor < 1 OR #Ancestor > "FRK_Registry".Count THEN RETURN; END_IF;
+                #Ancestor := "FRK_Registry".Rows[#Ancestor].Parent;
+            END_FOR;
+            IF #Depth > 32 AND #Ancestor <> 0 THEN RETURN; END_IF;
+        END_IF;
+    END_FOR;
+    #FRK_AlarmTreeBlocking := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_ReasonShelvable" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Reason : DInt;
+END_VAR
+BEGIN
+    #FRK_ReasonShelvable := FALSE;
+    CASE #Reason OF
+        11: #FRK_ReasonShelvable := TRUE;
+        12: #FRK_ReasonShelvable := TRUE;
+        16: #FRK_ReasonShelvable := TRUE;
+        17: #FRK_ReasonShelvable := TRUE;
+        19: #FRK_ReasonShelvable := TRUE;
+        21: #FRK_ReasonShelvable := TRUE;
+        2005: #FRK_ReasonShelvable := TRUE;
+        2007: #FRK_ReasonShelvable := TRUE;
+        2011: #FRK_ReasonShelvable := TRUE;
+        10402: #FRK_ReasonShelvable := TRUE;
+        10404: #FRK_ReasonShelvable := TRUE;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+
+// Shelving changes annunciation only. Blocking and interlock scans ignore it.
+FUNCTION "FRK_AlarmUnshelve" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Slot : Int; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    #FRK_AlarmUnshelve := FALSE;
+    IF #Slot < 1 OR #Slot > 16 THEN RETURN; END_IF;
+    IF NOT #AlarmLog.Active[#Slot].Shelved THEN RETURN; END_IF;
+    #AlarmLog.Active[#Slot].Shelved := FALSE; #AlarmLog.ShelfDuration[#Slot] := 0;
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := 0, Description := WSTRING#'std.audit.alarmUnshelved', SourcePath := #AlarmLog.Active[#Slot].SourcePath);
+    #FRK_AlarmUnshelve := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmShelve" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Slot : Int; DurationMs : UDInt; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Duration : UDInt; Stamp : LDT; END_VAR
+BEGIN
+    #FRK_AlarmShelve := FALSE;
+    IF #Slot < 1 OR #Slot > 16 OR #DurationMs = 0 THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#Slot].State = 0 OR #AlarmLog.Active[#Slot].Category = 1
+        OR NOT "FRK_ReasonShelvable"(Reason := #AlarmLog.Active[#Slot].ReasonCode) THEN RETURN; END_IF;
+    #Duration := #DurationMs;
+    IF #Duration > UDINT#28800000 THEN #Duration := UDINT#28800000; END_IF;
+    #AlarmLog.ShelfSince[#Slot] := "FRK_Clock".NowMs; #AlarmLog.ShelfDuration[#Slot] := #Duration;
+    #AlarmLog.Active[#Slot].Shelved := TRUE;
+    #Stamp := "FRK_Now"() + LT#1ms * UDINT_TO_LINT(#Duration);
+    #AlarmLog.Active[#Slot].ShelvedUntil := LDT_TO_DT(#Stamp);
+    #AlarmLog.Active[#Slot].ShelfTimeSynchronized := FALSE;
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := 0, Description := WSTRING#'std.audit.alarmShelved', SourcePath := #AlarmLog.Active[#Slot].SourcePath);
+    #FRK_AlarmShelve := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmShelfTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; Changed : Bool; END_VAR
+BEGIN
+    FOR #Slot := 1 TO 16 DO
+        IF #AlarmLog.Active[#Slot].Shelved THEN
+            // No surviving monotonic witness after reboot: immediately unshelve.
+            IF #AlarmLog.ShelfDuration[#Slot] = 0 OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ShelfSince[#Slot]) >= #AlarmLog.ShelfDuration[#Slot] THEN
+                #Changed := "FRK_AlarmUnshelve"(Slot := #Slot, AlarmLog := #AlarmLog);
+            END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmShelfRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; END_VAR
+VAR_IN_OUT Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse"; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR (#Unit.Request.Kind <> 20 AND #Unit.Request.Kind <> 21) THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[9] THEN
+        #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    ELSIF #Unit.Request.IntValue >= 1 AND #Unit.Request.IntValue <= 16 THEN
+        IF #Unit.Request.Kind = 20 THEN
+            #Response.Accepted := "FRK_AlarmShelve"(Slot := DINT_TO_INT(#Unit.Request.IntValue), DurationMs := #Unit.Request.DurationMs, AlarmLog := #AlarmLog);
+        ELSE
+            #Response.Accepted := "FRK_AlarmUnshelve"(Slot := DINT_TO_INT(#Unit.Request.IntValue), AlarmLog := #AlarmLog);
+        END_IF;
+    END_IF;
+    IF #Response.Accepted THEN #Response.Diagnostic := WSTRING#'';
+    ELSE "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := 2002, Path := STRING_TO_WSTRING(#Scope), Kind := 4); END_IF;
+END_FUNCTION
+
+// Reference-1500 LOCAL_RETAIN: closed history only, keyed by actual Unit scope.
+// No active alarms, commands, sessions or monotonic clocks are restored.
+FUNCTION "FRK_AlarmHistoryIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_AlarmHistoryIndex := 0;
+    IF #Scope = 'StationA' THEN #FRK_AlarmHistoryIndex := 1; RETURN; END_IF;
+    IF #Scope = 'StationA.Satellite' THEN #FRK_AlarmHistoryIndex := 2; RETURN; END_IF;
+    IF #Scope = 'StationB' THEN #FRK_AlarmHistoryIndex := 3; RETURN; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmEventCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+    Code : Word;
+    Wide : LWord;
+END_VAR
+BEGIN
+    #Work := DWORD#16#FFFFFFFF;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Ev.ReasonCode));
+    #Size := LEN(#Ev.Description);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Code := WCHAR_TO_WORD(#Ev.Description[#Index]);
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := WORD_TO_BYTE(#Code));
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := WORD_TO_BYTE(SHR(IN := #Code, N := 8)));
+    END_FOR;
+    #Size := LEN(#Ev.SourcePath);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Code := WCHAR_TO_WORD(#Ev.SourcePath[#Index]);
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := WORD_TO_BYTE(#Code));
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := WORD_TO_BYTE(SHR(IN := #Code, N := 8)));
+    END_FOR;
+    #Size := LEN(#Ev.IoTag);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Ev.IoTag[#Index]));
+    END_FOR;
+    #Size := LEN(#Ev.IoAddress);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Ev.IoAddress[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Ev.Severity));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Ev.Category));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Ev.ResetClass));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Ev.State));
+    #Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.ComeAt));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+    #Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.GoneAt));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+    #Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.ResetAt));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(TIME_TO_DINT(#Ev.Duration)));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT(#Ev.Shelved));
+    #Wide := LINT_TO_LWORD(LDT_TO_LINT(#Ev.ShelvedUntil));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(#Wide)));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(LWORD_TO_DWORD(SHR(IN := #Wide, N := 32))));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT(#Ev.ComeTimeSynchronized));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT(#Ev.GoneTimeSynchronized));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT(#Ev.ResetTimeSynchronized));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT(#Ev.ShelfTimeSynchronized));
+    #FRK_AlarmEventCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryHeaderCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmHistoryHeaderCrc := DWORD#0;
+    IF #Slot < 1 OR #Slot > 3 THEN RETURN; END_IF;
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].SchemaVersion));
+    #Size := LEN("FRK_AlarmHistory".Rows[#Slot].Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_AlarmHistory".Rows[#Slot].Scope[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmHistory".Rows[#Slot].Generation);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].RingHead));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].RingUsed));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].Truncated));
+    FOR #Index := 1 TO 64 DO
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmHistory".Rows[#Slot].EventCrc[#Index]));
+    END_FOR;
+    #FRK_AlarmHistoryHeaderCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryHeaderSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.HistorySlot;
+    IF #Slot < 1 OR #Slot > 3 THEN RETURN; END_IF;
+    "FRK_AlarmHistory".Rows[#Slot].SchemaVersion := 1;
+    "FRK_AlarmHistory".Rows[#Slot].Generation := "FRK_AccessNext"(Previous := "FRK_AlarmHistory".Rows[#Slot].Generation);
+    "FRK_AlarmHistory".Rows[#Slot].RingHead := #AlarmLog.RingHead;
+    "FRK_AlarmHistory".Rows[#Slot].RingUsed := #AlarmLog.RingUsed;
+    "FRK_AlarmHistory".Rows[#Slot].Truncated := #AlarmLog.Truncated;
+    "FRK_AlarmHistory".Rows[#Slot].Checksum := "FRK_AlarmHistoryHeaderCrc"(Slot := #Slot);
+    "FRK_AlarmHistory".Commissioned[#Slot] := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.HistorySlot;
+    IF #Slot < 1 OR #Slot > 3 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 64 DO
+        "FRK_AlarmHistory".Rows[#Slot].Ring[#Index] := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmHistory".Rows[#Slot].EventCrc[#Index] := DWORD#0;
+    END_FOR;
+    "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryAppend" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Head : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.HistorySlot;
+    #Head := #AlarmLog.RingHead;
+    IF #Slot < 1 OR #Slot > 3 OR #Head < 1 OR #Head > 64 THEN RETURN; END_IF;
+    "FRK_AlarmHistory".Rows[#Slot].Ring[#Head] := #AlarmLog.Ring[#Head];
+    "FRK_AlarmHistory".Rows[#Slot].EventCrc[#Head] := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Ring[#Head]);
+    "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmHistoryBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Used : Int;
+    Head : Int;
+    Valid : Bool;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Slot := "FRK_AlarmHistoryIndex"(Scope := #Scope);
+    #AlarmLog.HistorySlot := #Slot;
+    IF #Slot < 1 OR #Slot > 3 THEN RETURN; END_IF;
+    IF NOT "FRK_AlarmHistory".Commissioned[#Slot]
+        AND "FRK_AlarmHistory".Rows[#Slot].SchemaVersion = 0
+        AND "FRK_AlarmHistory".Rows[#Slot].Generation = 0
+        AND "FRK_AlarmHistory".Rows[#Slot].Scope = ''
+        AND "FRK_AlarmHistory".Rows[#Slot].Checksum = DWORD#0 THEN
+        "FRK_AlarmHistory".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmHistoryClear"(AlarmLog := #AlarmLog);
+        RETURN;
+    END_IF;
+    #Used := "FRK_AlarmHistory".Rows[#Slot].RingUsed;
+    #Head := "FRK_AlarmHistory".Rows[#Slot].RingHead;
+    #Valid := "FRK_AlarmHistory".Rows[#Slot].SchemaVersion = 1
+        AND "FRK_AlarmHistory".Rows[#Slot].Scope = #Scope
+        AND "FRK_AlarmHistory".Rows[#Slot].Generation <> 0
+        AND #Used >= 0 AND #Used <= 64
+        AND #Head >= 0 AND #Head <= 64
+        AND ((#Used = 0 AND #Head = 0) OR (#Used > 0 AND #Head > 0))
+        AND (#Used = 64 OR #Head = #Used);
+    IF #Valid THEN #Valid := "FRK_AlarmHistory".Rows[#Slot].Checksum = "FRK_AlarmHistoryHeaderCrc"(Slot := #Slot); END_IF;
+    IF #Valid THEN
+        FOR #Index := 1 TO #Used DO
+            IF "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].State <> 0
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].ResetClass < 0
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].ResetClass > 1
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Severity < 0
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Severity > 2
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Category < 0
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Category > 2
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].SourcePath = WSTRING#''
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Description = WSTRING#''
+                OR "FRK_AlarmHistory".Rows[#Slot].Ring[#Index].Duration < T#0ms
+                OR "FRK_AlarmHistory".Rows[#Slot].EventCrc[#Index] <> "FRK_AlarmEventCrc"(Ev := "FRK_AlarmHistory".Rows[#Slot].Ring[#Index]) THEN
+                #Valid := FALSE;
+                EXIT;
+            END_IF;
+        END_FOR;
+    END_IF;
+    IF #Valid THEN
+        FOR #Index := 1 TO #Used DO #AlarmLog.Ring[#Index] := "FRK_AlarmHistory".Rows[#Slot].Ring[#Index]; END_FOR;
+        #AlarmLog.RingHead := #Head;
+        #AlarmLog.RingUsed := #Used;
+        #AlarmLog.Truncated := "FRK_AlarmHistory".Rows[#Slot].Truncated;
+    ELSE
+        // Reject the whole image. The same public loss marker covers overflow
+        // and rejected history; do not present a partial, apparently complete log.
+        #AlarmLog.Truncated := TRUE;
+        "FRK_AlarmHistory".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmHistoryClear"(AlarmLog := #AlarmLog);
+    END_IF;
+END_FUNCTION
+
+// Binding-local opt-in recovery of manual-reset latches. Commands remain volatile.
+FUNCTION "FRK_AlarmRecoveryIndex" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryIndex := 0;
+    IF #Scope = 'StationA' THEN #FRK_AlarmRecoveryIndex := 1; RETURN; END_IF;
+    IF #Scope = 'StationA.Satellite' THEN #FRK_AlarmRecoveryIndex := 2; RETURN; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryScope" : String
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    CASE #Slot OF
+        1: #FRK_AlarmRecoveryScope := 'StationA';
+        2: #FRK_AlarmRecoveryScope := 'StationA.Satellite';
+        ELSE #FRK_AlarmRecoveryScope := '';
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    // All selected descendants are conservative until their owning frame restores.
+    FOR #Slot := 1 TO 2 DO
+        "FRK_AlarmRecoveryRuntime".Ready[#Slot] := FALSE;
+        "FRK_AlarmRecoveryRuntime".Blocked[#Slot] := TRUE;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryTreeBlocking" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Expected : String[80];
+    Prefix : String[80];
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryTreeBlocking := FALSE;
+    #Prefix := CONCAT(IN1 := #Scope, IN2 := '.');
+    FOR #Slot := 1 TO 2 DO
+        #Expected := "FRK_AlarmRecoveryScope"(Slot := #Slot);
+        IF #Expected = #Scope OR LEFT(IN := #Expected, L := LEN(#Prefix)) = #Prefix THEN
+            IF NOT "FRK_AlarmRecoveryRuntime".Ready[#Slot] OR "FRK_AlarmRecoveryRuntime".Blocked[#Slot] THEN
+                #FRK_AlarmRecoveryTreeBlocking := TRUE; RETURN;
+            END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryRefresh" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #AlarmLog.RecoverySlot < 1 OR #AlarmLog.RecoverySlot > 2 THEN RETURN; END_IF;
+    "FRK_AlarmRecoveryRuntime".Blocked[#AlarmLog.RecoverySlot] := #AlarmLog.Blocking;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryElapsed" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    EventSlot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Span : UDInt;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryElapsed := 0;
+    IF #EventSlot < 1 OR #EventSlot > 16 THEN RETURN; END_IF;
+    #Span := "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #AlarmLog.ComeMs[#EventSlot]);
+    IF #Span > 2147483647 - #AlarmLog.ElapsedBefore[#EventSlot] THEN #Span := 2147483647;
+    ELSE #Span := #Span + #AlarmLog.ElapsedBefore[#EventSlot]; END_IF;
+    #FRK_AlarmRecoveryElapsed := #Span;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryTimeCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    EventSlot : Int;
+    Value : UDInt;
+    EventCrc : DWord;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := INT_TO_UDINT(#Slot));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#EventSlot));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT(#EventCrc));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Value);
+    #FRK_AlarmRecoveryTimeCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryHeaderCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryHeaderCrc := DWORD#0;
+    IF #Slot < 1 OR #Slot > 2 THEN RETURN; END_IF;
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].SchemaVersion));
+    #Size := LEN("FRK_AlarmRecovery".Rows[#Slot].Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_AlarmRecovery".Rows[#Slot].Scope[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmRecovery".Rows[#Slot].Generation);
+    FOR #Index := 1 TO 16 DO
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]));
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := BOOL_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingSlot));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DWORD_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingCrc));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT("FRK_AlarmRecovery".Rows[#Slot].PendingHead));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration);
+    #FRK_AlarmRecoveryHeaderCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryHeaderSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > 2 THEN RETURN; END_IF;
+    "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion := 2;
+    "FRK_AlarmRecovery".Rows[#Slot].Generation := "FRK_AccessNext"(Previous := "FRK_AlarmRecovery".Rows[#Slot].Generation);
+    "FRK_AlarmRecovery".Rows[#Slot].Checksum := "FRK_AlarmRecoveryHeaderCrc"(Slot := #Slot);
+    "FRK_AlarmRecovery".Commissioned[#Slot] := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > 2 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 16 DO
+        "FRK_AlarmRecovery".Rows[#Slot].Active[#Index] := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index] := FALSE;
+        "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#Index] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].ElapsedAlt[#Index] := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrcAlt[#Index] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeBank[#Index] := FALSE;
+        #AlarmLog.ElapsedBefore[#Index] := 0;
+        #AlarmLog.Recovering[#Index] := FALSE;
+    END_FOR;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := 0;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingClosed := "FRK_UnitScratch".EmptyEvent;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := DWORD#0;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHead := 0;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := 0;
+    "FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryStore" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    EventSlot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Span : UDInt;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > 2 OR #EventSlot < 1 OR #EventSlot > 16 THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#EventSlot].State <> 0 AND #AlarmLog.Active[#EventSlot].ResetClass = 1 THEN
+        "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot] := #AlarmLog.Active[#EventSlot];
+        "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot] := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Active[#EventSlot]);
+        "FRK_AlarmRecovery".Rows[#Slot].Automatic[#EventSlot] := #AlarmLog.Automatic[#EventSlot];
+        IF #AlarmLog.Active[#EventSlot].State = 1 THEN #Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #EventSlot);
+        ELSE #Span := DINT_TO_UDINT(TIME_TO_DINT(#AlarmLog.Active[#EventSlot].Duration)); END_IF;
+        "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot] := #Span;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot] := "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #EventSlot, Value := #Span, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot]);
+        "FRK_AlarmRecovery".Rows[#Slot].ElapsedAlt[#EventSlot] := #Span;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrcAlt[#EventSlot] := "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot];
+        "FRK_AlarmRecovery".Rows[#Slot].TimeBank[#EventSlot] := FALSE;
+    ELSE
+        IF "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot].State = 0 AND "FRK_AlarmRecovery".Rows[#Slot].PendingSlot <> #EventSlot THEN RETURN; END_IF;
+        "FRK_AlarmRecovery".Rows[#Slot].Active[#EventSlot] := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#EventSlot] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].Automatic[#EventSlot] := FALSE;
+        "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot] := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].ElapsedAlt[#EventSlot] := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeCrcAlt[#EventSlot] := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].TimeBank[#EventSlot] := FALSE;
+        #AlarmLog.ElapsedBefore[#EventSlot] := 0;
+        #AlarmLog.Recovering[#EventSlot] := FALSE;
+    END_IF;
+    IF "FRK_AlarmRecovery".Rows[#Slot].PendingSlot = #EventSlot THEN
+        "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingClosed := "FRK_UnitScratch".EmptyEvent;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := DWORD#0;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingHead := 0;
+        "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := 0;
+    END_IF;
+    "FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryCheckpointRead" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    EventSlot : Int;
+END_VAR
+VAR_OUTPUT
+    Elapsed : UDInt;
+    Checksum : DWord;
+END_VAR
+BEGIN
+    #Elapsed := 0; #Checksum := DWORD#0;
+    IF #Slot < 1 OR #Slot > 2 OR #EventSlot < 1 OR #EventSlot > 16 THEN RETURN; END_IF;
+    IF "FRK_AlarmRecovery".Rows[#Slot].TimeBank[#EventSlot] THEN
+        #Elapsed := "FRK_AlarmRecovery".Rows[#Slot].ElapsedAlt[#EventSlot];
+        #Checksum := "FRK_AlarmRecovery".Rows[#Slot].TimeCrcAlt[#EventSlot];
+    ELSE
+        #Elapsed := "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#EventSlot];
+        #Checksum := "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#EventSlot];
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Span : UDInt;
+    Saved : UDInt;
+    SavedCrc : DWord;
+    Work : DWord;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > 2 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 16 DO
+        IF #AlarmLog.Active[#Index].State = 1 AND #AlarmLog.Active[#Index].ResetClass = 1 THEN
+            #Span := "FRK_AlarmRecoveryElapsed"(AlarmLog := #AlarmLog, EventSlot := #Index);
+            "FRK_AlarmRecoveryCheckpointRead"(Slot := #Slot, EventSlot := #Index, Elapsed => #Saved, Checksum => #SavedCrc);
+            IF #Saved <> #Span THEN
+                #Work := "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #Index, Value := #Span, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]);
+                IF "FRK_AlarmRecovery".Rows[#Slot].TimeBank[#Index] THEN
+                    "FRK_AlarmRecovery".Rows[#Slot].Elapsed[#Index] := #Span;
+                    "FRK_AlarmRecovery".Rows[#Slot].TimeCrc[#Index] := #Work;
+                ELSE
+                    "FRK_AlarmRecovery".Rows[#Slot].ElapsedAlt[#Index] := #Span;
+                    "FRK_AlarmRecovery".Rows[#Slot].TimeCrcAlt[#Index] := #Work;
+                END_IF;
+                "FRK_AlarmRecovery".Rows[#Slot].TimeBank[#Index] := NOT "FRK_AlarmRecovery".Rows[#Slot].TimeBank[#Index];
+            END_IF;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryClaim" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Diag : "ST_Diagnostic";
+    ResetClass : DInt;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryClaim := 0;
+    IF #ResetClass <> 1 THEN RETURN; END_IF;
+    FOR #Slot := 1 TO 16 DO
+        IF #AlarmLog.Recovering[#Slot] AND #AlarmLog.Active[#Slot].State = 1
+            AND #AlarmLog.Active[#Slot].ReasonCode = #Diag.ReasonCode
+            AND #AlarmLog.Active[#Slot].Description = #Diag.Description
+            AND #AlarmLog.Active[#Slot].SourcePath = #Diag.SourcePath THEN
+            #AlarmLog.Recovering[#Slot] := FALSE;
+            #FRK_AlarmRecoveryClaim := #Slot; RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryClosePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    EventSlot : Int;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := #AlarmLog.RecoverySlot;
+    IF #Slot < 1 OR #Slot > 2 OR #EventSlot < 1 OR #EventSlot > 16 THEN RETURN; END_IF;
+    IF #AlarmLog.Active[#EventSlot].ResetClass <> 1 THEN RETURN; END_IF;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingSlot := #EventSlot;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingClosed := #AlarmLog.Active[#EventSlot];
+    "FRK_AlarmRecovery".Rows[#Slot].PendingCrc := "FRK_AlarmEventCrc"(Ev := #AlarmLog.Active[#EventSlot]);
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHead := (#AlarmLog.RingHead MOD 64) + 1;
+    "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration := "FRK_AccessNext"(Previous := "FRK_AlarmHistory".Rows[#AlarmLog.HistorySlot].Generation);
+    "FRK_AlarmRecoveryHeaderSave"(Slot := #Slot);
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryEventValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ev : "ST_AlarmEvent";
+END_VAR
+BEGIN
+    #FRK_AlarmRecoveryEventValid := #Ev.ResetClass = 1
+        AND #Ev.Severity >= 0 AND #Ev.Severity <= 2
+        AND #Ev.Category >= 0 AND #Ev.Category <= 2
+        AND #Ev.SourcePath <> WSTRING#'' AND #Ev.Description <> WSTRING#'' AND #Ev.ReasonCode > 0 AND #Ev.Duration >= T#0ms;
+END_FUNCTION
+
+FUNCTION "FRK_AlarmRecoveryBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+    Pending : Int;
+    Head : Int;
+    Valid : Bool;
+    ClosedPresent : Bool;
+    LossSlot : Int;
+    Diag : "ST_Diagnostic";
+    SavedElapsed : UDInt;
+    SavedCrc : DWord;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Slot := "FRK_AlarmRecoveryIndex"(Scope := #Scope);
+    #AlarmLog.RecoverySlot := #Slot;
+    IF #Slot < 1 OR #Slot > 2 THEN RETURN; END_IF;
+    IF NOT "FRK_AlarmRecovery".Commissioned[#Slot] AND "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion = 0
+        AND "FRK_AlarmRecovery".Rows[#Slot].Generation = 0 AND "FRK_AlarmRecovery".Rows[#Slot].Scope = '' AND "FRK_AlarmRecovery".Rows[#Slot].Checksum = DWORD#0 THEN
+        "FRK_AlarmRecovery".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmRecoveryClear"(AlarmLog := #AlarmLog);
+        "FRK_AlarmRecoveryRuntime".Ready[#Slot] := TRUE;
+        "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+        RETURN;
+    END_IF;
+    #Valid := "FRK_AlarmRecovery".Rows[#Slot].SchemaVersion = 2 AND "FRK_AlarmRecovery".Rows[#Slot].Scope = #Scope
+        AND "FRK_AlarmRecovery".Rows[#Slot].Generation <> 0;
+    IF #Valid THEN #Valid := "FRK_AlarmRecovery".Rows[#Slot].Checksum = "FRK_AlarmRecoveryHeaderCrc"(Slot := #Slot); END_IF;
+    IF #Valid THEN
+        FOR #Index := 1 TO 16 DO
+            "FRK_AlarmRecoveryCheckpointRead"(Slot := #Slot, EventSlot := #Index, Elapsed => #SavedElapsed, Checksum => #SavedCrc);
+            IF "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State = 0 THEN
+                IF "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index] <> DWORD#0 OR #SavedElapsed <> 0
+                    OR #SavedCrc <> DWORD#0 OR "FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index] THEN #Valid := FALSE; EXIT; END_IF;
+            ELSE
+                IF NOT "FRK_AlarmRecoveryEventValid"(Ev := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index])
+                    OR ("FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State <> 1 AND "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State <> 2)
+                    OR "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index] <> "FRK_AlarmEventCrc"(Ev := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index])
+                    OR #SavedElapsed > 2147483647
+                    OR #SavedCrc <> "FRK_AlarmRecoveryTimeCrc"(Slot := #Slot, EventSlot := #Index, Value := #SavedElapsed, EventCrc := "FRK_AlarmRecovery".Rows[#Slot].EventCrc[#Index]) THEN #Valid := FALSE; EXIT; END_IF;
+                IF "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State = 2
+                    AND ("FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index] OR #SavedElapsed <> DINT_TO_UDINT(TIME_TO_DINT("FRK_AlarmRecovery".Rows[#Slot].Active[#Index].Duration))) THEN #Valid := FALSE; EXIT; END_IF;
+            END_IF;
+        END_FOR;
+    END_IF;
+    #Pending := "FRK_AlarmRecovery".Rows[#Slot].PendingSlot;
+    IF #Valid THEN
+        IF #Pending < 0 OR #Pending > 16 THEN #Valid := FALSE;
+        ELSIF #Pending = 0 THEN
+            IF "FRK_AlarmRecovery".Rows[#Slot].PendingCrc <> DWORD#0 OR "FRK_AlarmRecovery".Rows[#Slot].PendingHead <> 0 OR "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration <> 0 THEN #Valid := FALSE; END_IF;
+        ELSE
+            #Valid := "FRK_AlarmRecoveryEventValid"(Ev := "FRK_AlarmRecovery".Rows[#Slot].PendingClosed)
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.State = 0
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingCrc = "FRK_AlarmEventCrc"(Ev := "FRK_AlarmRecovery".Rows[#Slot].PendingClosed)
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingHead >= 1 AND "FRK_AlarmRecovery".Rows[#Slot].PendingHead <= 64
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration <> 0
+                AND "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].State <> 0
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.ReasonCode = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].ReasonCode
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.SourcePath = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].SourcePath
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.Description = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].Description
+                AND "FRK_AlarmRecovery".Rows[#Slot].PendingClosed.ComeAt = "FRK_AlarmRecovery".Rows[#Slot].Active[#Pending].ComeAt;
+        END_IF;
+    END_IF;
+    IF NOT #Valid THEN
+        // Unknown prior manual-reset latches fail closed until one deliberate reset.
+        #AlarmLog.Truncated := TRUE;
+        "FRK_AlarmHistoryHeaderSave"(AlarmLog := #AlarmLog);
+        "FRK_AlarmRecovery".Rows[#Slot].Scope := #Scope;
+        "FRK_AlarmRecoveryClear"(AlarmLog := #AlarmLog);
+        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+        #Diag.ReasonCode := 11001;
+        #Diag.Description := WSTRING#'std.error.alarmRestoreLost';
+        #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+        #Diag.Severity := 2; #Diag.Category := 2;
+        #LossSlot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 1);
+    ELSE
+        FOR #Index := 1 TO 16 DO
+            "FRK_AlarmRecoveryCheckpointRead"(Slot := #Slot, EventSlot := #Index, Elapsed => #SavedElapsed, Checksum => #SavedCrc);
+            IF "FRK_AlarmRecovery".Rows[#Slot].Active[#Index].State <> 0 THEN
+                #AlarmLog.Active[#Index] := "FRK_AlarmRecovery".Rows[#Slot].Active[#Index];
+                #AlarmLog.Automatic[#Index] := "FRK_AlarmRecovery".Rows[#Slot].Automatic[#Index];
+                #AlarmLog.Recovering[#Index] := #AlarmLog.Active[#Index].State = 1;
+                #AlarmLog.ComeMs[#Index] := "FRK_Clock".NowMs;
+                IF #AlarmLog.Active[#Index].State = 1 THEN #AlarmLog.ElapsedBefore[#Index] := #SavedElapsed; END_IF;
+            END_IF;
+        END_FOR;
+        IF #Pending > 0 THEN
+            #Head := "FRK_AlarmRecovery".Rows[#Slot].PendingHead;
+            #ClosedPresent := "FRK_AlarmHistory".Rows[#AlarmLog.HistorySlot].Generation = "FRK_AlarmRecovery".Rows[#Slot].PendingHistoryGeneration
+                AND #AlarmLog.RingHead = #Head
+                AND "FRK_AlarmHistory".Rows[#AlarmLog.HistorySlot].EventCrc[#Head] = "FRK_AlarmRecovery".Rows[#Slot].PendingCrc;
+            IF NOT #ClosedPresent THEN
+                #AlarmLog.RingHead := (#AlarmLog.RingHead MOD 64) + 1;
+                IF #AlarmLog.RingUsed < 64 THEN #AlarmLog.RingUsed := #AlarmLog.RingUsed + 1; ELSE #AlarmLog.Truncated := TRUE; END_IF;
+                #AlarmLog.Ring[#AlarmLog.RingHead] := "FRK_AlarmRecovery".Rows[#Slot].PendingClosed;
+                "FRK_AlarmHistoryAppend"(AlarmLog := #AlarmLog);
+            END_IF;
+            #AlarmLog.Active[#Pending] := "FRK_UnitScratch".EmptyEvent;
+            #AlarmLog.Automatic[#Pending] := FALSE;
+            "FRK_AlarmRecoveryStore"(AlarmLog := #AlarmLog, EventSlot := #Pending);
+        END_IF;
+    END_IF;
+    "FRK_AlarmRecoveryRuntime".Ready[#Slot] := TRUE;
+    "FRK_AlarmRefresh"(AlarmLog := #AlarmLog);
+END_FUNCTION
+
+
+// Core section 7.7 prototype: private retained provider injection and independent root sessions.
+// User records are salted Core-compatible hashes, never commissioning plaintext.
+FUNCTION "FRK_Sha256Pin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Size : DInt;
+END_VAR
+VAR_IN_OUT
+    Data : Array[0..47] of Byte;
+    Digest : Array[0..31] of Byte;
+END_VAR
+VAR_TEMP
+    BlockBytes : Array[0..63] of Byte;
+    Words : Array[0..63] of DWord;
+    Hash : Array[0..7] of DWord;
+    Index : DInt;
+    A : DWord;
+    B : DWord;
+    C : DWord;
+    D : DWord;
+    E : DWord;
+    F : DWord;
+    G : DWord;
+    H : DWord;
+    S0 : DWord;
+    S1 : DWord;
+    T1 : DWord;
+    T2 : DWord;
+    K : Array[0..63] of DWord;
+END_VAR
+BEGIN
+    #FRK_Sha256Pin := FALSE;
+    #K[0] := DWORD#16#428A2F98;
+    #K[1] := DWORD#16#71374491;
+    #K[2] := DWORD#16#B5C0FBCF;
+    #K[3] := DWORD#16#E9B5DBA5;
+    #K[4] := DWORD#16#3956C25B;
+    #K[5] := DWORD#16#59F111F1;
+    #K[6] := DWORD#16#923F82A4;
+    #K[7] := DWORD#16#AB1C5ED5;
+    #K[8] := DWORD#16#D807AA98;
+    #K[9] := DWORD#16#12835B01;
+    #K[10] := DWORD#16#243185BE;
+    #K[11] := DWORD#16#550C7DC3;
+    #K[12] := DWORD#16#72BE5D74;
+    #K[13] := DWORD#16#80DEB1FE;
+    #K[14] := DWORD#16#9BDC06A7;
+    #K[15] := DWORD#16#C19BF174;
+    #K[16] := DWORD#16#E49B69C1;
+    #K[17] := DWORD#16#EFBE4786;
+    #K[18] := DWORD#16#0FC19DC6;
+    #K[19] := DWORD#16#240CA1CC;
+    #K[20] := DWORD#16#2DE92C6F;
+    #K[21] := DWORD#16#4A7484AA;
+    #K[22] := DWORD#16#5CB0A9DC;
+    #K[23] := DWORD#16#76F988DA;
+    #K[24] := DWORD#16#983E5152;
+    #K[25] := DWORD#16#A831C66D;
+    #K[26] := DWORD#16#B00327C8;
+    #K[27] := DWORD#16#BF597FC7;
+    #K[28] := DWORD#16#C6E00BF3;
+    #K[29] := DWORD#16#D5A79147;
+    #K[30] := DWORD#16#06CA6351;
+    #K[31] := DWORD#16#14292967;
+    #K[32] := DWORD#16#27B70A85;
+    #K[33] := DWORD#16#2E1B2138;
+    #K[34] := DWORD#16#4D2C6DFC;
+    #K[35] := DWORD#16#53380D13;
+    #K[36] := DWORD#16#650A7354;
+    #K[37] := DWORD#16#766A0ABB;
+    #K[38] := DWORD#16#81C2C92E;
+    #K[39] := DWORD#16#92722C85;
+    #K[40] := DWORD#16#A2BFE8A1;
+    #K[41] := DWORD#16#A81A664B;
+    #K[42] := DWORD#16#C24B8B70;
+    #K[43] := DWORD#16#C76C51A3;
+    #K[44] := DWORD#16#D192E819;
+    #K[45] := DWORD#16#D6990624;
+    #K[46] := DWORD#16#F40E3585;
+    #K[47] := DWORD#16#106AA070;
+    #K[48] := DWORD#16#19A4C116;
+    #K[49] := DWORD#16#1E376C08;
+    #K[50] := DWORD#16#2748774C;
+    #K[51] := DWORD#16#34B0BCB5;
+    #K[52] := DWORD#16#391C0CB3;
+    #K[53] := DWORD#16#4ED8AA4A;
+    #K[54] := DWORD#16#5B9CCA4F;
+    #K[55] := DWORD#16#682E6FF3;
+    #K[56] := DWORD#16#748F82EE;
+    #K[57] := DWORD#16#78A5636F;
+    #K[58] := DWORD#16#84C87814;
+    #K[59] := DWORD#16#8CC70208;
+    #K[60] := DWORD#16#90BEFFFA;
+    #K[61] := DWORD#16#A4506CEB;
+    #K[62] := DWORD#16#BEF9A3F7;
+    #K[63] := DWORD#16#C67178F2;
+    FOR #Index := 0 TO 31 DO #Digest[#Index] := 0; END_FOR;
+    IF #Size < 0 OR #Size > 48 THEN RETURN; END_IF;
+    // Authentication messages fit exactly one SHA-256 block.
+    FOR #Index := 0 TO 63 DO #BlockBytes[#Index] := 0; END_FOR;
+    FOR #Index := 0 TO #Size - 1 DO #BlockBytes[#Index] := #Data[#Index]; END_FOR;
+    #BlockBytes[#Size] := BYTE#16#80;
+    #BlockBytes[62] := DWORD_TO_BYTE(SHR(IN := DINT_TO_DWORD(#Size * 8), N := 8));
+    #BlockBytes[63] := DINT_TO_BYTE(#Size * 8);
+    #Hash[0] := DWORD#16#6A09E667;
+    #Hash[1] := DWORD#16#BB67AE85;
+    #Hash[2] := DWORD#16#3C6EF372;
+    #Hash[3] := DWORD#16#A54FF53A;
+    #Hash[4] := DWORD#16#510E527F;
+    #Hash[5] := DWORD#16#9B05688C;
+    #Hash[6] := DWORD#16#1F83D9AB;
+    #Hash[7] := DWORD#16#5BE0CD19;
+    FOR #Index := 0 TO 15 DO
+        #Words[#Index] := SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index]), N := 24)
+            OR SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index + 1]), N := 16)
+            OR SHL(IN := BYTE_TO_DWORD(#BlockBytes[4 * #Index + 2]), N := 8)
+            OR BYTE_TO_DWORD(#BlockBytes[4 * #Index + 3]);
+    END_FOR;
+    FOR #Index := 16 TO 63 DO
+        #S0 := ROR(IN := #Words[#Index-15], N := 7) XOR ROR(IN := #Words[#Index-15], N := 18) XOR SHR(IN := #Words[#Index-15], N := 3);
+        #S1 := ROR(IN := #Words[#Index-2], N := 17) XOR ROR(IN := #Words[#Index-2], N := 19) XOR SHR(IN := #Words[#Index-2], N := 10);
+        #Words[#Index] := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index-16])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S0)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index-7])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S1))));
+    END_FOR;
+    #A := #Hash[0]; #B := #Hash[1]; #C := #Hash[2]; #D := #Hash[3];
+    #E := #Hash[4]; #F := #Hash[5]; #G := #Hash[6]; #H := #Hash[7];
+    FOR #Index := 0 TO 63 DO
+        #S1 := ROR(IN := #E, N := 6) XOR ROR(IN := #E, N := 11) XOR ROR(IN := #E, N := 25);
+        #T1 := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#H)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#S1)) + UDINT_TO_ULINT(DWORD_TO_UDINT((#E AND #F) XOR ((NOT #E) AND #G))) + UDINT_TO_ULINT(DWORD_TO_UDINT(#K[#Index])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index]))));
+        #S0 := ROR(IN := #A, N := 2) XOR ROR(IN := #A, N := 13) XOR ROR(IN := #A, N := 22);
+        #T2 := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#S0)) + UDINT_TO_ULINT(DWORD_TO_UDINT((#A AND #B) XOR (#A AND #C) XOR (#B AND #C)))));
+        #H := #G; #G := #F; #F := #E;
+        #E := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#D)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#T1))));
+        #D := #C; #C := #B; #B := #A;
+        #A := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#T1)) + UDINT_TO_ULINT(DWORD_TO_UDINT(#T2))));
+    END_FOR;
+    #Words[0] := #A; #Words[1] := #B; #Words[2] := #C; #Words[3] := #D;
+    #Words[4] := #E; #Words[5] := #F; #Words[6] := #G; #Words[7] := #H;
+    FOR #Index := 0 TO 7 DO
+        #Hash[#Index] := UDINT_TO_DWORD(ULINT_TO_UDINT(UDINT_TO_ULINT(DWORD_TO_UDINT(#Hash[#Index])) + UDINT_TO_ULINT(DWORD_TO_UDINT(#Words[#Index]))));
+        #Digest[4 * #Index] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 24));
+        #Digest[4 * #Index + 1] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 16));
+        #Digest[4 * #Index + 2] := DWORD_TO_BYTE(SHR(IN := #Hash[#Index], N := 8));
+        #Digest[4 * #Index + 3] := DWORD_TO_BYTE(#Hash[#Index]);
+    END_FOR;
+    FOR #Index := 0 TO 63 DO #BlockBytes[#Index] := 0; #Words[#Index] := 0; END_FOR;
+    #FRK_Sha256Pin := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessCancel" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+END_VAR
+BEGIN
+    #Access.LoginBusy := FALSE;
+    #Access.CandidateUser := '';
+    #Access.CandidateLevel := 0;
+    #Access.Round := 0;
+    FOR #Index := 0 TO 15 DO #Access.Salt[#Index] := 0; END_FOR;
+    FOR #Index := 0 TO 31 DO #Access.Digest[#Index] := 0; #Access.Expected[#Index] := 0; END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_AccessLogout" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    "FRK_AccessCancel"(Access := #Access);
+    "FRK_AccessDropSession"(Access := #Access);
+END_FUNCTION
+
+FUNCTION "FRK_AccessDropSession" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    #Access.CurrentLevel := 0;
+    #Access.CurrentUser := '';
+    #Access.LoginFailed := FALSE;
+    #Access.SessionGeneration := "FRK_AccessNext"(Previous := #Access.SessionGeneration);
+END_FUNCTION
+
+FUNCTION "FRK_AccessNext" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Previous : UDInt;
+END_VAR
+BEGIN
+    IF #Previous = UDINT#4294967295 THEN #FRK_AccessNext := 1; ELSE #FRK_AccessNext := #Previous + 1; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AccessLogin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    User : String;
+    Secret : String;
+    Sequence : UDInt;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Data : Array[0..47] of Byte;
+    Index : DInt;
+    Slot : DInt;
+    Size : Int;
+    HashOk : Bool;
+END_VAR
+BEGIN
+    "FRK_AccessCancel"(Access := #Access);
+    #Access.LoginFailed := FALSE;
+    #Access.LoginSequence := #Sequence;
+    #Access.CandidateGeneration := "FRK_LocalUsers".Generation;
+    #Access.LoginSince := "FRK_Clock".NowMs;
+    #Access.LoginTimeoutMs := 6000;
+    #Access.CandidateUser := #User;
+    // Unknown users execute the same bounded work with a dummy salt/digest.
+    IF #Access.ProviderEnabled AND "FRK_AccessStorage".UsersReady AND "FRK_LocalUsers".Count >= 0 AND "FRK_LocalUsers".Count <= 16 THEN
+        FOR #Slot := 1 TO "FRK_LocalUsers".Count DO
+            IF #User <> '' AND "FRK_LocalUsers".Rows[#Slot].User = #User THEN
+                IF "FRK_LocalUsers".Rows[#Slot].Level >= 1 AND "FRK_LocalUsers".Rows[#Slot].Level <= 4 THEN
+                    #Access.CandidateLevel := "FRK_LocalUsers".Rows[#Slot].Level;
+                    #Access.Salt := "FRK_LocalUsers".Rows[#Slot].Salt;
+                    #Access.Expected := "FRK_LocalUsers".Rows[#Slot].PinHash;
+                END_IF;
+                EXIT;
+            END_IF;
+        END_FOR;
+    END_IF;
+    FOR #Index := 0 TO 47 DO #Data[#Index] := 0; END_FOR;
+    FOR #Index := 0 TO 15 DO #Data[#Index] := #Access.Salt[#Index]; END_FOR;
+    #Size := LEN(#Secret);
+    IF #Size > 32 THEN #Size := 0; #Access.CandidateLevel := 0; END_IF;
+    FOR #Index := 1 TO #Size DO #Data[15 + #Index] := CHAR_TO_BYTE(#Secret[#Index]); END_FOR;
+    #HashOk := "FRK_Sha256Pin"(Data := #Data, Size := 16 + INT_TO_DINT(#Size), Digest := #Access.Digest);
+    FOR #Index := 0 TO 47 DO #Data[#Index] := 0; END_FOR;
+    #Access.LoginBusy := #HashOk;
+END_FUNCTION
+
+FUNCTION "FRK_AccessAudit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    What : WString;
+    Who : String;
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Description : WString[480];
+END_VAR
+BEGIN
+    #Description := CONCAT(IN1 := #What, IN2 := WSTRING#': ');
+    #Description := CONCAT(IN1 := #Description, IN2 := STRING_TO_WSTRING(#Who));
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := 0, Description := #Description, SourcePath := #SourcePath);
+END_FUNCTION
+
+FUNCTION "FRK_AccessCyclic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+    AlarmLog : "FRK_AlarmLog";
+    Revision : UDInt;
+END_VAR
+VAR_TEMP
+    Data : Array[0..47] of Byte;
+    Index : DInt;
+    Difference : Byte;
+    HashOk : Bool;
+END_VAR
+BEGIN
+    #Access.LoginTimeoutMs := 6000;
+    IF #Startup THEN
+        "FRK_AccessLogout"(Access := #Access);
+        #Access.LoginResultSequence := 0;
+    END_IF;
+    IF #Access.ProviderGeneration <> "FRK_LocalUsers".Generation OR NOT "FRK_AccessStorage".UsersReady THEN
+        IF #Access.CurrentLevel > 0 THEN
+            "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.autoLogout', Who := #Access.CurrentUser, SourcePath := #SourcePath);
+            "FRK_AccessDropSession"(Access := #Access);
+            #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+        END_IF;
+        IF #Access.LoginBusy THEN #Access.CandidateLevel := 0; END_IF;
+        #Access.ProviderGeneration := "FRK_LocalUsers".Generation;
+    END_IF;
+    IF #Access.CurrentLevel > 0 AND #Access.Policy.SessionTimeout > T#0ms THEN
+        IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Access.LastActivity) >= DINT_TO_UDINT(TIME_TO_DINT(#Access.Policy.SessionTimeout)) THEN
+            "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.autoLogout', Who := #Access.CurrentUser, SourcePath := #SourcePath);
+            // Expiring the old session does not discard a separately committed
+            // credential attempt. Explicit logout cancels both.
+            "FRK_AccessDropSession"(Access := #Access);
+            #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+        END_IF;
+    END_IF;
+    IF NOT #Access.LoginBusy THEN RETURN; END_IF;
+    // One compression per active scan; never run all PIN rounds in one scan.
+    FOR #Index := 0 TO 31 DO #Data[#Index] := #Access.Digest[#Index]; END_FOR;
+    FOR #Index := 0 TO 15 DO #Data[32 + #Index] := #Access.Salt[#Index]; END_FOR;
+    #HashOk := "FRK_Sha256Pin"(Data := #Data, Size := 48, Digest := #Access.Digest);
+    FOR #Index := 0 TO 47 DO #Data[#Index] := 0; END_FOR;
+    #Access.Round := #Access.Round + 1;
+    IF NOT #HashOk OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Access.LoginSince) >= #Access.LoginTimeoutMs THEN
+        #Access.CandidateLevel := 0;
+    ELSIF #Access.Round < 256 THEN RETURN;
+    END_IF;
+    #Difference := 0;
+    FOR #Index := 0 TO 31 DO #Difference := #Difference OR (#Access.Digest[#Index] XOR #Access.Expected[#Index]); END_FOR;
+    #Access.LoginFailed := #Difference <> 0 OR #Access.CandidateLevel = 0 OR NOT #Access.ProviderEnabled OR NOT "FRK_AccessStorage".UsersReady OR #Access.CandidateGeneration <> "FRK_LocalUsers".Generation;
+    IF #Access.LoginFailed THEN
+        "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.loginFailed', Who := #Access.CandidateUser, SourcePath := #SourcePath);
+    ELSE
+        #Access.CurrentUser := #Access.CandidateUser;
+        #Access.CurrentLevel := #Access.CandidateLevel;
+        #Access.LastActivity := "FRK_Clock".NowMs;
+        #Access.SessionGeneration := "FRK_AccessNext"(Previous := #Access.SessionGeneration);
+        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+        "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.login', Who := #Access.CurrentUser, SourcePath := #SourcePath);
+    END_IF;
+    #Access.LoginResultSequence := #Access.LoginSequence;
+    "FRK_AccessCancel"(Access := #Access);
+END_FUNCTION
+
+FUNCTION "FRK_AccessFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Unit : "FRK_Unit";
+    Response : "ST_HmiResponse";
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+    AlarmLog : "FRK_AlarmLog";
+    Revision : UDInt;
+END_VAR
+VAR_TEMP
+    What : WString[160];
+    AuditPath : WString[255];
+END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending THEN RETURN; END_IF;
+    CASE #Unit.Request.Kind OF
+        23, 15,
+        16, 17,
+        1: RETURN;
+        2:
+            "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.logout', Who := #Unit.RequestUser, SourcePath := #SourcePath);
+            #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+            RETURN;
+        ELSE #What := WSTRING#'std.audit.accessDenied';
+    END_CASE;
+    IF #Response.Accepted THEN
+        #What := WSTRING#'std.audit.operatorAction';
+        IF #Access.CurrentLevel > 0 THEN #Access.LastActivity := "FRK_Clock".NowMs; END_IF;
+        IF #Unit.Request.Kind = 24 OR #Unit.Request.Kind = 25 OR #Unit.Request.Kind = 36 THEN #Revision := "FRK_ConfigRevision"(Previous := #Revision); END_IF;
+    END_IF;
+    #AuditPath := #SourcePath;
+    IF #Unit.Request.Kind = 11 THEN
+        IF #Response.Accepted THEN #AuditPath := #Unit.Request.TargetPath; END_IF;
+        IF #Response.Accepted THEN #What := WSTRING#'std.audit.manualCommandAccepted'; ELSE #What := WSTRING#'std.audit.manualCommandRejected'; END_IF;
+    END_IF;
+    #What := CONCAT(IN1 := #What, IN2 := WSTRING#' kind=');
+    #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.Kind));
+    #What := CONCAT(IN1 := #What, IN2 := WSTRING#' value=');
+    #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.IntValue));
+    IF #Unit.Request.Kind = 36 THEN
+        #What := CONCAT(IN1 := #What, IN2 := WSTRING#' class=');
+        #What := CONCAT(IN1 := #What, IN2 := STRING_TO_WSTRING(#Unit.Request.NameValue));
+        IF #Unit.Request.BoolValue THEN #What := CONCAT(IN1 := #What, IN2 := WSTRING#' write');
+        ELSE #What := CONCAT(IN1 := #What, IN2 := WSTRING#' read'); END_IF;
+    END_IF;
+    "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := #What, Who := #Unit.RequestUser, SourcePath := #AuditPath);
+END_FUNCTION
+
+// Canonical retained-image CRC primitives, shared by typed consumers.
+FUNCTION "FRK_CrcByte" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Previous : DWord;
+    Value : Byte;
+END_VAR
+VAR_TEMP
+    BitIndex : Int;
+    Work : DWord;
+END_VAR
+BEGIN
+    #Work := #Previous XOR BYTE_TO_DWORD(#Value);
+    FOR #BitIndex := 0 TO 7 DO
+        IF (#Work AND DWORD#1) <> 0 THEN #Work := SHR(IN := #Work, N := 1) XOR DWORD#16#EDB88320;
+        ELSE #Work := SHR(IN := #Work, N := 1); END_IF;
+    END_FOR;
+    #FRK_CrcByte := #Work;
+END_FUNCTION
+
+FUNCTION "FRK_CrcNumber" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Previous : DWord;
+    Value : UDInt;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Work : DWord;
+END_VAR
+BEGIN
+    #Work := #Previous;
+    FOR #Index := 0 TO 3 DO
+        #Work := "FRK_CrcByte"(Previous := #Work, Value := DWORD_TO_BYTE(SHR(IN := UDINT_TO_DWORD(#Value), N := INT_TO_UINT(#Index * 8))));
+    END_FOR;
+    #FRK_CrcNumber := #Work;
+END_FUNCTION
+
+
+// Reference-1500 LOCAL_RETAIN adapter. No sessions or plaintext credentials.
+// CRC-32 arithmetic comes from Core F_Crc32; encoding is binding-local, versioned.
+FUNCTION "FRK_AccessUsersCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Work : DWord;
+    Slot : Int;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT("FRK_LocalUsers".SchemaVersion));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := "FRK_LocalUsers".Generation);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT("FRK_LocalUsers".Count));
+    // Unused rows are included: an altered dormant credential is not ignored.
+    FOR #Slot := 1 TO 16 DO
+        #Size := LEN("FRK_LocalUsers".Rows[#Slot].User);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Index := 1 TO #Size DO
+            #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE("FRK_LocalUsers".Rows[#Slot].User[#Index]));
+        END_FOR;
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT("FRK_LocalUsers".Rows[#Slot].Level));
+        FOR #Index := 0 TO 15 DO
+            #Work := "FRK_CrcByte"(Previous := #Work, Value := "FRK_LocalUsers".Rows[#Slot].Salt[#Index]);
+        END_FOR;
+        FOR #Index := 0 TO 31 DO
+            #Work := "FRK_CrcByte"(Previous := #Work, Value := "FRK_LocalUsers".Rows[#Slot].PinHash[#Index]);
+        END_FOR;
+    END_FOR;
+    #FRK_AccessUsersCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AccessUsersShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Slot : Int;
+    Other : Int;
+END_VAR
+BEGIN
+    #FRK_AccessUsersShape := FALSE;
+    IF "FRK_LocalUsers".Count < 0 OR "FRK_LocalUsers".Count > 16 THEN RETURN; END_IF;
+    FOR #Slot := 1 TO DINT_TO_INT("FRK_LocalUsers".Count) DO
+        IF "FRK_LocalUsers".Rows[#Slot].User = '' OR "FRK_LocalUsers".Rows[#Slot].Level < 0 OR "FRK_LocalUsers".Rows[#Slot].Level > 4 THEN RETURN; END_IF;
+        FOR #Other := 1 TO #Slot - 1 DO
+            IF "FRK_LocalUsers".Rows[#Slot].User = "FRK_LocalUsers".Rows[#Other].User THEN RETURN; END_IF;
+        END_FOR;
+    END_FOR;
+    #FRK_AccessUsersShape := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessUsersCommit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+    #FRK_AccessUsersCommit := "FRK_AccessUsersShape"();
+    IF NOT #FRK_AccessUsersCommit THEN RETURN; END_IF;
+    "FRK_LocalUsers".SchemaVersion := 1;
+    "FRK_LocalUsers".Generation := "FRK_AccessNext"(Previous := "FRK_LocalUsers".Generation);
+    "FRK_LocalUsers".Checksum := "FRK_AccessUsersCrc"();
+    "FRK_AccessStorage".UsersCommissioned := TRUE;
+    "FRK_AccessStorage".UsersReady := TRUE;
+    "FRK_AccessStorage".UsersLost := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessRegisterHash" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Record : "ST_UserRecord";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Index : Int;
+END_VAR
+BEGIN
+    // Trusted composition/provider seam, never a remote credential editor.
+    #FRK_AccessRegisterHash := FALSE;
+    IF NOT "FRK_AccessStorage".UsersReady OR #Record.User = '' OR #Record.Level < 0 OR #Record.Level > 4 THEN RETURN; END_IF;
+    #Slot := 0;
+    FOR #Index := 1 TO DINT_TO_INT("FRK_LocalUsers".Count) DO
+        IF "FRK_LocalUsers".Rows[#Index].User = #Record.User THEN #Slot := #Index; EXIT; END_IF;
+    END_FOR;
+    IF #Slot = 0 THEN
+        IF "FRK_LocalUsers".Count = 16 THEN RETURN; END_IF;
+        "FRK_LocalUsers".Count := "FRK_LocalUsers".Count + 1;
+        #Slot := DINT_TO_INT("FRK_LocalUsers".Count);
+    END_IF;
+    "FRK_LocalUsers".Rows[#Slot] := #Record;
+    #FRK_AccessRegisterHash := "FRK_AccessUsersCommit"();
+END_FUNCTION
+
+FUNCTION "FRK_AccessStoreBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Accepted : Bool;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    "FRK_AccessStorage".UsersReady := FALSE;
+    "FRK_AccessStorage".UsersLost := FALSE;
+    // A virgin image may accept deliberate composition-root provisioning.
+    IF NOT "FRK_AccessStorage".UsersCommissioned AND "FRK_LocalUsers".SchemaVersion = 0 AND "FRK_LocalUsers".Generation = 0 AND "FRK_LocalUsers".Checksum = DWORD#0 THEN
+        #Accepted := "FRK_AccessUsersCommit"();
+        "FRK_AccessStorage".UsersLost := NOT #Accepted;
+    ELSIF "FRK_AccessStorage".UsersCommissioned AND "FRK_LocalUsers".SchemaVersion = 1 AND "FRK_LocalUsers".Generation > 0 AND "FRK_AccessUsersShape"() THEN
+        "FRK_AccessStorage".UsersReady := "FRK_LocalUsers".Checksum = "FRK_AccessUsersCrc"();
+        "FRK_AccessStorage".UsersLost := NOT "FRK_AccessStorage".UsersReady;
+    ELSE "FRK_AccessStorage".UsersLost := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Image : "FRK_AccessPolicyImage";
+END_VAR
+VAR_TEMP
+    Work : DWord;
+    Index : Int;
+    Size : Int;
+END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+    IF #Image.Initialized THEN #Work := "FRK_CrcByte"(Previous := #Work, Value := BYTE#1);
+    ELSE #Work := "FRK_CrcByte"(Previous := #Work, Value := BYTE#0); END_IF;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Image.Generation);
+    #Size := LEN(#Image.Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Index := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Image.Scope[#Index])); END_FOR;
+    FOR #Index := 0 TO 11 DO
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Policy.Required[#Index]));
+    END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(TIME_TO_DINT(#Image.Policy.SessionTimeout)));
+    #FRK_AccessPolicyCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyShape" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Policy : "ST_AccessPolicy";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_AccessPolicyShape := FALSE;
+    IF #Policy.SessionTimeout < T#0ms OR #Policy.SessionTimeout > T#604800000ms THEN RETURN; END_IF;
+    FOR #Index := 0 TO 11 DO
+        IF #Policy.Required[#Index] < 0 OR #Policy.Required[#Index] > 4 THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_AccessPolicyShape := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Image : "FRK_AccessPolicyImage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_AccessPolicyValid := FALSE;
+    IF NOT #Image.Initialized OR #Image.SchemaVersion <> 1 OR #Image.Scope = '' OR #Image.Generation = 0 OR NOT "FRK_AccessPolicyShape"(Policy := #Image.Policy) THEN RETURN; END_IF;
+    #FRK_AccessPolicyValid := #Image.Checksum = "FRK_AccessPolicyCrc"(Image := #Image);
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicySave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    IF #Access.PolicySlot < 1 OR #Access.PolicySlot > 2 THEN RETURN; END_IF;
+    IF #Scope = '' OR NOT "FRK_AccessPolicyShape"(Policy := #Access.Policy) THEN #Access.PolicyLost := TRUE; RETURN; END_IF;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].SchemaVersion := 1;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Initialized := TRUE;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Scope := #Scope;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Generation := "FRK_AccessNext"(Previous := "FRK_AccessPolicies".Rows[#Access.PolicySlot].Generation);
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Policy := #Access.Policy;
+    "FRK_AccessPolicies".Rows[#Access.PolicySlot].Checksum := "FRK_AccessPolicyCrc"(Image := "FRK_AccessPolicies".Rows[#Access.PolicySlot]);
+END_FUNCTION
+
+FUNCTION "FRK_AccessPolicyBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    Root : Bool;
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    FreeSlot : Int;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Access.PolicySlot := 0; #Access.PolicyLost := FALSE;
+    #Access.PolicyLossAlarm := 0; #Access.UserLossAlarm := 0;
+    IF NOT #Root THEN RETURN; END_IF;
+    #FreeSlot := 0;
+    FOR #Index := 1 TO 2 DO
+        IF "FRK_AccessPolicies".Rows[#Index].Scope = #Scope THEN
+            IF #Access.PolicySlot <> 0 THEN #Access.PolicyLost := TRUE;
+            ELSE #Access.PolicySlot := #Index; END_IF;
+        ELSIF #FreeSlot = 0 AND NOT "FRK_AccessPolicies".Rows[#Index].Initialized AND "FRK_AccessPolicies".Rows[#Index].Scope = '' AND "FRK_AccessPolicies".Rows[#Index].SchemaVersion = 0 AND "FRK_AccessPolicies".Rows[#Index].Generation = 0 AND "FRK_AccessPolicies".Rows[#Index].Checksum = DWORD#0 THEN
+            #FreeSlot := #Index;
+        END_IF;
+    END_FOR;
+    IF #Access.PolicySlot > 0 THEN
+        IF NOT #Access.PolicyLost AND "FRK_AccessPolicyValid"(Image := "FRK_AccessPolicies".Rows[#Access.PolicySlot]) THEN
+            #Access.Policy := "FRK_AccessPolicies".Rows[#Access.PolicySlot].Policy;
+        ELSE #Access.PolicyLost := TRUE;
+        END_IF;
+    ELSIF #FreeSlot > 0 THEN
+        #Access.PolicySlot := #FreeSlot;
+        "FRK_AccessPolicySave"(Access := #Access, Scope := #Scope);
+    ELSE #Access.PolicyLost := TRUE;
+    END_IF;
+    IF #Access.PolicyLost THEN
+        // Do not silently reopen actions after losing commissioned policy.
+        #Access.Policy := "FRK_AccessStorage".EmptyPolicy;
+        FOR #Index := 0 TO 11 DO #Access.Policy.Required[#Index] := 4; END_FOR;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_AccessPersist" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Unit : "FRK_Unit";
+    SourcePath : WString;
+END_VAR
+VAR_IN_OUT
+    Access : "FRK_Access";
+    Response : "ST_HmiResponse";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Diag : "ST_Diagnostic";
+    Accepted : Bool;
+END_VAR
+BEGIN
+    IF #Unit.RequestPending AND #Unit.Request.Kind = 31 AND (#Access.PolicyLost OR #Access.ClassesLost) THEN
+        // Explicit ENGINEER acknowledgement accepts the restrictive fallback.
+        #Response.Accepted := #Access.CurrentLevel >= 3 AND #Access.PolicySlot > 0;
+        IF #Response.Accepted THEN
+            IF #Access.PolicyLost THEN "FRK_AccessPolicySave"(Access := #Access, Scope := WSTRING_TO_STRING(#SourcePath)); END_IF;
+            IF #Access.ClassesLost THEN "FRK_ClassSave"(Access := #Access, Scope := WSTRING_TO_STRING(#SourcePath)); END_IF;
+            #Access.PolicyLost := FALSE; #Access.ClassesLost := FALSE;
+            #Response.Diagnostic := WSTRING#'';
+        ELSE #Response.Diagnostic := WSTRING#'std.error.configRestoreAckRefused'; END_IF;
+    ELSIF #Unit.RequestPending AND #Response.Accepted AND NOT #Access.PolicyLost AND (#Unit.Request.Kind = 24 OR #Unit.Request.Kind = 25) THEN
+        "FRK_AccessPolicySave"(Access := #Access, Scope := WSTRING_TO_STRING(#SourcePath));
+    END_IF;
+    IF (#Access.PolicyLost OR #Access.ClassesLost) AND #Access.PolicyLossAlarm = 0 THEN
+        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+        #Diag.ReasonCode := 2040;
+        #Diag.Description := WSTRING#'std.error.configRestoreLost';
+        #Diag.SourcePath := #SourcePath;
+        #Access.PolicyLossAlarm := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+    ELSIF NOT #Access.PolicyLost AND NOT #Access.ClassesLost AND #Access.PolicyLossAlarm > 0 THEN
+        #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Access.PolicyLossAlarm);
+        #Access.PolicyLossAlarm := 0;
+    END_IF;
+    IF "FRK_AccessStorage".UsersLost AND #Access.PolicySlot > 0 AND #Access.UserLossAlarm = 0 THEN
+        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+        #Diag.ReasonCode := 2040;
+        #Diag.Description := WSTRING#'std.error.accessRestoreLost';
+        #Diag.SourcePath := #SourcePath;
+        #Access.UserLossAlarm := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+    ELSIF NOT "FRK_AccessStorage".UsersLost AND #Access.UserLossAlarm > 0 THEN
+        #Accepted := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Access.UserLossAlarm);
+        #Access.UserLossAlarm := 0;
+    END_IF;
+END_FUNCTION
+
+// Shared Unit services v0.1: operation authority, mailbox, modes and local carrier.
+FUNCTION "FRK_RunStylePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Startup : Bool; Exec : DInt; Access : "FRK_Access"; Supported : Array[0..2] of Bool; END_VAR
+BEGIN
+    IF #Owner < 1 OR #Owner > 32 THEN RETURN; END_IF;
+    "FRK_Registry".Rows[#Owner].StepWait := FALSE;
+    IF #Startup THEN "FRK_Registry".Rows[#Owner].RunStyle := 0; END_IF;
+    IF "FRK_Registry".Rows[#Owner].RunStyle < 0 OR "FRK_Registry".Rows[#Owner].RunStyle > 2 THEN "FRK_Registry".Rows[#Owner].RunStyle := 0; END_IF;
+    IF NOT #Supported["FRK_Registry".Rows[#Owner].RunStyle] THEN "FRK_Registry".Rows[#Owner].RunStyle := 0; END_IF;
+    IF #Startup OR #Exec <> 1 OR #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[5] THEN
+        "FRK_Registry".Rows[#Owner].StepToken := FALSE; "FRK_Registry".Rows[#Owner].HoldRun := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_RunStyleRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Scope : String; Exec : DInt; Supported : Array[0..2] of Bool; END_VAR
+VAR_IN_OUT Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse"; END_VAR
+VAR_TEMP Gate : DInt; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR (#Unit.Request.Kind <> 12 AND #Unit.Request.Kind <> 13 AND #Unit.Request.Kind <> 14) THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Owner < 1 OR #Owner > 32 THEN RETURN; END_IF;
+    IF #Unit.Request.Kind = 14 AND NOT #Unit.Request.BoolValue THEN
+        // A release can never be refused, including after logout/mode change.
+        "FRK_Registry".Rows[#Owner].HoldRun := FALSE; #Response.Accepted := TRUE;
+    ELSE
+        #Gate := 5;
+        IF #Unit.Request.Kind = 12 THEN #Gate := 4; END_IF;
+        IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[#Gate] THEN #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+        ELSIF NOT #Unit.ModePending THEN
+            CASE #Unit.Request.Kind OF
+                12:
+                    IF #Unit.Request.IntValue >= 0 AND #Unit.Request.IntValue <= 2 THEN
+                        IF #Supported[#Unit.Request.IntValue] THEN
+                            "FRK_Registry".Rows[#Owner].RunStyle := #Unit.Request.IntValue;
+                            "FRK_Registry".Rows[#Owner].StepToken := FALSE; "FRK_Registry".Rows[#Owner].HoldRun := FALSE;
+                            #Response.Accepted := TRUE;
+                        END_IF;
+                    END_IF;
+                13:
+                    IF #Exec = 1 AND "FRK_Registry".Rows[#Owner].RunStyle = 1 THEN
+                        "FRK_Registry".Rows[#Owner].StepToken := TRUE; #Response.Accepted := TRUE;
+                    END_IF;
+                14:
+                    IF #Exec = 1 AND "FRK_Registry".Rows[#Owner].RunStyle = 2 THEN
+                        "FRK_Registry".Rows[#Owner].HoldRun := TRUE; #Response.Accepted := TRUE;
+                    END_IF;
+                ELSE RETURN;
+            END_CASE;
+        END_IF;
+    END_IF;
+    IF #Response.Accepted THEN #Response.Diagnostic := WSTRING#'';
+    ELSE "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := 2002, Path := STRING_TO_WSTRING(#Scope), Kind := 4); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_StepGate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Steppable : Bool; END_VAR
+BEGIN
+    #FRK_StepGate := FALSE;
+    IF #Owner < 1 OR #Owner > 32 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Fault THEN RETURN; END_IF;
+    IF NOT "FRK_Registry".Rows[#Owner].Valid THEN RETURN; END_IF;
+    IF NOT #Steppable THEN #FRK_StepGate := TRUE; RETURN; END_IF;
+    CASE "FRK_Registry".Rows[#Owner].RunStyle OF
+        0: #FRK_StepGate := TRUE;
+        1:
+            #FRK_StepGate := "FRK_Registry".Rows[#Owner].StepToken;
+            "FRK_Registry".Rows[#Owner].StepToken := FALSE;
+        2: #FRK_StepGate := "FRK_Registry".Rows[#Owner].HoldRun;
+        ELSE #FRK_StepGate := FALSE;
+    END_CASE;
+    IF NOT #FRK_StepGate THEN "FRK_Registry".Rows[#Owner].StepWait := TRUE; END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_HoldRunBlocked" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; END_VAR
+BEGIN
+    #FRK_HoldRunBlocked := TRUE;
+    IF #Owner < 1 OR #Owner > 32 THEN RETURN; END_IF;
+    #FRK_HoldRunBlocked := "FRK_Registry".Rows[#Owner].RunStyle = 2 AND NOT "FRK_Registry".Rows[#Owner].HoldRun;
+END_FUNCTION
+
+FUNCTION "FRK_UnitPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+    InitialMode : DInt;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Request : "ST_HmiRequest";
+    Response : "ST_HmiResponse";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+END_VAR
+BEGIN
+    #Core.EvModeExit := FALSE;
+    #Core.EvModeChanged := FALSE;
+    IF NOT #Unit.Initialized THEN
+        #Unit.Initialized := TRUE;
+        #Unit.Permit := TRUE;
+        FOR #Index := 0 TO 7-1 DO
+            #Policy[#Index].Shield := 1;
+            #Policy[#Index].Style := 1;
+        END_FOR;
+        #Policy[0].Style := 0;
+        #Policy[2].Shield := 0;
+        #Policy[1].Shield := 0;
+        #Policy[3].Shield := 2;
+        #Policy[4].Shield := 2;
+        #Unit.Mode := #InitialMode;
+    END_IF;
+    IF #Startup THEN
+        #Unit.EvReset := FALSE;
+        #Unit.Mode := #InitialMode;
+        #Unit.RunReq := FALSE;
+        #Unit.AbortReq := #Core.Exec = 1;
+        #Unit.StopReq := FALSE;
+        #Unit.ModePending := FALSE;
+        #Unit.FollowStart := FALSE;
+        #Unit.CascadePending := FALSE;
+        #Unit.ReleaseChildren := TRUE;
+        #Unit.Clearing := TRUE;
+        // Consume the restart boundary without executing a transported request.
+        #Unit.SeenSequence := #Request.Sequence;
+        #Unit.RequestPending := FALSE;
+        #Request.Secret := '';
+        #Response.Accepted := FALSE;
+        #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+        #Response.AckSequence := #Unit.SeenSequence;
+    END_IF;
+    IF #Core.ReleasePending THEN
+        #Unit.FollowStart := FALSE;
+        // An incoming parent mode/reset operation is already queued for this scan.
+        // Preserve its cascade while cancelling the old command.
+        #Unit.RunReq := FALSE;
+        #Unit.AbortReq := TRUE;
+        #Unit.ReleaseChildren := TRUE;
+        #Unit.Clearing := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitSetLocalCarrier" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Index : DInt;
+END_VAR
+VAR_IN_OUT
+    Unit : "FRK_Unit";
+END_VAR
+BEGIN
+    #Unit.CarrierIndex := 0;
+    IF #Index < 1 OR #Index > 32 THEN RETURN; END_IF;
+    "FRK_Carriers".Slots[#Index].Enabled := TRUE;
+    "FRK_Carriers".Slots[#Index].Kind := 2;
+    #Unit.CarrierIndex := #Index;
+END_FUNCTION
+
+FUNCTION "FRK_PartEvent" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Reason : DInt;
+    Uid : String;
+    SourcePath : String;
+END_VAR
+VAR_IN_OUT
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Description : WString[255];
+END_VAR
+BEGIN
+    CASE #Reason OF
+        2024: #Description := WSTRING#'std.event.partReceived: ';
+        2025: #Description := WSTRING#'std.event.partProcessingStarted: ';
+        2026: #Description := WSTRING#'std.event.partProcessed: ';
+        2027: #Description := WSTRING#'std.event.partAborted: ';
+        ELSE #Description := WSTRING#'';
+    END_CASE;
+    #Description := CONCAT(IN1 := #Description, IN2 := STRING_TO_WSTRING(#Uid));
+    "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := #Reason, Description := #Description, SourcePath := STRING_TO_WSTRING(#SourcePath));
+END_FUNCTION
+
+FUNCTION "FRK_PartReceived" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Uid : String[64];
+    ResultIndex : DInt;
+END_VAR
+BEGIN
+    #FRK_PartReceived := FALSE;
+    #Index := #Unit.CarrierIndex;
+    IF #Index = 0 THEN RETURN; END_IF;
+    IF #Index < 1 OR #Index > 32 THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2020, Description := WSTRING#'std.error.partCarrierReadFailed');
+        RETURN;
+    END_IF;
+    IF NOT "FRK_Carriers".Slots[#Index].Enabled OR "FRK_Carriers".Slots[#Index].Kind <> 2 OR "FRK_Carriers".Slots[#Index].Serial = UDINT#4294967295 THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2020, Description := WSTRING#'std.error.partCarrierReadFailed');
+        RETURN;
+    END_IF;
+    "FRK_Carriers".Slots[#Index].Serial := "FRK_Carriers".Slots[#Index].Serial + 1;
+    #Uid := CONCAT(IN1 := 'FRK-', IN2 := DINT_TO_STRING(#Index));
+    #Uid := CONCAT(IN1 := #Uid, IN2 := '-');
+    #Uid := CONCAT(IN1 := #Uid, IN2 := UDINT_TO_STRING("FRK_Carriers".Slots[#Index].Serial));
+    #Part.Uid := #Uid;
+    #Part.Present := TRUE;
+    #Part.CarrierKind := 2;
+    #Part.Result.Verdict := 0;
+    #Part.Result.ReasonCode := 0;
+    #Part.Result.StationPath := STRING_TO_WSTRING(#Status.Name);
+    #Part.Result.Stamp := LDT#1970-01-01-00:00:00.000000000;
+    #Part.Result.TimeSynchronized := FALSE;
+    FOR #ResultIndex := 1 TO 32 DO #Part.Result.Records[#ResultIndex].Name := ''; END_FOR;
+    FOR #ResultIndex := 1 TO 8 DO #Part.Parents[#ResultIndex] := ''; END_FOR;
+    "FRK_Carriers".Slots[#Index].Context := #Part;
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := 2024, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := 1, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := 0, Reason := 0);
+    #FRK_PartReceived := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_PartStarted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN RETURN; END_IF;
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := 2025, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := 2, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := 0, Reason := 0);
+END_FUNCTION
+
+FUNCTION "FRK_PartProcessed" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Verdict : DInt;
+    Reason : DInt;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    #FRK_PartProcessed := FALSE;
+    #Index := #Unit.CarrierIndex;
+    IF #Index = 0 OR NOT #Part.Present THEN RETURN; END_IF;
+    IF #Verdict < 1 OR #Verdict > 3 OR (#Verdict = 2 AND #Reason = 0) THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2023, Description := WSTRING#'std.error.nokReasonRequired');
+        RETURN;
+    END_IF;
+    IF #Index < 1 OR #Index > 32 THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2021, Description := WSTRING#'std.error.partCarrierWriteFailed');
+        RETURN;
+    END_IF;
+    IF NOT "FRK_Carriers".Slots[#Index].Enabled THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2021, Description := WSTRING#'std.error.partCarrierWriteFailed');
+        RETURN;
+    END_IF;
+    IF #Part.Uid <> "FRK_Carriers".Slots[#Index].Context.Uid THEN
+        "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2022, Description := WSTRING#'std.error.partCarrierReadFailed');
+        RETURN;
+    END_IF;
+    #Part.Result.Verdict := #Verdict;
+    #Part.Result.ReasonCode := #Reason;
+    #Part.Result.StationPath := STRING_TO_WSTRING(#Status.Name);
+    #Part.Result.TimeSynchronized := FALSE;
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN #Part.Result.Stamp := DTL_TO_LDT(#Stamp); END_IF;
+    "FRK_Carriers".Slots[#Index].Written := #Part;
+    IF "FRK_Carriers".Slots[#Index].Writes < UDINT#4294967295 THEN "FRK_Carriers".Slots[#Index].Writes := "FRK_Carriers".Slots[#Index].Writes + 1; END_IF;
+    CASE #Verdict OF
+        1: IF #Unit.Good < UDINT#4294967295 THEN #Unit.Good := #Unit.Good + 1; END_IF;
+        2: IF #Unit.Nok < UDINT#4294967295 THEN #Unit.Nok := #Unit.Nok + 1; END_IF; #Unit.NokReason := #Reason;
+        3: IF #Unit.Rework < UDINT#4294967295 THEN #Unit.Rework := #Unit.Rework + 1; END_IF;
+        ELSE RETURN;
+    END_CASE;
+    // The provider result is written before publishing EVENT_PART_PROCESSED.
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := 2026, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := 3, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := #Verdict, Reason := #Reason);
+    IF #Verdict = 2 THEN
+        "FRK_HostEmit"(Kind := 10, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := #Verdict, Reason := #Reason);
+    END_IF;
+    #Part.Present := FALSE;
+    #FRK_PartProcessed := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_PartAborted" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    IF #Unit.CarrierIndex = 0 OR NOT #Part.Present THEN RETURN; END_IF;
+    #Part.Result.Verdict := 0;
+    IF #Core.Exec = 3 AND #Part.Result.ReasonCode = 0 THEN #Part.Result.ReasonCode := #Status.Diagnostic.ReasonCode; END_IF;
+    "FRK_PartEvent"(AlarmLog := #AlarmLog, Reason := 2027, Uid := #Part.Uid, SourcePath := #Status.Name);
+    "FRK_HostEmit"(Kind := 4, Scope := #Status.Name, PartUid := #Part.Uid, Subject := '', Value := '', Verdict := #Part.Result.Verdict, Reason := #Part.Result.ReasonCode);
+    #Part.Present := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_UnitSetPermit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Ok : Bool;
+    Diag : "ST_Diagnostic";
+END_VAR
+VAR_IN_OUT
+    Unit : "FRK_Unit";
+END_VAR
+BEGIN
+    #Unit.Permit := #Ok;
+    #Unit.PermitDiag := #Diag;
+END_FUNCTION
+
+FUNCTION "FRK_ReleaseReason" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Description : WString;
+    Reason : DInt;
+    Path : WString;
+    Kind : DInt;
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+END_VAR
+BEGIN
+    #Report.Released := FALSE;
+    IF #Report.Count < 24 THEN
+        #Report.Count := #Report.Count + 1;
+        #Report.Reasons[#Report.Count].Description := #Description;
+        #Report.Reasons[#Report.Count].ReasonCode := #Reason;
+        #Report.Reasons[#Report.Count].SourcePath := #Path;
+        #Report.Reasons[#Report.Count].Kind := #Kind;
+        #Report.Reasons[#Report.Count].Bypassable := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitOperation" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..6] of Bool;
+    Request : "ST_HmiRequest";
+    Trusted : Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Response : "ST_HmiResponse";
+END_VAR
+VAR_TEMP
+    Gate : DInt;
+    Desired : DInt;
+    Query : Bool;
+    Level : DInt;
+    DecisionAccepted : Bool;
+END_VAR
+BEGIN
+    #Response.Accepted := FALSE;
+    #Response.Diagnostic := WSTRING#'';
+    #Response.Report.Count := 0;
+    #Response.Report.Released := TRUE;
+    #Gate := -1;
+    #Desired := -1;
+    #Query := FALSE;
+    CASE #Request.Kind OF
+        5: #Gate := 5; #Desired := 0;
+        6: #Gate := 5; #Desired := 1;
+        3:
+            #Gate := 4; #Desired := #Request.IntValue;
+            IF #Desired = -1 THEN #Desired := -2; END_IF;
+        9: #Gate := 7;
+        10: #Gate := 5;
+        11: #Gate := 2;
+        24, 25: #Gate := 8;
+        15: #Gate := 5; #Desired := 0; #Query := TRUE;
+        16: #Gate := 2; #Query := TRUE;
+        17: #Gate := #Request.IntValue; #Desired := -1; #Query := TRUE;
+        ELSE #Gate := -1;
+    END_CASE;
+    IF #Gate <> -1 OR #Request.Kind = 17 THEN
+        "FRK_UnitRelease"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Report := #Response.Report, Gate := #Gate, Desired := #Desired, Trusted := #Trusted);
+        IF #Query THEN
+            #Response.Accepted := TRUE;
+        ELSIF #Response.Report.Released THEN
+            CASE #Request.Kind OF
+                10:
+                    #DecisionAccepted := "FRK_DecisionSubmit"(Owner := #Core.RegIndex, OwnerPath := STRING_TO_WSTRING(#Status.Name), Option := #Request.IntValue,
+                        Busy := #Core.Exec = 1, Permit := #Unit.Permit, Report := #Response.Report);
+                    #Response.Accepted := #DecisionAccepted;
+                5:
+                    #Unit.StopReq := FALSE;
+                    #Unit.RunReq := TRUE;
+                    #Response.Accepted := TRUE;
+                6:
+                    #Unit.StopReq := #Core.Exec = 1;
+                    IF NOT #Unit.StopReq THEN #Unit.RunReq := FALSE; END_IF;
+                    #Unit.FollowStart := FALSE;
+                    #Response.Accepted := TRUE;
+                3:
+                    IF #Desired <> #Unit.Mode THEN
+                        #Unit.ExitFirst := TRUE;
+                        #Unit.ModeSince := "FRK_Clock".NowMs;
+                        #Unit.RequestedMode := #Desired;
+                        #Unit.ModePending := TRUE;
+                        IF #Unit.Mode = 1 THEN
+                            #Unit.ReleaseChildren := TRUE;
+                            #Unit.Clearing := TRUE;
+                        END_IF;
+                    END_IF;
+                    #Response.Accepted := TRUE;
+                9:
+                    #Unit.EvReset := TRUE;
+                    #Unit.ModePending := FALSE;
+                    #Unit.ExitFirst := FALSE;
+                    #Unit.RunReq := FALSE;
+                    #Unit.AbortReq := #Core.Exec = 1;
+                    #Unit.StopReq := FALSE;
+                    #Unit.FollowStart := FALSE;
+                    #Unit.ReleaseChildren := TRUE;
+                    #Unit.Clearing := TRUE;
+                    #Unit.FaultLatched := FALSE;
+                    IF #Core.Exec = 3 THEN #Core.Armed := TRUE; END_IF;
+                    #Response.Accepted := TRUE;
+                24:
+                    #Level := -1;
+                    IF #Request.TextValue = WSTRING#'0' THEN #Level := 0;
+                    ELSIF #Request.TextValue = WSTRING#'1' THEN #Level := 1;
+                    ELSIF #Request.TextValue = WSTRING#'2' THEN #Level := 2;
+                    ELSIF #Request.TextValue = WSTRING#'3' THEN #Level := 3;
+                    ELSIF #Request.TextValue = WSTRING#'4' THEN #Level := 4;
+                    END_IF;
+                    IF #Request.IntValue >= 0 AND #Request.IntValue <= 11 AND #Level >= 0 THEN
+                        IF #Request.IntValue <> 8 OR #Level <= #Access.CurrentLevel THEN
+                            #Access.Policy.Required[#Request.IntValue] := #Level;
+                            #Response.Accepted := TRUE;
+                        END_IF;
+                    END_IF;
+                25:
+                    IF #Request.DurationMs <= 604800000 THEN
+                        #Access.Policy.SessionTimeout := DINT_TO_TIME(UDINT_TO_DINT(#Request.DurationMs));
+                        #Response.Accepted := TRUE;
+                    END_IF;
+                ELSE
+                    // Manual acceptance is resolved by the generated typed route.
+                    #Response.Accepted := FALSE;
+            END_CASE;
+        END_IF;
+    ELSE
+        CASE #Request.Kind OF
+            1:
+                "FRK_AccessLogin"(Access := #Access, User := #Request.User, Secret := #Request.Secret, Sequence := #Request.Sequence);
+                // Consumption is acknowledged now; correlated result is asynchronous.
+                #Response.Accepted := TRUE;
+            2:
+                "FRK_AccessLogout"(Access := #Access);
+                #Response.Accepted := TRUE;
+
+            ELSE
+                #Response.Diagnostic := WSTRING#'std.error.unsupportedHmiRequest';
+        END_CASE;
+    END_IF;
+    IF #Response.Accepted AND NOT #Query THEN
+        IF #Request.Kind = 5 OR #Request.Kind = 6 OR #Request.Kind = 3 OR #Request.Kind = 9 THEN
+            #Unit.CascadePending := TRUE;
+            #Unit.CascadeKind := #Request.Kind;
+            #Unit.CascadeMode := #Unit.Mode;
+            IF #Request.Kind = 3 THEN #Unit.CascadeMode := #Desired; END_IF;
+        END_IF;
+    END_IF;
+    IF NOT #Response.Accepted AND #Request.Kind <> 11 THEN
+        IF #Response.Diagnostic = WSTRING#'' THEN #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected'; END_IF;
+        IF #Response.Report.Released THEN
+            "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := 2002, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitMailbox" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..6] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Request : "ST_HmiRequest";
+    Response : "ST_HmiResponse";
+END_VAR
+VAR_TEMP
+    SequenceBefore : UDInt;
+END_VAR
+BEGIN
+    #SequenceBefore := #Request.Sequence;
+    IF #SequenceBefore = 0 OR #SequenceBefore = #Unit.SeenSequence THEN RETURN; END_IF;
+    #Unit.Request := #Request;
+    IF #Request.Sequence <> #SequenceBefore THEN #Unit.Request.Secret := ''; RETURN; END_IF;
+    #Request.Secret := '';
+    #Unit.RequestUser := #Access.CurrentUser;
+    #Unit.SeenSequence := #SequenceBefore;
+    #Unit.RequestPending := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_UnitConsume" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..6] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Response : "ST_HmiResponse";
+END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending THEN RETURN; END_IF;
+    // The generated typed ownership walk serves the static manifest after children.
+    IF #Unit.Request.Kind = 23 THEN
+        #Unit.Request.Secret := '';
+        RETURN;
+    END_IF;
+    "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Unit.Request, Response := #Response, Trusted := FALSE);
+    #Unit.Request.Secret := '';
+END_FUNCTION
+
+FUNCTION "FRK_UnitMode" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+END_VAR
+BEGIN
+    IF #Unit.ModePending THEN
+        IF #Core.Exec = 1 THEN
+            #Core.EvModeExit := TRUE;
+            #Core.HookResult := 0;
+        ELSIF #Core.Exec = 0 AND NOT #Unit.Clearing THEN
+            #Unit.Mode := #Unit.RequestedMode;
+            #Unit.ModePending := FALSE;
+            #Unit.ExitFirst := FALSE;
+            #Core.EvModeChanged := TRUE;
+        ELSE
+            #Unit.RunReq := FALSE;
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitModeResolve" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Timeout : Time;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    IF #Unit.ModePending THEN
+        IF #Timeout <= T#0ms OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Unit.ModeSince) >= DINT_TO_UDINT(TIME_TO_DINT(#Timeout)) THEN
+            "FRK_Fault"(Core := #Core, Status := #Status, ReasonCode := 2001, Description := WSTRING#'std.error.hmiRequestRejected');
+            #Unit.ModePending := FALSE;
+            #Unit.FollowStart := FALSE;
+            #Unit.ReleaseChildren := TRUE;
+            #Unit.Clearing := TRUE;
+        ELSIF #Core.EvModeExit THEN
+            #Unit.ExitFirst := FALSE;
+            IF #Policy[#Unit.Mode].Style = 0 THEN
+                #Unit.StopReq := TRUE;
+            ELSIF #Core.HookResult <= 0 THEN
+                #Unit.AbortReq := TRUE;
+                #Unit.ReleaseChildren := TRUE;
+                #Unit.Clearing := TRUE;
+            END_IF;
+        END_IF;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitRunStart" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Timeout : Time;
+    Label : String;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Status : "ST_ModuleStatus";
+END_VAR
+BEGIN
+    "FRK_Start"(Core := #Core, Status := #Status, Supported := TRUE, Timeout := #Timeout, Label := #Label);
+    // A continuous run ends at Stop. Bounded commands/steps own progress timeouts.
+    #Core.TimeoutMs := 0;
+END_FUNCTION
+
+FUNCTION "FRK_DescendantsReady" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    OwnerIndex : DInt;
+END_VAR
+VAR_TEMP
+    Index : DInt;
+    Parent : DInt;
+    Depth : DInt;
+END_VAR
+BEGIN
+    #FRK_DescendantsReady := FALSE;
+    IF "FRK_Registry".Fault OR #OwnerIndex < 1 OR #OwnerIndex > "FRK_Registry".Count OR "FRK_Registry".Count > 32 THEN RETURN; END_IF;
+    FOR #Index := 1 TO "FRK_Registry".Count DO
+        #Parent := "FRK_Registry".Rows[#Index].Parent;
+        FOR #Depth := 1 TO 32 DO
+            IF #Parent = #OwnerIndex THEN
+                IF "FRK_Registry".Rows[#Index].Exec <> 0 THEN RETURN; END_IF;
+                EXIT;
+            END_IF;
+            IF #Parent = 0 THEN EXIT; END_IF;
+            IF #Parent < 1 OR #Parent > "FRK_Registry".Count THEN RETURN; END_IF;
+            #Parent := "FRK_Registry".Rows[#Parent].Parent;
+        END_FOR;
+        IF #Depth > 32 AND #Parent <> 0 THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_DescendantsReady := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_UnitFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Response : "ST_HmiResponse";
+    Status : "ST_ModuleStatus";
+    Part : "ST_PartContext";
+    AlarmLog : "FRK_AlarmLog";
+    History : Array[1..16] of "ST_Diagnostic";
+    Head : Int;
+END_VAR
+BEGIN
+    IF #Core.Exec = 3 THEN
+        IF NOT #Unit.EvReset THEN #Unit.FaultLatched := TRUE; END_IF;
+        IF NOT #Unit.PrevError THEN
+            IF #Head < 0 OR #Head >= 16 THEN #Head := 0; END_IF;
+            #Head := #Head + 1;
+            #History[#Head] := #Status.Diagnostic;
+            "FRK_PartAborted"(Core := #Core, Unit := #Unit, Status := #Status, Part := #Part, AlarmLog := #AlarmLog);
+        END_IF;
+    END_IF;
+    #Unit.PrevError := #Core.Exec = 3;
+    IF #Core.Exec = 2 OR #Core.Exec = 4 THEN #Unit.RunReq := FALSE; END_IF;
+    IF #Unit.Clearing AND #Core.Exec = 0 THEN
+        IF "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN #Unit.Clearing := FALSE; END_IF;
+    END_IF;
+    #Unit.AbortReq := FALSE;
+    #Unit.ReleaseChildren := FALSE;
+    #Unit.EvReset := FALSE;
+    IF #Unit.RequestPending THEN
+        #Response.AckSequence := #Unit.SeenSequence;
+        #Unit.RequestPending := FALSE;
+    END_IF;
+END_FUNCTION
+
+// Shared Unit routing: typed generated edges carry these owning predicates.
+FUNCTION "FRK_PathOwned" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    OwnerPath : String;
+    TargetPath : WString;
+END_VAR
+VAR_TEMP
+    Width : Int;
+END_VAR
+BEGIN
+    #FRK_PathOwned := FALSE;
+    #Width := LEN(#OwnerPath);
+    IF #Width = 0 THEN RETURN; END_IF;
+    IF #TargetPath = STRING_TO_WSTRING(#OwnerPath) THEN #FRK_PathOwned := TRUE; RETURN; END_IF;
+    IF LEN(#TargetPath) <= #Width THEN RETURN; END_IF;
+    #FRK_PathOwned := LEFT(IN := #TargetPath, L := #Width) = STRING_TO_WSTRING(#OwnerPath) AND #TargetPath[#Width + 1] = WCHAR#'.';
+END_FUNCTION
+
+FUNCTION "FRK_UnitRelease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Gate : DInt;
+    Desired : DInt;
+    Trusted : Bool;
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    Supported : Array[0..6] of Bool;
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+END_VAR
+BEGIN
+    #Report.Count := 0;
+    #Report.Released := TRUE;
+    IF #Gate <> 5 AND #Gate <> 4
+        AND #Gate <> 7 AND #Gate <> 2
+        AND #Gate <> 8
+        AND NOT (#Unit.ConfigEnabled AND #Gate = 1)
+        AND NOT (#Unit.ConfigSetsEnabled AND #Gate = 11)
+        AND NOT (#Unit.ModelEnabled AND #Gate = 3) THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := 2008, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+        RETURN;
+    END_IF;
+    IF NOT #Trusted THEN
+        IF #Access.CurrentLevel < #Access.Policy.Required[#Gate] THEN
+            "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.insufficientAction', Reason := 2002, Path := STRING_TO_WSTRING(#Status.Name), Kind := 1);
+        END_IF;
+    END_IF;
+    CASE #Gate OF
+        3:
+            IF #Core.Exec <> 0 OR #Unit.ModePending OR #Unit.Clearing OR NOT "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := 2011, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+            END_IF;
+            IF #Unit.AlarmBlocking THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualReset', Reason := 0, Path := STRING_TO_WSTRING(#Status.Name), Kind := 2);
+            END_IF;
+            IF NOT #Unit.Permit THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := 3);
+            END_IF;
+        5:
+            // Desired=0 is Start, Desired=1 is Stop. Generic action query is Stop.
+            IF #Desired = 0 THEN
+                IF #Unit.Mode = 1 OR #Unit.ModePending THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedModeRequest', Reason := 2002, Path := STRING_TO_WSTRING(#Status.Name), Kind := 0);
+                END_IF;
+                IF #Core.Exec <> 0 OR #Unit.RunReq OR #Unit.Clearing OR #Unit.FaultLatched THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := 2011, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+                END_IF;
+                IF #Unit.AlarmBlocking THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualReset', Reason := 0, Path := STRING_TO_WSTRING(#Status.Name), Kind := 2);
+                END_IF;
+                IF #Unit.ConfigBlocked THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.configRestoreUnacknowledged', Reason := 2040, Path := STRING_TO_WSTRING(#Status.Name), Kind := 2);
+                END_IF;
+                IF NOT #Unit.Permit THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := 3);
+                END_IF;
+            END_IF;
+        4:
+            IF #Unit.ModePending THEN
+                "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.modeChangeAlreadyPending', Reason := 2011, Path := STRING_TO_WSTRING(#Status.Name), Kind := 0);
+            END_IF;
+            IF #Core.Exec = 1 AND #Unit.Mode <> 1 THEN
+                IF #Policy[#Unit.Mode].Shield = 2 THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.modeSwitchBlockedWhileRunning', Reason := 2002, Path := STRING_TO_WSTRING(#Status.Name), Kind := 0);
+                END_IF;
+            END_IF;
+            IF #Desired <> -1 THEN
+                IF #Desired < 0 OR #Desired >= 7 THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedModeRequest', Reason := 2008, Path := STRING_TO_WSTRING(#Status.Name), Kind := 0);
+                ELSIF NOT #Supported[#Desired] THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedModeRequest', Reason := 2008, Path := STRING_TO_WSTRING(#Status.Name), Kind := 0);
+                END_IF;
+            END_IF;
+        7:
+            // The complete alarm model is separate; this gate owns the current latch.
+            IF NOT #Unit.FaultLatched AND NOT #Unit.AlarmBlocking AND #Core.Exec = 0 AND NOT #Unit.Clearing AND NOT #Unit.ModePending AND NOT #Unit.FollowStart THEN
+                IF "FRK_DescendantsReady"(OwnerIndex := #Core.RegIndex) THEN
+                    "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noBlockingAlarm', Reason := 2011, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+                END_IF;
+            END_IF;
+        2:
+            "FRK_ManualCommon"(Core := #Core, Unit := #Unit, Status := #Status, Report := #Report);
+        ELSE
+            RETURN;
+    END_CASE;
+END_FUNCTION
+
+FUNCTION "FRK_ManualCommon" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+END_VAR
+BEGIN
+    IF #Unit.Mode <> 1 OR #Unit.ModePending THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualModeRequired', Reason := 2002, Path := STRING_TO_WSTRING(#Status.Name), Kind := 0);
+    END_IF;
+    IF #Core.Exec <> 0 OR #Unit.Clearing OR #Unit.FaultLatched THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := 2011, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+    END_IF;
+    IF #Unit.AlarmBlocking THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.manualReset', Reason := 0, Path := STRING_TO_WSTRING(#Status.Name), Kind := 2);
+    END_IF;
+    IF NOT #Unit.Permit THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := #Unit.PermitDiag.Description, Reason := #Unit.PermitDiag.ReasonCode, Path := #Unit.PermitDiag.SourcePath, Kind := 3);
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ManualCondition" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Slot : Int;
+    Value : DInt;
+    Ok : Bool;
+    Diag : "ST_Diagnostic";
+    Bypassable : Bool;
+END_VAR
+VAR_IN_OUT
+    Conditions : Array[1..16] of "FRK_ManualConditionRow";
+END_VAR
+BEGIN
+    IF #Slot < 1 OR #Slot > 16 THEN RETURN; END_IF;
+    #Conditions[#Slot].Used := TRUE;
+    #Conditions[#Slot].Value := #Value;
+    #Conditions[#Slot].Ok := #Ok;
+    #Conditions[#Slot].Diag := #Diag;
+    #Conditions[#Slot].Bypassable := #Bypassable;
+END_FUNCTION
+
+FUNCTION "FRK_ManualApply" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Status : "ST_ModuleStatus";
+    Core : "FRK_Core";
+    Commands : Array[1..12] of "ST_CommandInfo";
+    Count : DInt;
+    Conditions : Array[1..16] of "FRK_ManualConditionRow";
+END_VAR
+VAR_IN_OUT
+    Report : "ST_ReleaseReport";
+    Execute : Bool;
+    Command : DInt;
+    ManualOwned : Bool;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Supported : Bool;
+    PreviousCount : Int;
+END_VAR
+BEGIN
+    #Supported := FALSE;
+    IF #Count >= 0 AND #Count <= 12 THEN
+        FOR #Index := 1 TO DINT_TO_INT(#Count) DO
+            IF #Commands[#Index].Value = #Request.IntValue AND #Commands[#Index].Style = 0 THEN #Supported := TRUE; END_IF;
+        END_FOR;
+    END_IF;
+    IF NOT #Supported THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.unsupportedHmiRequest', Reason := 2008, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+    END_IF;
+    IF #Core.Exec <> 0 OR #Execute OR #Core.ReleasePending THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.error.hmiRequestRejected', Reason := 2011, Path := STRING_TO_WSTRING(#Status.Name), Kind := 4);
+    END_IF;
+    FOR #Index := 1 TO 16 DO
+        IF #Conditions[#Index].Used AND NOT #Conditions[#Index].Ok THEN
+            IF #Conditions[#Index].Value = 0 OR #Conditions[#Index].Value = #Request.IntValue THEN
+                #PreviousCount := #Report.Count;
+                "FRK_ReleaseReason"(Report := #Report, Description := #Conditions[#Index].Diag.Description, Reason := #Conditions[#Index].Diag.ReasonCode, Path := STRING_TO_WSTRING(#Status.Name), Kind := 3);
+                IF #Report.Count > #PreviousCount THEN #Report.Reasons[#Report.Count].Bypassable := #Conditions[#Index].Bypassable; END_IF;
+            END_IF;
+        END_IF;
+    END_FOR;
+    IF #Request.Kind = 11 AND #Report.Released THEN
+        #Command := #Request.IntValue;
+        #Execute := TRUE;
+        #ManualOwned := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ManualFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Core : "FRK_Core";
+END_VAR
+VAR_IN_OUT
+    Execute : Bool;
+    ManualOwned : Bool;
+END_VAR
+BEGIN
+    IF #ManualOwned AND #Core.Exec <> 1 THEN
+        #Execute := FALSE;
+        #ManualOwned := FALSE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitCascade" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ParentUnit : "FRK_Unit";
+    Supported : Array[0..6] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Access : "FRK_Access";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    Request : "ST_HmiRequest";
+END_VAR
+BEGIN
+    IF NOT #ParentUnit.CascadePending THEN RETURN; END_IF;
+    IF #ParentUnit.CascadeKind = 6 OR #ParentUnit.CascadeKind = 9 THEN
+        #Unit.FollowStart := FALSE;
+        #Request.Kind := #ParentUnit.CascadeKind;
+        "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+        RETURN;
+    END_IF;
+    #Request.Kind := 3;
+    #Request.IntValue := #ParentUnit.CascadeMode;
+    "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+    IF NOT "FRK_UnitScratch".Response.Accepted THEN
+        #Unit.FollowStart := FALSE;
+        #Request.Kind := 6;
+        "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+        // Core names this event but has no assigned E_Reason ordinal yet.
+        "FRK_AlarmMessage"(AlarmLog := #AlarmLog, Reason := 2008, Description := WSTRING#'std.event.childModeUnsupported', SourcePath := STRING_TO_WSTRING(#Status.Name));
+    ELSE
+        #Unit.FollowStart := #ParentUnit.CascadeKind = 5;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_UnitFollow" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Supported : Array[0..6] of Bool;
+END_VAR
+VAR_IN_OUT
+    Core : "FRK_Core";
+    Unit : "FRK_Unit";
+    Status : "ST_ModuleStatus";
+    Policy : Array[0..6] of "ST_ModePolicy";
+    Access : "FRK_Access";
+END_VAR
+VAR_TEMP
+    Request : "ST_HmiRequest";
+END_VAR
+BEGIN
+    IF #Unit.FollowStart AND NOT #Unit.ModePending AND NOT #Unit.Clearing THEN
+        #Unit.FollowStart := FALSE;
+        #Request.Kind := 5;
+        "FRK_UnitOperation"(Core := #Core, Unit := #Unit, Status := #Status, Policy := #Policy, Access := #Access, Supported := #Supported, Request := #Request, Response := "FRK_UnitScratch".Response, Trusted := TRUE);
+    END_IF;
+END_FUNCTION
+
+// Core 6.11: one authoritative decision slot per registered root.
+FUNCTION "FRK_DecisionRoot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Create : Bool; END_VAR
+VAR_TEMP RootIndex : DInt; Depth : DInt; Slot : Int; END_VAR
+BEGIN
+    #FRK_DecisionRoot := 0;
+    IF "FRK_Registry".Fault OR "FRK_Registry".Count < 1 OR "FRK_Registry".Count > 32 THEN RETURN; END_IF;
+    #RootIndex := #Owner;
+    FOR #Depth := 1 TO 32 DO
+        IF #RootIndex < 1 OR #RootIndex > "FRK_Registry".Count THEN RETURN; END_IF;
+        IF NOT "FRK_Registry".Rows[#RootIndex].Valid THEN RETURN; END_IF;
+        IF "FRK_Registry".Rows[#RootIndex].Parent = 0 THEN EXIT; END_IF;
+        #RootIndex := "FRK_Registry".Rows[#RootIndex].Parent;
+    END_FOR;
+    IF "FRK_Registry".Rows[#RootIndex].Parent <> 0 THEN RETURN; END_IF;
+    FOR #Slot := 1 TO 2 DO
+        IF "FRK_Decisions".Slots[#Slot].RootIndex = #RootIndex THEN
+            #FRK_DecisionRoot := #Slot;
+            RETURN;
+        END_IF;
+    END_FOR;
+    IF NOT #Create THEN RETURN; END_IF;
+    FOR #Slot := 1 TO 2 DO
+        IF "FRK_Decisions".Slots[#Slot].RootIndex = 0 THEN
+            "FRK_Decisions".Slots[#Slot].RootIndex := #RootIndex;
+            #FRK_DecisionRoot := #Slot;
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionAudit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Key : WString; SourcePath : WString; Option : Int; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Diag : "ST_Diagnostic"; Slot : Int; Gone : Bool; Choice : String[6]; END_VAR
+BEGIN
+    #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+    #Diag.Description := #Key;
+    IF #Option <> 0 THEN
+        #Diag.Description := CONCAT(IN1 := #Diag.Description, IN2 := WSTRING#' option=');
+        #Choice := INT_TO_STRING(#Option);
+        IF LEFT(IN := #Choice, L := 1) = '+' THEN #Choice := DELETE(IN := #Choice, L := 1, P := 1); END_IF;
+        #Diag.Description := CONCAT(IN1 := #Diag.Description, IN2 := STRING_TO_WSTRING(#Choice));
+    END_IF;
+    #Diag.SourcePath := #SourcePath;
+    #Diag.Severity := 0;
+    #Diag.Category := 0;
+    #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+    IF #Slot > 0 THEN #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionClear" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Slot : "FRK_DecisionSlot"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #Slot.Request.Prompt := WSTRING#'';
+    #Slot.Request.SourcePath := WSTRING#'';
+    #Slot.Request.Default := 0;
+    #Slot.Request.Timeout := T#0ms;
+    FOR #Index := 1 TO 6 DO #Slot.Request.Options[#Index] := ''; END_FOR;
+    #Slot.Answer := 0;
+    #Slot.Owner := 0;
+    #Slot.OverlapLogged := FALSE;
+    #Slot.ResolutionLogged := FALSE;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionAsk" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; OwnerPath : WString; Request : "ST_DecisionRequest"; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Candidate : "ST_DecisionRequest"; Slot : Int; Index : Int; SameRequest : Bool; HasOption : Bool; END_VAR
+BEGIN
+    #FRK_DecisionAsk := FALSE;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := TRUE);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    #Candidate := #Request;
+    IF #Candidate.SourcePath = WSTRING#'' THEN
+        #Candidate.SourcePath := #OwnerPath;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Prompt <> WSTRING#'' THEN
+        #SameRequest := "FRK_Decisions".Slots[#Slot].Owner = #Owner
+            AND "FRK_Decisions".Slots[#Slot].Request.Prompt = #Candidate.Prompt
+            AND "FRK_Decisions".Slots[#Slot].Request.SourcePath = #Candidate.SourcePath
+            AND "FRK_Decisions".Slots[#Slot].Request.Default = #Candidate.Default
+            AND "FRK_Decisions".Slots[#Slot].Request.Timeout = #Candidate.Timeout;
+        FOR #Index := 1 TO 6 DO
+            #SameRequest := #SameRequest AND "FRK_Decisions".Slots[#Slot].Request.Options[#Index] = #Candidate.Options[#Index];
+        END_FOR;
+        IF #SameRequest THEN #FRK_DecisionAsk := TRUE; RETURN; END_IF;
+        IF NOT "FRK_Decisions".Slots[#Slot].OverlapLogged THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionOverlapRejected', SourcePath := #Candidate.SourcePath, Option := 0);
+            "FRK_Decisions".Slots[#Slot].OverlapLogged := TRUE;
+        END_IF;
+        RETURN;
+    END_IF;
+    #HasOption := FALSE;
+    FOR #Index := 1 TO 6 DO #HasOption := #HasOption OR #Candidate.Options[#Index] <> ''; END_FOR;
+    IF #Candidate.Prompt = WSTRING#'' OR #Candidate.Timeout < T#0ms OR NOT #HasOption
+        OR #Candidate.SourcePath <> #OwnerPath OR #OwnerPath = WSTRING#'' THEN
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionInvalidRejected', SourcePath := #Candidate.SourcePath, Option := #Candidate.Default);
+        RETURN;
+    END_IF;
+    IF #Candidate.Timeout > T#0ms OR #Candidate.Default <> 0 THEN
+        IF #Candidate.Default < 1 OR #Candidate.Default > 6 THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionInvalidRejected', SourcePath := #Candidate.SourcePath, Option := #Candidate.Default);
+            RETURN;
+        END_IF;
+        IF #Candidate.Options[#Candidate.Default] = '' THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionInvalidRejected', SourcePath := #Candidate.SourcePath, Option := #Candidate.Default);
+            RETURN;
+        END_IF;
+    END_IF;
+    "FRK_Decisions".Slots[#Slot].Request := #Candidate;
+    "FRK_Decisions".Slots[#Slot].Owner := #Owner;
+    "FRK_Decisions".Slots[#Slot].AskedAt := "FRK_Clock".NowMs;
+    "FRK_Decisions".Slots[#Slot].Answer := 0;
+    "FRK_Decisions".Slots[#Slot].ResolutionLogged := FALSE;
+    "FRK_Decisions".Slots[#Slot].OverlapLogged := FALSE;
+    "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionRequested', SourcePath := #Candidate.SourcePath, Option := 0);
+    #FRK_DecisionAsk := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionSubmit" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; OwnerPath : WString; Option : DInt; Busy : Bool; Permit : Bool; END_VAR
+VAR_IN_OUT Report : "ST_ReleaseReport"; END_VAR
+VAR_TEMP Slot : Int; SourcePath : WString[255]; END_VAR
+BEGIN
+    #FRK_DecisionSubmit := FALSE;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    #SourcePath := #OwnerPath;
+    IF NOT #Busy OR #Slot = 0 THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noActiveDecision', Reason := 0, Path := #SourcePath, Kind := 4);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].RootIndex <> #Owner THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noActiveDecision', Reason := 0, Path := #SourcePath, Kind := 4);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'' OR "FRK_Decisions".Slots[#Slot].Answer <> 0 THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.noActiveDecision', Reason := 0, Path := #SourcePath, Kind := 4);
+        RETURN;
+    END_IF;
+    IF #Option < 1 OR #Option > 6 THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.invalidDecisionOption', Reason := 2008, Path := #SourcePath, Kind := 4);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Options[#Option] = '' THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.invalidDecisionOption', Reason := 2008, Path := #SourcePath, Kind := 4);
+        RETURN;
+    END_IF;
+    IF NOT #Permit THEN
+        "FRK_ReleaseReason"(Report := #Report, Description := WSTRING#'std.release.decisionInterlock', Reason := 2002, Path := #SourcePath, Kind := 3);
+        RETURN;
+    END_IF;
+    IF NOT #Report.Released THEN RETURN; END_IF;
+    "FRK_Decisions".Slots[#Slot].Answer := DINT_TO_INT(#Option);
+    #FRK_DecisionSubmit := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionCyclic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; Busy : Bool; Reset : Bool; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; Elapsed : UDInt; END_VAR
+BEGIN
+    IF #Owner < 1 OR #Owner > "FRK_Registry".Count THEN RETURN; END_IF;
+    // Only the root resolves/withdraws its slot; an idle nested Unit cannot
+    // cancel a root's running decision.
+    IF "FRK_Registry".Rows[#Owner].Parent <> 0 THEN RETURN; END_IF;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Prompt = WSTRING#'' THEN RETURN; END_IF;
+    IF #Reset OR NOT #Busy THEN
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionWithdrawn', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := 0);
+        "FRK_DecisionClear"(Slot := "FRK_Decisions".Slots[#Slot]);
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Answer <> 0 THEN
+        IF NOT "FRK_Decisions".Slots[#Slot].ResolutionLogged THEN
+            "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionOperatorResolved', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := "FRK_Decisions".Slots[#Slot].Answer);
+            "FRK_Decisions".Slots[#Slot].ResolutionLogged := TRUE;
+        END_IF;
+        RETURN;
+    END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Request.Timeout <= T#0ms THEN RETURN; END_IF;
+    #Elapsed := "FRK_Clock".NowMs - "FRK_Decisions".Slots[#Slot].AskedAt;
+    IF #Elapsed >= DINT_TO_UDINT(TIME_TO_DINT("FRK_Decisions".Slots[#Slot].Request.Timeout)) THEN
+        "FRK_Decisions".Slots[#Slot].Answer := "FRK_Decisions".Slots[#Slot].Request.Default;
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionTimeoutResolved', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := "FRK_Decisions".Slots[#Slot].Answer);
+        "FRK_Decisions".Slots[#Slot].ResolutionLogged := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_DecisionTake" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; END_VAR
+VAR_IN_OUT AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Slot : Int; END_VAR
+BEGIN
+    #FRK_DecisionTake := 0;
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Owner <> #Owner THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].Answer = 0 THEN RETURN; END_IF;
+    #FRK_DecisionTake := "FRK_Decisions".Slots[#Slot].Answer;
+    IF NOT "FRK_Decisions".Slots[#Slot].ResolutionLogged THEN
+        "FRK_DecisionAudit"(AlarmLog := #AlarmLog, Key := WSTRING#'std.audit.decisionOperatorResolved', SourcePath := "FRK_Decisions".Slots[#Slot].Request.SourcePath, Option := #FRK_DecisionTake);
+    END_IF;
+    "FRK_DecisionClear"(Slot := "FRK_Decisions".Slots[#Slot]);
+END_FUNCTION
+
+FUNCTION "FRK_DecisionPublish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Owner : DInt; END_VAR
+VAR_IN_OUT Decision : "ST_DecisionRequest"; DecisionAnswer : Int; END_VAR
+VAR_TEMP Slot : Int; END_VAR
+BEGIN
+    #Slot := "FRK_DecisionRoot"(Owner := #Owner, Create := FALSE);
+    #Decision := "FRK_Decisions".EmptyRequest;
+    #DecisionAnswer := 0;
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_Decisions".Slots[#Slot].RootIndex <> #Owner THEN RETURN; END_IF;
+    #Decision := "FRK_Decisions".Slots[#Slot].Request;
+    #DecisionAnswer := "FRK_Decisions".Slots[#Slot].Answer;
+END_FUNCTION
+
+FUNCTION "FRK_DataLevel" : DInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Access : "FRK_Access";
+    ClassId : String;
+    Minimum : DInt;
+    ForWrite : Bool;
+END_VAR
+VAR_TEMP
+    Required : DInt;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_DataLevel := 4;
+    IF #Minimum < 0 OR #Minimum > 4 THEN RETURN; END_IF;
+    #Required := #Access.Policy.Required[0];
+    IF #ForWrite THEN #Required := #Access.Policy.Required[1]; END_IF;
+    IF #ClassId <> '' THEN
+        #Required := 4;
+        IF #Access.ClassesLost OR #Access.ClassCount < 0 OR #Access.ClassCount > 8 THEN RETURN; END_IF;
+        FOR #Index := 1 TO #Access.ClassCount DO
+            IF #Access.Classes[#Index].ClassId = #ClassId THEN
+                #Required := #Access.Classes[#Index].ReadLevel;
+                IF #ForWrite THEN #Required := #Access.Classes[#Index].WriteLevel; END_IF;
+                EXIT;
+            END_IF;
+        END_FOR;
+    END_IF;
+    IF #Required < 0 OR #Required > 4 THEN RETURN; END_IF;
+    #FRK_DataLevel := MAX(IN1 := #Required, IN2 := #Minimum);
+END_FUNCTION
+FUNCTION "FRK_DataPolicyReady" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Access : "FRK_Access";
+END_VAR
+BEGIN
+    #FRK_DataPolicyReady := NOT #Access.PolicyLost AND NOT #Access.ClassesLost;
+END_FUNCTION
+// Class identity and effective thresholds are the Core contract, independent
+// of whether a login provider uses local PINs or native Siemens UMAC.
+FUNCTION "FRK_ClassCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Image : "FRK_ClassPolicyImage"; END_VAR
+VAR_TEMP Work : DWord; Index : Int; Character : Int; Size : Int; Text : String[160]; END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Image.Generation);
+    #Text := #Image.Scope; #Size := LEN(#Text);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Image.Count));
+    FOR #Index := 1 TO 8 DO
+        // Include unused slots so retained corruption cannot hide there.
+        #Text := #Image.Rows[#Index].ClassId; #Size := LEN(#Text);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+        #Text := #Image.Rows[#Index].LabelKey; #Size := LEN(#Text);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Rows[#Index].ReadLevel));
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Rows[#Index].WriteLevel));
+    END_FOR;
+    #FRK_ClassCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_ClassValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Image : "FRK_ClassPolicyImage"; END_VAR
+VAR_TEMP Index : Int; Other : Int; END_VAR
+BEGIN
+    #FRK_ClassValid := FALSE;
+    IF #Image.SchemaVersion <> 1 OR #Image.Scope = '' OR #Image.Generation = 0
+        OR #Image.Count < 1 OR #Image.Count > 8 THEN RETURN; END_IF;
+    FOR #Index := 1 TO #Image.Count DO
+        IF #Image.Rows[#Index].ClassId = '' OR #Image.Rows[#Index].LabelKey = ''
+            OR #Image.Rows[#Index].ReadLevel < 0 OR #Image.Rows[#Index].ReadLevel > 4
+            OR #Image.Rows[#Index].WriteLevel < 0 OR #Image.Rows[#Index].WriteLevel > 4 THEN RETURN; END_IF;
+        FOR #Other := 1 TO #Index - 1 DO
+            IF #Image.Rows[#Index].ClassId = #Image.Rows[#Other].ClassId THEN RETURN; END_IF;
+        END_FOR;
+    END_FOR;
+    #FRK_ClassValid := #Image.Checksum = "FRK_ClassCrc"(Image := #Image);
+END_FUNCTION
+
+FUNCTION "FRK_ClassSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; END_VAR
+VAR_IN_OUT Access : "FRK_Access"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    IF #Access.ClassSlot < 1 OR #Access.ClassSlot > 2 OR #Scope = ''
+        OR #Access.ClassCount < 1 OR #Access.ClassCount > 8 THEN RETURN; END_IF;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].SchemaVersion := 1;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Scope := #Scope;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Generation := "FRK_AccessNext"(Previous := "FRK_ClassPolicies".Rows[#Access.ClassSlot].Generation);
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Count := #Access.ClassCount;
+    FOR #Index := 1 TO 8 DO
+        "FRK_ClassPolicies".Rows[#Access.ClassSlot].Rows[#Index] := "FRK_ClassScratch".Blank;
+        IF #Index <= #Access.ClassCount THEN "FRK_ClassPolicies".Rows[#Access.ClassSlot].Rows[#Index] := #Access.Classes[#Index]; END_IF;
+    END_FOR;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Checksum := "FRK_ClassCrc"(Image := "FRK_ClassPolicies".Rows[#Access.ClassSlot]);
+END_FUNCTION
+
+FUNCTION "FRK_ClassVirgin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Image : "FRK_ClassPolicyImage"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_ClassVirgin := FALSE;
+    IF #Image.Scope <> '' OR #Image.SchemaVersion <> 0 OR #Image.Generation <> 0 OR #Image.Count <> 0 OR #Image.Checksum <> DWORD#0 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 8 DO
+        IF #Image.Rows[#Index].ClassId <> '' OR #Image.Rows[#Index].LabelKey <> '' OR #Image.Rows[#Index].ReadLevel <> 0 OR #Image.Rows[#Index].WriteLevel <> 0 THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ClassVirgin := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ClassBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Startup : Bool; Root : Bool; Scope : String; END_VAR
+VAR_IN_OUT Access : "FRK_Access"; END_VAR
+VAR_TEMP Slot : Int; Index : Int; Stored : Int; Found : Bool; Changed : Bool; END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Access.ClassCount := 0; #Access.ClassSlot := 0; #Access.ClassesLost := FALSE;
+    FOR #Index := 1 TO 8 DO #Access.Classes[#Index] := "FRK_ClassScratch".Blank; END_FOR;
+    IF NOT #Root THEN RETURN; END_IF;
+    #Slot := 0; #Access.ClassCount := 0;
+    IF #Scope = 'StationA' THEN
+        #Slot := 1; #Access.ClassCount := 2;
+        #Access.Classes[1].ClassId := 'public';
+        #Access.Classes[1].LabelKey := 'test.config.preset';
+        #Access.Classes[1].ReadLevel := 0;
+        #Access.Classes[1].WriteLevel := 1;
+        #Access.Classes[2].ClassId := 'commissioning';
+        #Access.Classes[2].LabelKey := 'test.config.timeout';
+        #Access.Classes[2].ReadLevel := 3;
+        #Access.Classes[2].WriteLevel := 3;
+    END_IF;
+    IF #Scope = 'StationB' THEN
+        #Slot := 2; #Access.ClassCount := 1;
+        #Access.Classes[1].ClassId := 'public';
+        #Access.Classes[1].LabelKey := 'test.config.preset';
+        #Access.Classes[1].ReadLevel := 2;
+        #Access.Classes[1].WriteLevel := 2;
+    END_IF;
+    #Access.ClassSlot := #Slot;
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_ClassVirgin"(Image := "FRK_ClassPolicies".Rows[#Slot]) THEN
+        // A new optional domain cannot reset the existing action policy.
+        "FRK_ClassSave"(Access := #Access, Scope := #Scope);
+        RETURN;
+    END_IF;
+    IF "FRK_ClassPolicies".Rows[#Slot].Scope <> #Scope OR NOT "FRK_ClassValid"(Image := "FRK_ClassPolicies".Rows[#Slot]) THEN
+        #Access.ClassesLost := TRUE;
+        FOR #Index := 1 TO #Access.ClassCount DO
+            #Access.Classes[#Index].ReadLevel := 4;
+            #Access.Classes[#Index].WriteLevel := 4;
+        END_FOR;
+        RETURN;
+    END_IF;
+    #Changed := #Access.ClassCount <> "FRK_ClassPolicies".Rows[#Slot].Count;
+    FOR #Index := 1 TO #Access.ClassCount DO
+        #Found := FALSE;
+        FOR #Stored := 1 TO "FRK_ClassPolicies".Rows[#Slot].Count DO
+            IF #Access.Classes[#Index].ClassId = "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].ClassId THEN
+                #Access.Classes[#Index].ReadLevel := "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].ReadLevel;
+                #Access.Classes[#Index].WriteLevel := "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].WriteLevel;
+                #Changed := #Changed OR #Stored <> #Index OR #Access.Classes[#Index].LabelKey <> "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].LabelKey;
+                #Found := TRUE; EXIT;
+            END_IF;
+        END_FOR;
+        #Changed := #Changed OR NOT #Found;
+    END_FOR;
+    IF #Changed THEN "FRK_ClassSave"(Access := #Access, Scope := #Scope); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ClassOperation" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Unit : "FRK_Unit"; Scope : String; END_VAR
+VAR_IN_OUT Access : "FRK_Access"; Response : "ST_HmiResponse"; END_VAR
+VAR_TEMP Index : Int; Changed : Bool; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> 36 THEN RETURN; END_IF;
+    #Response.Accepted := FALSE;
+    #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    IF #Access.PolicyLost OR #Access.ClassesLost OR #Access.ClassSlot = 0
+        OR #Access.ClassCount < 1 OR #Access.ClassCount > 8
+        OR #Access.CurrentLevel < #Access.Policy.Required[8]
+        OR #Unit.Request.IntValue < 0 OR #Unit.Request.IntValue > 4
+        OR #Unit.Request.IntValue > #Access.CurrentLevel THEN RETURN; END_IF;
+    FOR #Index := 1 TO #Access.ClassCount DO
+        IF #Access.Classes[#Index].ClassId = #Unit.Request.NameValue THEN
+            IF #Unit.Request.BoolValue THEN
+                #Changed := #Access.Classes[#Index].WriteLevel <> #Unit.Request.IntValue;
+                #Access.Classes[#Index].WriteLevel := #Unit.Request.IntValue;
+            ELSE
+                #Changed := #Access.Classes[#Index].ReadLevel <> #Unit.Request.IntValue;
+                #Access.Classes[#Index].ReadLevel := #Unit.Request.IntValue;
+            END_IF;
+            IF #Changed THEN "FRK_ClassSave"(Access := #Access, Scope := #Scope); END_IF;
+            #Response.Accepted := TRUE; #Response.Diagnostic := WSTRING#'';
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION

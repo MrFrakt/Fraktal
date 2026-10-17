@@ -137,7 +137,8 @@ class Target:
             json.dump(dict(before=before,after=after,exit_code=result.returncode),stream,indent=2);stream.write('\n')
         if after != before: raise RuntimeError('original Fraktal state changed')
         if result.returncode: raise RuntimeError('download failed; no replay')
-        self.action('run')
+        if self.action('status')['state'] != 'Run':
+            self.action('run')
 
 
 

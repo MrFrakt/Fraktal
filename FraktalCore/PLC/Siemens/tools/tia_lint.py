@@ -46,7 +46,7 @@ CONTRACT = {"status", "hmirequest", "hmiresponse", "parcfg", "parcmd", "outcmd",
             "nokcount", "reworkcount", "nokreason", "modeactivepublished", "runningpublished",
             "stoppendingpublished", "supportedmodespublished", "catalog", "catalogcount", "configrev",
             "alarmlog", "stateflags", "stateflagcount", "decision", "decisionanswer", "stationcfg", "configpersist", "model",
-            "availablemodelcount", "availablemodels", "profiler", "starved", "blocked"}.union({"configsets", "configsetcount", "configsetdocument", "configsetdocumentline", "configsetdocumentlines"})
+            "modelcapacity", "availablemodelcount", "availablemodels", "profiler", "starved", "blocked"}.union({"configsets", "configsetcount", "configsetdocument", "configsetdocumentline", "configsetdocumentlines"})
 
 
 @dataclass

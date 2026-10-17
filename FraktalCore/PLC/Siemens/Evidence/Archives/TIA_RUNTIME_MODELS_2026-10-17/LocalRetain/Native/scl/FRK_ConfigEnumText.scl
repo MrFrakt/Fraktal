@@ -1,0 +1,17 @@
+﻿FUNCTION "FRK_ConfigEnumText" : WString
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Number : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigEnumText := DINT_TO_WSTRING(#Number);
+	IF #FRK_ConfigEnumText[1] = WCHAR#'+' THEN
+	    #FRK_ConfigEnumText := MID(IN := #FRK_ConfigEnumText, L := LEN(#FRK_ConfigEnumText) - 1, P := 2);
+	END_IF;
+	
+END_FUNCTION
+

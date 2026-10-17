@@ -1,0 +1,46 @@
+﻿FUNCTION "FRK_DocCapture" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Ok : Bool;
+      Length : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Ok := FALSE;
+	#Length := 0;
+	CASE #Slot OF
+	    1:
+	        #Ok := "FRK_DocCapture_D001"(Length := #Length);
+	    2:
+	        #Ok := "FRK_DocCapture_D002"(Length := #Length);
+	    3:
+	        #Ok := "FRK_DocCapture_D003"(Length := #Length);
+	    4:
+	        #Ok := "FRK_DocCapture_D004"(Length := #Length);
+	    5:
+	        #Ok := "FRK_DocCapture_D005"(Length := #Length);
+	    6:
+	        #Ok := "FRK_DocCapture_D006"(Length := #Length);
+	    7:
+	        #Ok := "FRK_DocCapture_D007"(Length := #Length);
+	    8:
+	        #Ok := "FRK_DocCapture_D008"(Length := #Length);
+	    9:
+	        #Ok := "FRK_DocCapture_D009"(Length := #Length);
+	    10:
+	        #Ok := "FRK_DocCapture_D010"(Length := #Length);
+	    11:
+	        #Ok := "FRK_DocCapture_D011"(Length := #Length);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

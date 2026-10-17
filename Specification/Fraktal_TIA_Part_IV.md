@@ -440,6 +440,10 @@ one mechanism, not two (Core §1.1 O9).
   block reads its own output or writes its own input (measured). Published child
   instances are static multi-instances; everything else is static with
   **`ExternalAccessible := 'False'`**.
+- A record consumed by teach capture is also lifecycle-owned: captured
+  `OutImm` / `OutCmd` records are readonly published statics. LOAD_DB quiescence
+  likewise owns its `OutImm` mirror. This preserves the same published name,
+  type and value without reading an unassigned FB output before publication.
 - TIA's member attributes are the exposure control: **only `HmiRequest` carries
   `ExternalWritable := 'True'`.** Every other published member is
   `ExternalWritable := 'False'`, so neither the Web API, OPC UA nor an HMI connection can write

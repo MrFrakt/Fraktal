@@ -1,0 +1,17 @@
+﻿FUNCTION "FRK_AlarmRecoveryRefresh" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF #AlarmLog.RecoverySlot < 1 OR #AlarmLog.RecoverySlot > 1 THEN
+	    RETURN;
+	END_IF;
+	"FRK_AlarmRecoveryRuntime".Blocked[#AlarmLog.RecoverySlot] := #AlarmLog.Blocking;
+	
+END_FUNCTION
+

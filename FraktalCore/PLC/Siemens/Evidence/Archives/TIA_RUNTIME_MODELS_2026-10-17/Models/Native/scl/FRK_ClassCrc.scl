@@ -1,0 +1,50 @@
+﻿FUNCTION "FRK_ClassCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Class identity and effective thresholds are the Core contract, independent
+// of whether a login provider uses local PINs or native Siemens UMAC.
+   VAR_IN_OUT 
+      Image : "FRK_ClassPolicyImage";
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+      Index : Int;
+      Character : Int;
+      Size : Int;
+      Text : String[160];
+   END_VAR
+
+
+BEGIN
+	
+	#Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := #Image.Generation);
+	#Text := #Image.Scope;
+	#Size := LEN(#Text);
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+	FOR #Character := 1 TO #Size DO
+	    #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character]));
+	END_FOR;
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Image.Count));
+	FOR #Index := 1 TO 8 DO
+	    // Include unused slots so retained corruption cannot hide there.
+	    #Text := #Image.Rows[#Index].ClassId;
+	    #Size := LEN(#Text);
+	    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+	    FOR #Character := 1 TO #Size DO
+	        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character]));
+	    END_FOR;
+	    #Text := #Image.Rows[#Index].LabelKey;
+	    #Size := LEN(#Text);
+	    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+	    FOR #Character := 1 TO #Size DO
+	        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character]));
+	    END_FOR;
+	    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Rows[#Index].ReadLevel));
+	    #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Rows[#Index].WriteLevel));
+	END_FOR;
+	#FRK_ClassCrc := NOT #Work;
+	
+END_FUNCTION
+

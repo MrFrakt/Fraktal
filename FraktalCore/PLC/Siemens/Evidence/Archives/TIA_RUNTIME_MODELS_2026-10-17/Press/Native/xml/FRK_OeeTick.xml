@@ -1,0 +1,857 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-17T03:48:24.3897354Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="NowMs" Datatype="UDInt" Accessibility="Public" />
+    <Member Name="Exec" Datatype="DInt" Accessibility="Public" />
+    <Member Name="Blocking" Datatype="Bool" Accessibility="Public" />
+    <Member Name="Good" Datatype="UDInt" Accessibility="Public" />
+    <Member Name="Nok" Datatype="UDInt" Accessibility="Public" />
+    <Member Name="IdealCycleMs" Datatype="UDInt" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Book" Datatype="&quot;FRK_Production&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="HaveClock" Datatype="Bool" />
+          <Member Name="LastMs" Datatype="UDInt" />
+          <Member Name="SampleMs" Datatype="UDInt" />
+          <Member Name="TrendHead" Datatype="Int" />
+          <Member Name="GoodBase" Datatype="UDInt" />
+          <Member Name="NokBase" Datatype="UDInt" />
+          <Member Name="ShiftInitialized" Datatype="Bool" />
+          <Member Name="ShiftEnd" Datatype="LDT" />
+          <Member Name="ShiftLastNow" Datatype="LDT" />
+          <Member Name="CalendarRevision" Datatype="UDInt" />
+          <Member Name="ShiftSynchronized" Datatype="Bool" />
+          <Member Name="ManualReset" Datatype="Bool" />
+          <Member Name="CycleSeen" Datatype="UDInt" />
+          <Member Name="WorkSamples" Datatype="UDInt" />
+          <Member Name="WorkTotalMs" Datatype="LReal" />
+          <Member Name="Degraded" Datatype="Bool" />
+          <Member Name="BaselineSeen" Datatype="UDInt" />
+          <Member Name="BandSeen" Datatype="UInt" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Oee" Datatype="&quot;ST_Oee&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="RunMs" Datatype="UDInt" />
+          <Member Name="DownMs" Datatype="UDInt" />
+          <Member Name="IdleMs" Datatype="UDInt" />
+          <Member Name="Availability" Datatype="Real" />
+          <Member Name="AvailValid" Datatype="Bool" />
+          <Member Name="Performance" Datatype="Real" />
+          <Member Name="PerfValid" Datatype="Bool" />
+          <Member Name="Quality" Datatype="Real" />
+          <Member Name="QualValid" Datatype="Bool" />
+          <Member Name="Oee" Datatype="Real" />
+          <Member Name="OeeValid" Datatype="Bool" />
+          <Member Name="IdealCycleMs" Datatype="UDInt" />
+        </Section>
+      </Sections>
+    </Member>
+    <Member Name="Trend" Datatype="Array[1..60] of &quot;ST_OeeSample&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Availability" Datatype="Real" />
+          <Member Name="Performance" Datatype="Real" />
+          <Member Name="Quality" Datatype="Real" />
+          <Member Name="Oee" Datatype="Real" />
+          <Member Name="OeeValid" Datatype="Bool" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp">
+    <Member Name="DeltaMs" Datatype="UDInt" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_OeeTick</Name>
+      <Namespace />
+      <Number>288</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="Oee" UId="24" />
+      <Token Text="." UId="25" />
+      <Component Name="IdealCycleMs" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text=":=" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="LocalVariable" UId="30">
+    <Symbol UId="31">
+      <Component Name="IdealCycleMs" UId="32" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="33" />
+  <NewLine Num="1" UId="34" />
+  <Access Scope="LocalVariable" UId="35">
+    <Symbol UId="36">
+      <Component Name="DeltaMs" UId="37" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="38" />
+  <Token Text=":=" UId="39" />
+  <Blank Num="1" UId="40" />
+  <Access Scope="LiteralConstant" UId="41">
+    <Constant UId="42">
+      <ConstantValue UId="44">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="45" />
+  <NewLine Num="1" UId="46" />
+  <Token Text="IF" UId="47" />
+  <Blank Num="1" UId="48" />
+  <Access Scope="LocalVariable" UId="49">
+    <Symbol UId="50">
+      <Component Name="Book" UId="51" />
+      <Token Text="." UId="52" />
+      <Component Name="HaveClock" UId="53" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="54" />
+  <Token Text="THEN" UId="55" />
+  <NewLine Num="1" UId="56" />
+  <Blank Num="4" UId="57" />
+  <Access Scope="LocalVariable" UId="58">
+    <Symbol UId="59">
+      <Component Name="DeltaMs" UId="60" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="61" />
+  <Token Text=":=" UId="62" />
+  <Blank Num="1" UId="63" />
+  <Access Scope="Call" UId="64">
+    <CallInfo UId="65" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="67">
+        <Component Name="FRK_Elapsed" UId="66" />
+      </Instance>
+      <Token Text="(" UId="68" />
+      <Parameter Name="OldMs" UId="69">
+        <Blank Num="1" UId="70" />
+        <Token Text=":=" UId="71" />
+        <Blank Num="1" UId="72" />
+        <Access Scope="LocalVariable" UId="73">
+          <Symbol UId="74">
+            <Component Name="Book" UId="75" />
+            <Token Text="." UId="76" />
+            <Component Name="LastMs" UId="77" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="78" />
+      <Blank Num="1" UId="79" />
+      <Parameter Name="NewMs" UId="80">
+        <Blank Num="1" UId="81" />
+        <Token Text=":=" UId="82" />
+        <Blank Num="1" UId="83" />
+        <Access Scope="LocalVariable" UId="84">
+          <Symbol UId="85">
+            <Component Name="NowMs" UId="86" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="88" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="89" />
+  <NewLine Num="1" UId="90" />
+  <Token Text="END_IF" UId="91" />
+  <Token Text=";" UId="92" />
+  <NewLine Num="1" UId="93" />
+  <Access Scope="LocalVariable" UId="94">
+    <Symbol UId="95">
+      <Component Name="Book" UId="96" />
+      <Token Text="." UId="97" />
+      <Component Name="LastMs" UId="98" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="99" />
+  <Token Text=":=" UId="100" />
+  <Blank Num="1" UId="101" />
+  <Access Scope="LocalVariable" UId="102">
+    <Symbol UId="103">
+      <Component Name="NowMs" UId="104" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="105" />
+  <NewLine Num="1" UId="106" />
+  <Access Scope="LocalVariable" UId="107">
+    <Symbol UId="108">
+      <Component Name="Book" UId="109" />
+      <Token Text="." UId="110" />
+      <Component Name="HaveClock" UId="111" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="112" />
+  <Token Text=":=" UId="113" />
+  <Blank Num="1" UId="114" />
+  <Access Scope="LiteralConstant" UId="115">
+    <Constant UId="116">
+      <ConstantValue UId="118">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="119" />
+  <NewLine Num="1" UId="120" />
+  <Token Text="IF" UId="121" />
+  <Blank Num="1" UId="122" />
+  <Access Scope="LocalVariable" UId="123">
+    <Symbol UId="124">
+      <Component Name="Exec" UId="125" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="126" />
+  <Token Text="=" UId="127" />
+  <Blank Num="1" UId="128" />
+  <Access Scope="LiteralConstant" UId="129">
+    <Constant UId="130">
+      <ConstantValue UId="132">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="133" />
+  <Token Text="OR" UId="134" />
+  <Blank Num="1" UId="135" />
+  <Access Scope="LocalVariable" UId="136">
+    <Symbol UId="137">
+      <Component Name="Blocking" UId="138" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="139" />
+  <Token Text="THEN" UId="140" />
+  <NewLine Num="1" UId="141" />
+  <Blank Num="4" UId="142" />
+  <Access Scope="LocalVariable" UId="143">
+    <Symbol UId="144">
+      <Component Name="Oee" UId="145" />
+      <Token Text="." UId="146" />
+      <Component Name="DownMs" UId="147" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="148" />
+  <Token Text=":=" UId="149" />
+  <Blank Num="1" UId="150" />
+  <Access Scope="Call" UId="151">
+    <CallInfo UId="152" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="154">
+        <Component Name="FRK_AddMs" UId="153" />
+      </Instance>
+      <Token Text="(" UId="155" />
+      <Parameter Name="Value" UId="156">
+        <Blank Num="1" UId="157" />
+        <Token Text=":=" UId="158" />
+        <Blank Num="1" UId="159" />
+        <Access Scope="LocalVariable" UId="160">
+          <Symbol UId="161">
+            <Component Name="Oee" UId="162" />
+            <Token Text="." UId="163" />
+            <Component Name="DownMs" UId="164" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="165" />
+      <Blank Num="1" UId="166" />
+      <Parameter Name="Delta" UId="167">
+        <Blank Num="1" UId="168" />
+        <Token Text=":=" UId="169" />
+        <Blank Num="1" UId="170" />
+        <Access Scope="LocalVariable" UId="171">
+          <Symbol UId="172">
+            <Component Name="DeltaMs" UId="173" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="175" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="176" />
+  <NewLine Num="1" UId="177" />
+  <Token Text="ELSIF" UId="178" />
+  <Blank Num="1" UId="179" />
+  <Access Scope="LocalVariable" UId="180">
+    <Symbol UId="181">
+      <Component Name="Exec" UId="182" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="183" />
+  <Token Text="=" UId="184" />
+  <Blank Num="1" UId="185" />
+  <Access Scope="LiteralConstant" UId="186">
+    <Constant UId="187">
+      <ConstantValue UId="189">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="190" />
+  <Token Text="THEN" UId="191" />
+  <NewLine Num="1" UId="192" />
+  <Blank Num="4" UId="193" />
+  <Access Scope="LocalVariable" UId="194">
+    <Symbol UId="195">
+      <Component Name="Oee" UId="196" />
+      <Token Text="." UId="197" />
+      <Component Name="RunMs" UId="198" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="199" />
+  <Token Text=":=" UId="200" />
+  <Blank Num="1" UId="201" />
+  <Access Scope="Call" UId="202">
+    <CallInfo UId="203" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="205">
+        <Component Name="FRK_AddMs" UId="204" />
+      </Instance>
+      <Token Text="(" UId="206" />
+      <Parameter Name="Value" UId="207">
+        <Blank Num="1" UId="208" />
+        <Token Text=":=" UId="209" />
+        <Blank Num="1" UId="210" />
+        <Access Scope="LocalVariable" UId="211">
+          <Symbol UId="212">
+            <Component Name="Oee" UId="213" />
+            <Token Text="." UId="214" />
+            <Component Name="RunMs" UId="215" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="216" />
+      <Blank Num="1" UId="217" />
+      <Parameter Name="Delta" UId="218">
+        <Blank Num="1" UId="219" />
+        <Token Text=":=" UId="220" />
+        <Blank Num="1" UId="221" />
+        <Access Scope="LocalVariable" UId="222">
+          <Symbol UId="223">
+            <Component Name="DeltaMs" UId="224" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="226" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="227" />
+  <NewLine Num="1" UId="228" />
+  <Token Text="ELSE" UId="229" />
+  <NewLine Num="1" UId="230" />
+  <Blank Num="4" UId="231" />
+  <Access Scope="LocalVariable" UId="232">
+    <Symbol UId="233">
+      <Component Name="Oee" UId="234" />
+      <Token Text="." UId="235" />
+      <Component Name="IdleMs" UId="236" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="237" />
+  <Token Text=":=" UId="238" />
+  <Blank Num="1" UId="239" />
+  <Access Scope="Call" UId="240">
+    <CallInfo UId="241" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="243">
+        <Component Name="FRK_AddMs" UId="242" />
+      </Instance>
+      <Token Text="(" UId="244" />
+      <Parameter Name="Value" UId="245">
+        <Blank Num="1" UId="246" />
+        <Token Text=":=" UId="247" />
+        <Blank Num="1" UId="248" />
+        <Access Scope="LocalVariable" UId="249">
+          <Symbol UId="250">
+            <Component Name="Oee" UId="251" />
+            <Token Text="." UId="252" />
+            <Component Name="IdleMs" UId="253" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="254" />
+      <Blank Num="1" UId="255" />
+      <Parameter Name="Delta" UId="256">
+        <Blank Num="1" UId="257" />
+        <Token Text=":=" UId="258" />
+        <Blank Num="1" UId="259" />
+        <Access Scope="LocalVariable" UId="260">
+          <Symbol UId="261">
+            <Component Name="DeltaMs" UId="262" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="264" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="265" />
+  <NewLine Num="1" UId="266" />
+  <Token Text="END_IF" UId="267" />
+  <Token Text=";" UId="268" />
+  <NewLine Num="1" UId="269" />
+  <Access Scope="Call" UId="270">
+    <CallInfo UId="271" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="273">
+        <Component Name="FRK_OeeCompute" UId="272" />
+      </Instance>
+      <Token Text="(" UId="274" />
+      <Parameter Name="Good" UId="275">
+        <Blank Num="1" UId="276" />
+        <Token Text=":=" UId="277" />
+        <Blank Num="1" UId="278" />
+        <Access Scope="LocalVariable" UId="279">
+          <Symbol UId="280">
+            <Component Name="Good" UId="281" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="282" />
+      <NewLine Num="1" UId="283" />
+      <Blank Num="17" UId="284" />
+      <Parameter Name="Nok" UId="285">
+        <Blank Num="1" UId="286" />
+        <Token Text=":=" UId="287" />
+        <Blank Num="1" UId="288" />
+        <Access Scope="LocalVariable" UId="289">
+          <Symbol UId="290">
+            <Component Name="Nok" UId="291" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="292" />
+      <NewLine Num="1" UId="293" />
+      <Blank Num="17" UId="294" />
+      <Parameter Name="Book" UId="295">
+        <Blank Num="1" UId="296" />
+        <Token Text=":=" UId="297" />
+        <Blank Num="1" UId="298" />
+        <Access Scope="LocalVariable" UId="299">
+          <Symbol UId="300">
+            <Component Name="Book" UId="301" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="302" />
+      <NewLine Num="1" UId="303" />
+      <Blank Num="17" UId="304" />
+      <Parameter Name="Oee" UId="305">
+        <Blank Num="1" UId="306" />
+        <Token Text=":=" UId="307" />
+        <Blank Num="1" UId="308" />
+        <Access Scope="LocalVariable" UId="309">
+          <Symbol UId="310">
+            <Component Name="Oee" UId="311" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="312" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="313" />
+  <NewLine Num="1" UId="314" />
+  <Access Scope="LocalVariable" UId="315">
+    <Symbol UId="316">
+      <Component Name="Book" UId="317" />
+      <Token Text="." UId="318" />
+      <Component Name="SampleMs" UId="319" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="320" />
+  <Token Text=":=" UId="321" />
+  <Blank Num="1" UId="322" />
+  <Access Scope="Call" UId="323">
+    <CallInfo UId="324" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="326">
+        <Component Name="FRK_AddMs" UId="325" />
+      </Instance>
+      <Token Text="(" UId="327" />
+      <Parameter Name="Value" UId="328">
+        <Blank Num="1" UId="329" />
+        <Token Text=":=" UId="330" />
+        <Blank Num="1" UId="331" />
+        <Access Scope="LocalVariable" UId="332">
+          <Symbol UId="333">
+            <Component Name="Book" UId="334" />
+            <Token Text="." UId="335" />
+            <Component Name="SampleMs" UId="336" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="337" />
+      <Blank Num="1" UId="338" />
+      <Parameter Name="Delta" UId="339">
+        <Blank Num="1" UId="340" />
+        <Token Text=":=" UId="341" />
+        <Blank Num="1" UId="342" />
+        <Access Scope="LocalVariable" UId="343">
+          <Symbol UId="344">
+            <Component Name="DeltaMs" UId="345" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="347" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="348" />
+  <NewLine Num="1" UId="349" />
+  <Token Text="IF" UId="350" />
+  <Blank Num="1" UId="351" />
+  <Access Scope="LocalVariable" UId="352">
+    <Symbol UId="353">
+      <Component Name="Book" UId="354" />
+      <Token Text="." UId="355" />
+      <Component Name="SampleMs" UId="356" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="357" />
+  <Token Text="&gt;=" UId="358" />
+  <Blank Num="1" UId="359" />
+  <Access Scope="LiteralConstant" UId="360">
+    <Constant UId="361">
+      <ConstantValue UId="363">60000</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="364" />
+  <Token Text="THEN" UId="365" />
+  <NewLine Num="1" UId="366" />
+  <Blank Num="4" UId="367" />
+  <Access Scope="LocalVariable" UId="368">
+    <Symbol UId="369">
+      <Component Name="Book" UId="370" />
+      <Token Text="." UId="371" />
+      <Component Name="SampleMs" UId="372" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="373" />
+  <Token Text=":=" UId="374" />
+  <Blank Num="1" UId="375" />
+  <Access Scope="LocalVariable" UId="376">
+    <Symbol UId="377">
+      <Component Name="Book" UId="378" />
+      <Token Text="." UId="379" />
+      <Component Name="SampleMs" UId="380" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="381" />
+  <Token Text="MOD" UId="382" />
+  <Blank Num="1" UId="383" />
+  <Access Scope="LiteralConstant" UId="384">
+    <Constant UId="385">
+      <ConstantValue UId="387">60000</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="388" />
+  <NewLine Num="1" UId="389" />
+  <Blank Num="4" UId="390" />
+  <Access Scope="LocalVariable" UId="391">
+    <Symbol UId="392">
+      <Component Name="Book" UId="393" />
+      <Token Text="." UId="394" />
+      <Component Name="TrendHead" UId="395" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="396" />
+  <Token Text=":=" UId="397" />
+  <Blank Num="1" UId="398" />
+  <Token Text="(" UId="399" />
+  <Access Scope="LocalVariable" UId="400">
+    <Symbol UId="401">
+      <Component Name="Book" UId="402" />
+      <Token Text="." UId="403" />
+      <Component Name="TrendHead" UId="404" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="405" />
+  <Token Text="MOD" UId="406" />
+  <Blank Num="1" UId="407" />
+  <Access Scope="LiteralConstant" UId="408">
+    <Constant UId="409">
+      <ConstantValue UId="411">60</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=")" UId="412" />
+  <Blank Num="1" UId="413" />
+  <Token Text="+" UId="414" />
+  <Blank Num="1" UId="415" />
+  <Access Scope="LiteralConstant" UId="416">
+    <Constant UId="417">
+      <ConstantValue UId="419">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="420" />
+  <NewLine Num="1" UId="421" />
+  <Blank Num="4" UId="422" />
+  <Access Scope="LocalVariable" UId="423">
+    <Symbol UId="424">
+      <Component Name="Trend" UId="425">
+        <Token Text="[" UId="426" />
+        <Access Scope="LocalVariable" UId="427">
+          <Symbol UId="428">
+            <Component Name="Book" UId="429" />
+            <Token Text="." UId="430" />
+            <Component Name="TrendHead" UId="431" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="432" />
+      </Component>
+      <Token Text="." UId="433" />
+      <Component Name="Availability" UId="434" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="435" />
+  <Token Text=":=" UId="436" />
+  <Blank Num="1" UId="437" />
+  <Access Scope="LocalVariable" UId="438">
+    <Symbol UId="439">
+      <Component Name="Oee" UId="440" />
+      <Token Text="." UId="441" />
+      <Component Name="Availability" UId="442" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="443" />
+  <NewLine Num="1" UId="444" />
+  <Blank Num="4" UId="445" />
+  <Access Scope="LocalVariable" UId="446">
+    <Symbol UId="447">
+      <Component Name="Trend" UId="448">
+        <Token Text="[" UId="449" />
+        <Access Scope="LocalVariable" UId="450">
+          <Symbol UId="451">
+            <Component Name="Book" UId="452" />
+            <Token Text="." UId="453" />
+            <Component Name="TrendHead" UId="454" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="455" />
+      </Component>
+      <Token Text="." UId="456" />
+      <Component Name="Performance" UId="457" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="458" />
+  <Token Text=":=" UId="459" />
+  <Blank Num="1" UId="460" />
+  <Access Scope="LocalVariable" UId="461">
+    <Symbol UId="462">
+      <Component Name="Oee" UId="463" />
+      <Token Text="." UId="464" />
+      <Component Name="Performance" UId="465" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="466" />
+  <NewLine Num="1" UId="467" />
+  <Blank Num="4" UId="468" />
+  <Access Scope="LocalVariable" UId="469">
+    <Symbol UId="470">
+      <Component Name="Trend" UId="471">
+        <Token Text="[" UId="472" />
+        <Access Scope="LocalVariable" UId="473">
+          <Symbol UId="474">
+            <Component Name="Book" UId="475" />
+            <Token Text="." UId="476" />
+            <Component Name="TrendHead" UId="477" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="478" />
+      </Component>
+      <Token Text="." UId="479" />
+      <Component Name="Quality" UId="480" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="481" />
+  <Token Text=":=" UId="482" />
+  <Blank Num="1" UId="483" />
+  <Access Scope="LocalVariable" UId="484">
+    <Symbol UId="485">
+      <Component Name="Oee" UId="486" />
+      <Token Text="." UId="487" />
+      <Component Name="Quality" UId="488" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="489" />
+  <NewLine Num="1" UId="490" />
+  <Blank Num="4" UId="491" />
+  <Access Scope="LocalVariable" UId="492">
+    <Symbol UId="493">
+      <Component Name="Trend" UId="494">
+        <Token Text="[" UId="495" />
+        <Access Scope="LocalVariable" UId="496">
+          <Symbol UId="497">
+            <Component Name="Book" UId="498" />
+            <Token Text="." UId="499" />
+            <Component Name="TrendHead" UId="500" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="501" />
+      </Component>
+      <Token Text="." UId="502" />
+      <Component Name="Oee" UId="503" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="504" />
+  <Token Text=":=" UId="505" />
+  <Blank Num="1" UId="506" />
+  <Access Scope="LocalVariable" UId="507">
+    <Symbol UId="508">
+      <Component Name="Oee" UId="509" />
+      <Token Text="." UId="510" />
+      <Component Name="Oee" UId="511" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="512" />
+  <NewLine Num="1" UId="513" />
+  <Blank Num="4" UId="514" />
+  <Access Scope="LocalVariable" UId="515">
+    <Symbol UId="516">
+      <Component Name="Trend" UId="517">
+        <Token Text="[" UId="518" />
+        <Access Scope="LocalVariable" UId="519">
+          <Symbol UId="520">
+            <Component Name="Book" UId="521" />
+            <Token Text="." UId="522" />
+            <Component Name="TrendHead" UId="523" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="524" />
+      </Component>
+      <Token Text="." UId="525" />
+      <Component Name="OeeValid" UId="526" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="527" />
+  <Token Text=":=" UId="528" />
+  <Blank Num="1" UId="529" />
+  <Access Scope="LocalVariable" UId="530">
+    <Symbol UId="531">
+      <Component Name="Oee" UId="532" />
+      <Token Text="." UId="533" />
+      <Component Name="OeeValid" UId="534" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="535" />
+  <NewLine Num="1" UId="536" />
+  <Token Text="END_IF" UId="537" />
+  <Token Text=";" UId="538" />
+  <NewLine Num="1" UId="539" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

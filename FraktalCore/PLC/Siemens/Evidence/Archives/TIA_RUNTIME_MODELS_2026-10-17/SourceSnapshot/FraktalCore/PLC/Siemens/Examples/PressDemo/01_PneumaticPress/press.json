@@ -1,0 +1,513 @@
+{
+  "schema_version": 1,
+  "invalid_step_reason": 10001,
+  "roles": [
+    "PressRam",
+    "Door",
+    "PartSlide"
+  ],
+  "sensors": [
+    {
+      "name": "TwoHand",
+      "type": "FB_TwoHandStartCM"
+    },
+    {
+      "name": "PartPresentSensor",
+      "type": "FB_DigitalInputCM"
+    },
+    {
+      "name": "AirPressureMonitor",
+      "type": "FB_AirPressureMonitorCM"
+    }
+  ],
+  "chains": [
+    {
+      "name": "PressDemoAuto",
+      "chain_index": 1,
+      "loop": true,
+      "steps": [
+        {
+          "no": 0,
+          "label": "project.step.pressAutoInitialize",
+          "next": 100
+        },
+        {
+          "no": 100,
+          "label": "project.step.pressAwaitTwoHand",
+          "policy": "AwaitCycle",
+          "next": 110
+        },
+        {
+          "no": 110,
+          "label": "project.step.pressRamUp",
+          "commands": [
+            [
+              "PressRam",
+              "RETRACT"
+            ]
+          ],
+          "next": 130
+        },
+        {
+          "no": 130,
+          "label": "project.step.pressDoorOpen",
+          "commands": [
+            [
+              "Door",
+              "RETRACT"
+            ]
+          ],
+          "next": 150
+        },
+        {
+          "no": 150,
+          "label": "project.step.pressSlideInside",
+          "commands": [
+            [
+              "PartSlide",
+              "EXTEND"
+            ]
+          ],
+          "policy": "Started",
+          "next": 170
+        },
+        {
+          "no": 170,
+          "label": "project.step.pressTransferSettle",
+          "delay": "TransferSettleTime",
+          "next": 180
+        },
+        {
+          "no": 180,
+          "label": "project.step.pressDoorClose",
+          "commands": [
+            [
+              "Door",
+              "EXTEND"
+            ]
+          ],
+          "policy": "DoorClose",
+          "selects": true,
+          "next": 200,
+          "jump1": 185
+        },
+        {
+          "no": 185,
+          "label": "project.step.pressDoorReopen",
+          "commands": [
+            [
+              "Door",
+              "RETRACT"
+            ]
+          ],
+          "next": 190
+        },
+        {
+          "no": 190,
+          "label": "project.step.pressSlideOutsideAfterAbort",
+          "commands": [
+            [
+              "PartSlide",
+              "RETRACT"
+            ]
+          ],
+          "policy": "ClearStart",
+          "next": 100
+        },
+        {
+          "no": 200,
+          "label": "project.step.pressRamDown",
+          "commands": [
+            [
+              "PressRam",
+              "EXTEND"
+            ]
+          ],
+          "handled": true,
+          "policy": "RamResult",
+          "selects": true,
+          "next": 220,
+          "jump1": 210
+        },
+        {
+          "no": 210,
+          "label": "project.step.pressNotReachedConfirm",
+          "policy": "ConfirmScrap",
+          "next": 215
+        },
+        {
+          "no": 215,
+          "label": "project.step.pressScrapPart",
+          "policy": "Scrap",
+          "next": 240
+        },
+        {
+          "no": 220,
+          "label": "project.step.pressDwell",
+          "policy": "Dwell",
+          "next": 230
+        },
+        {
+          "no": 230,
+          "label": "project.step.pressRecordResult",
+          "policy": "Record",
+          "next": 240
+        },
+        {
+          "no": 240,
+          "label": "project.step.pressReturnToLoad",
+          "wait": [
+            "LoadDone"
+          ],
+          "next": 999
+        },
+        {
+          "no": 999,
+          "label": "project.step.pressAutoComplete",
+          "policy": "CycleEnd",
+          "next": 100
+        }
+      ],
+      "process": "auto",
+      "load_chain_index": 3
+    },
+    {
+      "name": "PressDemoHome",
+      "chain_index": 2,
+      "loop": false,
+      "steps": [
+        {
+          "no": 0,
+          "label": "project.step.pressHomeInitialize",
+          "next": 900
+        },
+        {
+          "no": 900,
+          "label": "project.step.pressHomeRam",
+          "commands": [
+            [
+              "PressRam",
+              "RETRACT"
+            ]
+          ],
+          "next": 910
+        },
+        {
+          "no": 910,
+          "label": "project.step.pressHomeDoorAndSlide",
+          "commands": [
+            [
+              "Door",
+              "RETRACT"
+            ],
+            [
+              "PartSlide",
+              "RETRACT"
+            ]
+          ],
+          "next": 999
+        },
+        {
+          "no": 999,
+          "label": "project.step.pressHomeComplete",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "name": "PressDemoChangeover",
+      "chain_index": 4,
+      "loop": false,
+      "process": "changeover",
+      "language": "GRAPH",
+      "load_step": 810,
+      "load_chain_index": 5,
+      "steps": [
+        {
+          "no": 0,
+          "label": "project.step.pressChangeoverInitialize",
+          "next": 800
+        },
+        {
+          "no": 800,
+          "label": "project.step.pressChangeoverValidateModel",
+          "policy": "ModelSelected",
+          "next": 810
+        },
+        {
+          "no": 810,
+          "label": "project.step.pressReturnToLoad",
+          "wait": [
+            "LoadDone"
+          ],
+          "next": 870
+        },
+        {
+          "no": 870,
+          "label": "project.step.pressChangeoverRequestConfirmation",
+          "policy": "ChangeoverAsk",
+          "next": 880
+        },
+        {
+          "no": 880,
+          "label": "project.step.pressChangeoverAwaitConfirmation",
+          "policy": "ChangeoverAnswer",
+          "selects": true,
+          "next": 999,
+          "jump1": 810
+        },
+        {
+          "no": 999,
+          "label": "project.step.pressChangeoverComplete",
+          "complete": true
+        }
+      ]
+    }
+  ],
+  "release": [
+    {
+      "name": "ModeStartAirPressureOk",
+      "all": [
+        "AirPressureOk"
+      ]
+    },
+    {
+      "name": "RamGuardClosed",
+      "all": [
+        "DoorClosed"
+      ]
+    },
+    {
+      "name": "RamSlideInside",
+      "all": [
+        "SlideInside"
+      ]
+    },
+    {
+      "name": "RamDevicesHealthy",
+      "all": [
+        "RamHealthy",
+        "DoorHealthy",
+        "SlideHealthy"
+      ]
+    },
+    {
+      "name": "RamAirPressureOk",
+      "all": [
+        "AirPressureOk"
+      ]
+    },
+    {
+      "name": "RamTwoHandHeld",
+      "all": [
+        "TwoHandHeld"
+      ]
+    }
+  ],
+  "load_position": {
+    "name": "PressDemoLoadPosition",
+    "chain_index": 3,
+    "branch_index": 1,
+    "initial_step": 240,
+    "loop": false,
+    "steps": [
+      {
+        "no": 240,
+        "label": "project.step.pressReturnRam",
+        "commands": [
+          [
+            "PressRam",
+            "RETRACT"
+          ]
+        ],
+        "next": 260
+      },
+      {
+        "no": 260,
+        "label": "project.step.pressReturnDoor",
+        "commands": [
+          [
+            "Door",
+            "RETRACT"
+          ]
+        ],
+        "next": 280
+      },
+      {
+        "no": 280,
+        "label": "project.step.pressReturnSlide",
+        "commands": [
+          [
+            "PartSlide",
+            "RETRACT"
+          ]
+        ],
+        "next": 300
+      },
+      {
+        "no": 300,
+        "label": "project.step.pressLoadPositionComplete",
+        "complete": true
+      }
+    ],
+    "view_offset": 360,
+    "view_depth": 1,
+    "shared": true
+  },
+  "graph_auto": {
+    "branch_steps": {
+      "200": 1,
+      "210": 1,
+      "215": 1,
+      "220": 1,
+      "230": 1,
+      "240": 1,
+      "250": 1,
+      "300": 2,
+      "310": 2
+    },
+    "auxiliary_steps": [
+      {
+        "no": 250,
+        "label": "project.step.pressAwaitParallelBranch",
+        "parallel_terminal": true
+      },
+      {
+        "no": 300,
+        "label": "project.step.pressParallelWork",
+        "next": 310
+      },
+      {
+        "no": 310,
+        "label": "project.step.pressAwaitParallelJoin",
+        "parallel_terminal": true
+      }
+    ],
+    "fork_after": 180,
+    "join_before": 999
+  },
+  "integration": {
+    "sequence_language": "GRAPH",
+    "release_language": "ST",
+    "root": "PressDemo",
+    "simulate_feedback": true
+  },
+  "station_config": [
+    {
+      "name": "DegradationPercent",
+      "type": "UINT",
+      "default": "10",
+      "key": "degradationPercent",
+      "label": "project.config.degradationPercent",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    {
+      "name": "RequireTwoHandStart",
+      "type": "BOOL",
+      "default": "TRUE",
+      "key": "requireTwoHandStart",
+      "label": "project.config.requireTwoHandStart"
+    }
+  ],
+  "model_fields": [
+    {
+      "name": "IdealCycleMs",
+      "type": "UDINT",
+      "default": "0",
+      "key": "idealCycleMs",
+      "label": "project.config.idealCycleMs",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    {
+      "name": "BaselineWorkMs",
+      "type": "UDINT",
+      "default": "0",
+      "key": "baselineWorkMs",
+      "label": "project.config.baselineWorkMs",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    {
+      "name": "Timeout",
+      "type": "TIME",
+      "default": "T#10s",
+      "key": "modeSwitchTimeout",
+      "label": "project.config.modeSwitchTimeout",
+      "minimum": 1000,
+      "maximum": 60000
+    },
+    {
+      "name": "TransferSettleTime",
+      "type": "TIME",
+      "default": "T#100ms",
+      "key": "transferSettleTime",
+      "label": "project.config.transferSettleTime",
+      "minimum": 0,
+      "maximum": 30000
+    },
+    {
+      "name": "PressSettleTime",
+      "type": "TIME",
+      "default": "T#500ms",
+      "key": "pressSettleTime",
+      "label": "project.config.pressSettleTime",
+      "minimum": 0,
+      "maximum": 30000
+    }
+  ],
+  "model_config": {
+    "capacity": 4,
+    "models": [
+      "ALUMINUM",
+      "PLASTIC",
+      "STEEL"
+    ],
+    "initial": "ALUMINUM",
+    "seeds": {
+      "ALUMINUM": {
+        "ParCfg.PressSettleTime": "T#300ms",
+        "ParCfg.TransferSettleTime": "T#80ms"
+      },
+      "PLASTIC": {
+        "ParCfg.PressSettleTime": "T#650ms",
+        "ParCfg.TransferSettleTime": "T#120ms"
+      },
+      "STEEL": {
+        "ParCfg.PressSettleTime": "T#1200ms",
+        "ParCfg.TransferSettleTime": "T#150ms"
+      }
+    }
+  },
+  "config_sets": {
+    "capacity": 4
+  },
+  "alarm_history": {
+    "scopes": [
+      "PressDemo"
+    ]
+  },
+  "alarm_recovery": {
+    "scopes": [
+      "PressDemo"
+    ]
+  },
+  "persistence": {
+    "medium": "LOAD_DB",
+    "minimum_write_ms": 1000,
+    "queue_capacity": 4
+  },
+  "alarm_delivery": {
+    "scopes": [
+      "PressDemo"
+    ],
+    "capacity": 32,
+    "stream_id": "6c62c9b6-57d9-41b5-b689-e0540f642b31"
+  },
+  "sequence_view": {
+    "capacity": 23,
+    "branches": 2,
+    "annotations": 4
+  }
+}

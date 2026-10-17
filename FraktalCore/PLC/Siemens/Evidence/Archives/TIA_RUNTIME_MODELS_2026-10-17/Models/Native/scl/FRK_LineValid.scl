@@ -1,0 +1,20 @@
+﻿FUNCTION "FRK_LineValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Values : "ST_LineProductionConfig";
+   END_VAR
+
+   VAR_TEMP 
+      Calendar : "ST_ShiftCalendarV3";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_LineCalendar"(Values := #Values,
+	                   Calendar := #Calendar);
+	#FRK_LineValid := "FRK_ShiftValidate"(Calendar := #Calendar);
+	
+END_FUNCTION
+

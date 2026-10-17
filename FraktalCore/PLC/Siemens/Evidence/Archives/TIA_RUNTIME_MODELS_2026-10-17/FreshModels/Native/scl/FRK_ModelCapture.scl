@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_ModelCapture" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Image : "FRK_ModelImage";
+      Catalog : "FRK_ModelCatalog";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelCapture := FALSE;
+	CASE #RootIndex OF
+	    1:
+	        #FRK_ModelCapture := "FRK_ModelCapture_R1"(Image := #Image, Catalog := #Catalog);
+	    2:
+	        #FRK_ModelCapture := "FRK_ModelCapture_R2"(Image := #Image, Catalog := #Catalog);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

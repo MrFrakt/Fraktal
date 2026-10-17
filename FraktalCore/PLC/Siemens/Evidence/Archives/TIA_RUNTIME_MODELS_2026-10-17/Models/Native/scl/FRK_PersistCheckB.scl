@@ -1,0 +1,64 @@
+﻿FUNCTION "FRK_PersistCheckB" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Done : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Done := FALSE;
+	#FRK_PersistCheckB := FALSE;
+	CASE "FRK_PersistRuntime".Slot OF
+	    1:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[1], Bytes := "FRK_PersistBuffers".D001B, Check := "FRK_PersistRuntime".CheckB);
+	    2:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[2], Bytes := "FRK_PersistBuffers".D002B, Check := "FRK_PersistRuntime".CheckB);
+	    3:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[3], Bytes := "FRK_PersistBuffers".D003B, Check := "FRK_PersistRuntime".CheckB);
+	    4:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[4], Bytes := "FRK_PersistBuffers".D004B, Check := "FRK_PersistRuntime".CheckB);
+	    5:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[5], Bytes := "FRK_PersistBuffers".D005B, Check := "FRK_PersistRuntime".CheckB);
+	    6:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[6], Bytes := "FRK_PersistBuffers".D006B, Check := "FRK_PersistRuntime".CheckB);
+	    7:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[7], Bytes := "FRK_PersistBuffers".D007B, Check := "FRK_PersistRuntime".CheckB);
+	    8:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[8], Bytes := "FRK_PersistBuffers".D008B, Check := "FRK_PersistRuntime".CheckB);
+	    9:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[9], Bytes := "FRK_PersistBuffers".D009B, Check := "FRK_PersistRuntime".CheckB);
+	    10:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[10], Bytes := "FRK_PersistBuffers".D010B, Check := "FRK_PersistRuntime".CheckB);
+	    11:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[11], Bytes := "FRK_PersistBuffers".D011B, Check := "FRK_PersistRuntime".CheckB);
+	    12:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[12], Bytes := "FRK_PersistBuffers".D012B, Check := "FRK_PersistRuntime".CheckB);
+	    13:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[13], Bytes := "FRK_PersistBuffers".D013B, Check := "FRK_PersistRuntime".CheckB);
+	    14:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[14], Bytes := "FRK_PersistBuffers".D014B, Check := "FRK_PersistRuntime".CheckB);
+	    15:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[15], Bytes := "FRK_PersistBuffers".D015B, Check := "FRK_PersistRuntime".CheckB);
+	    16:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[16], Bytes := "FRK_PersistBuffers".D016B, Check := "FRK_PersistRuntime".CheckB);
+	    17:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[17], Bytes := "FRK_PersistBuffers".D017B, Check := "FRK_PersistRuntime".CheckB);
+	    18:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[18], Bytes := "FRK_PersistBuffers".D018B, Check := "FRK_PersistRuntime".CheckB);
+	    19:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[19], Bytes := "FRK_PersistBuffers".D019B, Check := "FRK_PersistRuntime".CheckB);
+	    20:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[20], Bytes := "FRK_PersistBuffers".D020B, Check := "FRK_PersistRuntime".CheckB);
+	    21:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[21], Bytes := "FRK_PersistBuffers".D021B, Check := "FRK_PersistRuntime".CheckB);
+	    22:
+	        #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[22], Bytes := "FRK_PersistBuffers".D022B, Check := "FRK_PersistRuntime".CheckB);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	#FRK_PersistCheckB := #Done;
+	
+END_FUNCTION
+

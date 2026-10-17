@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_ModelApply" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Image : "FRK_ModelImage";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelApply := FALSE;
+	CASE #RootIndex OF
+	    1:
+	        #FRK_ModelApply := "FRK_ModelApply_R1"(Image := #Image);
+	    2:
+	        #FRK_ModelApply := "FRK_ModelApply_R2"(Image := #Image);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

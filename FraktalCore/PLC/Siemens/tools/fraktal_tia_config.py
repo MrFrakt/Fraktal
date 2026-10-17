@@ -236,6 +236,7 @@ class Layout:
         self.fields = {t.name: fields_for(t, catalog) for t in model.types}
         self.roots = {self.lookup[r.type_name.casefold()].name for r in model.roots}
         self.models = model.model_config or ('',)
+        self.model_slots = model.model_capacity or len(self.models)
         self.root_map = {}
         ordinal = 0
         for instance in model.instances:
@@ -248,16 +249,21 @@ class Layout:
         for code, member, _ in model.model_seeds:
             if member not in model_members:
                 raise DeclarationError('T-GEN', 'model_config.seeds.' + code, member + ' is not declared root model config')
-        self.capacity = sum((len(self.models) if f.kind == catalog.enums['E_ConfigKind']['PAR_CFG'] else 1)
+        self.capacity = sum((self.model_slots if f.kind == catalog.enums['E_ConfigKind']['PAR_CFG'] else 1)
                             for i in model.instances for f in self.fields[i.type_name])
         if self.line:
             self.capacity = max(1, self.capacity)
         self.required = {}
         self.texts = {}
+        self.definition_sources = {}
         self.sets = None
         if model.config_set_capacity:
             from fraktal_tia_config_sets import Sets
             self.sets = Sets(self)
+        self.runtime_models = None
+        if model.model_capacity:
+            from fraktal_tia_models import Models
+            self.runtime_models = Models(self)
         if not self.capacity or self.capacity > 32767:
             raise DeclarationError('T-WIDTH', 'config', 'retained config pool must fit an Int index')
         for t in model.types:
@@ -279,6 +285,9 @@ class Layout:
                   'HmiResponse': '"ST_HmiResponse"', 'AlarmLog':'"FRK_AlarmLog"', 'ConfigPersist': '"ST_ConfigPersistStatus"',
                   'ConfigCursor': '"FRK_ConfigCursor"', 'ConfigRev': 'UDInt',
                   'Model': '"ST_ModelId"', 'AvailableModelCount': 'Int', 'ConfigStaged': 'Bool'}
+        if self.runtime_models:
+            fields.update({'ModelCapacity':'Int', 'ModelGenerationSeen':'UDInt',
+                           'AvailableModels':'Array[1..%d] of "ST_ModelId"'%self.model_slots})
         if t.sequence_view:
             fields.update({'SequenceStepDef': 'Array[1..%d] of "ST_SequenceStepDef"'%t.sequence_view[0], 'SequenceStepCount': 'Int'})
         if t.name in self.line_types:
@@ -295,6 +304,9 @@ class Layout:
             fields['ConfigDefault'+role] = fields[role]
         fields.update({child.name: '"'+child.type_name+'"' for child in t.children})
         return fields
+
+    def capture_roles(self,t):
+        return sorted({f.capture.split('.')[0] for f in self.fields[t.name] if f.capture})
 
     def render(self, t, operation, inputs, inouts, temps, body, result='Void', function_name=None):
         # An FB cannot pass itself as a parameter instance. Own-frame services
@@ -323,13 +335,21 @@ class Layout:
 
     def prepare(self, ordered):
         for t in ordered:
-            self.texts[t.name] = self.definitions(t) + self.restore(t) + self.read(t) + self.write(t) + self.recipe(t)
+            definition=self.definitions(t)
+            if self.model.model_capacity:
+                # These facts have no FB dependency. Import them before typed
+                # catalog services even in a completely fresh TIA project.
+                self.definition_sources['18_Def_'+t.name+'.scl']=definition
+                definition=''
+            self.texts[t.name] = definition + self.restore(t) + self.read(t) + self.write(t) + self.recipe(t)
             if self.sets:
                 self.texts[t.name] += self.sets.walk(t)
             if t.name in self.roots:
                 self.texts[t.name] += self.operations(t)
                 if self.sets:
                     self.texts[t.name] += self.sets.operation(t)
+                if self.runtime_models:
+                    self.texts[t.name] += self.runtime_models.operation(t)
 
     def declarations(self, t):
         result = []
@@ -349,7 +369,9 @@ class Layout:
             result += ['    ConfigPersist'+READONLY+' : "ST_ConfigPersistStatus";',
                        '    Model'+READONLY+' : "ST_ModelId";',
                        '    AvailableModelCount'+READONLY+' : Int;',
-                       '    AvailableModels'+READONLY+' : Array[1..%d] of "ST_ModelId";'%len(self.models)]
+                       '    AvailableModels'+READONLY+' : Array[1..%d] of "ST_ModelId";'%self.model_slots]
+            if self.runtime_models:
+                result += ['    ModelCapacity'+READONLY+' : Int;', '    ModelGenerationSeen'+PRIVATE+' : UDInt;']
         if self.sets:
             result += self.sets.declarations(t)
         return result
@@ -422,9 +444,15 @@ class Layout:
             body += ['    IF #ModelIndex = 0 THEN "FRK_ConfigAppend"(Scope := #Module.Status.Name, Item := \'Features/CaptureConfig\', ValueText := WSTRING#\'true\', ValueType := %d, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page); END_IF;'%self.catalog.enums['E_ConfigValueType']['BOOLEAN']]
         if t.name in self.roots and self.model.model_config:
             body += ['    IF #ModelIndex = 0 THEN']
-            for index, code in enumerate(self.models, 1):
+            for index in range(1,self.model_slots+1):
                 item = 'AvailableModels/AvailableModels[%d]/ModelCode'%index
-                body += ['        "FRK_ConfigAppend"(Scope := #Module.Status.Name, Item := '+literal(item)+', ValueText := WSTRING#'+literal(code)+', ValueType := 1, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);']
+                value = ('STRING_TO_WSTRING("FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := %d))'%index
+                         if self.runtime_models else 'WSTRING#'+literal(self.models[index-1]))
+                line='        "FRK_ConfigAppend"(Scope := #Module.Status.Name, Item := '+literal(item)+', ValueText := '+value+', ValueType := 1, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);'
+                if self.runtime_models: line='        IF %d <= #Module.AvailableModelCount THEN '%index+line.strip()+' END_IF;'
+                body.append(line)
+            if self.runtime_models:
+                body += ['        "FRK_ConfigAppend"(Scope := #Module.Status.Name, Item := \'ModelCapacity\', ValueText := INT_TO_WSTRING(#Module.ModelCapacity), ValueType := 0, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);']
             body += ['    END_IF;']
         for index, f in enumerate(self.fields[t.name], 1):
             scoped = f.member.startswith('ParCfg.') and t.name in self.roots
@@ -583,6 +611,13 @@ class Layout:
                 '    IF #ModelIndex = 0 THEN #FRK_ConfigModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]; RETURN; END_IF;', '    CASE #ModelIndex OF']
         body += ['        %d: #FRK_ConfigModelCode := %s;'%(i, literal(code)) for i, code in enumerate(self.models, 1)]
         body += ['        ELSE RETURN;', '    END_CASE;']
+        if self.runtime_models:
+            body = ['    #FRK_ConfigModelCode := \'\';',
+                '    IF #RootIndex < 1 OR #RootIndex > %d THEN RETURN; END_IF;'%root_count,
+                '    IF NOT "FRK_ModelRuntime".Rows[#RootIndex].Ready THEN RETURN; END_IF;',
+                '    IF #ModelIndex = 0 THEN #FRK_ConfigModelCode := "FRK_ConfigStore".ActiveModels[#RootIndex]; RETURN; END_IF;',
+                '    IF #ModelIndex > INT_TO_UDINT("FRK_ModelStore".Rows[#RootIndex].Count) THEN RETURN; END_IF;',
+                '    #FRK_ConfigModelCode := "FRK_ModelStore".Rows[#RootIndex].Codes[#ModelIndex];']
         text += function('FRK_ConfigModelCode', ['RootIndex : Int;', 'ModelIndex : UDInt;'], [], [], body, 'String')
         body = ['    IF NOT #Startup THEN RETURN; END_IF;',
                 '    "FRK_ConfigRuntime".Fresh := "FRK_ConfigStore".SchemaVersion = 0;',
@@ -594,15 +629,27 @@ class Layout:
         body += ['        "FRK_ConfigStore".SchemaVersion := 1;', '    END_IF;']
         for index, root in enumerate(self.model.roots, 1):
             condition = ' AND '.join('"FRK_ConfigStore".ActiveModels[%d] <> %s'%(index, literal(code)) for code in self.models)
+            if self.runtime_models:
+                # ModelBoot already validated the accepted catalog. Avoid a
+                # forward reference to its typed services during fresh import.
+                body += ['    #Known := FALSE;',
+                    '    FOR #ModelIndex := 1 TO "FRK_ModelStore".Rows[%d].Count DO'%index,
+                    '        IF "FRK_ConfigStore".ActiveModels[%d] = "FRK_ModelStore".Rows[%d].Codes[#ModelIndex] THEN #Known := TRUE; END_IF;'%(index,index),
+                    '    END_FOR;']
+                condition='NOT #Known'
             body += ['    IF '+condition+' THEN',
                      '        "FRK_ConfigStore".ActiveModels[%d] := %s;'%(index, literal(self.model.initial_model)),
                      '        "FRK_ConfigLoss"(RootIndex := %d, Scope := %s);'%(index, literal(root.name)), '    END_IF;']
-        text += function('FRK_ConfigBoot', ['Startup : Bool;'], [], ['Index : Int;'], body)
+        text += function('FRK_ConfigBoot', ['Startup : Bool;'], [], ['Index : DInt;']+(['Known : Bool;','ModelIndex : Int;'] if self.runtime_models else []), body)
         sources['14_ConfigServices.scl'] = text
         if self.sets:
             sources.update(self.sets.sources())
         if self.line:
             sources.update(self.line.production_sources())
+        if self.runtime_models:
+            sources.update(self.runtime_models.sources())
+            sources['19_ModelServices.scl']=(self.runtime_models.services()+self.runtime_models.typed_images()
+                                          +self.runtime_models.boot_services()+self.runtime_models.checkpoint_services())
         return sources
 
     def operations(self, t):
@@ -621,7 +668,7 @@ class Layout:
                  '            "FRK_ConfigBegin"(Cursor := #Module.ConfigCursor, Page := #Module.HmiResponse.ConfigPage, PageIndex := #Request.IntValue, Revision := #Module.ConfigRev);',
                  '            #Module.HmiResponse.Accepted := FALSE;',
                  '            #Module.HmiResponse.Diagnostic := WSTRING#\'std.error.modelNotAvailable\';',
-                 '            IF #Request.DurationMs <= %d AND #Request.IntValue >= 0 AND #Request.IntValue <= 32767 THEN'%len(self.model.model_config),
+                 '            IF #Request.DurationMs <= '+('INT_TO_UDINT(#Module.AvailableModelCount)' if self.runtime_models else str(len(self.model.model_config)))+' AND #Request.IntValue >= 0 AND #Request.IntValue <= 32767 THEN',
                  '                '+self.call(t, 'Read', '#Module.', Access='#Module.Access', RootIndex='#RootIndex', ModelIndex='#Request.DurationMs', Cursor='#Module.ConfigCursor', Page='#Module.HmiResponse.ConfigPage')+';',
                  '                "FRK_ConfigFinish"(Cursor := #Module.ConfigCursor, Page := #Module.HmiResponse.ConfigPage);',
                  '                #Module.HmiResponse.Accepted := TRUE; #Module.HmiResponse.Diagnostic := WSTRING#\'\';', '            END_IF;']
@@ -641,7 +688,7 @@ class Layout:
                  '                    #Module.HmiResponse.Diagnostic := WSTRING#\'std.release.unitNotReady\';',
                  '                    IF #Module.HmiResponse.Report.Count = 0 THEN "FRK_ReleaseReason"(Report := #Module.HmiResponse.Report, Description := #Module.HmiResponse.Diagnostic, Reason := %d, Path := STRING_TO_WSTRING(#Module.Status.Name), Kind := %d); END_IF;'%(self.catalog.enums['E_Reason']['PERMISSIVE_NOT_MET'],self.catalog.enums['E_ReleaseKind']['OTHER']),
                  '                    RETURN; END_IF;', '            END_IF;',
-                 '            IF #Request.DurationMs <= %d THEN'%len(self.model.model_config),
+                 '            IF #Request.DurationMs <= '+('INT_TO_UDINT(#Module.AvailableModelCount)' if self.runtime_models else str(len(self.model.model_config)))+' THEN',
                  '                #Matched := FALSE;',
                  '                #Module.HmiResponse.Accepted := '+self.call(t, 'Write', '#Module.', Access='#Module.Access', Request='#Request', RootIndex='#RootIndex', RootReady='#Ready', Matched='#Matched')+';',
                  '            END_IF;',
@@ -664,15 +711,19 @@ class Layout:
                      '            #Module.HmiResponse.Accepted := FALSE;',
                      '            #Module.HmiResponse.Diagnostic := WSTRING#\'std.error.modelNotAvailable\';',
                      '            #Desired := \'\';']
-            for code in self.models:
-                body += ['            IF #Request.TextValue = WSTRING#'+literal(code)+' THEN #Desired := '+literal(code)+'; END_IF;']
+            if self.runtime_models:
+                body += ['            #Desired := WSTRING_TO_STRING(#Request.TextValue);',
+                    '            IF STRING_TO_WSTRING(#Desired) <> #Request.TextValue OR NOT "FRK_ModelKnown"(RootIndex := #RootIndex, Code := #Desired) THEN #Desired := \'\'; END_IF;']
+            else:
+                for code in self.models:
+                    body += ['            IF #Request.TextValue = WSTRING#'+literal(code)+' THEN #Desired := '+literal(code)+'; END_IF;']
             body += ['            "FRK_UnitRelease"(Core := #Module.Core, Unit := #Module.Unit, Status := #Module.Status, Policy := #Module.ModePolicy, Access := #Module.Access, Supported := #Module.SupportedModesPublished, Report := #Module.HmiResponse.Report, Gate := %d, Desired := -1, Trusted := FALSE);'%self.catalog.enums['E_GatedAction']['CHANGEOVER'],
                      '            IF #Desired <> \'\' AND #Module.HmiResponse.Report.Released THEN',
                      '                #Scope := \'\'; #Key := \'\';',
                      '                #Ok := '+self.call(t, 'Recipe', '#Module.', ModelCode='#Desired', Phase='1', RejectScope='#Scope', RejectKey='#Key')+';',
                      '                IF #Ok THEN',
                      '                    #Ok := '+self.call(t, 'Recipe', '#Module.', ModelCode='#Desired', Phase='2', RejectScope='#Scope', RejectKey='#Key')+';',
-                     '                    "FRK_ConfigStore".ActiveModels[#RootIndex] := #Desired;',
+                     '                    "FRK_ConfigSetActiveModel"(RootIndex := #RootIndex, ModelCode := #Desired);',
                      '                    #Module.Model.ModelCode := #Desired;',
                      '                    #Module.ConfigRev := "FRK_ConfigRevision"(Previous := #Module.ConfigRev);',
                      '                    #Module.HmiResponse.Accepted := TRUE; #Module.HmiResponse.Diagnostic := WSTRING#\'\';',

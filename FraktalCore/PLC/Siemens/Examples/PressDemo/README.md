@@ -1,5 +1,14 @@
 # Siemens press demo
 
+Runtime model milestone (2026-10-17): `model_config.capacity = 4` adds one
+runtime slot after ALUMINUM, PLASTIC and STEEL. The generic HMI can clone an
+existing model or complete saved model set; creation leaves the running recipe
+unchanged and activation uses the ordinary changeover path. The catalog and its
+five model config fields share one bounded LOAD_DB document. See
+[the qualification report](../../../../../Specification/Siemens/Evidence/TIA_RUNTIME_MODELS_2026-10-17.md).
+The original saved Fraktal simulator remains on Press_Complete_20261015;
+the updated press is qualified separately.
+
 Latest qualification (2026-10-16): generator0.23 keeps254 grouped sources and
 passes both native software compile stages,561 canonical sources,152 FB/type
 interfaces,62 DB interfaces and the same independent GRAPH/LD parity below.

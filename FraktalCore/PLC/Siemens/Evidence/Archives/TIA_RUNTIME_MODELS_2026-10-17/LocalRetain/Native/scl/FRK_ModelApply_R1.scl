@@ -1,0 +1,429 @@
+﻿FUNCTION "FRK_ModelApply_R1" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Image : "FRK_ModelImage";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      ModelSlot : Int;
+      RowIndex : Int;
+      Stored : Int;
+      Targets : Array[1..32] of Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelApply_R1 := FALSE;
+	IF NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image.Catalog) THEN
+	    RETURN;
+	END_IF;
+	IF #Image.RecordCount <> (#Image.Catalog.Count - 2) * 26 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 32 DO
+	    #Targets[#Index] := 0;
+	END_FOR;
+	FOR #ModelSlot := 3 TO #Image.Catalog.Count DO
+	    #RowIndex := (#ModelSlot - 3) * 26 + 1;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 2;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 3;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 8);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA', Key := 'idealCycleMs', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 4;
+	    "FRK_CfgDef_DeclarationUnit"(FieldIndex := 9);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA', Key := 'baselineMs', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 5;
+	    "FRK_CfgDef_DeclarationCell"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Cell', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Cell', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 6;
+	    "FRK_CfgDef_DeclarationCell"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Cell', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Cell', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 7;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Cell.Clamp', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Cell.Clamp', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 8;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Cell.Clamp', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Cell.Clamp', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 9;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Cell.Gate', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Cell.Gate', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 10;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Cell.Gate', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Cell.Gate', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 11;
+	    "FRK_CfgDef_SatelliteUnit"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 12;
+	    "FRK_CfgDef_SatelliteUnit"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 13;
+	    "FRK_CfgDef_DeclarationCell"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Cell', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Cell', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 14;
+	    "FRK_CfgDef_DeclarationCell"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Cell', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Cell', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 15;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Cell.Clamp', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Cell.Clamp', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 16;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Cell.Clamp', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Cell.Clamp', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 17;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Cell.Gate', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Cell.Gate', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 18;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Cell.Gate', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Cell.Gate', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 19;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 20;
+	    "FRK_CfgDef_InnerUnit"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 21;
+	    "FRK_CfgDef_DeclarationCell"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner.Cell', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner.Cell', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 22;
+	    "FRK_CfgDef_DeclarationCell"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner.Cell', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner.Cell', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 23;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 24;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner.Cell.Clamp', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 25;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 1);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Key := 'timeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 3) * 26 + 26;
+	    "FRK_CfgDef_DeclarationCylinder"(FieldIndex := 2);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'StationA.Satellite.Inner.Cell.Gate', Key := 'preset', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 212 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	END_FOR;
+	FOR #Index := 1 TO #Image.RecordCount DO
+	    "FRK_ConfigStore".Rows[#Targets[#Index]] := #Image.Rows[#Index];
+	END_FOR;
+	"FRK_ModelStore".Rows[1] := #Image.Catalog;
+	"FRK_ConfigStore".SchemaVersion := 1;
+	#FRK_ModelApply_R1 := TRUE;
+	
+END_FUNCTION
+

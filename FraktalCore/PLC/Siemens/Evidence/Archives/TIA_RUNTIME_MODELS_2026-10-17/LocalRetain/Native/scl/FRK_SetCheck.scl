@@ -1,0 +1,58 @@
+﻿FUNCTION "FRK_SetCheck" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Scope : String;
+      Access : "FRK_Access";
+      Ready : Bool;
+      WriteAccess : Bool;
+      ReserveTarget : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      TargetSlot : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SetCheck := 0;
+	"FRK_SetRuntime".Work[#RootIndex].RejectScope := #Scope;
+	"FRK_SetRuntime".Work[#RootIndex].RejectKey := "FRK_ConfigScratch".Entry.WriteKey;
+	#Index := "FRK_SetRecord"(RootIndex := #RootIndex, Scope := #Scope, WriteKey := "FRK_ConfigScratch".Entry.WriteKey);
+	IF #Index = 0 THEN
+	    RETURN;
+	END_IF;
+	IF NOT #WriteAccess AND NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := FALSE, Scope := #Scope) THEN
+	    RETURN;
+	END_IF;
+	IF #WriteAccess THEN
+	    IF NOT "FRK_ConfigDataAllowed"(Access := #Access, ForWrite := TRUE, Scope := #Scope) THEN
+	        RETURN;
+	    END_IF;
+	    IF "FRK_ConfigScratch".Entry.RequiresReady AND NOT #Ready THEN
+	        RETURN;
+	    END_IF;
+	END_IF;
+	#Ok := "FRK_ConfigRecordValid"(Scope := #Scope, Record := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index]);
+	IF NOT #Ok THEN
+	    RETURN;
+	END_IF;
+	// Reserve every destination before commit, including a missing cache row.
+	IF #ReserveTarget THEN
+	    #TargetSlot := "FRK_ConfigReserve"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode, Reserved := "FRK_SetRuntime".Work[#RootIndex].Targets);
+	    IF #TargetSlot < 1 OR #TargetSlot > 212 THEN
+	        RETURN;
+	    END_IF;
+	    "FRK_SetRuntime".Work[#RootIndex].Targets[#Index] := #TargetSlot;
+	END_IF;
+	"FRK_SetRuntime".Work[#RootIndex].Schemas[#Index] := "FRK_ConfigScratch".Schema;
+	"FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := TRUE;
+	"FRK_SetRuntime".Work[#RootIndex].Matched := "FRK_SetRuntime".Work[#RootIndex].Matched + 1;
+	#FRK_SetCheck := #Index;
+	
+END_FUNCTION
+

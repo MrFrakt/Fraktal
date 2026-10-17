@@ -1,0 +1,61 @@
+﻿FUNCTION "FRK_ConfigPut" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      ModelCode : String;
+      Text : WString;
+      RootIndex : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Candidate : DInt;
+      Record : "ST_ConfigRecord";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigPut := FALSE;
+	IF #RootIndex < 1 OR #RootIndex > 2 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_ConfigRuntime".Unavailable THEN
+	    "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE;
+	    RETURN;
+	END_IF;
+	IF LEN(#Scope) > 80 OR LEN(#Text) > 80 THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_ConfigValidate"(Text := #Text) THEN
+	    RETURN;
+	END_IF;
+	#Index := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);
+	IF #Index = 0 THEN
+	    FOR #Candidate := 1 TO 212 DO
+	        IF NOT "FRK_ConfigStore".Rows[#Candidate].Used THEN
+	            #Index := #Candidate;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_IF;
+	IF #Index < 1 OR #Index > 212 THEN
+	    "FRK_ConfigRuntime".Failed[#RootIndex] := TRUE;
+	    RETURN;
+	END_IF;
+	#Record.Scope := #Scope;
+	#Record.WriteKey := "FRK_ConfigScratch".Entry.WriteKey;
+	#Record.Revision := "FRK_ConfigScratch".Entry.WriteRevision;
+	#Record.Kind := "FRK_ConfigScratch".Entry.ConfigKind;
+	#Record.ValueType := "FRK_ConfigScratch".Entry.ValueType;
+	#Record.ValueText := WSTRING_TO_STRING(#Text);
+	"FRK_ConfigCommit"(SlotIndex := DINT_TO_INT(#Index),
+	                   ModelCode := #ModelCode,
+	                   Schema := "FRK_ConfigScratch".Schema,
+	                   Record := #Record);
+	"FRK_ConfigRuntime".Failed[#RootIndex] := FALSE;
+	#FRK_ConfigPut := TRUE;
+	
+END_FUNCTION
+

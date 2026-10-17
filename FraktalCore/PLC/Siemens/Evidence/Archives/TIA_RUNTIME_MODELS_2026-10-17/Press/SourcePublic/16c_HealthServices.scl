@@ -1,0 +1,136 @@
+FUNCTION "FRK_HealthCyclic" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Configured : Bool;
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    Input : "ST_SystemHealthInput";
+    ParCfg : "ST_SystemHealthParCfg";
+    Status : "ST_SystemHealthStatus";
+    Book : "FRK_HealthBook";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+VAR_TEMP
+    validCfg : Bool;
+    taskOverrunBad : Bool;
+    jitterBad : Bool;
+    controllerBad : Bool;
+    cpuBad : Bool;
+    memoryBad : Bool;
+    temperatureBad : Bool;
+    fanBad : Bool;
+    storageBad : Bool;
+    fieldbusBad : Bool;
+    dcBad : Bool;
+    timeBad : Bool;
+END_VAR
+BEGIN
+    #validCfg := #Configured AND (#ParCfg.SchemaVersion = 1)
+        AND (#ParCfg.MaxTaskCycleUs > 0) AND (#ParCfg.MaxTaskJitterUs > 0)
+        AND (#ParCfg.MaxCpuLoadPct > 0.0) AND (#ParCfg.MaxCpuLoadPct <= 100.0)
+        AND (#ParCfg.MaxIpcTemperatureC > 0.0)
+        AND (#ParCfg.MinStorageHealthPct >= 0.0) AND (#ParCfg.MinStorageHealthPct <= 100.0)
+        AND (#ParCfg.MaxTimeOffsetUs >= 0);
+
+    #Status.Present := #validCfg;
+    #Status.SourcePath := STRING_TO_WSTRING(#Scope);
+    #Status.TaskAvailable := #Input.TaskAvailable;
+    #Status.TaskCycleUs := #Input.TaskCycleUs;
+    #Status.TaskJitterUs := #Input.TaskJitterUs;
+    #Status.TaskOverrun := #Input.TaskOverrun;
+    #Status.ControllerAvailable := #Input.ControllerAvailable;
+    #Status.CpuLoadPct := #Input.CpuLoadPct;
+    #Status.MemoryAvailableMb := #Input.MemoryAvailableMb;
+    #Status.IpcAvailable := #Input.IpcAvailable;
+    #Status.IpcTemperatureC := #Input.IpcTemperatureC;
+    #Status.FanHealthy := #Input.FanHealthy;
+    #Status.StorageHealthPct := #Input.StorageHealthPct;
+    #Status.FieldbusAvailable := #Input.FieldbusAvailable;
+    #Status.FieldbusMasterHealthy := #Input.FieldbusMasterHealthy;
+    #Status.LostFrameCount := #Input.LostFrameCount;
+    #Status.SlaveErrorCount := #Input.SlaveErrorCount;
+    #Status.DcAvailable := #Input.DcAvailable;
+    #Status.DcSynchronized := #Input.DcSynchronized;
+    #Status.TimeQuality := #Input.TimeQuality;
+    #Status.FanAvailable := #Input.IpcAvailable AND #Input.FanAvailable;
+    #Status.StorageAvailable := #Input.IpcAvailable AND #Input.StorageAvailable;
+
+    #taskOverrunBad := #validCfg AND (NOT #Input.TaskAvailable OR #Input.TaskOverrun
+        OR (#Input.TaskCycleUs > #ParCfg.MaxTaskCycleUs));
+    #jitterBad := #validCfg AND #Input.TaskAvailable
+        AND (#Input.TaskJitterUs > #ParCfg.MaxTaskJitterUs);
+    #controllerBad := #validCfg AND NOT #Input.ControllerAvailable;
+    #cpuBad := #validCfg AND #Input.ControllerAvailable
+        AND (#Input.CpuLoadPct > #ParCfg.MaxCpuLoadPct);
+    #memoryBad := #validCfg AND #Input.ControllerAvailable
+        AND (#Input.MemoryAvailableMb < #ParCfg.MinMemoryAvailableMb);
+    #temperatureBad := #validCfg AND #Input.IpcAvailable
+        AND (#Input.IpcTemperatureC > #ParCfg.MaxIpcTemperatureC);
+    #fanBad := #validCfg AND #Input.IpcAvailable AND #Input.FanAvailable
+        AND NOT #Input.FanHealthy;
+    #storageBad := #validCfg AND #Input.IpcAvailable AND #Input.StorageAvailable
+        AND (#Input.StorageHealthPct < #ParCfg.MinStorageHealthPct);
+    #fieldbusBad := #validCfg AND (#Input.FieldbusAvailable
+        AND (NOT #Input.FieldbusMasterHealthy
+            OR (#Input.LostFrameCount > #ParCfg.MaxLostFrames)
+            OR (#Input.SlaveErrorCount > #ParCfg.MaxSlaveErrors))
+        OR (#ParCfg.RequireFieldbus AND NOT #Input.FieldbusAvailable));
+    #dcBad := #validCfg AND #ParCfg.RequireDcSync
+        AND (NOT #Input.DcAvailable OR NOT #Input.DcSynchronized);
+    #timeBad := #validCfg AND #ParCfg.RequireTimeSync
+        AND (NOT #Input.TimeQuality.Available OR NOT #Input.TimeQuality.Synchronized
+            OR (#Input.TimeQuality.OffsetUs > #ParCfg.MaxTimeOffsetUs)
+            OR (#Input.TimeQuality.OffsetUs < -#ParCfg.MaxTimeOffsetUs));
+
+    "FRK_ConditionEvent"(Active := #taskOverrunBad, Reason := 10, Description := WSTRING#'std.system.taskOverrun', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[1], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #jitterBad, Reason := 11, Description := WSTRING#'std.system.taskJitterHigh', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[2], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #controllerBad, Reason := 21, Description := WSTRING#'std.system.controllerMetricsUnavailable', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[3], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #cpuBad, Reason := 12, Description := WSTRING#'std.system.cpuLoadHigh', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[4], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #memoryBad, Reason := 13, Description := WSTRING#'std.system.memoryLow', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[5], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #temperatureBad, Reason := 14, Description := WSTRING#'std.system.ipcTemperatureHigh', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[6], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #fanBad, Reason := 19, Description := WSTRING#'std.system.ipcFanFault', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[7], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #storageBad, Reason := 20, Description := WSTRING#'std.system.storageHealthLow', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[8], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #fieldbusBad, Reason := 15, Description := WSTRING#'std.system.fieldbusMasterFault', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[9], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #dcBad, Reason := 16, Description := WSTRING#'std.system.dcSyncLost', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[10], AlarmLog := #AlarmLog);
+    "FRK_ConditionEvent"(Active := #timeBad, Reason := 17, Description := WSTRING#'std.system.timeSyncLost', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[11], AlarmLog := #AlarmLog);
+
+    #Status.Healthy := #validCfg AND NOT #taskOverrunBad AND NOT #jitterBad
+        AND NOT #controllerBad AND NOT #cpuBad AND NOT #memoryBad
+        AND NOT #temperatureBad AND NOT #fanBad AND NOT #storageBad
+        AND NOT #fieldbusBad AND NOT #dcBad AND NOT #timeBad;
+    #FRK_HealthCyclic := #validCfg;
+END_FUNCTION
+
+// RT_INFO MODE25 is the native completed-OB cycle, in nanoseconds (LTIME).
+// Controller memory/CPU, IPC and PN/DC remain unavailable until qualified.
+FUNCTION "FRK_S7HealthProbe" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Startup : Bool; END_VAR
+VAR_TEMP Cycle : LTime; ResultCode : Int; ClockResult : Int; Stamp : DTL; CycleUs : LInt; END_VAR
+BEGIN
+    IF #Startup THEN "FRK_HealthProbe".HaveSample := FALSE; END_IF;
+    #ResultCode := RT_INFO(MODE := UINT#25, OB := 0, INFO := #Cycle);
+    #CycleUs := LTIME_TO_LINT(#Cycle) / LINT#1000;
+    "FRK_HealthProbe".Input.TaskAvailable := "FRK_HealthProbe".HaveSample AND #ResultCode = 0 AND #CycleUs >= 0 AND #CycleUs <= LINT#4294967295;
+    IF "FRK_HealthProbe".Input.TaskAvailable THEN
+        "FRK_HealthProbe".Input.TaskCycleUs := LINT_TO_UDINT(#CycleUs);
+        IF "FRK_HealthProbe".Input.TaskCycleUs >= "FRK_HealthProbe".LastCycleUs THEN
+            "FRK_HealthProbe".Input.TaskJitterUs := "FRK_HealthProbe".Input.TaskCycleUs - "FRK_HealthProbe".LastCycleUs;
+        ELSE "FRK_HealthProbe".Input.TaskJitterUs := "FRK_HealthProbe".LastCycleUs - "FRK_HealthProbe".Input.TaskCycleUs; END_IF;
+        "FRK_HealthProbe".LastCycleUs := "FRK_HealthProbe".Input.TaskCycleUs;
+    ELSE "FRK_HealthProbe".Input.TaskCycleUs := 0; "FRK_HealthProbe".Input.TaskJitterUs := 0; END_IF;
+    "FRK_HealthProbe".HaveSample := TRUE;
+    "FRK_HealthProbe".Input.TaskOverrun := FALSE;
+    "FRK_HealthProbe".Input.ControllerAvailable := FALSE;
+    "FRK_HealthProbe".Input.IpcAvailable := FALSE;
+    "FRK_HealthProbe".Input.FanAvailable := FALSE; "FRK_HealthProbe".Input.StorageAvailable := FALSE;
+    "FRK_HealthProbe".Input.FieldbusAvailable := FALSE; "FRK_HealthProbe".Input.DcAvailable := FALSE;
+    #ClockResult := RD_SYS_T(OUT => #Stamp);
+    "FRK_HealthProbe".Input.TimeQuality.Available := #ClockResult = 0;
+    "FRK_HealthProbe".Input.TimeQuality.Synchronized := FALSE;
+    "FRK_HealthProbe".Input.TimeQuality.Source := 'RD_SYS_T (sync unqualified)';
+    IF #ClockResult = 0 THEN "FRK_HealthProbe".Input.TimeQuality.ObservedAt := DTL_TO_LDT(#Stamp); END_IF;
+END_FUNCTION

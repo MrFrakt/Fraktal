@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_ModelVirgin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Catalog : "FRK_ModelCatalog";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelVirgin := FALSE;
+	IF #Catalog.SchemaVersion <> 0 OR #Catalog.Scope <> '' OR #Catalog.Capacity <> 0 OR #Catalog.Count <> 0
+	    OR #Catalog.Generation <> 0 OR #Catalog.Checksum <> DWORD#0 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 4 DO
+	    IF #Catalog.Codes[#Index] <> '' THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_ModelVirgin := TRUE;
+	
+END_FUNCTION
+

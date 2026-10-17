@@ -1,0 +1,50 @@
+FUNCTION "FRK_TowerTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT MachineState : DInt; AlarmActive : Bool; HighestSeverity : DInt; OperatorActionRequired : Bool; ParCfg : "ST_SignalTowerParCfg"; END_VAR
+VAR_IN_OUT Book : "FRK_TowerBook"; Status : "ST_SignalTowerOut"; END_VAR
+VAR_TEMP TestActive : Bool; END_VAR
+BEGIN
+    IF #Book.TestActive AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Book.StartedMs) >= #Book.DurationMs THEN #Book.TestActive := FALSE; END_IF;
+    #TestActive := #Book.TestActive;
+@MAPPING@
+END_FUNCTION
+
+FUNCTION "FRK_TowerRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; ParCfg : "ST_SignalTowerParCfg"; END_VAR
+VAR_IN_OUT Core : "FRK_Core"; Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse"; Book : "FRK_TowerBook"; END_VAR
+VAR_TEMP Duration : Time; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> @E_HmiRequestKind.LAMP_TEST@ THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[@E_GatedAction.MANUAL@] THEN #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    ELSIF #Core.Exec <> @E_ExecState.BUSY@ THEN
+        #Duration := #ParCfg.LampTestDuration;
+        IF #ParCfg.SchemaVersion <> 1 OR #Duration <= T#0ms THEN #Duration := T#3s;
+        ELSIF #Duration > T#30s THEN #Duration := T#30s; END_IF;
+        #Book.DurationMs := TIME_TO_UDINT(#Duration); #Book.StartedMs := "FRK_Clock".NowMs; #Book.TestActive := TRUE;
+        #Response.Accepted := TRUE;
+    END_IF;
+    IF #Response.Accepted THEN #Response.Diagnostic := WSTRING#'';
+    ELSE "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := STRING_TO_WSTRING(#Scope), Kind := @E_ReleaseKind.OTHER@); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_TowerFrame" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT MachineState : DInt; OperatorActionRequired : Bool; ParCfg : "ST_SignalTowerParCfg"; END_VAR
+VAR_IN_OUT Book : "FRK_TowerBook"; AlarmLog : "FRK_AlarmLog"; Status : "ST_SignalTowerOut"; END_VAR
+VAR_TEMP Index : Int; Highest : DInt; Active : Bool; END_VAR
+BEGIN
+    #Highest := @E_Severity.LOW@; #Active := FALSE;
+    FOR #Index := 1 TO @MAX_ALARM_ACTIVE@ DO
+        IF #AlarmLog.Active[#Index].State <> @E_AlarmState.CLOSED@ AND NOT #AlarmLog.Active[#Index].Shelved THEN
+            #Active := TRUE;
+            #Highest := MAX(IN1 := #Highest, IN2 := #AlarmLog.Active[#Index].Severity);
+        END_IF;
+    END_FOR;
+    "FRK_TowerTick"(MachineState := #MachineState, AlarmActive := #Active, HighestSeverity := #Highest, OperatorActionRequired := #OperatorActionRequired, ParCfg := #ParCfg, Book := #Book, Status := #Status);
+END_FUNCTION

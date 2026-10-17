@@ -1,0 +1,51 @@
+﻿FUNCTION "FRK_DocCyclic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Slot : Int;
+      Done : Bool;
+      Ok : Bool;
+      Length : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT "FRK_PersistConsumers".Ready THEN
+	    RETURN;
+	END_IF;
+	FOR #Slot := 1 TO 22 DO
+	    IF "FRK_PersistConsumers".Rows[#Slot].Ticket <> 0 THEN
+	        #Done := "FRK_PersistPoll"(Ticket := "FRK_PersistConsumers".Rows[#Slot].Ticket, Result := "FRK_PersistConsumers".Rows[#Slot].Result);
+	        IF #Done THEN
+	            "FRK_PersistConsumers".Rows[#Slot].Ticket := 0;
+	            "FRK_PersistConsumers".Rows[#Slot].Failed := NOT "FRK_PersistConsumers".Rows[#Slot].Result.Ok;
+	            "FRK_PersistConsumers".Rows[#Slot].RetrySince := "FRK_Clock".NowMs;
+	            IF "FRK_PersistConsumers".Rows[#Slot].Failed THEN
+	                "FRK_PersistConsumers".Rows[#Slot].Dirty := TRUE;
+	            ELSIF "FRK_PersistConsumers".Rows[#Slot].Dirty THEN
+	                "FRK_PersistConsumers".Rows[#Slot].PendingSince := "FRK_PersistConsumers".Rows[#Slot].NextSince;
+	            ELSE
+	                "FRK_PersistConsumers".Rows[#Slot].PendingSince := LDT#1970-01-01-00:00:00;
+	            END_IF;
+	        END_IF;
+	    ELSIF "FRK_PersistConsumers".Rows[#Slot].Dirty AND (NOT "FRK_PersistConsumers".Rows[#Slot].Rejected OR "FRK_PersistConsumers".Rows[#Slot].Acknowledged) THEN
+	        IF NOT "FRK_PersistConsumers".Rows[#Slot].Failed OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "FRK_PersistConsumers".Rows[#Slot].RetrySince) >= 1000 THEN
+	            "FRK_DocCapture"(Slot := #Slot,
+	                             Ok := #Ok,
+	                             Length := #Length);
+	            IF #Ok THEN
+	                "FRK_PersistConsumers".Rows[#Slot].Ticket := "FRK_PersistStart"(Slot := #Slot, WriteDocument := TRUE, Length := #Length);
+	                IF "FRK_PersistConsumers".Rows[#Slot].Ticket <> 0 THEN
+	                    "FRK_PersistConsumers".Rows[#Slot].Dirty := FALSE;
+	                END_IF;
+	            ELSE
+	                "FRK_PersistConsumers".Rows[#Slot].Failed := TRUE;
+	                "FRK_PersistConsumers".Rows[#Slot].RetrySince := "FRK_Clock".NowMs;
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

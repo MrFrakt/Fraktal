@@ -1,0 +1,474 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-17T04:01:19.561993Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="Startup" Datatype="Bool" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Temp">
+    <Member Name="Accepted" Datatype="Bool" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_AccessStoreBoot</Name>
+      <Namespace />
+      <Number>88</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="IF" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Token Text="NOT" UId="24" />
+  <Blank Num="1" UId="25" />
+  <Access Scope="LocalVariable" UId="26">
+    <Symbol UId="27">
+      <Component Name="Startup" UId="28" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="29" />
+  <Token Text="THEN" UId="30" />
+  <NewLine Num="1" UId="31" />
+  <Blank Num="4" UId="32" />
+  <Token Text="RETURN" UId="33" />
+  <Token Text=";" UId="34" />
+  <NewLine Num="1" UId="35" />
+  <Token Text="END_IF" UId="36" />
+  <Token Text=";" UId="37" />
+  <NewLine Num="1" UId="38" />
+  <Access Scope="GlobalVariable" UId="39">
+    <Symbol UId="40">
+      <Component Name="FRK_AccessStorage" UId="41">
+        <BooleanAttribute Name="HasQuotes" UId="42">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="43" />
+      <Component Name="UsersReady" UId="44" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="45" />
+  <Token Text=":=" UId="46" />
+  <Blank Num="1" UId="47" />
+  <Access Scope="LiteralConstant" UId="48">
+    <Constant UId="49">
+      <ConstantValue UId="51">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="52" />
+  <NewLine Num="1" UId="53" />
+  <Access Scope="GlobalVariable" UId="54">
+    <Symbol UId="55">
+      <Component Name="FRK_AccessStorage" UId="56">
+        <BooleanAttribute Name="HasQuotes" UId="57">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="58" />
+      <Component Name="UsersLost" UId="59" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="60" />
+  <Token Text=":=" UId="61" />
+  <Blank Num="1" UId="62" />
+  <Access Scope="LiteralConstant" UId="63">
+    <Constant UId="64">
+      <ConstantValue UId="66">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="67" />
+  <NewLine Num="1" UId="68" />
+  <LineComment Inserted="false" NoClosingBracket="false" UId="69">
+    <Text UId="70"> A virgin image may accept deliberate composition-root provisioning.</Text>
+  </LineComment>
+  <NewLine Num="1" UId="71" />
+  <Token Text="IF" UId="72" />
+  <Blank Num="1" UId="73" />
+  <Token Text="NOT" UId="74" />
+  <Blank Num="1" UId="75" />
+  <Access Scope="GlobalVariable" UId="76">
+    <Symbol UId="77">
+      <Component Name="FRK_AccessStorage" UId="78">
+        <BooleanAttribute Name="HasQuotes" UId="79">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="80" />
+      <Component Name="UsersCommissioned" UId="81" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="82" />
+  <Token Text="AND" UId="83" />
+  <Blank Num="1" UId="84" />
+  <Access Scope="GlobalVariable" UId="85">
+    <Symbol UId="86">
+      <Component Name="FRK_LocalUsers" UId="87">
+        <BooleanAttribute Name="HasQuotes" UId="88">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="89" />
+      <Component Name="SchemaVersion" UId="90" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="91" />
+  <Token Text="=" UId="92" />
+  <Blank Num="1" UId="93" />
+  <Access Scope="LiteralConstant" UId="94">
+    <Constant UId="95">
+      <ConstantValue UId="97">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="98" />
+  <Token Text="AND" UId="99" />
+  <Blank Num="1" UId="100" />
+  <Access Scope="GlobalVariable" UId="101">
+    <Symbol UId="102">
+      <Component Name="FRK_LocalUsers" UId="103">
+        <BooleanAttribute Name="HasQuotes" UId="104">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="105" />
+      <Component Name="Generation" UId="106" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="107" />
+  <Token Text="=" UId="108" />
+  <Blank Num="1" UId="109" />
+  <Access Scope="LiteralConstant" UId="110">
+    <Constant UId="111">
+      <ConstantValue UId="113">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="114" />
+  <Token Text="AND" UId="115" />
+  <Blank Num="1" UId="116" />
+  <Access Scope="GlobalVariable" UId="117">
+    <Symbol UId="118">
+      <Component Name="FRK_LocalUsers" UId="119">
+        <BooleanAttribute Name="HasQuotes" UId="120">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="121" />
+      <Component Name="Checksum" UId="122" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="123" />
+  <Token Text="=" UId="124" />
+  <Blank Num="1" UId="125" />
+  <Access Scope="TypedConstant" UId="126">
+    <Constant UId="127">
+      <ConstantValue UId="128">DWORD#0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="129" />
+  <Token Text="THEN" UId="130" />
+  <NewLine Num="1" UId="131" />
+  <Blank Num="4" UId="132" />
+  <Access Scope="LocalVariable" UId="133">
+    <Symbol UId="134">
+      <Component Name="Accepted" UId="135" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="136" />
+  <Token Text=":=" UId="137" />
+  <Blank Num="1" UId="138" />
+  <Access Scope="Call" UId="139">
+    <CallInfo UId="140" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="142">
+        <Component Name="FRK_AccessUsersCommit" UId="141" />
+      </Instance>
+      <Token Text="(" UId="143" />
+      <Token Text=")" UId="145" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="146" />
+  <NewLine Num="1" UId="147" />
+  <Blank Num="4" UId="148" />
+  <Access Scope="GlobalVariable" UId="149">
+    <Symbol UId="150">
+      <Component Name="FRK_AccessStorage" UId="151">
+        <BooleanAttribute Name="HasQuotes" UId="152">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="153" />
+      <Component Name="UsersLost" UId="154" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="155" />
+  <Token Text=":=" UId="156" />
+  <Blank Num="1" UId="157" />
+  <Token Text="NOT" UId="158" />
+  <Blank Num="1" UId="159" />
+  <Access Scope="LocalVariable" UId="160">
+    <Symbol UId="161">
+      <Component Name="Accepted" UId="162" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="163" />
+  <NewLine Num="1" UId="164" />
+  <Token Text="ELSIF" UId="165" />
+  <Blank Num="1" UId="166" />
+  <Access Scope="GlobalVariable" UId="167">
+    <Symbol UId="168">
+      <Component Name="FRK_AccessStorage" UId="169">
+        <BooleanAttribute Name="HasQuotes" UId="170">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="171" />
+      <Component Name="UsersCommissioned" UId="172" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="173" />
+  <Token Text="AND" UId="174" />
+  <Blank Num="1" UId="175" />
+  <Access Scope="GlobalVariable" UId="176">
+    <Symbol UId="177">
+      <Component Name="FRK_LocalUsers" UId="178">
+        <BooleanAttribute Name="HasQuotes" UId="179">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="180" />
+      <Component Name="SchemaVersion" UId="181" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="182" />
+  <Token Text="=" UId="183" />
+  <Blank Num="1" UId="184" />
+  <Access Scope="LiteralConstant" UId="185">
+    <Constant UId="186">
+      <ConstantValue UId="188">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="189" />
+  <Token Text="AND" UId="190" />
+  <Blank Num="1" UId="191" />
+  <Access Scope="GlobalVariable" UId="192">
+    <Symbol UId="193">
+      <Component Name="FRK_LocalUsers" UId="194">
+        <BooleanAttribute Name="HasQuotes" UId="195">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="196" />
+      <Component Name="Generation" UId="197" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="198" />
+  <Token Text="&gt;" UId="199" />
+  <Blank Num="1" UId="200" />
+  <Access Scope="LiteralConstant" UId="201">
+    <Constant UId="202">
+      <ConstantValue UId="204">0</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="205" />
+  <Token Text="AND" UId="206" />
+  <Blank Num="1" UId="207" />
+  <Access Scope="Call" UId="208">
+    <CallInfo UId="209" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="211">
+        <Component Name="FRK_AccessUsersShape" UId="210" />
+      </Instance>
+      <Token Text="(" UId="212" />
+      <Token Text=")" UId="214" />
+    </CallInfo>
+  </Access>
+  <Blank Num="1" UId="215" />
+  <Token Text="THEN" UId="216" />
+  <NewLine Num="1" UId="217" />
+  <Blank Num="4" UId="218" />
+  <Access Scope="GlobalVariable" UId="219">
+    <Symbol UId="220">
+      <Component Name="FRK_AccessStorage" UId="221">
+        <BooleanAttribute Name="HasQuotes" UId="222">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="223" />
+      <Component Name="UsersReady" UId="224" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="225" />
+  <Token Text=":=" UId="226" />
+  <Blank Num="1" UId="227" />
+  <Access Scope="GlobalVariable" UId="228">
+    <Symbol UId="229">
+      <Component Name="FRK_LocalUsers" UId="230">
+        <BooleanAttribute Name="HasQuotes" UId="231">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="232" />
+      <Component Name="Checksum" UId="233" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="234" />
+  <Token Text="=" UId="235" />
+  <Blank Num="1" UId="236" />
+  <Access Scope="Call" UId="237">
+    <CallInfo UId="238" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="240">
+        <Component Name="FRK_AccessUsersCrc" UId="239" />
+      </Instance>
+      <Token Text="(" UId="241" />
+      <Token Text=")" UId="243" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="244" />
+  <NewLine Num="1" UId="245" />
+  <Blank Num="4" UId="246" />
+  <Access Scope="GlobalVariable" UId="247">
+    <Symbol UId="248">
+      <Component Name="FRK_AccessStorage" UId="249">
+        <BooleanAttribute Name="HasQuotes" UId="250">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="251" />
+      <Component Name="UsersLost" UId="252" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="253" />
+  <Token Text=":=" UId="254" />
+  <Blank Num="1" UId="255" />
+  <Token Text="NOT" UId="256" />
+  <Blank Num="1" UId="257" />
+  <Access Scope="GlobalVariable" UId="258">
+    <Symbol UId="259">
+      <Component Name="FRK_AccessStorage" UId="260">
+        <BooleanAttribute Name="HasQuotes" UId="261">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="262" />
+      <Component Name="UsersReady" UId="263" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="264" />
+  <NewLine Num="1" UId="265" />
+  <Token Text="ELSE" UId="266" />
+  <NewLine Num="1" UId="267" />
+  <Blank Num="4" UId="268" />
+  <Access Scope="GlobalVariable" UId="269">
+    <Symbol UId="270">
+      <Component Name="FRK_AccessStorage" UId="271">
+        <BooleanAttribute Name="HasQuotes" UId="272">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="273" />
+      <Component Name="UsersLost" UId="274" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="275" />
+  <Token Text=":=" UId="276" />
+  <Blank Num="1" UId="277" />
+  <Access Scope="LiteralConstant" UId="278">
+    <Constant UId="279">
+      <ConstantValue UId="281">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="282" />
+  <NewLine Num="1" UId="283" />
+  <Token Text="END_IF" UId="284" />
+  <Token Text=";" UId="285" />
+  <NewLine Num="1" UId="286" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

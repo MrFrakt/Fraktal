@@ -1,0 +1,26 @@
+// One edge/identity owner for nonblocking health and commissioning conditions.
+FUNCTION "FRK_ConditionEvent" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Active : Bool; Reason : DInt; Description : WString; Source : WString; END_VAR
+VAR_IN_OUT Slot : Int; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Diag : "ST_Diagnostic"; Gone : Bool; END_VAR
+BEGIN
+    IF #Slot < 0 OR #Slot > @MAX_ALARM_ACTIVE@ THEN #Slot := 0; END_IF;
+    IF #Slot > 0 THEN
+        IF #AlarmLog.Active[#Slot].State = @E_AlarmState.CLOSED@
+            OR #AlarmLog.Active[#Slot].ReasonCode <> #Reason
+            OR #AlarmLog.Active[#Slot].Description <> #Description
+            OR #AlarmLog.Active[#Slot].SourcePath <> #Source THEN #Slot := 0; END_IF;
+    END_IF;
+    IF #Active THEN
+        IF #Slot = 0 THEN
+            #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+            #Diag.ReasonCode := #Reason; #Diag.Description := #Description; #Diag.SourcePath := #Source;
+            #Diag.Severity := @E_Severity.LOW@; #Diag.Category := @E_Category.SYSTEM@;
+            #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := @E_ResetClass.AUTO_RESET@);
+        END_IF;
+    ELSIF #Slot > 0 THEN
+        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); #Slot := 0;
+    END_IF;
+END_FUNCTION

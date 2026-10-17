@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_ClassSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Access.ClassSlot < 1 OR #Access.ClassSlot > 2 OR #Scope = ''
+	    OR #Access.ClassCount < 1 OR #Access.ClassCount > 8 THEN
+	    RETURN;
+	END_IF;
+	"FRK_ClassPolicies".Rows[#Access.ClassSlot].SchemaVersion := 1;
+	"FRK_ClassPolicies".Rows[#Access.ClassSlot].Scope := #Scope;
+	"FRK_ClassPolicies".Rows[#Access.ClassSlot].Generation := "FRK_AccessNext"(Previous := "FRK_ClassPolicies".Rows[#Access.ClassSlot].Generation);
+	"FRK_ClassPolicies".Rows[#Access.ClassSlot].Count := #Access.ClassCount;
+	FOR #Index := 1 TO 8 DO
+	    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Rows[#Index] := "FRK_ClassScratch".Blank;
+	    IF #Index <= #Access.ClassCount THEN
+	        "FRK_ClassPolicies".Rows[#Access.ClassSlot].Rows[#Index] := #Access.Classes[#Index];
+	    END_IF;
+	END_FOR;
+	"FRK_ClassPolicies".Rows[#Access.ClassSlot].Checksum := "FRK_ClassCrc"(Image := "FRK_ClassPolicies".Rows[#Access.ClassSlot]);
+	IF "FRK_PersistConsumers".Ready THEN
+	    "FRK_PersistClassesDirty"(RootIndex := #Access.ClassSlot);
+	END_IF;
+	
+END_FUNCTION
+

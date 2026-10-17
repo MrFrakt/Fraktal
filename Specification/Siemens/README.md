@@ -1,5 +1,11 @@
 # Fraktal/TIA specification working set
 
+Runtime model milestone (2026-10-17): [bounded model creation and atomic recovery](Evidence/TIA_RUNTIME_MODELS_2026-10-17.md)
+qualifies generator 0.24 with 31 PLC assertions and 110 live checks. The press
+now advertises capacity 4 while preserving its seeded indices. Configuration
+set loads share the row commit/reservation and active-model persistence hooks.
+Complete Line integration and the other open roadmap phases remain.
+
 The normative binding is [Part IV](../Fraktal_TIA_Part_IV.md), read with the
 [Core](../Fraktal_Core_Part_I.md). The [port plan](SIEMENS_PORT_PLAN.md) records
 implementation order and measured scope. [Evidence reports](Evidence/) describe
@@ -28,7 +34,7 @@ Keep normative text here, implementation outside it, and dated evidence immutabl
 
 Latest class-policy continuation: [root data classes and independent recovery](Evidence/TIA_DATA_CLASSES_2026-10-16.md).
 Generator0.23 passes16 PLC assertions,97 live checks and native runtime/press
-read-back. Runtime model creation and complete Line-profile integration remain.
+read-back. Complete Line-profile integration remains; model creation is qualified above.
 
 
 Latest config continuation: [named sets and JSON exchange](Evidence/TIA_CONFIG_SETS_2026-10-12.md).

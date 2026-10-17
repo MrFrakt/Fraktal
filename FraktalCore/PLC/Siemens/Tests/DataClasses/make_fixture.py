@@ -27,8 +27,8 @@ def declaration():
     return value
 
 
-def prepare(out, frames):
-    BASE.OWNER.CONFIG.PERSIST.RECOVERY.prepare(out,frames,declaration())
+def prepare(out, frames, value=None):
+    BASE.OWNER.CONFIG.PERSIST.RECOVERY.prepare(out,frames,declaration() if value is None else value)
     BASE.OWNER.CONFIG.PERSIST.add_controls(out,frames)
     from fraktal_tia_binding import Catalog,PRIVATE,READONLY
     from fraktal_tia_config import function

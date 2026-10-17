@@ -1,0 +1,89 @@
+﻿FUNCTION "FRK_Quiesce_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Module : "FB_PressDemoUnit";
+      Hal : "ST_PressDemoUnitHal";
+   END_VAR
+
+   VAR_TEMP 
+      WasBusy : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#Module.Execute := FALSE;
+	#Module.Abort := FALSE;
+	#WasBusy := #Module.Core.Exec = 1;
+	"FRK_RouteAbort"(Abort := TRUE,
+	                 Core := #Module.Core);
+	IF #Module.Core.RegIndex > 0 THEN
+	    "FRK_End"(Core := #Module.Core,
+	              Status := #Module.Status,
+	              Busy => #Module.Busy,
+	              Done => #Module.Done,
+	              Error => #Module.Error,
+	              Aborted => #Module.Aborted,
+	              Held => #Module.Held,
+	              ErrorID => #Module.ErrorID,
+	              Timing => #Module.Timing);
+	END_IF;
+	"FRK_AccessDropSession"(Access := #Module.Access);
+	"FRK_AccessCancel"(Access := #Module.Access);
+	#Module.RunningPublished := FALSE;
+	"FRK_SeqViewWithdraw"(Owner := #Module.Core.RegIndex);
+	"FRK_SeqLifecycleUpdate"(Owner := #Module.Core.RegIndex,
+	                         Exec := #Module.Core.Exec,
+	                         Restart := TRUE);
+	#Module.Pending := "FRK_ViewScratch".Diagnostic;
+	CASE #Module.Core.RegIndex OF
+	    1:
+	        #Module.SequenceStepDef := "FRK_Views".V001.Defs;
+	        #Module.SequenceSteps := "FRK_Views".V001.Rows;
+	        #Module.ActiveSteps := "FRK_Views".V001.Cursors;
+	        #Module.SequenceAnnotations := "FRK_Views".V001.Notes;
+	        #Module.SequenceStepCount := "FRK_Views".V001.Count;
+	        #Module.SequenceAnnotationCount := "FRK_Views".V001.NoteCount;
+	        #Module.CurrentStep := "FRK_Views".V001.Current;
+	        #Module.CurrentStepElapsed := "FRK_Views".V001.Cursors[0].Elapsed;
+	        #Module.CurrentStepTimedOut := "FRK_Views".V001.Cursors[0].TimedOut;
+	    ELSE
+	        #Module.SequenceViewEnabled := FALSE;
+	END_CASE;
+	"FRK_SeqProfilePrepare"(Owner := #Module.Core.RegIndex,
+	                        Run := FALSE,
+	                        Withdraw := TRUE);
+	#Module.Starved := FALSE;
+	#Module.Blocked := FALSE;
+	"FRK_CyclicHook_PressDemoUnit"(AirPressureMonitor := #Module.AirPressureMonitor,
+	                               Door := #Module.Door,
+	                               OutImm := #Module.OutImm,
+	                               PartPresentSensor := #Module.PartPresentSensor,
+	                               PartSlide := #Module.PartSlide,
+	                               PressRam := #Module.PressRam,
+	                               StateFlagCount := #Module.StateFlagCount,
+	                               StateFlags := #Module.StateFlags,
+	                               StateTouched := #Module.StateTouched,
+	                               TwoHand := #Module.TwoHand);
+	"FRK_Quiesce_CylinderCM"(Module := #Module.PressRam,
+	                         Hal := #Hal.PressRam);
+	"FRK_Quiesce_CylinderCM"(Module := #Module.Door,
+	                         Hal := #Hal.Door);
+	"FRK_Quiesce_CylinderCM"(Module := #Module.PartSlide,
+	                         Hal := #Hal.PartSlide);
+	"FRK_Quiesce_TwoHandStartCM"(Module := #Module.TwoHand,
+	                             Hal := #Hal.TwoHand);
+	"FRK_Quiesce_DigitalInputCM"(Module := #Module.PartPresentSensor,
+	                             Hal := #Hal.PartPresentSensor);
+	"FRK_Quiesce_AirPressureMonitorCM"(Module := #Module.AirPressureMonitor,
+	                                   Hal := #Hal.AirPressureMonitor);
+	"FRK_DiagSync"(Index := #Module.Core.RegIndex,
+	               Withdraw := TRUE,
+	               Status := #Module.Status,
+	               Held := #Module.Core.Held,
+	               Timeout := T#0ms,
+	               ActiveTimeoutMs := #Module.Core.TimeoutMs);
+	
+END_FUNCTION
+

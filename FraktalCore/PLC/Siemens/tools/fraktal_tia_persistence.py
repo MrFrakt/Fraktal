@@ -65,6 +65,9 @@ class Medium:
         for root_index, root in enumerate(self.model.roots, 1):
             if root.name in dict(self.model.data_classes):
                 self.add(root.name+'.classes', root_index, 'classes')
+        if layout.runtime_models:
+            for root_index in layout.runtime_models.entries:
+                self.add(layout.runtime_models.key(root_index),root_index,'models')
         if len(self.documents) > self.catalog.capacities['MAX_PERSIST_KEYS']:
             self.reject('document count exceeds the Core key bound')
         import xml.etree.ElementTree as ET
@@ -97,6 +100,8 @@ class Medium:
             fields += [('Generation', 'UDInt'), ('Count', 'DInt'), ('Rows', 'Array[1..%d] of "ST_UserRecord"' % self.catalog.capacities['MAX_USERS']), ('Checksum', 'DWord')]
         elif role == 'line':
             fields += [('Image', '"ST_LineImage"')]
+        elif role == 'models':
+            fields += [('Image','"FRK_ModelImage"')]
         else:
             fields += [('Ordinal', 'Int'), ('Payload', '"FRK_SetPayload"')]
         self.fields[d.tag] = fields
@@ -114,6 +119,12 @@ class Medium:
         })
         if self.layout.sets:
             definitions['FRK_SetPayload'] = [dict(member=n,native_type=t) for n,t in [('Info','"ST_ConfigSetInfo"'),('Records','Array[1..%d] of "ST_ConfigRecord"'%self.layout.sets.records)]]
+        if self.layout.runtime_models:
+            models=self.layout.runtime_models
+            definitions['FRK_ModelCatalog']=[dict(member=n,native_type=t) for n,t in models.fields()]
+            definitions['FRK_ModelImage']=[dict(member=n,native_type=t) for n,t in [
+                ('Catalog','"FRK_ModelCatalog"'),('RecordCount','Int'),
+                ('Rows','Array[1..%d] of "FRK_ConfigSlot"'%models.records)]]
         def size(t):
             t=t.split(':=')[0].strip()
             string=re.fullmatch(r'(W)?String\[(\d+)\]',t,re.I)
@@ -299,7 +310,10 @@ class Medium:
                             '    '+image+'.Count := %d;'%len(d.entries)]
                 validate += ['    IF '+image+'.Kind <> %d OR '%kind+image+'.ModelCode <> '+literal(d.model)+' OR '+image+'.Count <> %d THEN RETURN; END_IF;'%len(d.entries)]
                 codes=self.model.model_config or ('',)
-                validate += ['    IF '+' AND '.join(image+'.ActiveModel <> '+literal(code) for code in codes)+' THEN RETURN; END_IF;']
+                if self.layout.runtime_models:
+                    validate += ['    IF NOT "FRK_ModelCodeValid"(Code := '+image+'.ActiveModel) THEN RETURN; END_IF;']
+                else:
+                    validate += ['    IF '+' AND '.join(image+'.ActiveModel <> '+literal(code) for code in codes)+' THEN RETURN; END_IF;']
                 reserve=[]
                 extra_temps=['Targets : Array[1..%d] of Int;'%max(1,len(d.entries)),'Prior : Int;','Reserved : Bool;']
                 for ordinal,(instance,field) in enumerate(d.entries,1):
@@ -337,6 +351,15 @@ class Medium:
                             '    IF NOT "FRK_ClassValid"(Image := '+image+'.Image) THEN RETURN; END_IF;']
                 validate += ['    IF '+image+'.Image.Scope <> '+literal(scope)+' OR NOT "FRK_ClassValid"(Image := '+image+'.Image) THEN RETURN; END_IF;']
                 apply += ['    "FRK_ClassPolicies".Rows[%d] := '%d.root+image+'.Image;']
+            elif d.role=='models':
+                catalog='"FRK_ModelStore".Rows[%d]'%d.root
+                work='"FRK_ModelRuntime".Rows[%d]'%d.root
+                capture += ['    IF '+work+'.State = 1 THEN',
+                    '        #Ok := "FRK_ModelCapture"(RootIndex := %d, Catalog := '%d.root+work+'.Stage, Image := '+image+'.Image);',
+                    '    ELSE',
+                    '        #Ok := "FRK_ModelCapture"(RootIndex := %d, Catalog := '%d.root+catalog+', Image := '+image+'.Image);',
+                    '    END_IF;', '    IF NOT #Ok THEN RETURN; END_IF;']
+                apply += ['    IF NOT "FRK_ModelApply"(RootIndex := %d, Image := '%d.root+image+'.Image) THEN RETURN; END_IF;']
             elif d.role=='users':
                 capture += ['    IF NOT "FRK_AccessStorage".UsersReady THEN RETURN; END_IF;']
                 for member in ('Generation','Count','Rows','Checksum'):
@@ -397,6 +420,10 @@ class Medium:
             elif d.role=='classes':
                 b += ['            "FRK_ClassPolicies".Rows[%d].Scope := %s;'%(d.root,literal(self.model.roots[d.root-1].name)),
                       '            "FRK_ClassPolicies".Rows[%d].SchemaVersion := 0;'%d.root]
+            elif d.role=='models':
+                b += ['            "FRK_ModelStore".Rows[%d] := "FRK_ModelRuntime".BlankCatalog;'%d.root,
+                    '            "FRK_ModelStore".Rows[%d].Scope := '%d.root+literal(self.model.roots[d.root-1].name)+';',
+                    '            "FRK_ConfigLoss"(RootIndex := %d, Scope := '%d.root+literal(self.model.roots[d.root-1].name)+');']
             elif d.role=='line':
                 b += ['            "FRK_Line".Data.Dirty := FALSE;',
                       '            "FRK_Line".Data.Status.SourceError := 0;',
@@ -489,8 +516,13 @@ class Medium:
             if d.role!='config':continue
             for instance,field in d.entries:
                 b += ['    IF #Scope = '+literal(instance.path)+' AND #ModelCode = '+literal(d.model)+' AND #Kind = %d THEN #FRK_PersistConfigSlot := %d; RETURN; END_IF;'%(field.kind,d.index)]
+        if self.layout.runtime_models:
+            for d in self.documents:
+                if d.role!='models':continue
+                scopes=sorted({i.path for i,f in self.layout.runtime_models.entries[d.root]})
+                b += ['    IF #Kind = 0 AND ('+' OR '.join('#Scope = '+literal(s) for s in scopes)+') THEN #FRK_PersistConfigSlot := %d; RETURN; END_IF;'%d.index]
         text+=function('FRK_PersistConfigSlot',['Scope : String;','ModelCode : String;','Kind : DInt;'],[],[],b,'Int')
-        for role in ('users','policy','set','model', *(['classes'] if self.model.data_classes else [])):
+        for role in ('users','policy','set','model', *(['classes'] if self.model.data_classes else []), *(['models'] if self.layout.runtime_models else [])):
             inputs=[] if role=='users' else ['RootIndex : Int;']
             if role=='set':inputs+=['Ordinal : Int;']
             b=[]
@@ -500,6 +532,14 @@ class Medium:
                 condition='' if role=='users' else 'IF #RootIndex = %d'%d.root+(' AND #Ordinal = %d'%d.ordinal if role=='set' else '')+' THEN '
                 b += ['    '+condition+'"FRK_PersistDirty"(Slot := %d);'%d.index+(' END_IF;' if condition else '')]
             text+=function('FRK_Persist'+role.title()+'Dirty',inputs,[],[],b)
+        if self.layout.runtime_models:
+            b=['    #FRK_PersistModelsSaved := FALSE;', '    IF NOT "FRK_PersistConsumers".Ready THEN RETURN; END_IF;']
+            for d in self.documents:
+                if d.role!='models':continue
+                c='"FRK_PersistConsumers".Rows[%d]'%d.index
+                b+=['    IF #RootIndex = %d THEN'%d.root,
+                    '        #FRK_PersistModelsSaved := '+c+'.State = 2 AND '+c+'.Ticket = 0 AND NOT '+c+'.Dirty AND NOT '+c+'.Failed AND (NOT '+c+'.Rejected OR '+c+'.Acknowledged);', '    END_IF;']
+            text+=function('FRK_PersistModelsSaved',['RootIndex : Int;'],[],[],b,'Bool')
         b=['    #FRK_PersistVirginConfig := FALSE;',
            '    #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := #Kind);',
            '    IF #Slot > 0 THEN #FRK_PersistVirginConfig := "FRK_PersistConsumers".Rows[#Slot].Virgin; END_IF;']
@@ -525,7 +565,7 @@ class Medium:
             c='"FRK_PersistConsumers".Rows[%d]'%d.index
             condition = self.root_condition(d)
             cond = 'IF '+condition+' THEN ' if condition else ''
-            b+=['    '+cond,
+            b+=[('    '+cond).rstrip(),
                 '        #Persist.Failed := #Persist.Failed OR '+c+'.Failed;',
                 '        IF '+c+'.Dirty OR '+c+'.Ticket <> 0 THEN',
                 '            #Persist.Pending := TRUE;',
@@ -537,6 +577,10 @@ class Medium:
                       '        #Persist.RestoreLost := TRUE; #Persist.RestoreAcknowledged := FALSE;',
                       '        #Persist.LostPath := '+literal(self.model.line.owner)+';', '    END_IF;']
         # Wall clock is display-only; the store's bounded service window uses monotonic time.
+        if self.layout.runtime_models:
+            b+=['    IF "FRK_ModelRuntime".Rows[#RootIndex].State = 1 THEN',
+                '        #Persist.Pending := TRUE;',
+                '        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 THEN #Persist.PendingSince := "FRK_ModelRuntime".Rows[#RootIndex].PendingSince; END_IF;', '    END_IF;']
         b+=['    IF #Persist.Pending THEN',
             '        IF "FRK_PersistRootSince".WasPending[#RootIndex] THEN',
             '            IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "FRK_PersistRootSince".SinceMs[#RootIndex]) > #Persist.WindowMs THEN #Persist.Failed := TRUE; END_IF;',
@@ -585,29 +629,34 @@ class Medium:
         b='\n'.join('    IF #Scope = '+literal(self.model.roots[d.root-1].name)+' THEN "FRK_PersistPolicyDirty"(RootIndex := %d); END_IF;'%d.root for d in self.documents if d.role=='policy')
         s=s.replace(a,a+'\n'+b)
         sources[p]=s
+        if self.layout.runtime_models:
+            p='19_ModelServices.scl';s=sources[p]
+            for name,result,body in [
+                ('FRK_ModelSave','Void',['    "FRK_PersistModelsDirty"(RootIndex := #RootIndex);']),
+                ('FRK_ModelSaved','Bool',['    #FRK_ModelSaved := "FRK_PersistModelsSaved"(RootIndex := #RootIndex);'])]:
+                s,hits=re.subn(r'FUNCTION "'+name+r'" : '+result+r'\n.*?END_FUNCTION\n',
+                    lambda hit:function(name,['RootIndex : Int;'],[],[],body,result),s,flags=re.S)
+                assert hits==1,name
+            sources[p]=s
         if self.model.data_classes:
             marker='    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Checksum := "FRK_ClassCrc"(Image := "FRK_ClassPolicies".Rows[#Access.ClassSlot]);'
             p='13_UnitServices.scl';s=sources[p]
             assert s.count(marker)==1
             s=s.replace(marker,marker+'\n    IF "FRK_PersistConsumers".Ready THEN "FRK_PersistClassesDirty"(RootIndex := #Access.ClassSlot); END_IF;')
             sources[p]=s
-        # Public live write still owns all validation; the medium is a side effect
-        # only after success, and unchanged values do not wear flash.
+        # Scalar writes, set loads and cloned rows share one infallible memory
+        # commit; only its owning notification selects the persistence medium.
         p='14_ConfigServices.scl';s=sources[p]
-        s=s.replace('FUNCTION "FRK_ConfigPut" : Bool','FUNCTION "FRK_ConfigPutRaw" : Bool',1)
-        start=s.index('FUNCTION "FRK_ConfigPutRaw"');end=s.index('END_FUNCTION',start)
-        body=s[start:end].replace('#FRK_ConfigPut :=','#FRK_ConfigPutRaw :=')
-        s=s[:start]+body+s[end:]
-        wrapper=function('FRK_ConfigPut',['Scope : String;','ModelCode : String;','Text : WString;','RootIndex : Int;'],[],['Stored : Int;','Changed : Bool;','Slot : Int;'],[
-            '    #Stored := "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := #ModelCode);',
-            '    #Changed := #Stored = 0;',
-            '    IF #Stored > 0 THEN #Changed := "FRK_ConfigStore".Rows[#Stored].SchemaVersion <> "FRK_ConfigScratch".Schema OR "FRK_ConfigStore".Rows[#Stored].Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision OR "FRK_ConfigStore".Rows[#Stored].Record.ValueText <> WSTRING_TO_STRING(#Text); END_IF;',
-            '    #FRK_ConfigPut := "FRK_ConfigPutRaw"(Scope := #Scope, ModelCode := #ModelCode, Text := #Text, RootIndex := #RootIndex);',
-            '    IF #FRK_ConfigPut AND #Changed THEN',
-            '        #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := "FRK_ConfigScratch".Entry.ConfigKind);',
-            '        IF #Slot > 0 THEN "FRK_PersistDirty"(Slot := #Slot); END_IF;', '    END_IF;'],'Bool')
-        pos=s.index('END_FUNCTION',s.index('FUNCTION "FRK_ConfigPutRaw"'))+len('END_FUNCTION\n')
-        s=s[:pos]+'\n'+wrapper+s[pos:]
+        hooks={
+            'FRK_ConfigChanged': function('FRK_ConfigChanged',['Scope : String;','ModelCode : String;','Kind : DInt;'],[],['Slot : Int;'],[
+                '    #Slot := "FRK_PersistConfigSlot"(Scope := #Scope, ModelCode := #ModelCode, Kind := #Kind);',
+                '    IF #Slot > 0 THEN "FRK_PersistDirty"(Slot := #Slot); END_IF;']),
+            'FRK_ConfigActiveChanged': function('FRK_ConfigActiveChanged',['RootIndex : Int;'],[],[],[
+                '    "FRK_PersistModelDirty"(RootIndex := #RootIndex);']),
+        }
+        for name,replacement in hooks.items():
+            s,hits=re.subn(r'FUNCTION "'+name+r'" : Void\n.*?END_FUNCTION\n',lambda hit:replacement,s,flags=re.S)
+            assert hits==1,name
         # Root status is evaluated from the existing mandatory frame path.
         pos=s.index('END_FUNCTION',s.index('FUNCTION "FRK_ConfigStatus"'))
         s=s[:pos]+'    "FRK_PersistRootStatus"(RootIndex := #RootIndex, Persist := #Persist);\n'+s[pos:]
@@ -621,21 +670,9 @@ class Medium:
             assert s.count(a)==1
             s=s.replace(a,'        #InstancePath := #BoundPath;')
             s=re.sub(r'(Startup := #Startup, Hal := #Hal\.(\w+))\);',lambda m:m[1]+', BoundPath := CONCAT(IN1 := #BoundPath, IN2 := WSTRING#'+literal('.'+m[2])+'));',s)
-            a='                    "FRK_ConfigStore".ActiveModels[#RootIndex] := #Desired;'
-            if a in s:s=s.replace(a,a+'\n                    "FRK_PersistModelDirty"(RootIndex := #RootIndex);')
             for prefix in ('#Module.','#'):
                 a='IF '+prefix+'HmiResponse.Accepted THEN "FRK_ConfigStore".Acknowledged[#RootIndex] := TRUE;'
                 if a in s:s=s.replace(a,a+' "FRK_PersistAckRoot"(RootIndex := #RootIndex);')
-            a='            IF #Module.HmiResponse.Accepted THEN\n'
-            # Set apply writes the already validated records directly. It shares
-            # the same document dirty hook as individual configuration writes.
-            pattern=r'^(\s*)("FRK_ConfigStore"\.Rows\[#Stored\]\.Record) := ("FRK_SetRuntime"\.Work\[#RootIndex\]\.Payload\.Records\[#Slot\]);$'
-            def set_record(hit):
-                indent, target, record = hit.groups()
-                return (indent+'IF '+target+'.ValueText <> '+record+'.ValueText THEN\n'
-                        +indent+'    "FRK_PersistDirty"(Slot := "FRK_PersistConfigSlot"(Scope := '+record+'.Scope, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode, Kind := '+record+'.Kind));\n'
-                        +indent+'END_IF;\n'+hit[0])
-            s=re.sub(pattern,set_record,s,flags=re.M)
             # Set operations run once in their own service; import chunks are not durable yet.
             if 'FUNCTION "FRK_CfgSetOperation_' in s:
                 i=s.index('FUNCTION "FRK_CfgSetOperation_');part=s[i:]
@@ -669,6 +706,8 @@ class Medium:
               '    "FRK_PersistEnter"(Startup := #Startup);',
               '    "FRK_DocBoot"(Startup := #Startup, Ready := #MediaReady);',
               '    IF NOT #MediaReady THEN']
+        if self.layout.runtime_models:
+            boot.insert(2,'    "FRK_ModelPrepare"(Startup := #Startup);')
         if self.model.line:
             line_boot = self.layout.line.boot_call()
             assert s.count(line_boot) == 1

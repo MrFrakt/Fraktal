@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_ModelCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Catalog : "FRK_ModelCatalog";
+   END_VAR
+
+   VAR_TEMP 
+      Work : DWord;
+      Index : Int;
+      Character : Int;
+      Size : Int;
+      Text : String[80];
+   END_VAR
+
+
+BEGIN
+	
+	#Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Catalog.SchemaVersion));
+	#Size := LEN(#Catalog.Scope);
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+	FOR #Character := 1 TO #Size DO
+	    #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Catalog.Scope[#Character]));
+	END_FOR;
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Catalog.Capacity));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Catalog.Count));
+	#Work := "FRK_CrcNumber"(Previous := #Work, Value := #Catalog.Generation);
+	FOR #Index := 1 TO 3 DO
+	    #Text := #Catalog.Codes[#Index];
+	    #Size := LEN(#Text);
+	    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+	    FOR #Character := 1 TO #Size DO
+	        #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character]));
+	    END_FOR;
+	END_FOR;
+	#FRK_ModelCrc := NOT #Work;
+	
+END_FUNCTION
+

@@ -200,6 +200,21 @@ later phase adds published surface that the frozen contract must then cover.
 
 ### Implementation progress
 
+**October17 runtime models milestone — generator 0.24.**
+[Measured scope and evidence](../Evidence/TIA_RUNTIME_MODELS_2026-10-17.md):
+P7 bounded root catalogs, model/set cloning, per-field read/write admission,
+BUSY isolation and atomic LOAD_DB catalog/config recovery pass 31 PLC assertions
+and 110 live checks. Existing indices and the running/prepared recipe remain
+unchanged during creation. Model set loads now share cache reservation/commit
+and active-model persistence; actual restart and missing-row repair pass.
+The press opts into capacity 4 over its three seeds. Fresh-project native
+read-back and the existing GRAPH/LD parity gates remain required. P7's three
+software features (classes, creation and capture) are implemented; full Line
+press integration/admission, MANUAL_HELD, OUC, I/O/modules, durable host delivery,
+reusable connectors and the remaining conformance/deployment gates stay open.
+Roadmap §7 is applied: Core owns typed catalog semantics and the existing
+Siemens persistence instructions own the medium.
+
 **October16 data classes milestone — generator0.23.**
 [Measured scope and evidence](../Evidence/TIA_DATA_CLASSES_2026-10-16.md):
 P7 root class policies, raise-only value minima, redacted manifests, typed

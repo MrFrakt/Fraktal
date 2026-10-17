@@ -1,0 +1,28 @@
+DATA_BLOCK "GDB_ModelTest"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+VAR
+    PoisonPulse : Bool;
+    DamagePulse : Bool;
+    DropCachePulse : Bool;
+    DamageSetPulse : Bool;
+    RepairSetPulse : Bool;
+    CacheDropped {ExternalWritable := 'False'} : Bool;
+    SetDamaged {ExternalWritable := 'False'} : Bool;
+    SetRepaired {ExternalWritable := 'False'} : Bool;
+    Poisoned {ExternalWritable := 'False'} : Bool;
+    Damaged {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    Checks {ExternalWritable := 'False'} : Int;
+    Failures {ExternalWritable := 'False'} : Int;
+    FirstFailure {ExternalWritable := 'False'} : Int;
+    PendingSeen {ExternalWritable := 'False'} : Bool;
+    PrematurePublication {ExternalWritable := 'False'} : Bool;
+    StagedPreset {ExternalWritable := 'False'} : DInt;
+    ModelDocument {ExternalWritable := 'False'} : Int := 21;
+    Result {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_TestResult";
+    SavedRecord {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_ConfigRecord";
+END_VAR
+BEGIN
+END_DATA_BLOCK

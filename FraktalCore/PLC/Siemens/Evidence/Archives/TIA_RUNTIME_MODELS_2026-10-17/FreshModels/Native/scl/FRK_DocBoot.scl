@@ -1,0 +1,80 @@
+﻿FUNCTION "FRK_DocBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Ready : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Slot : Int;
+      Done : Bool;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Startup THEN
+	    "FRK_PersistConsumers".Ready := FALSE;
+	    FOR #Slot := 1 TO 22 DO
+	        "FRK_PersistConsumers".Rows[#Slot].State := 0;
+	        "FRK_PersistConsumers".Rows[#Slot].Ticket := 0;
+	        "FRK_PersistConsumers".Rows[#Slot].Dirty := FALSE;
+	        "FRK_PersistConsumers".Rows[#Slot].Failed := FALSE;
+	        "FRK_PersistConsumers".Rows[#Slot].Rejected := FALSE;
+	        "FRK_PersistConsumers".Rows[#Slot].Acknowledged := FALSE;
+	        "FRK_PersistConsumers".Rows[#Slot].RetrySince := "FRK_Clock".NowMs;
+	        "FRK_PersistConsumers".Rows[#Slot].PendingSince := LDT#1970-01-01-00:00:00;
+	        "FRK_PersistConsumers".Rows[#Slot].NextSince := LDT#1970-01-01-00:00:00;
+	    END_FOR;
+	END_IF;
+	#Ready := TRUE;
+	"FRK_PersistStatus".Failed := FALSE;
+	FOR #Slot := 1 TO 22 DO
+	    IF "FRK_PersistConsumers".Rows[#Slot].State = 0 THEN
+	        IF NOT "FRK_PersistConsumers".Rows[#Slot].Failed OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "FRK_PersistConsumers".Rows[#Slot].RetrySince) >= 1000 THEN
+	            "FRK_PersistConsumers".Rows[#Slot].Ticket := "FRK_PersistStart"(Slot := #Slot, WriteDocument := FALSE, Length := 0);
+	            IF "FRK_PersistConsumers".Rows[#Slot].Ticket <> 0 THEN
+	                "FRK_PersistConsumers".Rows[#Slot].State := 1;
+	            END_IF;
+	        END_IF;
+	    ELSIF "FRK_PersistConsumers".Rows[#Slot].State = 1 THEN
+	        #Done := "FRK_PersistPoll"(Ticket := "FRK_PersistConsumers".Rows[#Slot].Ticket, Result := "FRK_PersistConsumers".Rows[#Slot].Result);
+	        IF #Done THEN
+	            "FRK_PersistConsumers".Rows[#Slot].Ticket := 0;
+	            IF NOT "FRK_PersistConsumers".Rows[#Slot].Result.Ok THEN
+	                "FRK_PersistConsumers".Rows[#Slot].Failed := TRUE;
+	                "FRK_PersistConsumers".Rows[#Slot].State := 0;
+	                "FRK_PersistConsumers".Rows[#Slot].RetrySince := "FRK_Clock".NowMs;
+	            ELSE
+	                "FRK_PersistConsumers".Rows[#Slot].Failed := FALSE;
+	                #Ok := NOT "FRK_PersistConsumers".Rows[#Slot].Result.Lost;
+	                "FRK_PersistConsumers".Rows[#Slot].Virgin := #Ok AND NOT "FRK_PersistConsumers".Rows[#Slot].Result.Found;
+	                IF #Ok AND "FRK_PersistConsumers".Rows[#Slot].Result.Found THEN
+	                    #Ok := "FRK_DocApply"(Slot := #Slot);
+	                END_IF;
+	                IF NOT #Ok THEN
+	                    "FRK_DocReject"(Slot := #Slot);
+	                    "FRK_PersistConsumers".Rows[#Slot].Rejected := TRUE;
+	                ELSIF "FRK_PersistConsumers".Rows[#Slot].Virgin THEN
+	                    "FRK_PersistDirty"(Slot := #Slot);
+	                END_IF;
+	                "FRK_PersistConsumers".Rows[#Slot].State := 2;
+	            END_IF;
+	        END_IF;
+	    END_IF;
+	    IF "FRK_PersistConsumers".Rows[#Slot].State <> 2 THEN
+	        #Ready := FALSE;
+	    END_IF;
+	    "FRK_PersistStatus".Failed := "FRK_PersistStatus".Failed OR "FRK_PersistConsumers".Rows[#Slot].Failed;
+	END_FOR;
+	"FRK_PersistStatus".Restoring := NOT #Ready;
+	"FRK_PersistStatus".NativeStatus := INT_TO_WORD("FRK_PersistRuntime".NativeResult);
+	"FRK_PersistConsumers".Ready := #Ready;
+	
+END_FUNCTION
+

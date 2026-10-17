@@ -1,0 +1,18 @@
+TYPE "ST_SystemHealthParCfg"
+VERSION : 0.1
+   STRUCT
+      "SchemaVersion" : UInt := 1;
+      "MaxTaskCycleUs" : UDInt := 100000;
+      "MaxTaskJitterUs" : UDInt := 10000;
+      "MaxCpuLoadPct" : LReal := 90.0;
+      "MinMemoryAvailableMb" : UDInt := 128;
+      "MaxIpcTemperatureC" : LReal := 80.0;
+      "MinStorageHealthPct" : LReal := 10.0;
+      "MaxLostFrames" : UDInt := 0;
+      "MaxSlaveErrors" : UDInt := 0;
+      "MaxTimeOffsetUs" : DInt := 1000;
+      "RequireFieldbus" : Bool;
+      "RequireDcSync" : Bool;
+      "RequireTimeSync" : Bool := TRUE;
+   END_STRUCT;
+END_TYPE

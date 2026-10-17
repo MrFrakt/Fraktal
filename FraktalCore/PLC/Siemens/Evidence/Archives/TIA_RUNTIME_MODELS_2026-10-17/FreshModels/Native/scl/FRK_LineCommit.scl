@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_LineCommit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Every whole owner change advances exactly once, regardless of record count.
+   VAR_IN_OUT 
+      State : "FRK_LineState";
+   END_VAR
+
+
+BEGIN
+	
+	IF #State.Status.Role <> 1 THEN
+	    RETURN;
+	END_IF;
+	IF #State.Status.Revision = UDINT#4294967295 THEN
+	    #State.Status.Revision := 1;
+	ELSE
+	    #State.Status.Revision := #State.Status.Revision + 1;
+	END_IF;
+	#State.Dirty := TRUE;
+	"FRK_LineBuild"(State := #State);
+	
+END_FUNCTION
+

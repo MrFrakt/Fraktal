@@ -67,11 +67,10 @@ class Sets:
                      '            "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount := #Slot;',
                      '        ELSIF #Phase = 2 THEN',
                      '            #Slot := "FRK_SetRecord"(RootIndex := #RootIndex, Scope := #Module.Status.Name, WriteKey := "FRK_ConfigScratch".Entry.WriteKey);',
-                     '            #Stored := "FRK_ConfigFind"(Scope := #Module.Status.Name, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode);',
-                     '            "FRK_ConfigStore".Rows[#Stored].Record := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Slot];',
-                     '            "FRK_ConfigStore".Rows[#Stored].SchemaVersion := "FRK_ConfigScratch".Schema;',
+                     '            #Stored := "FRK_SetRuntime".Work[#RootIndex].Targets[#Slot];',
+                     '            "FRK_ConfigCommit"(SlotIndex := #Stored, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode, Schema := "FRK_ConfigScratch".Schema, Record := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Slot]);',
                      '        ELSE',
-                     '            #Slot := "FRK_SetCheck"(RootIndex := #RootIndex, Scope := #Module.Status.Name, Access := #Access, Ready := #Ready, WriteAccess := #Phase <> 3);',
+                     '            #Slot := "FRK_SetCheck"(RootIndex := #RootIndex, Scope := #Module.Status.Name, Access := #Access, Ready := #Ready, WriteAccess := #Phase <> 3, ReserveTarget := #Phase = 1);',
                      '            IF #Slot = 0 THEN RETURN; END_IF;',
                      '            IF #Phase = 1 THEN', assign_value(field, '#Module.ConfigStage'+field.member),
                      '            END_IF;', '        END_IF;', '    END_IF;']
@@ -96,6 +95,8 @@ class Sets:
             '02_FRK_JsonField.udt': udt('FRK_JsonField', [('Key', 'String[16]'), ('Text', 'WString[160]'), ('Quoted', 'Bool')]),
             '02_FRK_SetWorkspace.udt': udt('FRK_SetWorkspace', [
                 ('Payload', '"FRK_SetPayload"'), ('Seen', 'Array[1..%d] of Bool' % self.records), ('Matched', 'Int'), ('RejectScope', 'String[80]'), ('RejectKey', 'String[160]'),
+                ('Targets', 'Array[1..%d] of Int'%self.layout.catalog.capacities['MAX_SET_RECORDS']),
+                ('Schemas', 'Array[1..%d] of UInt'%self.layout.catalog.capacities['MAX_SET_RECORDS']),
                 ('Importing', 'Bool'), ('Exporting', 'Bool'), ('NextLine', 'Int'), ('Generation', 'UDInt'), ('Received', 'Int'),
                 ('CurrentExport', 'Bool'), ('ExportToken', 'String[32]'),
                 ('Piece', 'WString[%d]' % LINE_WIDTH), ('Line', 'WString[%d]' % LINE_WIDTH),
@@ -105,20 +106,32 @@ class Sets:
             '05_FRK_SetRuntime.db': db('FRK_SetRuntime', ['Work'+PRIVATE+' : Array[1..%d] of "FRK_SetWorkspace";' % roots]),
         }
         text = TEMPLATE.read_text('ascii')
-        slot_guard = '    IF #WriteAccess AND "FRK_ConfigFind"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) = 0 THEN RETURN; END_IF;'
+        slot_guard = '\n'.join([
+            '    IF #ReserveTarget THEN',
+            '        #TargetSlot := "FRK_ConfigReserve"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode, Reserved := "FRK_SetRuntime".Work[#RootIndex].Targets);',
+            '        IF #TargetSlot < 1 OR #TargetSlot > %d THEN RETURN; END_IF;'%self.layout.capacity,
+            '        "FRK_SetRuntime".Work[#RootIndex].Targets[#Index] := #TargetSlot;', '    END_IF;'])
         line_shape = ''
         if self.layout.line:
             line_kind = self.layout.catalog.enums['E_ConfigKind']['LINE_CFG']
-            slot_guard = slot_guard.replace('IF #WriteAccess AND ', 'IF #WriteAccess AND "FRK_ConfigScratch".Entry.ConfigKind <> %d AND '%line_kind)
+            slot_guard = slot_guard.replace('IF #ReserveTarget THEN', 'IF #ReserveTarget AND "FRK_ConfigScratch".Entry.ConfigKind <> %d THEN'%line_kind)
             line_shape = ('    ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = %d THEN\n'%line_kind
                           +'        IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> \'\' THEN RETURN; END_IF;\n')
             sources.update(self.layout.line.set_sources(self.records))
         text = text.replace('@SET_SLOT_GUARD@', slot_guard).replace('@LINE_SET_SHAPE@', line_shape)
+        if self.layout.runtime_models:
+            # A typed complete set may be a recovery/clone source whose old
+            # catalog code is absent here. Only LOAD requires a live identity.
+            text,hits=re.subn(r'        #KnownModel := FALSE;\n.*?        IF NOT #KnownModel THEN RETURN; END_IF;',
+                '        IF LEN("FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) < 1 THEN RETURN; END_IF;',text,flags=re.S)
+            assert hits==1
         if not self.layout.model.model_config:
             # A station-only deployment has no model loop (TIA rejects 1..0).
             text, hits = re.subn(r'        FOR #ModelIndex := 1 TO @MODEL_COUNT@ DO\n.*?        END_FOR;\n', '', text, flags=re.S)
             assert hits == 1
-        for key, value in {'SET_CAPACITY': self.capacity, 'SET_RECORDS': self.records, 'MODEL_COUNT': len(self.layout.model.model_config), 'LINE_WIDTH': LINE_WIDTH}.items():
+        for key, value in {'SET_CAPACITY': self.capacity, 'SET_RECORDS': self.records,
+                           'MAX_SET_RECORDS':self.layout.catalog.capacities['MAX_SET_RECORDS'],
+                           'MODEL_COUNT': len(self.layout.model.model_config), 'LINE_WIDTH': LINE_WIDTH}.items():
             text = text.replace('@'+key+'@', str(value))
         for enum, members in self.layout.catalog.enums.items():
             for member, value in members.items():
@@ -255,7 +268,7 @@ class Sets:
                 '            IF #Ok THEN #Ok := "FRK_SetValidateEnd"(RootIndex := #RootIndex); END_IF;',
                 '            IF #Ok AND '+work+'.Matched = '+payload+'.Info.RecordCount THEN',
                 '                #Ok := '+walk(2)+';',
-                '                IF '+payload+'.Info.Kind = 0 THEN "FRK_ConfigStore".ActiveModels[#RootIndex] := '+payload+'.Info.ModelCode; #Module.Model.ModelCode := '+payload+'.Info.ModelCode; END_IF;',
+                '                IF '+payload+'.Info.Kind = 0 THEN "FRK_ConfigSetActiveModel"(RootIndex := #RootIndex, ModelCode := '+payload+'.Info.ModelCode); #Module.Model.ModelCode := '+payload+'.Info.ModelCode; END_IF;',
                 '                #Module.ConfigRev := "FRK_ConfigRevision"(Previous := #Module.ConfigRev);',
                 '                #Module.HmiResponse.Accepted := TRUE;', '            END_IF;',
                 '        %d:' % k['EXPORT_CONFIG_SET'],
@@ -279,7 +292,7 @@ class Sets:
                 '        %d:' % k['EXPORT_CURRENT_CONFIG'],
                 '            #Module.ConfigSetDocument := WSTRING#\'\'; #Module.ConfigSetDocumentLine := -1; #Module.ConfigSetDocumentLines := 0;',
                 '            IF NOT "FRK_ExportTokenValid"(Token := #Request.NameValue) OR (#Request.IntValue <> %d AND #Request.IntValue <> %d) THEN RETURN; END_IF;'%(model_kind, station_kind),
-                '            IF #Request.DurationMs > %d OR (#Request.IntValue = %d AND #Request.DurationMs <> 0) THEN RETURN; END_IF;'%(len(l.model.model_config), station_kind),
+                '            IF #Request.DurationMs > '+('INT_TO_UDINT(#Module.AvailableModelCount)' if l.runtime_models else str(len(l.model.model_config)))+' OR (#Request.IntValue = %d AND #Request.DurationMs <> 0) THEN RETURN; END_IF;'%station_kind,
                 '            '+payload+'.Info.SetName := #SetName; '+payload+'.Info.RootIdentity := #Module.Status.Name;',
                 '            '+payload+'.Info.SetSchema := 1; '+payload+'.Info.ConfigRev := #Module.ConfigRev;',
                 '            '+payload+'.Info.Kind := #Request.IntValue; '+payload+'.Info.RecordCount := 0;',
@@ -310,6 +323,10 @@ class Sets:
                 '        #Module.ConfigPersist.LastSetName := '+payload+'.Info.SetName; #Module.ConfigPersist.LastSetRecords := '+payload+'.Info.RecordCount;',
                 '        #Module.ConfigPersist.LastRejectScope := \'\'; #Module.ConfigPersist.LastRejectKey := \'\';',
                 '    ELSE #Module.ConfigPersist.LastRejectScope := '+work+'.RejectScope; #Module.ConfigPersist.LastRejectKey := '+work+'.RejectKey; END_IF;']
+        if l.runtime_models:
+            anchor='            IF '+payload+'.Info.Kind = 0 THEN'
+            insert=body.index(anchor)+1
+            body.insert(insert,'                IF NOT "FRK_ModelKnown"(RootIndex := #RootIndex, Code := '+payload+'.Info.ModelCode) THEN RETURN; END_IF;')
         if l.line:
             line_kind = l.catalog.enums['E_ConfigKind']['LINE_CFG']
             before = '(#Request.IntValue <> %d AND #Request.IntValue <> %d)'%(model_kind, station_kind)

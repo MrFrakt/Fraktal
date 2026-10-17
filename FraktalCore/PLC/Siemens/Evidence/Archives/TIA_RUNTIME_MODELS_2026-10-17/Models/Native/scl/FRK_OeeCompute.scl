@@ -1,0 +1,69 @@
+﻿FUNCTION "FRK_OeeCompute" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Good : UDInt;
+      Nok : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Book : "FRK_Production";
+      Oee : "ST_Oee";
+   END_VAR
+
+   VAR_TEMP 
+      GoodDelta : UDInt;
+      NokDelta : UDInt;
+      Total : LReal;
+      Denominator : LReal;
+   END_VAR
+
+
+BEGIN
+	
+	// A deliberate counter reset cannot underflow the OEE count origin.
+	IF #Good < #Book.GoodBase THEN
+	    #Book.GoodBase := 0;
+	END_IF;
+	IF #Nok < #Book.NokBase THEN
+	    #Book.NokBase := 0;
+	END_IF;
+	#GoodDelta := #Good - #Book.GoodBase;
+	#NokDelta := #Nok - #Book.NokBase;
+	#Total := UDINT_TO_LREAL(#GoodDelta) + UDINT_TO_LREAL(#NokDelta);
+	#Denominator := UDINT_TO_LREAL(#Oee.RunMs) + UDINT_TO_LREAL(#Oee.DownMs);
+	#Oee.AvailValid := #Denominator > 0.0;
+	#Oee.Availability := 0.0;
+	IF #Oee.AvailValid THEN
+	    #Oee.Availability := LREAL_TO_REAL(UDINT_TO_LREAL(#Oee.RunMs) / #Denominator);
+	END_IF;
+	#Oee.PerfValid := #Oee.IdealCycleMs > 0 AND #Oee.RunMs > 0;
+	#Oee.Performance := 0.0;
+	IF #Oee.PerfValid THEN
+	    #Oee.Performance := LREAL_TO_REAL(MIN(IN1 := LREAL#1.0, IN2 := UDINT_TO_LREAL(#Oee.IdealCycleMs) * #Total / UDINT_TO_LREAL(#Oee.RunMs)));
+	END_IF;
+	#Oee.QualValid := #Total > 0.0;
+	#Oee.Quality := 0.0;
+	IF #Oee.QualValid THEN
+	    #Oee.Quality := LREAL_TO_REAL(UDINT_TO_LREAL(#GoodDelta) / #Total);
+	END_IF;
+	#Oee.Oee := 1.0;
+	#Oee.OeeValid := FALSE;
+	IF #Oee.AvailValid THEN
+	    #Oee.Oee := #Oee.Oee * #Oee.Availability;
+	    #Oee.OeeValid := TRUE;
+	END_IF;
+	IF #Oee.PerfValid THEN
+	    #Oee.Oee := #Oee.Oee * #Oee.Performance;
+	    #Oee.OeeValid := TRUE;
+	END_IF;
+	IF #Oee.QualValid THEN
+	    #Oee.Oee := #Oee.Oee * #Oee.Quality;
+	    #Oee.OeeValid := TRUE;
+	END_IF;
+	IF NOT #Oee.OeeValid THEN
+	    #Oee.Oee := 0.0;
+	END_IF;
+	
+END_FUNCTION
+

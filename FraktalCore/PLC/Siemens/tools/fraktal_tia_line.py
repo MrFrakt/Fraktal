@@ -238,7 +238,7 @@ class Engine:
             body += ['        '+payload+'.Records[#Slot].ValueText := WSTRING_TO_STRING("FRK_ConfigScratch".Entry.ValueText);',
                      '        '+payload+'.Info.RecordCount := #Slot;',
                      '    ELSE',
-                     '        #Slot := "FRK_SetCheck"(RootIndex := #RootIndex, Scope := #Scope, Access := #Access, Ready := #Ready AND (#Phase = 4 OR "FRK_Line".Ready), WriteAccess := #Phase <> 3);',
+                     '        #Slot := "FRK_SetCheck"(RootIndex := #RootIndex, Scope := #Scope, Access := #Access, Ready := #Ready AND (#Phase = 4 OR "FRK_Line".Ready), WriteAccess := #Phase <> 3, ReserveTarget := FALSE);',
                      '        IF #Slot = 0 THEN RETURN; END_IF;',
                      '        IF #Phase = 1 OR #Phase = 4 THEN', assign_value(field, stage+'.'+field.member.split('.')[1]),
                      '        END_IF;', '    END_IF;']

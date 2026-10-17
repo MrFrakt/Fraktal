@@ -461,6 +461,7 @@
       }
     ],
     "model_config": {
+      "capacity": 4,
       "models": [
         "ALUMINUM",
         "PLASTIC",
@@ -513,7 +514,7 @@
       "annotations": 4
     }
   },
-  "generator_version": "0.23",
+  "generator_version": "0.24",
   "runtime": {
     "version": "0.1",
     "authority_inputs": {
@@ -673,9 +674,9 @@
       "FraktalCore/PLC/Siemens/Framework/Core/host_events.scl.in": "a6f0b213b56c312215beec076a165c58d545f9260ce8b186d00fa97750340a31",
       "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/BaseClasses/FB_HostEventPublisher.TcPOU": "ee5a748d0320f1118c5fa28b3ceebc10a5631cbb45242a77966bd128bb4b2f86",
       "FraktalCore/PLC/Siemens/tools/fraktal_tia_host_events.py": "5b942bdb7b4c808c319d1ce94b27fe2d54b7f5527cbd378911705e9c86b6af49",
-      "FraktalCore/PLC/Siemens/Framework/Core/config_services.scl.in": "50ad57851363028b6499aeb66ba53ac5b5f64cc830be87b6eb3d7ccd722c8175",
+      "FraktalCore/PLC/Siemens/Framework/Core/config_services.scl.in": "99b36be6adcbf9952813281a6091765f81773406f913723cfdf8ed284d7257c7",
       "FraktalCore/PLC/Siemens/Framework/Core/config_decimal.scl.in": "90ff2fdab7ada5dc6f65e1a65c83c40032117ae9983a837185a2abf34659c431",
-      "FraktalCore/PLC/Siemens/Framework/Core/config_set_services.scl.in": "37e77ef581f173ed2dfe77eb2179c17a1bc825fd36c751bc6ae7e2f9534533b9",
+      "FraktalCore/PLC/Siemens/Framework/Core/config_set_services.scl.in": "228f1f83f94f98a235b56ed2548742f12080258f20b7af68d8ab9293c9b77391",
       "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/Platform/FB_ConfigSetJson.TcPOU": "f8eca90f933cc8bc1246f0d08a9818c7e1757e4a90ad8faf840cc5d30ace7178",
       "FraktalCore/PLC/Siemens/Framework/Core/data_classes.scl.in": "a1b94ec4c6d3ed9fa492308f4c068318f56618f5b21cca6117e8932d5811ea21",
       "FraktalCore/PLC/Siemens/Framework/Core/diagnostic_services.scl.in": "55a48ae96d07006c857b78ba1a83faca37b1db52efbd59b3381ee6f595619a76",
@@ -697,7 +698,8 @@
       "FraktalCore/PLC/Siemens/tools/fraktal_tia_tower.py": "62a374e95cb84e0348750e5a76cbb19775fc334d8101906d741db3f76e8a744b",
       "FraktalCore/PLC/Siemens/Framework/Core/persistence.json": "06ef3fafeccf62d5e67a8c692e6f91869e2e51929caca513d05b067366fae473",
       "FraktalCore/PLC/Siemens/Framework/Core/persist_medium.scl.in": "c5f60d4031ffd60f9934f768ab6a27d3f21816d862d24389f6dda18e3bf08288",
-      "FraktalCore/PLC/Siemens/tools/fraktal_tia_persistence.py": "bc4c41cbd54f08fa7ea87508f5e1feab30aafbef0239a064f66f913bde926ab2"
+      "FraktalCore/PLC/Siemens/tools/fraktal_tia_persistence.py": "43389a661390a307a8ed3bbcb16acbf20ae2ef7e9692d35854818b567f33c341",
+      "FraktalCore/PLC/Siemens/Framework/Core/model_services.scl.in": "6039203620579250ebb69968a478a71932009939434092910446f3c2bd40cd91"
     },
     "persistence": {
       "medium": "LOAD_DB",
@@ -773,8 +775,23 @@
           "root": 0,
           "role": "users",
           "capacity": 8704
+        },
+        {
+          "index": 11,
+          "key": "models.4cb92d4f67687ba1915c817d0830109a193b6aaaaf25a3c7af3fe34cbbbe0228",
+          "root": 1,
+          "role": "models",
+          "capacity": 2872
         }
       ]
+    },
+    "models": {
+      "capacity": 4,
+      "seed_count": 3,
+      "retention": "LOAD_DB",
+      "records_per_root": {
+        "1": 5
+      }
     }
   },
   "generated": {
@@ -859,23 +876,34 @@
     "01_FRK_RegistryRow.udt": "488cbc5b202a9176fb82294c975b70184ca5b4a45aa2fac9595f812e6e030242",
     "04_FRK_Registry.db": "deb274dc97fdc0aa0b813893c20e84651c355006b8d99756a541dba17104d5b4",
     "10_Registry.scl": "8e09356a0a01bcd44c64b39837556424a681f0f0854b8784ffda74257d93d5ba",
-    "20_000_FB_CylinderCM.scl": "27271df547215619b77da6ba397a2140213719b86872d701b6fb15809130fd32",
-    "20_001_FB_TwoHandStartCM.scl": "3746e40b4b27a1d5204df560d0006384ef851f007402e458601b54f6a913d5fb",
-    "20_002_FB_DigitalInputCM.scl": "86a0ac947328f231a381a44e32da3a7282ab840f848170b2f025296e6fddd002",
-    "20_003_FB_AirPressureMonitorCM.scl": "d9b9eb24994cceb1bba9c6a5ec2ef15cd7a754d629d934466a66696305e8945e",
+    "18_Def_FB_CylinderCM.scl": "385222f476a0b9b3f7965da1184f3ccc77011fd549d070673dc967643fe7bf35",
+    "18_Def_FB_TwoHandStartCM.scl": "f4759198faf63f8795aa7f6e38e4e72c790253dde05cca6431aa5b6611c35f5e",
+    "18_Def_FB_DigitalInputCM.scl": "17718b03ae756fbec193f5fcbcf070963260270ebc8306a493bee63b4a06a8a8",
+    "18_Def_FB_AirPressureMonitorCM.scl": "3c768a7e63617e5dd93232cf482c27d714eb0d725eeb38698011bd5ecc095659",
+    "18_Def_FB_PressDemoUnit.scl": "39e948d1770a3a7810d5ba79389332f4e3ea614f493ba4012c6c231001f7018e",
+    "20_000_FB_CylinderCM.scl": "c2daf200bbc243c494d2f1bd26b67843f8a66a30aace431270d76894c568c3fe",
+    "20_001_FB_TwoHandStartCM.scl": "e0acfeac5051e780cac2a7c1698133a80f74dad05666d0f87bf66a0fcf5aaa5a",
+    "20_002_FB_DigitalInputCM.scl": "68418c19f63c7dc41bd0a9bb4cbe98404c9f12bb34d0d1ac13c7251cad2929bd",
+    "20_003_FB_AirPressureMonitorCM.scl": "b8c0d1626ec9da976eb0f99985c7cda46473e2ed8fb7806e162f0c3bb207131b",
     "02_FRK_ConfigInteger.udt": "6961a1bda277d4e940e5acffb0a532e907bfd6d0d5771077f27938c36a9abf7c",
     "02_FRK_ConfigSlot.udt": "e50dc175902f58b6ec3ef16fc01684b96c7ac87957b0d33f9a09b5a49929009f",
     "02_FRK_ConfigValue.udt": "951eb27cd3374eafdbdbd90a920c77e372b02df84b7e9ddc220051390ba343cb",
-    "05_FRK_ConfigStore.db": "44aca1169f783cf68e7a783fe2246ec46a174b7fe4a6e50577a8eea750ef3bb8",
+    "05_FRK_ConfigStore.db": "dde5e2e4b53d0e3ff24e5ead48e54182a9d90d489d190ecffc3ebbecb4f90e03",
     "05_FRK_ConfigRuntime.db": "d443a50b50c29d362a6380e7be5912357c4c547c5f9c289d2951303180ef8aa7",
     "05_FRK_ConfigScratch.db": "31609783c03dc8568266a2a64f1c0eff9fc0742606c85a5d19135d0eeacb8365",
-    "14_ConfigServices.scl": "64dd24cfe26a3c293f841c4fa27688e749efa29142c69774d14dfa1adf75acbb",
+    "14_ConfigServices.scl": "8a0f2e9504735a0a48dd52371351a7e8d531356afa0a8fb035007425391f6689",
     "02_FRK_SetPayload.udt": "c510601640b98ea33ed040c6bb7445edd6ef5304da6fe542c4f91b164e5ea418",
     "02_FRK_JsonField.udt": "4b672dc3c3ba781ea86cb5f7b0e6da6cee3f2dec1ecc04c33f6e4ebda768e1ed",
-    "02_FRK_SetWorkspace.udt": "9684902b3753eeca9fdbf60f8767e6eac3bec89b08f2717ea2773c851818f37f",
+    "02_FRK_SetWorkspace.udt": "018c25c57491871dbe7fa50e6589e2c6a499048452b2a449f9a6e7d96eb17b29",
     "05_FRK_SetStore.db": "283da6460d6f986c4f7cff40e61a352786ebc9f4997e4a49f780d1c878eb2bc8",
     "05_FRK_SetRuntime.db": "0ad47a1daf74f62e854253eb824d0d0f81b81af30e3276e33aaadb1da0516fda",
-    "14a_ConfigSetServices.scl": "6fe7b80f12c82904e74697875969b24f0affb72279a114ffce774d500b326130",
+    "14a_ConfigSetServices.scl": "590052107c1c65d8333ea6e859412d0d8144bf0147a98fc519eeab9187dcbfc2",
+    "02_FRK_ModelCatalog.udt": "961b166afd7889d3d1448e43d2fcd333be587020f70f050350f51a20bfbe8a85",
+    "02_FRK_ModelImage.udt": "0b9319c7674e2ba0263a271453a0c97ce36b31e610f1b63f4f2a417a94850b4e",
+    "02_FRK_ModelWorkspace.udt": "b403cb841acdf7328b62eca2f68c80375db5408ef91a90699373acbc66f3264a",
+    "05_FRK_ModelStore.db": "4ed82d78be30c1b5eb94a008072a4b1af176cf56ffcfec9afa584050c97fe34b",
+    "05_FRK_ModelRuntime.db": "09fced1daaeab4e2f5b57bb9f0804a8ea1d7b01801d731a2219cf954013785a2",
+    "19_ModelServices.scl": "20005bb0f9898f6e3b3b17a6464d24c658984346c12a128e79da529228e73a32",
     "02_FRK_HostEvents.udt": "a6e2a07564763c4974b4a1909b1d8ae2f4ac3237f9f2a231a0c1e01a67f9bf08",
     "02_FRK_HostStoreBook.udt": "a1276fab0f121086b668f02fbfa7b7cbb0a02e896fbfb0c5f4c382465d4c9c04",
     "05_FRK_HostStore.db": "5f79649a717991a942ce7be0a9e066fdac3d6ce68a96b468a5cd855bb4596fc3",
@@ -977,16 +1005,19 @@
     "03_FRK_Document_D010.udt": "ce72a0cd92d67dbc2be77bae669fc7ff5f071da95ad5c1646cbc5f5de190b36d",
     "06_FRK_Load_D010A.db": "aa297224a58d2076d8a665f05046fa18e36cba024fb647274f217186036c2ada",
     "06_FRK_Load_D010B.db": "37bad9e153827253b1e22f5101bc6be5be3c06df3acb17d03234ce5df91d277b",
-    "06_FRK_PersistRuntime.db": "1edc071d1fd7215c527b385d5d65a0ffde48df80f7f1ba90e897ef01f9b4631e",
-    "06_FRK_PersistAnchors.db": "05711d3b973d52cab1ebc92f75e7d5e1deb7c41a5f7d2aaa1173e5e4d54f3fa3",
-    "06_FRK_PersistBuffers.db": "41ac04ef8f240721811a7e702cb275a4acb34f9ee030ab1ce498db564aba0245",
-    "06_FRK_PersistImages.db": "32b98405239cbcb1800879754b781b7aa75174f7298ec1730950dcabe394581f",
+    "03_FRK_Document_D011.udt": "10a754d04e2820a3314c3e90629311ba3858ec55c70c265a203ebbd017fcceac",
+    "06_FRK_Load_D011A.db": "f1675b3dbad5d7b87a1ae0cf316193f2a90364535e19a0ec5ce5041f212fc414",
+    "06_FRK_Load_D011B.db": "4eff6249e0196f3d4e802fbd5266edbe1cd9560b9eae21a0d6a138690e3d03c8",
+    "06_FRK_PersistRuntime.db": "2da6ba18434347b60f4987178bdef1c45d29cceda1bc40810d2105e6c33ff951",
+    "06_FRK_PersistAnchors.db": "a3671b00e3efdfa657963403b7b98db56a7866df56d001168281a20007a6ee62",
+    "06_FRK_PersistBuffers.db": "c62ed690933d216b1f98cc9b1e0bd6baa8e41dbf3f006671d14573b159526576",
+    "06_FRK_PersistImages.db": "a2bcd66050f623f367cf59dc7aa9e801a96115d4b37c79dad4293b87fd877c0b",
     "03_FRK_PersistConsumer.udt": "df92a844a618ce08e1ccb318d12f51123d0c88e364cec21f89b98f4ac04358b7",
-    "06_FRK_PersistConsumers.db": "6240f703570c2209fcd2955953b356685198902fc9479678c37c8275c193bd66",
-    "06_FRK_PersistStatus.db": "bca9d6e08ae91756af6a5229c6a9a7522ea203ff3940db5463267674275a6215",
-    "15_PersistMedium.scl": "911df13ea8773d195145177769a5aa2ccf806f8d943b32f85df56ab68db79cba",
-    "11_PersistHooks.scl": "739b57e4d331c800db67a6877c8d19274b5b763c150329d93bcfe1dff10b778b",
-    "16_PersistStatus.scl": "d3517f869e3ceae09ef989c9c85f4f4f5edcf602f3531a4510875f48de5eefed",
+    "06_FRK_PersistConsumers.db": "fbeca806e29a0315dbd677f7dc9790e4c515e4fc452da98582e18044a29a2b1d",
+    "06_FRK_PersistStatus.db": "4244d2b79cdf933dacf351965bc68a8d53f7608125ac57e76952417cd377de00",
+    "15_PersistMedium.scl": "ed378b432f699c209634c65e195e9d57384efbbc3c2c9f6a540dc0e11ad35c1b",
+    "11_PersistHooks.scl": "e643c7fad88bcfbf7eb19d609fad7427ba1f6e11df8db746333cae8f29ebcd8b",
+    "16_PersistStatus.scl": "6dc04346e7b567885579ebb78a8d8b2669d41c4d915c0170f6c75f2bb1f65c54",
     "06_FRK_PersistRootSince.db": "63e9a3b707046d97ee4e2e3c4bf898ddac4e646dac2eb9d07209d6c5312bb22e",
     "00_000a_ST_PressDemoSignals.udt": "0552166162715308f60b2ed7d468095e5f5d905f7a6a2c3d7352abec4c7aee72",
     "06_FRK_SequenceCtx.udt": "eb60cf1ef90448c3f8979de7b88178cf55cc5a2e273e5e29813195026a2a3d80",
@@ -1016,7 +1047,7 @@
     "27_FB_GRAPH_PressDemoChangeover.xml": "1aa127ef9a954053444b973d8a5fb895a10c4564cdadbf83f02cbd1d04138e5d",
     "28_FB_PressDemoChangeoverGraphOwner.scl": "b23669bfb5269b54cd58a8d6fc219b30dc1a96c6014d90b4f2479fdae416c0aa",
     "26_FB_LD_PressDemoChangeover.xml": "191ef646c76c056407564431e1e0c67f1bfe8a2ef2eb848a54216439f55c4b76",
-    "29_FB_PressDemoUnit.scl": "2525734f26d7771a2a9edbed3adcb07d98e008432a74671883ab0fb2a2c6a7f8",
+    "29_FB_PressDemoUnit.scl": "5dc8e0e49055e3edb21b37e57cf08afe39526a2b3c47e03cf73025b5b0b245b6",
     "29_PersistQuiesce.scl": "adade6b67a0acc3d908a734d7a179520697672bcdac77a40c095f584d658b308",
     "29_GDB_GRAPH_PressDemoAuto.db": "d9210eede5e4d868a75b76726517cf6ee058ba5712f52a47bcd3796988b488da",
     "29_GDB_GRAPH_PressDemoAutoLoadPosition.db": "e4c471e4c96661e24a6505ce7b5bf4fa142a8513931536babf27e1e0d37a7bd4",
@@ -1029,7 +1060,7 @@
     "38_GDB_PressDemoSim.db": "015e4976140fc64be1f9bf0de1a123434e1b4234e7c8bb033770c8a629cd9b4a",
     "39_GDB_PressDemoHardwareDriver.db": "27abf82aa07a129c13885687e80368dc72e54dd00cc61caa3edd7a77cb8095df",
     "38_PressDemoHardwareDriver.scl": "918a98a8b652e31f3efc0142cfd0f36352444da0911e997e60049352b4630f9a",
-    "30_PressDemoComposition.scl": "0d8ab8c0a929dcad0646eaa5c5440246ac225a88a4c472c9f1ec727799fc6f33",
+    "30_PressDemoComposition.scl": "6be0c7018d1b6c71c0a968d3c2fb820ac5e2b23407ae7f00fc74e3728b064f69",
     "35_GDB_PressDemoMain.db": "16ab682f45decde0d2df1727aa70f33324301174fd491aaf33c32f2ea758f4ce",
     "40_PressDemoMain.scl": "1b63cec8e375fbb22d6c27a9ba3e85c20eeabd4bc4dcf57e24d527bb645930d4"
   },

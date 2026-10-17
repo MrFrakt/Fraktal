@@ -1,0 +1,36 @@
+﻿FUNCTION "FRK_MachineState" : DInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core 8.5/8.11: accounting belongs to the Unit frame, never the application.
+   VAR_INPUT 
+      Exec : DInt;
+      Mode : DInt;
+      Blocking : Bool;
+      Starved : Bool;
+      Blocked : Bool;
+      StopRequested : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Exec = 3 OR #Blocking THEN
+	    #FRK_MachineState := 4;
+	ELSIF #Mode = 3 THEN
+	    #FRK_MachineState := 5;
+	ELSIF #Exec = 1 AND #Mode = 0 THEN
+	    IF #Blocked THEN
+	        #FRK_MachineState := 2;
+	    ELSIF #Starved THEN
+	        #FRK_MachineState := 3;
+	    ELSE
+	        #FRK_MachineState := 0;
+	    END_IF;
+	ELSIF #StopRequested THEN
+	    #FRK_MachineState := 6;
+	ELSE
+	    #FRK_MachineState := 1;
+	END_IF;
+	
+END_FUNCTION
+

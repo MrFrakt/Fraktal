@@ -1,0 +1,31 @@
+﻿FUNCTION "FRK_ModelKnown" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Code : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelKnown := FALSE;
+	IF #RootIndex < 1 OR #RootIndex > 2 OR #Code = '' THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_ModelStore".Rows[#RootIndex].Count < 2 OR "FRK_ModelStore".Rows[#RootIndex].Count > 3 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO "FRK_ModelStore".Rows[#RootIndex].Count DO
+	    IF "FRK_ModelStore".Rows[#RootIndex].Codes[#Index] = #Code THEN
+	        #FRK_ModelKnown := TRUE;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

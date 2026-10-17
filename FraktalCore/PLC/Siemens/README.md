@@ -1,5 +1,15 @@
 # Fraktal/TIA — Siemens TIA Portal binding (working tree)
 
+Runtime model milestone (2026-10-17): generator 0.24 adds bounded root catalogs,
+inactive cloning from models or complete model sets, shared typed admission and
+atomic LOAD_DB catalog/data checkpoints. BUSY creation leaves the running and
+prepared recipes unchanged. The [model fixture](Tests/Models/README.md) and
+[qualification report](../../../Specification/Siemens/Evidence/TIA_RUNTIME_MODELS_2026-10-17.md)
+record 31 PLC assertions, 110 live checks, actual restart/corruption recovery and
+fresh-project read-back. The press advertises capacity 4 over its three seeds;
+GRAPH sequences and ST permissives remain wired. Complete Line integration,
+manual held actions, OUC, module/connectivity and deployment work remain.
+
 **Status: Phase0 runtime evidence; Phase2 tooling started.** The binding is
 [`Specification/Fraktal_TIA_Part_IV.md`](../../../Specification/Fraktal_TIA_Part_IV.md);
 the plan is [`Specification/Siemens/SIEMENS_PORT_PLAN.md`](../../../Specification/Siemens/SIEMENS_PORT_PLAN.md).
@@ -14,7 +24,7 @@ Separate class documents preserve the existing action-policy image. The
 [class-policy report](../../../Specification/Siemens/Evidence/TIA_DATA_CLASSES_2026-10-16.md)
 records16 PLC assertions,97 live/restart checks,254 tool tests and clean native
 runtime/press builds. See [the fixture](Tests/DataClasses/README.md) for the
-declaration grammar. Runtime model creation and full Line integration remain.
+declaration grammar. Full Line integration remains; model creation is qualified below.
 
 Operations qualification (2026-10-16): generator0.22 adds shared OEE/shifts/work
 degradation, health/nameplates/build gates, shelving/tower/lamp test, pacing,

@@ -1,0 +1,313 @@
+﻿FUNCTION "FRK_Config_PressDemoUnit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Access : "FRK_Access";
+      RootIndex : Int;
+      ModelIndex : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      ParCfg : "ST_PressDemoParCfg";
+      ModePolicy : Array[0..6] of "ST_ModePolicy";
+      AvailableModelCount : Int;
+      ModelCapacity : Int;
+      SequenceStepDef : Array[1..23] of "ST_SequenceStepDef";
+      SequenceStepCount : Int;
+      StationCfg : "ST_PressDemoStationCfg";
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+      TwoHand : "FB_TwoHandStartCM";
+      PartPresentSensor : "FB_DigitalInputCM";
+      AirPressureMonitor : "FB_AirPressureMonitorCM";
+      Cursor : "FRK_ConfigCursor";
+      Page : "ST_ConfigPage";
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #ModelIndex = 0 THEN
+	    "FRK_ConfigUnit"(Scope := #Status.Name,
+	                     Policy := #ModePolicy,
+	                     ModelCount := #AvailableModelCount,
+	                     ReadLevel := #Access.Policy.Required[0],
+	                     Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                     Cursor := #Cursor,
+	                     Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 AND #Core.ParentIndex = 0 THEN
+	    "FRK_EngineeringManifest"(Scope := #Status.Name,
+	                              Access := #Access,
+	                              Cursor := #Cursor,
+	                              Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 AND #Core.ParentIndex = 0 THEN
+	    "FRK_ConfigAppend"(Scope := #Status.Name,
+	                       Item := 'Features/ExportCurrentConfig',
+	                       ValueText := WSTRING#'true',
+	                       ValueType := 2,
+	                       ReadLevel := #Access.Policy.Required[0],
+	                       Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                       Cursor := #Cursor,
+	                       Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_ViewManifest"(Scope := #Status.Name,
+	                       Defs := #SequenceStepDef,
+	                       Count := #SequenceStepCount,
+	                       ReadLevel := #Access.Policy.Required[0],
+	                       Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                       Cursor := #Cursor,
+	                       Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    IF 1 <= #AvailableModelCount THEN
+	        "FRK_ConfigAppend"(Scope := #Status.Name,
+	                           Item := 'AvailableModels/AvailableModels[1]/ModelCode',
+	                           ValueText := STRING_TO_WSTRING("FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := 1)),
+	                           ValueType := 1,
+	                           ReadLevel := #Access.Policy.Required[0],
+	                           Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                           Cursor := #Cursor,
+	                           Page := #Page);
+	    END_IF;
+	    IF 2 <= #AvailableModelCount THEN
+	        "FRK_ConfigAppend"(Scope := #Status.Name,
+	                           Item := 'AvailableModels/AvailableModels[2]/ModelCode',
+	                           ValueText := STRING_TO_WSTRING("FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := 2)),
+	                           ValueType := 1,
+	                           ReadLevel := #Access.Policy.Required[0],
+	                           Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                           Cursor := #Cursor,
+	                           Page := #Page);
+	    END_IF;
+	    IF 3 <= #AvailableModelCount THEN
+	        "FRK_ConfigAppend"(Scope := #Status.Name,
+	                           Item := 'AvailableModels/AvailableModels[3]/ModelCode',
+	                           ValueText := STRING_TO_WSTRING("FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := 3)),
+	                           ValueType := 1,
+	                           ReadLevel := #Access.Policy.Required[0],
+	                           Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                           Cursor := #Cursor,
+	                           Page := #Page);
+	    END_IF;
+	    IF 4 <= #AvailableModelCount THEN
+	        "FRK_ConfigAppend"(Scope := #Status.Name,
+	                           Item := 'AvailableModels/AvailableModels[4]/ModelCode',
+	                           ValueText := STRING_TO_WSTRING("FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := 4)),
+	                           ValueType := 1,
+	                           ReadLevel := #Access.Policy.Required[0],
+	                           Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                           Cursor := #Cursor,
+	                           Page := #Page);
+	    END_IF;
+	    "FRK_ConfigAppend"(Scope := #Status.Name,
+	                       Item := 'ModelCapacity',
+	                       ValueText := INT_TO_WSTRING(#ModelCapacity),
+	                       ValueType := 0,
+	                       ReadLevel := #Access.Policy.Required[0],
+	                       Readable := #Access.CurrentLevel >= #Access.Policy.Required[0],
+	                       Cursor := #Cursor,
+	                       Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 1);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := FALSE;
+	    "FRK_ConfigScratch".Entry.ValueText := UINT_TO_WSTRING(#StationCfg.DegradationPercent);
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 2);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := FALSE;
+	    IF #StationCfg.RequireTwoHandStart THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'true';
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'false';
+	    END_IF;
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
+	    IF #ModelIndex <> 0 THEN
+	        "FRK_ConfigScratch".Entry.RequiresReady := "FRK_ConfigScratch".Entry.RequiresReady AND "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex) = "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex));
+	        IF NOT #Ok THEN
+	            "FRK_ConfigScratch".Entry.Readable := FALSE;
+	        END_IF;
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ParCfg.IdealCycleMs);
+	    END_IF;
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
+	    IF #ModelIndex <> 0 THEN
+	        "FRK_ConfigScratch".Entry.RequiresReady := "FRK_ConfigScratch".Entry.RequiresReady AND "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex) = "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex));
+	        IF NOT #Ok THEN
+	            "FRK_ConfigScratch".Entry.Readable := FALSE;
+	        END_IF;
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := UDINT_TO_WSTRING(#ParCfg.BaselineWorkMs);
+	    END_IF;
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
+	    IF #ModelIndex <> 0 THEN
+	        "FRK_ConfigScratch".Entry.RequiresReady := "FRK_ConfigScratch".Entry.RequiresReady AND "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex) = "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex));
+	        IF NOT #Ok THEN
+	            "FRK_ConfigScratch".Entry.Readable := FALSE;
+	        END_IF;
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ParCfg.Timeout));
+	    END_IF;
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
+	    IF #ModelIndex <> 0 THEN
+	        "FRK_ConfigScratch".Entry.RequiresReady := "FRK_ConfigScratch".Entry.RequiresReady AND "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex) = "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex));
+	        IF NOT #Ok THEN
+	            "FRK_ConfigScratch".Entry.Readable := FALSE;
+	        END_IF;
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ParCfg.TransferSettleTime));
+	    END_IF;
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF (#ModelIndex = 0 OR #Core.ParentIndex = 0) THEN
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
+	    "FRK_ConfigScratch".Entry.Scope := STRING_TO_WSTRING(#Status.Name);
+	    "FRK_ConfigScratch".Entry.ReadLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinRead, ForWrite := FALSE);
+	    "FRK_ConfigScratch".Entry.WriteLevel := "FRK_DataLevel"(Access := #Access, ClassId := "FRK_ConfigScratch".Entry.ClassId, Minimum := "FRK_ConfigScratch".MinWrite, ForWrite := TRUE);
+	    "FRK_ConfigScratch".Entry.Readable := #Access.CurrentLevel >= "FRK_ConfigScratch".Entry.ReadLevel;
+	    "FRK_ConfigScratch".Entry.ModelScoped := #Core.ParentIndex = 0;
+	    IF #ModelIndex <> 0 THEN
+	        "FRK_ConfigScratch".Entry.RequiresReady := "FRK_ConfigScratch".Entry.RequiresReady AND "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex) = "FRK_ConfigStore".ActiveModels[#RootIndex];
+	        #Ok := "FRK_ConfigGet"(Scope := #Status.Name, ModelCode := "FRK_ConfigModelCode"(RootIndex := #RootIndex, ModelIndex := #ModelIndex));
+	        IF NOT #Ok THEN
+	            "FRK_ConfigScratch".Entry.Readable := FALSE;
+	        END_IF;
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(TIME_TO_DINT(#ParCfg.PressSettleTime));
+	    END_IF;
+	    IF NOT "FRK_ConfigScratch".Entry.Readable THEN
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	    END_IF;
+	    "FRK_ConfigAppendEntry"(Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_Config_CylinderCM"(Module := #PressRam,
+	                            Access := #Access,
+	                            RootIndex := #RootIndex,
+	                            ModelIndex := #ModelIndex,
+	                            Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_Config_CylinderCM"(Module := #Door,
+	                            Access := #Access,
+	                            RootIndex := #RootIndex,
+	                            ModelIndex := #ModelIndex,
+	                            Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_Config_CylinderCM"(Module := #PartSlide,
+	                            Access := #Access,
+	                            RootIndex := #RootIndex,
+	                            ModelIndex := #ModelIndex,
+	                            Cursor := #Cursor,
+	                            Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_Config_TwoHandStartCM"(Module := #TwoHand,
+	                                Access := #Access,
+	                                RootIndex := #RootIndex,
+	                                ModelIndex := #ModelIndex,
+	                                Cursor := #Cursor,
+	                                Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_Config_DigitalInputCM"(Module := #PartPresentSensor,
+	                                Access := #Access,
+	                                RootIndex := #RootIndex,
+	                                ModelIndex := #ModelIndex,
+	                                Cursor := #Cursor,
+	                                Page := #Page);
+	END_IF;
+	IF #ModelIndex = 0 THEN
+	    "FRK_Config_AirPressureMonitorCM"(Module := #AirPressureMonitor,
+	                                      Access := #Access,
+	                                      RootIndex := #RootIndex,
+	                                      ModelIndex := #ModelIndex,
+	                                      Cursor := #Cursor,
+	                                      Page := #Page);
+	END_IF;
+	
+END_FUNCTION
+

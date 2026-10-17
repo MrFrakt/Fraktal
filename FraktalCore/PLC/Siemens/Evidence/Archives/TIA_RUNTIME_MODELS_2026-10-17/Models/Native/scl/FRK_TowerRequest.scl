@@ -1,0 +1,56 @@
+﻿FUNCTION "FRK_TowerRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      ParCfg : "ST_SignalTowerParCfg";
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+      Book : "FRK_TowerBook";
+   END_VAR
+
+   VAR_TEMP 
+      Duration : Time;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> 26 THEN
+	    RETURN;
+	END_IF;
+	#Response.Accepted := FALSE;
+	#Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+	#Response.Report.Count := 0;
+	#Response.Report.Released := TRUE;
+	IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[2] THEN
+	    #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+	ELSIF #Core.Exec <> 1 THEN
+	    #Duration := #ParCfg.LampTestDuration;
+	    IF #ParCfg.SchemaVersion <> 1 OR #Duration <= T#0ms THEN
+	        #Duration := T#3s;
+	    ELSIF #Duration > T#30s THEN
+	        #Duration := T#30s;
+	    END_IF;
+	    #Book.DurationMs := TIME_TO_UDINT(#Duration);
+	    #Book.StartedMs := "FRK_Clock".NowMs;
+	    #Book.TestActive := TRUE;
+	    #Response.Accepted := TRUE;
+	END_IF;
+	IF #Response.Accepted THEN
+	    #Response.Diagnostic := WSTRING#'';
+	ELSE
+	    "FRK_ReleaseReason"(Report := #Response.Report,
+	                        Description := #Response.Diagnostic,
+	                        Reason := 2002,
+	                        Path := STRING_TO_WSTRING(#Scope),
+	                        Kind := 4);
+	END_IF;
+	
+END_FUNCTION
+

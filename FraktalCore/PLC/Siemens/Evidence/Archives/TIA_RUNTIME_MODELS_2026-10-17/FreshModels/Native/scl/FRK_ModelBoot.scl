@@ -1,0 +1,63 @@
+﻿FUNCTION "FRK_ModelBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Virgin : Bool;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	#Virgin := "FRK_ModelVirgin"(Catalog := "FRK_ModelStore".Rows[1]);
+	#Ok := "FRK_ModelValid"(RootIndex := 1, Catalog := "FRK_ModelStore".Rows[1]);
+	IF #Ok THEN
+	    #Ok := "FRK_ModelCapture"(RootIndex := 1, Catalog := "FRK_ModelStore".Rows[1], Image := "FRK_ModelRuntime".ScratchImage);
+	END_IF;
+	IF NOT #Ok THEN
+	    "FRK_ModelDefaults"(RootIndex := 1);
+	    IF NOT #Virgin THEN
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    END_IF;
+	END_IF;
+	IF NOT "FRK_ModelKnown"(RootIndex := 1, Code := "FRK_ConfigStore".ActiveModels[1]) THEN
+	    "FRK_ConfigSetActiveModel"(RootIndex := 1,
+	                               ModelCode := 'MODEL_A');
+	    IF NOT #Virgin OR "FRK_ConfigStore".SchemaVersion <> 0 THEN
+	        "FRK_ConfigLoss"(RootIndex := 1,
+	                         Scope := 'StationA');
+	    END_IF;
+	END_IF;
+	"FRK_ModelRuntime".Rows[1].Ready := TRUE;
+	#Virgin := "FRK_ModelVirgin"(Catalog := "FRK_ModelStore".Rows[2]);
+	#Ok := "FRK_ModelValid"(RootIndex := 2, Catalog := "FRK_ModelStore".Rows[2]);
+	IF #Ok THEN
+	    #Ok := "FRK_ModelCapture"(RootIndex := 2, Catalog := "FRK_ModelStore".Rows[2], Image := "FRK_ModelRuntime".ScratchImage);
+	END_IF;
+	IF NOT #Ok THEN
+	    "FRK_ModelDefaults"(RootIndex := 2);
+	    IF NOT #Virgin THEN
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    END_IF;
+	END_IF;
+	IF NOT "FRK_ModelKnown"(RootIndex := 2, Code := "FRK_ConfigStore".ActiveModels[2]) THEN
+	    "FRK_ConfigSetActiveModel"(RootIndex := 2,
+	                               ModelCode := 'MODEL_A');
+	    IF NOT #Virgin OR "FRK_ConfigStore".SchemaVersion <> 0 THEN
+	        "FRK_ConfigLoss"(RootIndex := 2,
+	                         Scope := 'StationB');
+	    END_IF;
+	END_IF;
+	"FRK_ModelRuntime".Rows[2].Ready := TRUE;
+	
+END_FUNCTION
+

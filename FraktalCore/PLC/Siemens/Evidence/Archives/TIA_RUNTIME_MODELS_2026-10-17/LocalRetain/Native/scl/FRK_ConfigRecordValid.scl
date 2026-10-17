@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_ConfigRecordValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Every accepted memory commit has one optional medium notification path.
+   VAR_INPUT 
+      Scope : String;
+      Record : "ST_ConfigRecord";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigRecordValid := FALSE;
+	IF #Record.Scope <> #Scope OR #Record.WriteKey <> "FRK_ConfigScratch".Entry.WriteKey
+	    OR #Record.Revision <> "FRK_ConfigScratch".Entry.WriteRevision
+	    OR #Record.Kind <> "FRK_ConfigScratch".Entry.ConfigKind
+	    OR #Record.ValueType <> "FRK_ConfigScratch".Entry.ValueType THEN
+	    RETURN;
+	END_IF;
+	#FRK_ConfigRecordValid := "FRK_ConfigValidate"(Text := STRING_TO_WSTRING(#Record.ValueText));
+	
+END_FUNCTION
+

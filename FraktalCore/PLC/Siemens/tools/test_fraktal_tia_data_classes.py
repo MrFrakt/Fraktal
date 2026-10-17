@@ -15,6 +15,12 @@ FIXTURE=importlib.util.module_from_spec(spec);spec.loader.exec_module(FIXTURE)
 
 
 class DataClassTests(unittest.TestCase):
+    def test_class_identity_is_data_even_when_it_looks_like_a_token(self):
+        value=FIXTURE.declaration();value['data_classes']['StationA'][0]['id']='@E_AccessLevel.NONE@'
+        model=gen.DECL.validate(value)
+        sources,_=gen.build(model,True,line_workbench=True)
+        self.assertIn("#Access.Classes[1].ClassId := '@E_AccessLevel.NONE@';",sources['13_UnitServices.scl'])
+
     def test_root_type_lookup_keeps_iec_case_insensitivity(self):
         value=FIXTURE.declaration();value['roots'][0]['type']='FB_'+value['roots'][0]['type'][3:].lower()
         self.assertEqual(len(gen.DECL.validate(value).data_classes),2)

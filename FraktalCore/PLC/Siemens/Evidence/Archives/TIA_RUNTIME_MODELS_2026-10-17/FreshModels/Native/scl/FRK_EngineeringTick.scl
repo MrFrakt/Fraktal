@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_EngineeringTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Slots : Array[1..1] of Int;
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_ConditionEvent"(Active := TRUE,
+	                     Reason := 2030,
+	                     Description := WSTRING#'std.engineering.simulation',
+	                     Source := STRING_TO_WSTRING(#Scope),
+	                     Slot := #Slots[1],
+	                     AlarmLog := #AlarmLog);
+	
+END_FUNCTION
+

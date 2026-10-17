@@ -1,0 +1,44 @@
+﻿FUNCTION "FRK_AlarmShelfRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending OR (#Unit.Request.Kind <> 20 AND #Unit.Request.Kind <> 21) THEN
+	    RETURN;
+	END_IF;
+	#Response.Accepted := FALSE;
+	#Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+	#Response.Report.Count := 0;
+	#Response.Report.Released := TRUE;
+	IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[9] THEN
+	    #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+	ELSIF #Unit.Request.IntValue >= 1 AND #Unit.Request.IntValue <= 16 THEN
+	    IF #Unit.Request.Kind = 20 THEN
+	        #Response.Accepted := "FRK_AlarmShelve"(Slot := DINT_TO_INT(#Unit.Request.IntValue), DurationMs := #Unit.Request.DurationMs, AlarmLog := #AlarmLog);
+	    ELSE
+	        #Response.Accepted := "FRK_AlarmUnshelve"(Slot := DINT_TO_INT(#Unit.Request.IntValue), AlarmLog := #AlarmLog);
+	    END_IF;
+	END_IF;
+	IF #Response.Accepted THEN
+	    #Response.Diagnostic := WSTRING#'';
+	ELSE "FRK_ReleaseReason"(Report := #Response.Report,
+	                             Description := #Response.Diagnostic,
+	                             Reason := 2002,
+	                             Path := STRING_TO_WSTRING(#Scope),
+	                             Kind := 4);
+	END_IF;
+	
+END_FUNCTION
+

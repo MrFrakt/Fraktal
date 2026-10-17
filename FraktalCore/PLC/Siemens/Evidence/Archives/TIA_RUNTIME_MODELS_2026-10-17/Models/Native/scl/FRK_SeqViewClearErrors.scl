@@ -1,0 +1,27 @@
+﻿FUNCTION "FRK_SeqViewClearErrors" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V001.Rows,
+	                              Notes := "FRK_Views".V001.Notes,
+	                              Count := "FRK_Views".V001.Count,
+	                              NoteCount := "FRK_Views".V001.NoteCount);
+	    13:
+	        "FRK_ViewClearErrors"(Rows := "FRK_Views".V013.Rows,
+	                              Notes := "FRK_Views".V013.Notes,
+	                              Count := "FRK_Views".V013.Count,
+	                              NoteCount := "FRK_Views".V013.NoteCount);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

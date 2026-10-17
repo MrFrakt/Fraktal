@@ -1,0 +1,79 @@
+﻿FUNCTION "FRK_LineAssign" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      FieldIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Values : "ST_LineProductionConfig";
+   END_VAR
+
+
+BEGIN
+	
+	CASE #FieldIndex OF
+	    1:
+	        #Values.TaktMs := LINT_TO_UDINT("FRK_ConfigScratch".Value.Number);
+	    2:
+	        #Values.Gain := "FRK_ConfigScratch".Value.Decimal;
+	    3:
+	        #Values.Grade := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    4:
+	        #Values.Enabled := "FRK_ConfigScratch".Value.Flag;
+	    5:
+	        #Values.HostName := "FRK_ConfigScratch".Value.Text;
+	    6:
+	        #Values.Offsets[0] := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+	    7:
+	        #Values.Offsets[1] := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
+	    8:
+	        #Values.Small := LINT_TO_USINT("FRK_ConfigScratch".Value.Number);
+	    9:
+	        #Values.UtcOffsetMin := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    10:
+	        #Values.ShiftStartMin[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    11:
+	        #Values.ShiftDurationMin[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    12:
+	        #Values.ShiftActiveDays[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    13:
+	        #Values.ShiftTarget[1] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    14:
+	        #Values.ShiftStartMin[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    15:
+	        #Values.ShiftDurationMin[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    16:
+	        #Values.ShiftActiveDays[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    17:
+	        #Values.ShiftTarget[2] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    18:
+	        #Values.ShiftStartMin[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    19:
+	        #Values.ShiftDurationMin[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    20:
+	        #Values.ShiftActiveDays[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    21:
+	        #Values.ShiftTarget[3] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    22:
+	        #Values.ShiftStartMin[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    23:
+	        #Values.ShiftDurationMin[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    24:
+	        #Values.ShiftActiveDays[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    25:
+	        #Values.ShiftTarget[4] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    26:
+	        #Values.ShiftStartMin[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    27:
+	        #Values.ShiftDurationMin[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    28:
+	        #Values.ShiftActiveDays[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    29:
+	        #Values.ShiftTarget[5] := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

@@ -1,0 +1,199 @@
+FUNCTION "FRK_CyclicHook_DigitalInputCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Hal : "ST_DigitalInputHal";
+    OutImm : "ST_DigitalInputOutImm";
+END_VAR
+BEGIN
+    #OutImm.Value := #Hal.Value;
+    #OutImm.Quality := #Hal.Quality;
+END_FUNCTION
+// Generated frame v0.24; change the declaration, then regenerate.
+FUNCTION_BLOCK "FB_DigitalInputCM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Execute {ExternalWritable := 'False'} : Bool;
+    Abort {ExternalWritable := 'False'} : Bool;
+    Command {ExternalWritable := 'False'} : DInt;
+    ParCfg {ExternalWritable := 'False'} : "ST_DigitalInputParCfg";
+    ParCmd {ExternalWritable := 'False'} : "ST_DigitalInputParCmd";
+    ParentIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    BoundPath {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : WString[254];
+END_VAR
+VAR_OUTPUT
+    Busy {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    Error {ExternalWritable := 'False'} : Bool;
+    Aborted {ExternalWritable := 'False'} : Bool;
+    Held {ExternalWritable := 'False'} : Bool;
+    ErrorID {ExternalWritable := 'False'} : DWord;
+    Timing {ExternalWritable := 'False'} : "ST_ModuleTiming";
+    OutCmd {ExternalWritable := 'False'} : "ST_DigitalInputOutCmd";
+END_VAR
+VAR_IN_OUT
+    Hal : "ST_DigitalInputHal";
+END_VAR
+VAR
+    OutImm {ExternalWritable := 'False'} : "ST_DigitalInputOutImm";
+    Status {ExternalWritable := 'False'} : "ST_ModuleStatus";
+    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+    LatchedParCmd {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_DigitalInputParCmd";
+    Catalog {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of "ST_CommandInfo";
+    CatalogCount {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+    ManConditions {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of "FRK_ManualConditionRow";
+    ManualOwned {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR_TEMP
+    InstancePath : WString[254];
+END_VAR
+VAR CONSTANT
+    EXEC_READY : DInt := 0;
+    MODULE_CM : DInt := 3;
+END_VAR
+BEGIN
+    // ---- GENERATED: setup
+    IF #Startup OR NOT #Core.Named THEN
+        #InstancePath := #BoundPath;
+        "FRK_SetIdentity"(Core := #Core, Status := #Status, InstancePath := #InstancePath,
+            ModuleType := 3, TypeId := 4, Capabilities := DWORD#16#00000000, ParentIndex := #ParentIndex, TypeKey := 'std.moduleType.digitalInput');
+        #CatalogCount := 0;
+    END_IF;
+    IF NOT (#Core.Initialized AND #Core.Exec = #EXEC_READY AND NOT #Execute AND NOT #Abort AND NOT #Core.ExecPrev AND NOT #Core.AbortPrev AND #Core.HoldReason = 0 AND NOT #Core.EvInit AND NOT #Core.ReleasePending) THEN
+    // ---- GENERATED: begin
+    "FRK_Begin"(Core := #Core, Status := #Status, Execute := #Execute, Abort := #Abort, Command := #Command);
+    IF #Core.EvCommandStart THEN
+        #LatchedParCmd := #ParCmd;
+        "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := '');
+    END_IF;
+    "FRK_RouteAbort"(Core := #Core, Abort := #Abort);
+    "FRK_End"(Core := #Core, Status := #Status,
+        Busy => #Busy, Done => #Done, Error => #Error, Aborted => #Aborted, Held => #Held, ErrorID => #ErrorID, Timing => #Timing);
+    END_IF;
+    // ---- AUTHORED: unconditional cyclic/derived data
+    "FRK_CyclicHook_DigitalInputCM"(Hal := #Hal, OutImm := #OutImm);
+    // ---- GENERATED: diagnostic snapshot
+    "FRK_DiagSync"(Index := #Core.RegIndex, Withdraw := FALSE,
+        Status := #Status, Held := #Core.Held,
+        Timeout := T#0ms, ActiveTimeoutMs := #Core.TimeoutMs);
+    // ---- GENERATED: frame end
+END_FUNCTION_BLOCK
+FUNCTION "FRK_Route_DigitalInputCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+END_VAR
+VAR_IN_OUT
+    Module : "FB_DigitalInputCM";
+    Hal : "ST_DigitalInputHal";
+    Report : "ST_ReleaseReport";
+END_VAR
+VAR_TEMP
+    RouteMatched : Bool;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_Route_DigitalInputCM := FALSE;
+    IF NOT "FRK_PathOwned"(OwnerPath := #Module.Status.Name, TargetPath := #Request.TargetPath) THEN RETURN; END_IF;
+    IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) THEN
+        FOR #Index := 1 TO 16 DO #Module.ManConditions[#Index].Used := FALSE; END_FOR;
+        "FRK_ManualApply"(Core := #Module.Core, Status := #Module.Status, Request := #Request, Commands := #Module.Catalog, Count := #Module.CatalogCount, Conditions := #Module.ManConditions, Report := #Report, Execute := #Module.Execute, Command := #Module.Command, ManualOwned := #Module.ManualOwned);
+        #FRK_Route_DigitalInputCM := TRUE;
+        RETURN;
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_Config_DigitalInputCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Access : "FRK_Access";
+    RootIndex : Int;
+    ModelIndex : UDInt;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_DigitalInputCM";
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+END_VAR
+BEGIN
+    IF #ModelIndex = 0 THEN
+        "FRK_ConfigCatalog"(Scope := #Module.Status.Name, Catalog := #Module.Catalog, Count := #Module.CatalogCount, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_CfgWrite_DigitalInputCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Access : "FRK_Access";
+    RootIndex : Int;
+    RootReady : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_DigitalInputCM";
+    Matched : Bool;
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+    Code : String[64];
+    Inactive : Bool;
+    Text : WString[255];
+END_VAR
+BEGIN
+    #FRK_CfgWrite_DigitalInputCM := FALSE;
+END_FUNCTION
+FUNCTION "FRK_CfgRecipe_DigitalInputCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ModelCode : String;
+    Phase : Int;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_DigitalInputCM";
+    RejectScope : String;
+    RejectKey : String;
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_CfgRecipe_DigitalInputCM := TRUE;
+END_FUNCTION
+FUNCTION "FRK_CfgSetWalk_DigitalInputCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Phase : Int;
+    Access : "FRK_Access";
+    Ready : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_DigitalInputCM";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Stored : Int;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_CfgSetWalk_DigitalInputCM := FALSE;
+    #FRK_CfgSetWalk_DigitalInputCM := TRUE;
+END_FUNCTION
+FUNCTION "FRK_Capture_DigitalInputCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_DigitalInputCM";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    "FRK_AlarmCapture"(AlarmLog := #AlarmLog, Core := #Module.Core, Status := #Module.Status);
+END_FUNCTION

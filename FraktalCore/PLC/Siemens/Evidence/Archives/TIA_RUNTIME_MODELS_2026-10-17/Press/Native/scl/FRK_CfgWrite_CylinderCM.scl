@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_CfgWrite_CylinderCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Request : "ST_HmiRequest";
+      Access : "FRK_Access";
+      RootIndex : Int;
+      RootReady : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Module : "FB_CylinderCM";
+      Matched : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Ok : Bool;
+      Code : String[64];
+      Inactive : Bool;
+      Text : WString[255];
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_CfgWrite_CylinderCM := FALSE;
+	
+END_FUNCTION
+

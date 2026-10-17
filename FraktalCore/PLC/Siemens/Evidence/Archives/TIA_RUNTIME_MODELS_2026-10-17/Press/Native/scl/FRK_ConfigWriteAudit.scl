@@ -1,0 +1,52 @@
+﻿FUNCTION "FRK_ConfigWriteAudit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Key : String;
+      Value : WString;
+      Captured : Bool;
+      User : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Prefix : WString[64];
+      Text : WString[255];
+   END_VAR
+
+
+BEGIN
+	
+	IF #Captured THEN
+	    #Prefix := WSTRING#'std.audit.configCaptured field=';
+	ELSE
+	    #Prefix := WSTRING#'std.audit.configWritten field=';
+	END_IF;
+	#Text := CONCAT(IN1 := #Prefix, IN2 := STRING_TO_WSTRING(#Key));
+	// Preserve the full key/value/user: long entries use two adjacent audited
+	// events from this same transaction instead of truncating accepted data.
+	IF LEN(#Prefix) + LEN(#Key) + LEN(#Value) + LEN(#User) + 13 <= 255 THEN
+	    #Text := CONCAT(IN1 := #Text, IN2 := WSTRING#' value=');
+	    #Text := CONCAT(IN1 := #Text, IN2 := #Value);
+	    "FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                      What := #Text,
+	                      Who := #User,
+	                      SourcePath := STRING_TO_WSTRING(#Scope));
+	ELSE
+	    "FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                      What := #Text,
+	                      Who := #User,
+	                      SourcePath := STRING_TO_WSTRING(#Scope));
+	    #Text := CONCAT(IN1 := WSTRING#'std.audit.configValue value=', IN2 := #Value);
+	    "FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                      What := #Text,
+	                      Who := #User,
+	                      SourcePath := STRING_TO_WSTRING(#Scope));
+	END_IF;
+	
+END_FUNCTION
+

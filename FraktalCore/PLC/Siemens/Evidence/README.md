@@ -1,5 +1,10 @@
 # Siemens evidence payloads
 
+Runtime model milestone (2026-10-17):
+[qualification report](../../../../Specification/Siemens/Evidence/TIA_RUNTIME_MODELS_2026-10-17.md),
+[sealed payload](Archives/TIA_RUNTIME_MODELS_2026-10-17/packaging.json).
+Earlier archives remain immutable.
+
 `Archives/` contains dated raw logs, generated/native sources and snapshots.
 These files record past runs; they are excluded from active implementation
 generation and shall not be imported as a runtime library.

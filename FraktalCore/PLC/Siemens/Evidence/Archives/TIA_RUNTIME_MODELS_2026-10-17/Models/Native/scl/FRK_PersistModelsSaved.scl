@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_PersistModelsSaved" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PersistModelsSaved := FALSE;
+	IF NOT "FRK_PersistConsumers".Ready THEN
+	    RETURN;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #FRK_PersistModelsSaved := "FRK_PersistConsumers".Rows[21].State = 2 AND "FRK_PersistConsumers".Rows[21].Ticket = 0 AND NOT "FRK_PersistConsumers".Rows[21].Dirty AND NOT "FRK_PersistConsumers".Rows[21].Failed AND (NOT "FRK_PersistConsumers".Rows[21].Rejected OR "FRK_PersistConsumers".Rows[21].Acknowledged);
+	END_IF;
+	IF #RootIndex = 2 THEN
+	    #FRK_PersistModelsSaved := "FRK_PersistConsumers".Rows[22].State = 2 AND "FRK_PersistConsumers".Rows[22].Ticket = 0 AND NOT "FRK_PersistConsumers".Rows[22].Dirty AND NOT "FRK_PersistConsumers".Rows[22].Failed AND (NOT "FRK_PersistConsumers".Rows[22].Rejected OR "FRK_PersistConsumers".Rows[22].Acknowledged);
+	END_IF;
+	
+END_FUNCTION
+

@@ -37,6 +37,9 @@ def split_main(text):
 
 
 def group(filename, text):
+    if filename.startswith('18_Def_') and filename.endswith('.scl'):
+        owner=filename[len('18_Def_'):-len('.scl')]
+        return group('20_'+owner+'.scl', 'FUNCTION_BLOCK "'+owner+'"\n')
     if 'PressIoBridge' in filename:
         return 'Examples/PressIoBridge/00_System'
     if 'IoBridge' in filename:

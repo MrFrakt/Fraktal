@@ -1,0 +1,1492 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-17T03:37:53.6919312Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="FieldIndex" Datatype="Int" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Values" Datatype="&quot;ST_LineProductionConfig&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="SchemaVersion" Datatype="UInt" />
+          <Member Name="TaktMs" Datatype="UDInt" />
+          <Member Name="Gain" Datatype="LReal" />
+          <Member Name="Grade" Datatype="DInt" />
+          <Member Name="Enabled" Datatype="Bool" />
+          <Member Name="HostName" Datatype="String[40]" />
+          <Member Name="Offsets" Datatype="Array[0..1] of Int" />
+          <Member Name="Small" Datatype="USInt" />
+          <Member Name="UtcOffsetMin" Datatype="DInt" />
+          <Member Name="ShiftStartMin" Datatype="Array[1..5] of DInt" />
+          <Member Name="ShiftDurationMin" Datatype="Array[1..5] of DInt" />
+          <Member Name="ShiftActiveDays" Datatype="Array[1..5] of DInt" />
+          <Member Name="ShiftTarget" Datatype="Array[1..5] of DInt" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp" />
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_LineAssign</Name>
+      <Namespace />
+      <Number>295</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="CASE" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="FieldIndex" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="OF" UId="28" />
+  <NewLine Num="1" UId="29" />
+  <Blank Num="4" UId="30" />
+  <Access Scope="LiteralConstant" UId="31">
+    <Constant UId="32">
+      <ConstantValue UId="34">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="35" />
+  <NewLine Num="1" UId="36" />
+  <Blank Num="8" UId="37" />
+  <Access Scope="LocalVariable" UId="38">
+    <Symbol UId="39">
+      <Component Name="Values" UId="40" />
+      <Token Text="." UId="41" />
+      <Component Name="TaktMs" UId="42" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="43" />
+  <Token Text=":=" UId="44" />
+  <Blank Num="1" UId="45" />
+  <Access Scope="Call" UId="46">
+    <Instruction Name="LINT_TO_UDINT" UId="47">
+      <Token Text="(" UId="48" />
+      <NamelessParameter UId="49">
+        <Access Scope="GlobalVariable" UId="50">
+          <Symbol UId="51">
+            <Component Name="FRK_ConfigScratch" UId="52">
+              <BooleanAttribute Name="HasQuotes" UId="53">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="54" />
+            <Component Name="Value" UId="55" />
+            <Token Text="." UId="56" />
+            <Component Name="Number" UId="57" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="59" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="60" />
+  <NewLine Num="1" UId="61" />
+  <Blank Num="4" UId="62" />
+  <Access Scope="LiteralConstant" UId="63">
+    <Constant UId="64">
+      <ConstantValue UId="66">2</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="67" />
+  <NewLine Num="1" UId="68" />
+  <Blank Num="8" UId="69" />
+  <Access Scope="LocalVariable" UId="70">
+    <Symbol UId="71">
+      <Component Name="Values" UId="72" />
+      <Token Text="." UId="73" />
+      <Component Name="Gain" UId="74" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="75" />
+  <Token Text=":=" UId="76" />
+  <Blank Num="1" UId="77" />
+  <Access Scope="GlobalVariable" UId="78">
+    <Symbol UId="79">
+      <Component Name="FRK_ConfigScratch" UId="80">
+        <BooleanAttribute Name="HasQuotes" UId="81">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="82" />
+      <Component Name="Value" UId="83" />
+      <Token Text="." UId="84" />
+      <Component Name="Decimal" UId="85" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="86" />
+  <NewLine Num="1" UId="87" />
+  <Blank Num="4" UId="88" />
+  <Access Scope="LiteralConstant" UId="89">
+    <Constant UId="90">
+      <ConstantValue UId="92">3</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="93" />
+  <NewLine Num="1" UId="94" />
+  <Blank Num="8" UId="95" />
+  <Access Scope="LocalVariable" UId="96">
+    <Symbol UId="97">
+      <Component Name="Values" UId="98" />
+      <Token Text="." UId="99" />
+      <Component Name="Grade" UId="100" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="101" />
+  <Token Text=":=" UId="102" />
+  <Blank Num="1" UId="103" />
+  <Access Scope="Call" UId="104">
+    <Instruction Name="LINT_TO_DINT" UId="105">
+      <Token Text="(" UId="106" />
+      <NamelessParameter UId="107">
+        <Access Scope="GlobalVariable" UId="108">
+          <Symbol UId="109">
+            <Component Name="FRK_ConfigScratch" UId="110">
+              <BooleanAttribute Name="HasQuotes" UId="111">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="112" />
+            <Component Name="Value" UId="113" />
+            <Token Text="." UId="114" />
+            <Component Name="Number" UId="115" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="117" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="118" />
+  <NewLine Num="1" UId="119" />
+  <Blank Num="4" UId="120" />
+  <Access Scope="LiteralConstant" UId="121">
+    <Constant UId="122">
+      <ConstantValue UId="124">4</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="125" />
+  <NewLine Num="1" UId="126" />
+  <Blank Num="8" UId="127" />
+  <Access Scope="LocalVariable" UId="128">
+    <Symbol UId="129">
+      <Component Name="Values" UId="130" />
+      <Token Text="." UId="131" />
+      <Component Name="Enabled" UId="132" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="133" />
+  <Token Text=":=" UId="134" />
+  <Blank Num="1" UId="135" />
+  <Access Scope="GlobalVariable" UId="136">
+    <Symbol UId="137">
+      <Component Name="FRK_ConfigScratch" UId="138">
+        <BooleanAttribute Name="HasQuotes" UId="139">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="140" />
+      <Component Name="Value" UId="141" />
+      <Token Text="." UId="142" />
+      <Component Name="Flag" UId="143" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="144" />
+  <NewLine Num="1" UId="145" />
+  <Blank Num="4" UId="146" />
+  <Access Scope="LiteralConstant" UId="147">
+    <Constant UId="148">
+      <ConstantValue UId="150">5</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="151" />
+  <NewLine Num="1" UId="152" />
+  <Blank Num="8" UId="153" />
+  <Access Scope="LocalVariable" UId="154">
+    <Symbol UId="155">
+      <Component Name="Values" UId="156" />
+      <Token Text="." UId="157" />
+      <Component Name="HostName" UId="158" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="159" />
+  <Token Text=":=" UId="160" />
+  <Blank Num="1" UId="161" />
+  <Access Scope="GlobalVariable" UId="162">
+    <Symbol UId="163">
+      <Component Name="FRK_ConfigScratch" UId="164">
+        <BooleanAttribute Name="HasQuotes" UId="165">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="166" />
+      <Component Name="Value" UId="167" />
+      <Token Text="." UId="168" />
+      <Component Name="Text" UId="169" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="170" />
+  <NewLine Num="1" UId="171" />
+  <Blank Num="4" UId="172" />
+  <Access Scope="LiteralConstant" UId="173">
+    <Constant UId="174">
+      <ConstantValue UId="176">6</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="177" />
+  <NewLine Num="1" UId="178" />
+  <Blank Num="8" UId="179" />
+  <Access Scope="LocalVariable" UId="180">
+    <Symbol UId="181">
+      <Component Name="Values" UId="182" />
+      <Token Text="." UId="183" />
+      <Component Name="Offsets" UId="184">
+        <Token Text="[" UId="185" />
+        <Access Scope="LiteralConstant" UId="186">
+          <Constant UId="187">
+            <ConstantValue UId="189">0</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="190" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="191" />
+  <Token Text=":=" UId="192" />
+  <Blank Num="1" UId="193" />
+  <Access Scope="Call" UId="194">
+    <Instruction Name="LINT_TO_INT" UId="195">
+      <Token Text="(" UId="196" />
+      <NamelessParameter UId="197">
+        <Access Scope="GlobalVariable" UId="198">
+          <Symbol UId="199">
+            <Component Name="FRK_ConfigScratch" UId="200">
+              <BooleanAttribute Name="HasQuotes" UId="201">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="202" />
+            <Component Name="Value" UId="203" />
+            <Token Text="." UId="204" />
+            <Component Name="Number" UId="205" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="207" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="208" />
+  <NewLine Num="1" UId="209" />
+  <Blank Num="4" UId="210" />
+  <Access Scope="LiteralConstant" UId="211">
+    <Constant UId="212">
+      <ConstantValue UId="214">7</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="215" />
+  <NewLine Num="1" UId="216" />
+  <Blank Num="8" UId="217" />
+  <Access Scope="LocalVariable" UId="218">
+    <Symbol UId="219">
+      <Component Name="Values" UId="220" />
+      <Token Text="." UId="221" />
+      <Component Name="Offsets" UId="222">
+        <Token Text="[" UId="223" />
+        <Access Scope="LiteralConstant" UId="224">
+          <Constant UId="225">
+            <ConstantValue UId="227">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="228" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="229" />
+  <Token Text=":=" UId="230" />
+  <Blank Num="1" UId="231" />
+  <Access Scope="Call" UId="232">
+    <Instruction Name="LINT_TO_INT" UId="233">
+      <Token Text="(" UId="234" />
+      <NamelessParameter UId="235">
+        <Access Scope="GlobalVariable" UId="236">
+          <Symbol UId="237">
+            <Component Name="FRK_ConfigScratch" UId="238">
+              <BooleanAttribute Name="HasQuotes" UId="239">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="240" />
+            <Component Name="Value" UId="241" />
+            <Token Text="." UId="242" />
+            <Component Name="Number" UId="243" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="245" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="246" />
+  <NewLine Num="1" UId="247" />
+  <Blank Num="4" UId="248" />
+  <Access Scope="LiteralConstant" UId="249">
+    <Constant UId="250">
+      <ConstantValue UId="252">8</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="253" />
+  <NewLine Num="1" UId="254" />
+  <Blank Num="8" UId="255" />
+  <Access Scope="LocalVariable" UId="256">
+    <Symbol UId="257">
+      <Component Name="Values" UId="258" />
+      <Token Text="." UId="259" />
+      <Component Name="Small" UId="260" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="261" />
+  <Token Text=":=" UId="262" />
+  <Blank Num="1" UId="263" />
+  <Access Scope="Call" UId="264">
+    <Instruction Name="LINT_TO_USINT" UId="265">
+      <Token Text="(" UId="266" />
+      <NamelessParameter UId="267">
+        <Access Scope="GlobalVariable" UId="268">
+          <Symbol UId="269">
+            <Component Name="FRK_ConfigScratch" UId="270">
+              <BooleanAttribute Name="HasQuotes" UId="271">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="272" />
+            <Component Name="Value" UId="273" />
+            <Token Text="." UId="274" />
+            <Component Name="Number" UId="275" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="277" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="278" />
+  <NewLine Num="1" UId="279" />
+  <Blank Num="4" UId="280" />
+  <Access Scope="LiteralConstant" UId="281">
+    <Constant UId="282">
+      <ConstantValue UId="284">9</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="285" />
+  <NewLine Num="1" UId="286" />
+  <Blank Num="8" UId="287" />
+  <Access Scope="LocalVariable" UId="288">
+    <Symbol UId="289">
+      <Component Name="Values" UId="290" />
+      <Token Text="." UId="291" />
+      <Component Name="UtcOffsetMin" UId="292" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="293" />
+  <Token Text=":=" UId="294" />
+  <Blank Num="1" UId="295" />
+  <Access Scope="Call" UId="296">
+    <Instruction Name="LINT_TO_DINT" UId="297">
+      <Token Text="(" UId="298" />
+      <NamelessParameter UId="299">
+        <Access Scope="GlobalVariable" UId="300">
+          <Symbol UId="301">
+            <Component Name="FRK_ConfigScratch" UId="302">
+              <BooleanAttribute Name="HasQuotes" UId="303">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="304" />
+            <Component Name="Value" UId="305" />
+            <Token Text="." UId="306" />
+            <Component Name="Number" UId="307" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="309" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="310" />
+  <NewLine Num="1" UId="311" />
+  <Blank Num="4" UId="312" />
+  <Access Scope="LiteralConstant" UId="313">
+    <Constant UId="314">
+      <ConstantValue UId="316">10</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="317" />
+  <NewLine Num="1" UId="318" />
+  <Blank Num="8" UId="319" />
+  <Access Scope="LocalVariable" UId="320">
+    <Symbol UId="321">
+      <Component Name="Values" UId="322" />
+      <Token Text="." UId="323" />
+      <Component Name="ShiftStartMin" UId="324">
+        <Token Text="[" UId="325" />
+        <Access Scope="LiteralConstant" UId="326">
+          <Constant UId="327">
+            <ConstantValue UId="329">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="330" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="331" />
+  <Token Text=":=" UId="332" />
+  <Blank Num="1" UId="333" />
+  <Access Scope="Call" UId="334">
+    <Instruction Name="LINT_TO_DINT" UId="335">
+      <Token Text="(" UId="336" />
+      <NamelessParameter UId="337">
+        <Access Scope="GlobalVariable" UId="338">
+          <Symbol UId="339">
+            <Component Name="FRK_ConfigScratch" UId="340">
+              <BooleanAttribute Name="HasQuotes" UId="341">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="342" />
+            <Component Name="Value" UId="343" />
+            <Token Text="." UId="344" />
+            <Component Name="Number" UId="345" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="347" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="348" />
+  <NewLine Num="1" UId="349" />
+  <Blank Num="4" UId="350" />
+  <Access Scope="LiteralConstant" UId="351">
+    <Constant UId="352">
+      <ConstantValue UId="354">11</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="355" />
+  <NewLine Num="1" UId="356" />
+  <Blank Num="8" UId="357" />
+  <Access Scope="LocalVariable" UId="358">
+    <Symbol UId="359">
+      <Component Name="Values" UId="360" />
+      <Token Text="." UId="361" />
+      <Component Name="ShiftDurationMin" UId="362">
+        <Token Text="[" UId="363" />
+        <Access Scope="LiteralConstant" UId="364">
+          <Constant UId="365">
+            <ConstantValue UId="367">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="368" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="369" />
+  <Token Text=":=" UId="370" />
+  <Blank Num="1" UId="371" />
+  <Access Scope="Call" UId="372">
+    <Instruction Name="LINT_TO_DINT" UId="373">
+      <Token Text="(" UId="374" />
+      <NamelessParameter UId="375">
+        <Access Scope="GlobalVariable" UId="376">
+          <Symbol UId="377">
+            <Component Name="FRK_ConfigScratch" UId="378">
+              <BooleanAttribute Name="HasQuotes" UId="379">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="380" />
+            <Component Name="Value" UId="381" />
+            <Token Text="." UId="382" />
+            <Component Name="Number" UId="383" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="385" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="386" />
+  <NewLine Num="1" UId="387" />
+  <Blank Num="4" UId="388" />
+  <Access Scope="LiteralConstant" UId="389">
+    <Constant UId="390">
+      <ConstantValue UId="392">12</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="393" />
+  <NewLine Num="1" UId="394" />
+  <Blank Num="8" UId="395" />
+  <Access Scope="LocalVariable" UId="396">
+    <Symbol UId="397">
+      <Component Name="Values" UId="398" />
+      <Token Text="." UId="399" />
+      <Component Name="ShiftActiveDays" UId="400">
+        <Token Text="[" UId="401" />
+        <Access Scope="LiteralConstant" UId="402">
+          <Constant UId="403">
+            <ConstantValue UId="405">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="406" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="407" />
+  <Token Text=":=" UId="408" />
+  <Blank Num="1" UId="409" />
+  <Access Scope="Call" UId="410">
+    <Instruction Name="LINT_TO_DINT" UId="411">
+      <Token Text="(" UId="412" />
+      <NamelessParameter UId="413">
+        <Access Scope="GlobalVariable" UId="414">
+          <Symbol UId="415">
+            <Component Name="FRK_ConfigScratch" UId="416">
+              <BooleanAttribute Name="HasQuotes" UId="417">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="418" />
+            <Component Name="Value" UId="419" />
+            <Token Text="." UId="420" />
+            <Component Name="Number" UId="421" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="423" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="424" />
+  <NewLine Num="1" UId="425" />
+  <Blank Num="4" UId="426" />
+  <Access Scope="LiteralConstant" UId="427">
+    <Constant UId="428">
+      <ConstantValue UId="430">13</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="431" />
+  <NewLine Num="1" UId="432" />
+  <Blank Num="8" UId="433" />
+  <Access Scope="LocalVariable" UId="434">
+    <Symbol UId="435">
+      <Component Name="Values" UId="436" />
+      <Token Text="." UId="437" />
+      <Component Name="ShiftTarget" UId="438">
+        <Token Text="[" UId="439" />
+        <Access Scope="LiteralConstant" UId="440">
+          <Constant UId="441">
+            <ConstantValue UId="443">1</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="444" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="445" />
+  <Token Text=":=" UId="446" />
+  <Blank Num="1" UId="447" />
+  <Access Scope="Call" UId="448">
+    <Instruction Name="LINT_TO_DINT" UId="449">
+      <Token Text="(" UId="450" />
+      <NamelessParameter UId="451">
+        <Access Scope="GlobalVariable" UId="452">
+          <Symbol UId="453">
+            <Component Name="FRK_ConfigScratch" UId="454">
+              <BooleanAttribute Name="HasQuotes" UId="455">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="456" />
+            <Component Name="Value" UId="457" />
+            <Token Text="." UId="458" />
+            <Component Name="Number" UId="459" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="461" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="462" />
+  <NewLine Num="1" UId="463" />
+  <Blank Num="4" UId="464" />
+  <Access Scope="LiteralConstant" UId="465">
+    <Constant UId="466">
+      <ConstantValue UId="468">14</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="469" />
+  <NewLine Num="1" UId="470" />
+  <Blank Num="8" UId="471" />
+  <Access Scope="LocalVariable" UId="472">
+    <Symbol UId="473">
+      <Component Name="Values" UId="474" />
+      <Token Text="." UId="475" />
+      <Component Name="ShiftStartMin" UId="476">
+        <Token Text="[" UId="477" />
+        <Access Scope="LiteralConstant" UId="478">
+          <Constant UId="479">
+            <ConstantValue UId="481">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="482" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="483" />
+  <Token Text=":=" UId="484" />
+  <Blank Num="1" UId="485" />
+  <Access Scope="Call" UId="486">
+    <Instruction Name="LINT_TO_DINT" UId="487">
+      <Token Text="(" UId="488" />
+      <NamelessParameter UId="489">
+        <Access Scope="GlobalVariable" UId="490">
+          <Symbol UId="491">
+            <Component Name="FRK_ConfigScratch" UId="492">
+              <BooleanAttribute Name="HasQuotes" UId="493">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="494" />
+            <Component Name="Value" UId="495" />
+            <Token Text="." UId="496" />
+            <Component Name="Number" UId="497" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="499" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="500" />
+  <NewLine Num="1" UId="501" />
+  <Blank Num="4" UId="502" />
+  <Access Scope="LiteralConstant" UId="503">
+    <Constant UId="504">
+      <ConstantValue UId="506">15</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="507" />
+  <NewLine Num="1" UId="508" />
+  <Blank Num="8" UId="509" />
+  <Access Scope="LocalVariable" UId="510">
+    <Symbol UId="511">
+      <Component Name="Values" UId="512" />
+      <Token Text="." UId="513" />
+      <Component Name="ShiftDurationMin" UId="514">
+        <Token Text="[" UId="515" />
+        <Access Scope="LiteralConstant" UId="516">
+          <Constant UId="517">
+            <ConstantValue UId="519">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="520" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="521" />
+  <Token Text=":=" UId="522" />
+  <Blank Num="1" UId="523" />
+  <Access Scope="Call" UId="524">
+    <Instruction Name="LINT_TO_DINT" UId="525">
+      <Token Text="(" UId="526" />
+      <NamelessParameter UId="527">
+        <Access Scope="GlobalVariable" UId="528">
+          <Symbol UId="529">
+            <Component Name="FRK_ConfigScratch" UId="530">
+              <BooleanAttribute Name="HasQuotes" UId="531">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="532" />
+            <Component Name="Value" UId="533" />
+            <Token Text="." UId="534" />
+            <Component Name="Number" UId="535" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="537" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="538" />
+  <NewLine Num="1" UId="539" />
+  <Blank Num="4" UId="540" />
+  <Access Scope="LiteralConstant" UId="541">
+    <Constant UId="542">
+      <ConstantValue UId="544">16</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="545" />
+  <NewLine Num="1" UId="546" />
+  <Blank Num="8" UId="547" />
+  <Access Scope="LocalVariable" UId="548">
+    <Symbol UId="549">
+      <Component Name="Values" UId="550" />
+      <Token Text="." UId="551" />
+      <Component Name="ShiftActiveDays" UId="552">
+        <Token Text="[" UId="553" />
+        <Access Scope="LiteralConstant" UId="554">
+          <Constant UId="555">
+            <ConstantValue UId="557">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="558" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="559" />
+  <Token Text=":=" UId="560" />
+  <Blank Num="1" UId="561" />
+  <Access Scope="Call" UId="562">
+    <Instruction Name="LINT_TO_DINT" UId="563">
+      <Token Text="(" UId="564" />
+      <NamelessParameter UId="565">
+        <Access Scope="GlobalVariable" UId="566">
+          <Symbol UId="567">
+            <Component Name="FRK_ConfigScratch" UId="568">
+              <BooleanAttribute Name="HasQuotes" UId="569">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="570" />
+            <Component Name="Value" UId="571" />
+            <Token Text="." UId="572" />
+            <Component Name="Number" UId="573" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="575" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="576" />
+  <NewLine Num="1" UId="577" />
+  <Blank Num="4" UId="578" />
+  <Access Scope="LiteralConstant" UId="579">
+    <Constant UId="580">
+      <ConstantValue UId="582">17</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="583" />
+  <NewLine Num="1" UId="584" />
+  <Blank Num="8" UId="585" />
+  <Access Scope="LocalVariable" UId="586">
+    <Symbol UId="587">
+      <Component Name="Values" UId="588" />
+      <Token Text="." UId="589" />
+      <Component Name="ShiftTarget" UId="590">
+        <Token Text="[" UId="591" />
+        <Access Scope="LiteralConstant" UId="592">
+          <Constant UId="593">
+            <ConstantValue UId="595">2</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="596" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="597" />
+  <Token Text=":=" UId="598" />
+  <Blank Num="1" UId="599" />
+  <Access Scope="Call" UId="600">
+    <Instruction Name="LINT_TO_DINT" UId="601">
+      <Token Text="(" UId="602" />
+      <NamelessParameter UId="603">
+        <Access Scope="GlobalVariable" UId="604">
+          <Symbol UId="605">
+            <Component Name="FRK_ConfigScratch" UId="606">
+              <BooleanAttribute Name="HasQuotes" UId="607">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="608" />
+            <Component Name="Value" UId="609" />
+            <Token Text="." UId="610" />
+            <Component Name="Number" UId="611" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="613" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="614" />
+  <NewLine Num="1" UId="615" />
+  <Blank Num="4" UId="616" />
+  <Access Scope="LiteralConstant" UId="617">
+    <Constant UId="618">
+      <ConstantValue UId="620">18</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="621" />
+  <NewLine Num="1" UId="622" />
+  <Blank Num="8" UId="623" />
+  <Access Scope="LocalVariable" UId="624">
+    <Symbol UId="625">
+      <Component Name="Values" UId="626" />
+      <Token Text="." UId="627" />
+      <Component Name="ShiftStartMin" UId="628">
+        <Token Text="[" UId="629" />
+        <Access Scope="LiteralConstant" UId="630">
+          <Constant UId="631">
+            <ConstantValue UId="633">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="634" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="635" />
+  <Token Text=":=" UId="636" />
+  <Blank Num="1" UId="637" />
+  <Access Scope="Call" UId="638">
+    <Instruction Name="LINT_TO_DINT" UId="639">
+      <Token Text="(" UId="640" />
+      <NamelessParameter UId="641">
+        <Access Scope="GlobalVariable" UId="642">
+          <Symbol UId="643">
+            <Component Name="FRK_ConfigScratch" UId="644">
+              <BooleanAttribute Name="HasQuotes" UId="645">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="646" />
+            <Component Name="Value" UId="647" />
+            <Token Text="." UId="648" />
+            <Component Name="Number" UId="649" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="651" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="652" />
+  <NewLine Num="1" UId="653" />
+  <Blank Num="4" UId="654" />
+  <Access Scope="LiteralConstant" UId="655">
+    <Constant UId="656">
+      <ConstantValue UId="658">19</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="659" />
+  <NewLine Num="1" UId="660" />
+  <Blank Num="8" UId="661" />
+  <Access Scope="LocalVariable" UId="662">
+    <Symbol UId="663">
+      <Component Name="Values" UId="664" />
+      <Token Text="." UId="665" />
+      <Component Name="ShiftDurationMin" UId="666">
+        <Token Text="[" UId="667" />
+        <Access Scope="LiteralConstant" UId="668">
+          <Constant UId="669">
+            <ConstantValue UId="671">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="672" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="673" />
+  <Token Text=":=" UId="674" />
+  <Blank Num="1" UId="675" />
+  <Access Scope="Call" UId="676">
+    <Instruction Name="LINT_TO_DINT" UId="677">
+      <Token Text="(" UId="678" />
+      <NamelessParameter UId="679">
+        <Access Scope="GlobalVariable" UId="680">
+          <Symbol UId="681">
+            <Component Name="FRK_ConfigScratch" UId="682">
+              <BooleanAttribute Name="HasQuotes" UId="683">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="684" />
+            <Component Name="Value" UId="685" />
+            <Token Text="." UId="686" />
+            <Component Name="Number" UId="687" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="689" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="690" />
+  <NewLine Num="1" UId="691" />
+  <Blank Num="4" UId="692" />
+  <Access Scope="LiteralConstant" UId="693">
+    <Constant UId="694">
+      <ConstantValue UId="696">20</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="697" />
+  <NewLine Num="1" UId="698" />
+  <Blank Num="8" UId="699" />
+  <Access Scope="LocalVariable" UId="700">
+    <Symbol UId="701">
+      <Component Name="Values" UId="702" />
+      <Token Text="." UId="703" />
+      <Component Name="ShiftActiveDays" UId="704">
+        <Token Text="[" UId="705" />
+        <Access Scope="LiteralConstant" UId="706">
+          <Constant UId="707">
+            <ConstantValue UId="709">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="710" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="711" />
+  <Token Text=":=" UId="712" />
+  <Blank Num="1" UId="713" />
+  <Access Scope="Call" UId="714">
+    <Instruction Name="LINT_TO_DINT" UId="715">
+      <Token Text="(" UId="716" />
+      <NamelessParameter UId="717">
+        <Access Scope="GlobalVariable" UId="718">
+          <Symbol UId="719">
+            <Component Name="FRK_ConfigScratch" UId="720">
+              <BooleanAttribute Name="HasQuotes" UId="721">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="722" />
+            <Component Name="Value" UId="723" />
+            <Token Text="." UId="724" />
+            <Component Name="Number" UId="725" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="727" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="728" />
+  <NewLine Num="1" UId="729" />
+  <Blank Num="4" UId="730" />
+  <Access Scope="LiteralConstant" UId="731">
+    <Constant UId="732">
+      <ConstantValue UId="734">21</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="735" />
+  <NewLine Num="1" UId="736" />
+  <Blank Num="8" UId="737" />
+  <Access Scope="LocalVariable" UId="738">
+    <Symbol UId="739">
+      <Component Name="Values" UId="740" />
+      <Token Text="." UId="741" />
+      <Component Name="ShiftTarget" UId="742">
+        <Token Text="[" UId="743" />
+        <Access Scope="LiteralConstant" UId="744">
+          <Constant UId="745">
+            <ConstantValue UId="747">3</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="748" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="749" />
+  <Token Text=":=" UId="750" />
+  <Blank Num="1" UId="751" />
+  <Access Scope="Call" UId="752">
+    <Instruction Name="LINT_TO_DINT" UId="753">
+      <Token Text="(" UId="754" />
+      <NamelessParameter UId="755">
+        <Access Scope="GlobalVariable" UId="756">
+          <Symbol UId="757">
+            <Component Name="FRK_ConfigScratch" UId="758">
+              <BooleanAttribute Name="HasQuotes" UId="759">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="760" />
+            <Component Name="Value" UId="761" />
+            <Token Text="." UId="762" />
+            <Component Name="Number" UId="763" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="765" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="766" />
+  <NewLine Num="1" UId="767" />
+  <Blank Num="4" UId="768" />
+  <Access Scope="LiteralConstant" UId="769">
+    <Constant UId="770">
+      <ConstantValue UId="772">22</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="773" />
+  <NewLine Num="1" UId="774" />
+  <Blank Num="8" UId="775" />
+  <Access Scope="LocalVariable" UId="776">
+    <Symbol UId="777">
+      <Component Name="Values" UId="778" />
+      <Token Text="." UId="779" />
+      <Component Name="ShiftStartMin" UId="780">
+        <Token Text="[" UId="781" />
+        <Access Scope="LiteralConstant" UId="782">
+          <Constant UId="783">
+            <ConstantValue UId="785">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="786" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="787" />
+  <Token Text=":=" UId="788" />
+  <Blank Num="1" UId="789" />
+  <Access Scope="Call" UId="790">
+    <Instruction Name="LINT_TO_DINT" UId="791">
+      <Token Text="(" UId="792" />
+      <NamelessParameter UId="793">
+        <Access Scope="GlobalVariable" UId="794">
+          <Symbol UId="795">
+            <Component Name="FRK_ConfigScratch" UId="796">
+              <BooleanAttribute Name="HasQuotes" UId="797">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="798" />
+            <Component Name="Value" UId="799" />
+            <Token Text="." UId="800" />
+            <Component Name="Number" UId="801" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="803" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="804" />
+  <NewLine Num="1" UId="805" />
+  <Blank Num="4" UId="806" />
+  <Access Scope="LiteralConstant" UId="807">
+    <Constant UId="808">
+      <ConstantValue UId="810">23</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="811" />
+  <NewLine Num="1" UId="812" />
+  <Blank Num="8" UId="813" />
+  <Access Scope="LocalVariable" UId="814">
+    <Symbol UId="815">
+      <Component Name="Values" UId="816" />
+      <Token Text="." UId="817" />
+      <Component Name="ShiftDurationMin" UId="818">
+        <Token Text="[" UId="819" />
+        <Access Scope="LiteralConstant" UId="820">
+          <Constant UId="821">
+            <ConstantValue UId="823">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="824" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="825" />
+  <Token Text=":=" UId="826" />
+  <Blank Num="1" UId="827" />
+  <Access Scope="Call" UId="828">
+    <Instruction Name="LINT_TO_DINT" UId="829">
+      <Token Text="(" UId="830" />
+      <NamelessParameter UId="831">
+        <Access Scope="GlobalVariable" UId="832">
+          <Symbol UId="833">
+            <Component Name="FRK_ConfigScratch" UId="834">
+              <BooleanAttribute Name="HasQuotes" UId="835">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="836" />
+            <Component Name="Value" UId="837" />
+            <Token Text="." UId="838" />
+            <Component Name="Number" UId="839" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="841" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="842" />
+  <NewLine Num="1" UId="843" />
+  <Blank Num="4" UId="844" />
+  <Access Scope="LiteralConstant" UId="845">
+    <Constant UId="846">
+      <ConstantValue UId="848">24</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="849" />
+  <NewLine Num="1" UId="850" />
+  <Blank Num="8" UId="851" />
+  <Access Scope="LocalVariable" UId="852">
+    <Symbol UId="853">
+      <Component Name="Values" UId="854" />
+      <Token Text="." UId="855" />
+      <Component Name="ShiftActiveDays" UId="856">
+        <Token Text="[" UId="857" />
+        <Access Scope="LiteralConstant" UId="858">
+          <Constant UId="859">
+            <ConstantValue UId="861">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="862" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="863" />
+  <Token Text=":=" UId="864" />
+  <Blank Num="1" UId="865" />
+  <Access Scope="Call" UId="866">
+    <Instruction Name="LINT_TO_DINT" UId="867">
+      <Token Text="(" UId="868" />
+      <NamelessParameter UId="869">
+        <Access Scope="GlobalVariable" UId="870">
+          <Symbol UId="871">
+            <Component Name="FRK_ConfigScratch" UId="872">
+              <BooleanAttribute Name="HasQuotes" UId="873">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="874" />
+            <Component Name="Value" UId="875" />
+            <Token Text="." UId="876" />
+            <Component Name="Number" UId="877" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="879" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="880" />
+  <NewLine Num="1" UId="881" />
+  <Blank Num="4" UId="882" />
+  <Access Scope="LiteralConstant" UId="883">
+    <Constant UId="884">
+      <ConstantValue UId="886">25</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="887" />
+  <NewLine Num="1" UId="888" />
+  <Blank Num="8" UId="889" />
+  <Access Scope="LocalVariable" UId="890">
+    <Symbol UId="891">
+      <Component Name="Values" UId="892" />
+      <Token Text="." UId="893" />
+      <Component Name="ShiftTarget" UId="894">
+        <Token Text="[" UId="895" />
+        <Access Scope="LiteralConstant" UId="896">
+          <Constant UId="897">
+            <ConstantValue UId="899">4</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="900" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="901" />
+  <Token Text=":=" UId="902" />
+  <Blank Num="1" UId="903" />
+  <Access Scope="Call" UId="904">
+    <Instruction Name="LINT_TO_DINT" UId="905">
+      <Token Text="(" UId="906" />
+      <NamelessParameter UId="907">
+        <Access Scope="GlobalVariable" UId="908">
+          <Symbol UId="909">
+            <Component Name="FRK_ConfigScratch" UId="910">
+              <BooleanAttribute Name="HasQuotes" UId="911">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="912" />
+            <Component Name="Value" UId="913" />
+            <Token Text="." UId="914" />
+            <Component Name="Number" UId="915" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="917" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="918" />
+  <NewLine Num="1" UId="919" />
+  <Blank Num="4" UId="920" />
+  <Access Scope="LiteralConstant" UId="921">
+    <Constant UId="922">
+      <ConstantValue UId="924">26</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="925" />
+  <NewLine Num="1" UId="926" />
+  <Blank Num="8" UId="927" />
+  <Access Scope="LocalVariable" UId="928">
+    <Symbol UId="929">
+      <Component Name="Values" UId="930" />
+      <Token Text="." UId="931" />
+      <Component Name="ShiftStartMin" UId="932">
+        <Token Text="[" UId="933" />
+        <Access Scope="LiteralConstant" UId="934">
+          <Constant UId="935">
+            <ConstantValue UId="937">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="938" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="939" />
+  <Token Text=":=" UId="940" />
+  <Blank Num="1" UId="941" />
+  <Access Scope="Call" UId="942">
+    <Instruction Name="LINT_TO_DINT" UId="943">
+      <Token Text="(" UId="944" />
+      <NamelessParameter UId="945">
+        <Access Scope="GlobalVariable" UId="946">
+          <Symbol UId="947">
+            <Component Name="FRK_ConfigScratch" UId="948">
+              <BooleanAttribute Name="HasQuotes" UId="949">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="950" />
+            <Component Name="Value" UId="951" />
+            <Token Text="." UId="952" />
+            <Component Name="Number" UId="953" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="955" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="956" />
+  <NewLine Num="1" UId="957" />
+  <Blank Num="4" UId="958" />
+  <Access Scope="LiteralConstant" UId="959">
+    <Constant UId="960">
+      <ConstantValue UId="962">27</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="963" />
+  <NewLine Num="1" UId="964" />
+  <Blank Num="8" UId="965" />
+  <Access Scope="LocalVariable" UId="966">
+    <Symbol UId="967">
+      <Component Name="Values" UId="968" />
+      <Token Text="." UId="969" />
+      <Component Name="ShiftDurationMin" UId="970">
+        <Token Text="[" UId="971" />
+        <Access Scope="LiteralConstant" UId="972">
+          <Constant UId="973">
+            <ConstantValue UId="975">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="976" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="977" />
+  <Token Text=":=" UId="978" />
+  <Blank Num="1" UId="979" />
+  <Access Scope="Call" UId="980">
+    <Instruction Name="LINT_TO_DINT" UId="981">
+      <Token Text="(" UId="982" />
+      <NamelessParameter UId="983">
+        <Access Scope="GlobalVariable" UId="984">
+          <Symbol UId="985">
+            <Component Name="FRK_ConfigScratch" UId="986">
+              <BooleanAttribute Name="HasQuotes" UId="987">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="988" />
+            <Component Name="Value" UId="989" />
+            <Token Text="." UId="990" />
+            <Component Name="Number" UId="991" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="993" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="994" />
+  <NewLine Num="1" UId="995" />
+  <Blank Num="4" UId="996" />
+  <Access Scope="LiteralConstant" UId="997">
+    <Constant UId="998">
+      <ConstantValue UId="1000">28</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1001" />
+  <NewLine Num="1" UId="1002" />
+  <Blank Num="8" UId="1003" />
+  <Access Scope="LocalVariable" UId="1004">
+    <Symbol UId="1005">
+      <Component Name="Values" UId="1006" />
+      <Token Text="." UId="1007" />
+      <Component Name="ShiftActiveDays" UId="1008">
+        <Token Text="[" UId="1009" />
+        <Access Scope="LiteralConstant" UId="1010">
+          <Constant UId="1011">
+            <ConstantValue UId="1013">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1014" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1015" />
+  <Token Text=":=" UId="1016" />
+  <Blank Num="1" UId="1017" />
+  <Access Scope="Call" UId="1018">
+    <Instruction Name="LINT_TO_DINT" UId="1019">
+      <Token Text="(" UId="1020" />
+      <NamelessParameter UId="1021">
+        <Access Scope="GlobalVariable" UId="1022">
+          <Symbol UId="1023">
+            <Component Name="FRK_ConfigScratch" UId="1024">
+              <BooleanAttribute Name="HasQuotes" UId="1025">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1026" />
+            <Component Name="Value" UId="1027" />
+            <Token Text="." UId="1028" />
+            <Component Name="Number" UId="1029" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="1031" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="1032" />
+  <NewLine Num="1" UId="1033" />
+  <Blank Num="4" UId="1034" />
+  <Access Scope="LiteralConstant" UId="1035">
+    <Constant UId="1036">
+      <ConstantValue UId="1038">29</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=":" UId="1039" />
+  <NewLine Num="1" UId="1040" />
+  <Blank Num="8" UId="1041" />
+  <Access Scope="LocalVariable" UId="1042">
+    <Symbol UId="1043">
+      <Component Name="Values" UId="1044" />
+      <Token Text="." UId="1045" />
+      <Component Name="ShiftTarget" UId="1046">
+        <Token Text="[" UId="1047" />
+        <Access Scope="LiteralConstant" UId="1048">
+          <Constant UId="1049">
+            <ConstantValue UId="1051">5</ConstantValue>
+          </Constant>
+        </Access>
+        <Token Text="]" UId="1052" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1053" />
+  <Token Text=":=" UId="1054" />
+  <Blank Num="1" UId="1055" />
+  <Access Scope="Call" UId="1056">
+    <Instruction Name="LINT_TO_DINT" UId="1057">
+      <Token Text="(" UId="1058" />
+      <NamelessParameter UId="1059">
+        <Access Scope="GlobalVariable" UId="1060">
+          <Symbol UId="1061">
+            <Component Name="FRK_ConfigScratch" UId="1062">
+              <BooleanAttribute Name="HasQuotes" UId="1063">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="1064" />
+            <Component Name="Value" UId="1065" />
+            <Token Text="." UId="1066" />
+            <Component Name="Number" UId="1067" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="1069" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="1070" />
+  <NewLine Num="1" UId="1071" />
+  <Blank Num="4" UId="1072" />
+  <Token Text="ELSE" UId="1073" />
+  <NewLine Num="1" UId="1074" />
+  <Blank Num="8" UId="1075" />
+  <Token Text="RETURN" UId="1076" />
+  <Token Text=";" UId="1077" />
+  <NewLine Num="1" UId="1078" />
+  <Token Text="END_CASE" UId="1079" />
+  <Token Text=";" UId="1080" />
+  <NewLine Num="1" UId="1081" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

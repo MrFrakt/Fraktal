@@ -1,0 +1,41 @@
+﻿FUNCTION "FRK_SeqViewDiagnostic" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Status : "ST_ModuleStatus";
+      Pending : "ST_Diagnostic";
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ViewDiagnostic"(Owner := #Owner,
+	                             Core := #Core,
+	                             Status := #Status,
+	                             Pending := #Pending,
+	                             Current := "FRK_Views".V001.Current,
+	                             Cursors := "FRK_Views".V001.Cursors,
+	                             Book := "FRK_Views".V001.Book,
+	                             Visits := "FRK_Views".V001.Visits);
+	    13:
+	        "FRK_ViewDiagnostic"(Owner := #Owner,
+	                             Core := #Core,
+	                             Status := #Status,
+	                             Pending := #Pending,
+	                             Current := "FRK_Views".V013.Current,
+	                             Cursors := "FRK_Views".V013.Cursors,
+	                             Book := "FRK_Views".V013.Book,
+	                             Visits := "FRK_Views".V013.Visits);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

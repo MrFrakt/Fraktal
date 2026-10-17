@@ -1,0 +1,31 @@
+﻿FUNCTION "FRK_DocApply_D019" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocApply_D019 := FALSE;
+	#Position := 24;
+	#NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D019Data, DEST_VARIABLE => "FRK_PersistImages".D019, POS := #Position);
+	IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[19].Result.Length) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D019.SchemaVersion <> 1 OR "FRK_PersistImages".D019.Scope <> 'StationA' THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D019.Image.Scope <> 'StationA' OR NOT "FRK_ClassValid"(Image := "FRK_PersistImages".D019.Image) THEN
+	    RETURN;
+	END_IF;
+	"FRK_ClassPolicies".Rows[1] := "FRK_PersistImages".D019.Image;
+	#FRK_DocApply_D019 := TRUE;
+	
+END_FUNCTION
+

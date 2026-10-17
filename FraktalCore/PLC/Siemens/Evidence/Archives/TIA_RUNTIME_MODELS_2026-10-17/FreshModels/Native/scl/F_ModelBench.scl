@@ -1,0 +1,141 @@
+﻿FUNCTION "F_ModelBench" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Image : "FRK_ModelCatalog";
+      PoolIndex : DInt;
+      Index : Int;
+      TargetSlot : Int;
+      SavedUsed : Array[1..212] of Bool;
+      Reserved : Array[1..32] of Int;
+   END_VAR
+
+
+BEGIN
+	
+	"GDB_ModelTest".StagedPreset := "StationA".ConfigStageParCfg.Preset;
+	IF "FRK_ModelRuntime".Rows[1].State = 1 THEN
+	    "GDB_ModelTest".PendingSeen := TRUE;
+	    IF "FRK_ModelStore".Rows[1].Count = "FRK_ModelRuntime".Rows[1].Stage.Count AND ("FRK_PersistConsumers".Rows[21].Ticket <> 0 OR "FRK_PersistConsumers".Rows[21].Dirty) THEN
+	        "GDB_ModelTest".PrematurePublication := TRUE;
+	    END_IF;
+	END_IF;
+	IF "GDB_ModelTest".DropCachePulse THEN
+	    #TargetSlot := "FRK_ConfigFind"(Scope := 'StationA', Key := 'preset', ModelCode := 'MODEL_B');
+	    IF #TargetSlot > 0 THEN
+	        "FRK_ConfigStore".Rows[#TargetSlot].Used := FALSE;
+	        "GDB_ModelTest".CacheDropped := TRUE;
+	    END_IF;
+	    "GDB_ModelTest".DropCachePulse := FALSE;
+	END_IF;
+	IF "GDB_ModelTest".DamageSetPulse AND "FRK_SetStore".Sets[2, 1].Info.Used THEN
+	    #Index := "FRK_SetStore".Sets[2, 1].Info.RecordCount;
+	    "GDB_ModelTest".SavedRecord := "FRK_SetStore".Sets[2, 1].Records[#Index];
+	    "FRK_SetStore".Sets[2, 1].Records[#Index].Revision := "FRK_SetStore".Sets[2, 1].Records[#Index].Revision + 1;
+	    "GDB_ModelTest".SetDamaged := TRUE;
+	    "GDB_ModelTest".DamageSetPulse := FALSE;
+	END_IF;
+	IF "GDB_ModelTest".RepairSetPulse THEN
+	    #Index := "FRK_SetStore".Sets[2, 1].Info.RecordCount;
+	    IF #Index > 0 THEN
+	        "FRK_SetStore".Sets[2, 1].Records[#Index] := "GDB_ModelTest".SavedRecord;
+	    END_IF;
+	    "GDB_ModelTest".SetRepaired := TRUE;
+	    "GDB_ModelTest".RepairSetPulse := FALSE;
+	END_IF;
+	IF "GDB_ModelTest".PoisonPulse THEN
+	    "FRK_ModelStore".Rows[1].Codes[3] := 'POISON';
+	    "FRK_ModelStore".Rows[1].Checksum := DWORD#0;
+	    "GDB_ModelTest".Poisoned := TRUE;
+	    "GDB_ModelTest".PoisonPulse := FALSE;
+	END_IF;
+	IF "GDB_ModelTest".DamagePulse THEN
+	    "FRK_PersistAnchors".RowsA[21].Checksum := "FRK_PersistAnchors".RowsA[21].Checksum XOR DWORD#1;
+	    "FRK_PersistAnchors".RowsB[21].Checksum := "FRK_PersistAnchors".RowsB[21].Checksum XOR DWORD#1;
+	    "GDB_ModelTest".Damaged := TRUE;
+	    "GDB_ModelTest".DamagePulse := FALSE;
+	END_IF;
+	IF "GDB_ModelTest".Done OR NOT "FRK_ModelRuntime".Rows[1].Ready THEN
+	    RETURN;
+	END_IF;
+	#Image := "FRK_ModelStore".Rows[1];
+	"FRK_TestAssert"(Condition := "FRK_ModelValid"(RootIndex := 1, Catalog := #Image),
+	                 Code := 1,
+	                 Result := "GDB_ModelTest".Result);
+	#Image := "FRK_ModelStore".Rows[1];
+	#Image.SchemaVersion := 2;
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image),
+	                 Code := 2,
+	                 Result := "GDB_ModelTest".Result);
+	#Image := "FRK_ModelStore".Rows[1];
+	#Image.Generation := 0;
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image),
+	                 Code := 3,
+	                 Result := "GDB_ModelTest".Result);
+	#Image := "FRK_ModelStore".Rows[1];
+	#Image.Count := 4;
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image),
+	                 Code := 4,
+	                 Result := "GDB_ModelTest".Result);
+	#Image := "FRK_ModelStore".Rows[1];
+	#Image.Capacity := 4;
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image),
+	                 Code := 5,
+	                 Result := "GDB_ModelTest".Result);
+	#Image := "FRK_ModelStore".Rows[1];
+	#Image.Codes[1] := 'wrong';
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image),
+	                 Code := 6,
+	                 Result := "GDB_ModelTest".Result);
+	#Image := "FRK_ModelStore".Rows[1];
+	#Image.Checksum := #Image.Checksum XOR DWORD#1;
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image),
+	                 Code := 7,
+	                 Result := "GDB_ModelTest".Result);
+	#Image := "FRK_ModelStore".Rows[1];
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelValid"(RootIndex := 2, Catalog := #Image),
+	                 Code := 8,
+	                 Result := "GDB_ModelTest".Result);
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelCodeValid"(Code := ''),
+	                 Code := 9,
+	                 Result := "GDB_ModelTest".Result);
+	"FRK_TestAssert"(Condition := "FRK_ModelCodeValid"(Code := 'MODEL_NEW'),
+	                 Code := 10,
+	                 Result := "GDB_ModelTest".Result);
+	"FRK_TestAssert"(Condition := NOT "FRK_ModelCodeValid"(Code := '$0A'),
+	                 Code := 11,
+	                 Result := "GDB_ModelTest".Result);
+	"FRK_TestAssert"(Condition := "FRK_ConfigModelCode"(RootIndex := 1, ModelIndex := 4) = '',
+	                 Code := 12,
+	                 Result := "GDB_ModelTest".Result);
+	FOR #PoolIndex := 1 TO 212 DO
+	    #SavedUsed[#PoolIndex] := "FRK_ConfigStore".Rows[#PoolIndex].Used;
+	    "FRK_ConfigStore".Rows[#PoolIndex].Used := TRUE;
+	END_FOR;
+	FOR #Index := 1 TO 32 DO
+	    #Reserved[#Index] := 0;
+	END_FOR;
+	#TargetSlot := "FRK_ConfigReserve"(Scope := '__NoSuchScope', Key := 'reserved', ModelCode := '__New', Reserved := #Reserved);
+	"FRK_TestAssert"(Condition := #TargetSlot = 0,
+	                 Code := 13,
+	                 Result := "GDB_ModelTest".Result);
+	"FRK_ConfigStore".Rows[211].Used := FALSE;
+	"FRK_ConfigStore".Rows[212].Used := FALSE;
+	#Reserved[1] := "FRK_ConfigReserve"(Scope := '__NoSuchScope', Key := 'reserved', ModelCode := '__New', Reserved := #Reserved);
+	#Reserved[2] := "FRK_ConfigReserve"(Scope := '__NoSuchScope', Key := 'reserved', ModelCode := '__New', Reserved := #Reserved);
+	"FRK_TestAssert"(Condition := #Reserved[1] = 211,
+	                 Code := 14,
+	                 Result := "GDB_ModelTest".Result);
+	"FRK_TestAssert"(Condition := #Reserved[2] = 212,
+	                 Code := 15,
+	                 Result := "GDB_ModelTest".Result);
+	FOR #PoolIndex := 1 TO 212 DO
+	    "FRK_ConfigStore".Rows[#PoolIndex].Used := #SavedUsed[#PoolIndex];
+	END_FOR;
+	"GDB_ModelTest".Checks := "GDB_ModelTest".Result.Checks;
+	"GDB_ModelTest".Failures := "GDB_ModelTest".Result.Failures;
+	"GDB_ModelTest".FirstFailure := "GDB_ModelTest".Result.FirstFailure;
+	"GDB_ModelTest".Done := NOT "GDB_ModelTest".Result.ProtocolError;
+	
+END_FUNCTION
+

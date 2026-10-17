@@ -1,0 +1,38 @@
+﻿FUNCTION "FRK_SeqProfileEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Expected : Time;
+      NowMs : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ProfileEnd"(StepNo := #StepNo,
+	                         Expected := #Expected,
+	                         NowMs := #NowMs,
+	                         Book := "FRK_Profiles".P001.Book,
+	                         Steps := "FRK_Profiles".P001.Steps,
+	                         LastSteps := "FRK_Profiles".P001.LastSteps,
+	                         Stats := "FRK_Profiles".P001.Stats,
+	                         History := "FRK_Profiles".P001.History);
+	    13:
+	        "FRK_ProfileEnd"(StepNo := #StepNo,
+	                         Expected := #Expected,
+	                         NowMs := #NowMs,
+	                         Book := "FRK_Profiles".P013.Book,
+	                         Steps := "FRK_Profiles".P013.Steps,
+	                         LastSteps := "FRK_Profiles".P013.LastSteps,
+	                         Stats := "FRK_Profiles".P013.Stats,
+	                         History := "FRK_Profiles".P013.History);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

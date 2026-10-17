@@ -13,7 +13,7 @@ BEGIN
     #OutImm.Contradictory := #Device.Contradictory;
     #OutImm.PressureOk := #Hal.OperatingPressure AND NOT #Hal.LowPressure AND #Hal.Quality;
 END_FUNCTION
-// Generated frame v0.23; change the declaration, then regenerate.
+// Generated frame v0.24; change the declaration, then regenerate.
 FUNCTION_BLOCK "FB_AirPressureMonitorCM"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
@@ -125,15 +125,6 @@ BEGIN
         #FRK_Route_AirPressureMonitorCM := TRUE;
         RETURN;
     END_IF;
-END_FUNCTION
-FUNCTION "FRK_CfgDef_AirPressureMonitorCM" : Void
-{ S7_Optimized_Access := 'TRUE' }
-VERSION : 0.1
-VAR_INPUT
-    FieldIndex : Int;
-END_VAR
-BEGIN
-    "FRK_ConfigScratch".Entry := "FRK_ConfigScratch".Blank;
 END_FUNCTION
 FUNCTION "FRK_Config_AirPressureMonitorCM" : Void
 { S7_Optimized_Access := 'TRUE' }
