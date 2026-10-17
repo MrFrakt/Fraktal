@@ -5,7 +5,7 @@ VAR_INPUT
     Slot : Int;
 END_VAR
 BEGIN
-    IF #Slot < 1 OR #Slot > 11 THEN RETURN; END_IF;
+    IF #Slot < 1 OR #Slot > 12 THEN RETURN; END_IF;
     IF "FRK_PersistAnchors".SelectedB[#Slot] THEN "FRK_PersistAnchors".RowsA[#Slot] := "FRK_PersistRuntime".Anchor[#Slot];
     ELSE "FRK_PersistAnchors".RowsB[#Slot] := "FRK_PersistRuntime".Anchor[#Slot]; END_IF;
     "FRK_PersistAnchors".SelectedB[#Slot] := NOT "FRK_PersistAnchors".SelectedB[#Slot];
@@ -91,7 +91,7 @@ VAR_INPUT
 END_VAR
 BEGIN
     #FRK_PersistAnchorValid := FALSE;
-    IF #Slot < 1 OR #Slot > 11 THEN RETURN; END_IF;
+    IF #Slot < 1 OR #Slot > 12 THEN RETURN; END_IF;
     #FRK_PersistAnchorValid := "FRK_PersistAnchors".Commissioned[#Slot]
         AND "FRK_PersistRuntime".Anchor[#Slot].SchemaVersion = 1
         AND "FRK_PersistRuntime".Anchor[#Slot].KeyCrc = "FRK_PersistRuntime".KeyCrc[#Slot]
@@ -106,7 +106,7 @@ VAR_INPUT
 END_VAR
 BEGIN
     // Trusted consumer seam; never a remote command or authorization authority.
-    IF #Slot < 1 OR #Slot > 11 THEN RETURN; END_IF;
+    IF #Slot < 1 OR #Slot > 12 THEN RETURN; END_IF;
     IF NOT "FRK_PersistAnchorValid"(Slot := #Slot) THEN
         "FRK_PersistRuntime".Anchor[#Slot].SchemaVersion := 1;
         "FRK_PersistRuntime".Anchor[#Slot].KeyCrc := "FRK_PersistRuntime".KeyCrc[#Slot];
@@ -131,7 +131,7 @@ VAR_TEMP
 END_VAR
 BEGIN
     #FRK_PersistStart := 0;
-    IF #Slot < 1 OR #Slot > 11 THEN RETURN; END_IF;
+    IF #Slot < 1 OR #Slot > 12 THEN RETURN; END_IF;
     IF #Length < 0 OR #Length > "FRK_PersistRuntime".Capacity[#Slot] OR "FRK_PersistRuntime".Leased[#Slot] THEN RETURN; END_IF;
     IF "FRK_PersistRuntime".LastTicket = UDINT#4294967295 THEN RETURN; END_IF;
     FOR #Index := 1 TO 4 DO
@@ -381,6 +381,14 @@ BEGIN
                 4: "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D011Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D011B".Bytes);
                 ELSE "FRK_PersistRuntime".NativeResult := -1; "FRK_PersistRuntime".NativeBusy := FALSE;
             END_CASE;
+        12:
+            CASE #Operation OF
+                1: "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D012A".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D012A);
+                2: "FRK_PersistRuntime".NativeResult := READ_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_Load_D012B".Bytes, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_PersistBuffers".D012B);
+                3: "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D012Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D012A".Bytes);
+                4: "FRK_PersistRuntime".NativeResult := WRIT_DBL(REQ := "FRK_PersistRuntime".NativeReq, SRCBLK := "FRK_PersistBuffers".D012Data, BUSY => "FRK_PersistRuntime".NativeBusy, DSTBLK => "FRK_Load_D012B".Bytes);
+                ELSE "FRK_PersistRuntime".NativeResult := -1; "FRK_PersistRuntime".NativeBusy := FALSE;
+            END_CASE;
         ELSE "FRK_PersistRuntime".NativeResult := -1; "FRK_PersistRuntime".NativeBusy := FALSE;
     END_CASE;
 END_FUNCTION
@@ -405,6 +413,7 @@ BEGIN
         9: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[9], Bytes := "FRK_PersistBuffers".D009A, Check := "FRK_PersistRuntime".CheckA);
         10: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[10], Bytes := "FRK_PersistBuffers".D010A, Check := "FRK_PersistRuntime".CheckA);
         11: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[11], Bytes := "FRK_PersistBuffers".D011A, Check := "FRK_PersistRuntime".CheckA);
+        12: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[12], Bytes := "FRK_PersistBuffers".D012A, Check := "FRK_PersistRuntime".CheckA);
         ELSE RETURN;
     END_CASE;
     #FRK_PersistCheckA := #Done;
@@ -430,6 +439,7 @@ BEGIN
         9: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[9], Bytes := "FRK_PersistBuffers".D009B, Check := "FRK_PersistRuntime".CheckB);
         10: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[10], Bytes := "FRK_PersistBuffers".D010B, Check := "FRK_PersistRuntime".CheckB);
         11: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[11], Bytes := "FRK_PersistBuffers".D011B, Check := "FRK_PersistRuntime".CheckB);
+        12: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[12], Bytes := "FRK_PersistBuffers".D012B, Check := "FRK_PersistRuntime".CheckB);
         ELSE RETURN;
     END_CASE;
     #FRK_PersistCheckB := #Done;
@@ -455,6 +465,7 @@ BEGIN
         9: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[9], Bytes := "FRK_PersistBuffers".D009Data, Check := "FRK_PersistRuntime".CheckWrite);
         10: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[10], Bytes := "FRK_PersistBuffers".D010Data, Check := "FRK_PersistRuntime".CheckWrite);
         11: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[11], Bytes := "FRK_PersistBuffers".D011Data, Check := "FRK_PersistRuntime".CheckWrite);
+        12: #Done := "FRK_PersistValidate"(ExpectedKey := "FRK_PersistRuntime".KeyCrc[12], Bytes := "FRK_PersistBuffers".D012Data, Check := "FRK_PersistRuntime".CheckWrite);
         ELSE RETURN;
     END_CASE;
     #FRK_PersistCheckWrite := #Done;
@@ -479,6 +490,7 @@ BEGIN
         9: "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D009A, BytesB := "FRK_PersistBuffers".D009B, Payload := "FRK_PersistBuffers".D009Data);
         10: "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D010A, BytesB := "FRK_PersistBuffers".D010B, Payload := "FRK_PersistBuffers".D010Data);
         11: "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D011A, BytesB := "FRK_PersistBuffers".D011B, Payload := "FRK_PersistBuffers".D011Data);
+        12: "FRK_PersistInspect"(BytesA := "FRK_PersistBuffers".D012A, BytesB := "FRK_PersistBuffers".D012B, Payload := "FRK_PersistBuffers".D012Data);
         ELSE RETURN;
     END_CASE;
 END_FUNCTION
@@ -532,28 +544,28 @@ BEGIN
             "FRK_PersistRepair"(Slot := 5);
         END_IF;
         "FRK_PersistRuntime".Leased[6] := FALSE;
-        "FRK_PersistRuntime".Capacity[6] := 2306;
+        "FRK_PersistRuntime".Capacity[6] := 8226;
         "FRK_PersistRuntime".KeyCrc[6] := "FRK_PersistKeyCrc"(Key := 'PressDemo.set1');
         IF "FRK_PersistAnchors".SelectedB[6] THEN "FRK_PersistRuntime".Anchor[6] := "FRK_PersistAnchors".RowsB[6]; ELSE "FRK_PersistRuntime".Anchor[6] := "FRK_PersistAnchors".RowsA[6]; END_IF;
         IF NOT "FRK_PersistAnchors".Commissioned[6] AND "FRK_PersistRuntime".Anchor[6].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[6].Generation = 0 AND "FRK_PersistRuntime".Anchor[6].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[6].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[6].Checksum = DWORD#0 THEN
             "FRK_PersistRepair"(Slot := 6);
         END_IF;
         "FRK_PersistRuntime".Leased[7] := FALSE;
-        "FRK_PersistRuntime".Capacity[7] := 2306;
+        "FRK_PersistRuntime".Capacity[7] := 8226;
         "FRK_PersistRuntime".KeyCrc[7] := "FRK_PersistKeyCrc"(Key := 'PressDemo.set2');
         IF "FRK_PersistAnchors".SelectedB[7] THEN "FRK_PersistRuntime".Anchor[7] := "FRK_PersistAnchors".RowsB[7]; ELSE "FRK_PersistRuntime".Anchor[7] := "FRK_PersistAnchors".RowsA[7]; END_IF;
         IF NOT "FRK_PersistAnchors".Commissioned[7] AND "FRK_PersistRuntime".Anchor[7].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[7].Generation = 0 AND "FRK_PersistRuntime".Anchor[7].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[7].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[7].Checksum = DWORD#0 THEN
             "FRK_PersistRepair"(Slot := 7);
         END_IF;
         "FRK_PersistRuntime".Leased[8] := FALSE;
-        "FRK_PersistRuntime".Capacity[8] := 2306;
+        "FRK_PersistRuntime".Capacity[8] := 8226;
         "FRK_PersistRuntime".KeyCrc[8] := "FRK_PersistKeyCrc"(Key := 'PressDemo.set3');
         IF "FRK_PersistAnchors".SelectedB[8] THEN "FRK_PersistRuntime".Anchor[8] := "FRK_PersistAnchors".RowsB[8]; ELSE "FRK_PersistRuntime".Anchor[8] := "FRK_PersistAnchors".RowsA[8]; END_IF;
         IF NOT "FRK_PersistAnchors".Commissioned[8] AND "FRK_PersistRuntime".Anchor[8].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[8].Generation = 0 AND "FRK_PersistRuntime".Anchor[8].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[8].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[8].Checksum = DWORD#0 THEN
             "FRK_PersistRepair"(Slot := 8);
         END_IF;
         "FRK_PersistRuntime".Leased[9] := FALSE;
-        "FRK_PersistRuntime".Capacity[9] := 2306;
+        "FRK_PersistRuntime".Capacity[9] := 8226;
         "FRK_PersistRuntime".KeyCrc[9] := "FRK_PersistKeyCrc"(Key := 'PressDemo.set4');
         IF "FRK_PersistAnchors".SelectedB[9] THEN "FRK_PersistRuntime".Anchor[9] := "FRK_PersistAnchors".RowsB[9]; ELSE "FRK_PersistRuntime".Anchor[9] := "FRK_PersistAnchors".RowsA[9]; END_IF;
         IF NOT "FRK_PersistAnchors".Commissioned[9] AND "FRK_PersistRuntime".Anchor[9].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[9].Generation = 0 AND "FRK_PersistRuntime".Anchor[9].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[9].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[9].Checksum = DWORD#0 THEN
@@ -567,11 +579,18 @@ BEGIN
             "FRK_PersistRepair"(Slot := 10);
         END_IF;
         "FRK_PersistRuntime".Leased[11] := FALSE;
-        "FRK_PersistRuntime".Capacity[11] := 2872;
-        "FRK_PersistRuntime".KeyCrc[11] := "FRK_PersistKeyCrc"(Key := 'models.4cb92d4f67687ba1915c817d0830109a193b6aaaaf25a3c7af3fe34cbbbe0228');
+        "FRK_PersistRuntime".Capacity[11] := 8732;
+        "FRK_PersistRuntime".KeyCrc[11] := "FRK_PersistKeyCrc"(Key := 'line.78c91d33f0040ed0f3803c06744b57e275146a10cdb423066a193642639f2f30');
         IF "FRK_PersistAnchors".SelectedB[11] THEN "FRK_PersistRuntime".Anchor[11] := "FRK_PersistAnchors".RowsB[11]; ELSE "FRK_PersistRuntime".Anchor[11] := "FRK_PersistAnchors".RowsA[11]; END_IF;
         IF NOT "FRK_PersistAnchors".Commissioned[11] AND "FRK_PersistRuntime".Anchor[11].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[11].Generation = 0 AND "FRK_PersistRuntime".Anchor[11].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[11].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[11].Checksum = DWORD#0 THEN
             "FRK_PersistRepair"(Slot := 11);
+        END_IF;
+        "FRK_PersistRuntime".Leased[12] := FALSE;
+        "FRK_PersistRuntime".Capacity[12] := 2872;
+        "FRK_PersistRuntime".KeyCrc[12] := "FRK_PersistKeyCrc"(Key := 'models.4cb92d4f67687ba1915c817d0830109a193b6aaaaf25a3c7af3fe34cbbbe0228');
+        IF "FRK_PersistAnchors".SelectedB[12] THEN "FRK_PersistRuntime".Anchor[12] := "FRK_PersistAnchors".RowsB[12]; ELSE "FRK_PersistRuntime".Anchor[12] := "FRK_PersistAnchors".RowsA[12]; END_IF;
+        IF NOT "FRK_PersistAnchors".Commissioned[12] AND "FRK_PersistRuntime".Anchor[12].SchemaVersion = 0 AND "FRK_PersistRuntime".Anchor[12].Generation = 0 AND "FRK_PersistRuntime".Anchor[12].KeyCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[12].DocumentCrc = DWORD#0 AND "FRK_PersistRuntime".Anchor[12].Checksum = DWORD#0 THEN
+            "FRK_PersistRepair"(Slot := 12);
         END_IF;
     END_IF;
     "FRK_PersistRuntime".Scan := "FRK_PersistRuntime".Scan + 1;
@@ -645,6 +664,7 @@ BEGIN
                     9: "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D009Data, Offset := 20, Value := "FRK_PersistRuntime".CheckWrite.Crc);
                     10: "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D010Data, Offset := 20, Value := "FRK_PersistRuntime".CheckWrite.Crc);
                     11: "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D011Data, Offset := 20, Value := "FRK_PersistRuntime".CheckWrite.Crc);
+                    12: "FRK_PersistPutNumber"(Bytes := "FRK_PersistBuffers".D012Data, Offset := 20, Value := "FRK_PersistRuntime".CheckWrite.Crc);
                     ELSE RETURN;
                 END_CASE;
                 "FRK_PersistRuntime".Stage := 7;
@@ -1271,10 +1291,10 @@ BEGIN
     "FRK_PersistImages".D006.SchemaVersion := 1; "FRK_PersistImages".D006.Scope := 'PressDemo';
     "FRK_PersistImages".D006.Ordinal := 1;
     "FRK_PersistImages".D006.Payload := "FRK_SetStore".Sets[1, 1];
-    FOR #Index := 0 TO 2329 DO "FRK_PersistBuffers".D006Data[#Index] := BYTE#0; END_FOR;
+    FOR #Index := 0 TO 8249 DO "FRK_PersistBuffers".D006Data[#Index] := BYTE#0; END_FOR;
     #Position := 24;
     #NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D006, DEST_ARRAY => "FRK_PersistBuffers".D006Data, POS := #Position);
-    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2330 THEN RETURN; END_IF;
+    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 8250 THEN RETURN; END_IF;
     #Length := #Position - 24;
     #FRK_DocCapture_D006 := TRUE;
 END_FUNCTION
@@ -1321,10 +1341,10 @@ BEGIN
     "FRK_PersistImages".D007.SchemaVersion := 1; "FRK_PersistImages".D007.Scope := 'PressDemo';
     "FRK_PersistImages".D007.Ordinal := 2;
     "FRK_PersistImages".D007.Payload := "FRK_SetStore".Sets[1, 2];
-    FOR #Index := 0 TO 2329 DO "FRK_PersistBuffers".D007Data[#Index] := BYTE#0; END_FOR;
+    FOR #Index := 0 TO 8249 DO "FRK_PersistBuffers".D007Data[#Index] := BYTE#0; END_FOR;
     #Position := 24;
     #NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D007, DEST_ARRAY => "FRK_PersistBuffers".D007Data, POS := #Position);
-    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2330 THEN RETURN; END_IF;
+    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 8250 THEN RETURN; END_IF;
     #Length := #Position - 24;
     #FRK_DocCapture_D007 := TRUE;
 END_FUNCTION
@@ -1371,10 +1391,10 @@ BEGIN
     "FRK_PersistImages".D008.SchemaVersion := 1; "FRK_PersistImages".D008.Scope := 'PressDemo';
     "FRK_PersistImages".D008.Ordinal := 3;
     "FRK_PersistImages".D008.Payload := "FRK_SetStore".Sets[1, 3];
-    FOR #Index := 0 TO 2329 DO "FRK_PersistBuffers".D008Data[#Index] := BYTE#0; END_FOR;
+    FOR #Index := 0 TO 8249 DO "FRK_PersistBuffers".D008Data[#Index] := BYTE#0; END_FOR;
     #Position := 24;
     #NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D008, DEST_ARRAY => "FRK_PersistBuffers".D008Data, POS := #Position);
-    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2330 THEN RETURN; END_IF;
+    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 8250 THEN RETURN; END_IF;
     #Length := #Position - 24;
     #FRK_DocCapture_D008 := TRUE;
 END_FUNCTION
@@ -1421,10 +1441,10 @@ BEGIN
     "FRK_PersistImages".D009.SchemaVersion := 1; "FRK_PersistImages".D009.Scope := 'PressDemo';
     "FRK_PersistImages".D009.Ordinal := 4;
     "FRK_PersistImages".D009.Payload := "FRK_SetStore".Sets[1, 4];
-    FOR #Index := 0 TO 2329 DO "FRK_PersistBuffers".D009Data[#Index] := BYTE#0; END_FOR;
+    FOR #Index := 0 TO 8249 DO "FRK_PersistBuffers".D009Data[#Index] := BYTE#0; END_FOR;
     #Position := 24;
     #NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D009, DEST_ARRAY => "FRK_PersistBuffers".D009Data, POS := #Position);
-    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2330 THEN RETURN; END_IF;
+    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 8250 THEN RETURN; END_IF;
     #Length := #Position - 24;
     #FRK_DocCapture_D009 := TRUE;
 END_FUNCTION
@@ -1522,16 +1542,12 @@ END_VAR
 BEGIN
     #FRK_DocCapture_D011 := FALSE;
     "FRK_PersistImages".D011.SchemaVersion := 1; "FRK_PersistImages".D011.Scope := 'PressDemo';
-    IF "FRK_ModelRuntime".Rows[1].State = 1 THEN
-        #Ok := "FRK_ModelCapture"(RootIndex := 1, Catalog := "FRK_ModelRuntime".Rows[1].Stage, Image := "FRK_PersistImages".D011.Image);
-    ELSE
-        #Ok := "FRK_ModelCapture"(RootIndex := 1, Catalog := "FRK_ModelStore".Rows[1], Image := "FRK_PersistImages".D011.Image);
-    END_IF;
-    IF NOT #Ok THEN RETURN; END_IF;
-    FOR #Index := 0 TO 2895 DO "FRK_PersistBuffers".D011Data[#Index] := BYTE#0; END_FOR;
+    IF NOT "FRK_Line".Data.Applied OR "FRK_Line".Data.Image.Revision <> "FRK_Line".Data.Status.Revision THEN RETURN; END_IF;
+    "FRK_PersistImages".D011.Image := "FRK_Line".Data.Image;
+    FOR #Index := 0 TO 8755 DO "FRK_PersistBuffers".D011Data[#Index] := BYTE#0; END_FOR;
     #Position := 24;
     #NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D011, DEST_ARRAY => "FRK_PersistBuffers".D011Data, POS := #Position);
-    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2896 THEN RETURN; END_IF;
+    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 8756 THEN RETURN; END_IF;
     #Length := #Position - 24;
     #FRK_DocCapture_D011 := TRUE;
 END_FUNCTION
@@ -1551,8 +1567,58 @@ BEGIN
     #NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D011Data, DEST_VARIABLE => "FRK_PersistImages".D011, POS := #Position);
     IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[11].Result.Length) THEN RETURN; END_IF;
     IF "FRK_PersistImages".D011.SchemaVersion <> 1 OR "FRK_PersistImages".D011.Scope <> 'PressDemo' THEN RETURN; END_IF;
-    IF NOT "FRK_ModelApply"(RootIndex := 1, Image := "FRK_PersistImages".D011.Image) THEN RETURN; END_IF;
+    IF NOT "FRK_LineApply"(Image := "FRK_PersistImages".D011.Image, Restore := TRUE, NowMs := "FRK_Clock".NowMs, Stamp := LDT#1970-01-01-00:00:00, TimeSynchronized := FALSE, State := "FRK_Line".Data) THEN RETURN; END_IF;
+    "FRK_Line".Data.Dirty := FALSE;
+    "FRK_Line".Data.BuiltRevision := "FRK_Line".Data.Status.Revision;
     #FRK_DocApply_D011 := TRUE;
+END_FUNCTION
+FUNCTION "FRK_DocCapture_D012" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Length : DInt;
+END_VAR
+VAR_TEMP
+    Index : Int;
+    Stored : Int;
+    Position : DInt;
+    NativeResult : Int;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_DocCapture_D012 := FALSE;
+    "FRK_PersistImages".D012.SchemaVersion := 1; "FRK_PersistImages".D012.Scope := 'PressDemo';
+    IF "FRK_ModelRuntime".Rows[1].State = 1 THEN
+        #Ok := "FRK_ModelCapture"(RootIndex := 1, Catalog := "FRK_ModelRuntime".Rows[1].Stage, Image := "FRK_PersistImages".D012.Image);
+    ELSE
+        #Ok := "FRK_ModelCapture"(RootIndex := 1, Catalog := "FRK_ModelStore".Rows[1], Image := "FRK_PersistImages".D012.Image);
+    END_IF;
+    IF NOT #Ok THEN RETURN; END_IF;
+    FOR #Index := 0 TO 2895 DO "FRK_PersistBuffers".D012Data[#Index] := BYTE#0; END_FOR;
+    #Position := 24;
+    #NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D012, DEST_ARRAY => "FRK_PersistBuffers".D012Data, POS := #Position);
+    IF #NativeResult <> 0 OR #Position < 24 OR #Position > 2896 THEN RETURN; END_IF;
+    #Length := #Position - 24;
+    #FRK_DocCapture_D012 := TRUE;
+END_FUNCTION
+FUNCTION "FRK_DocApply_D012" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_TEMP
+    Index : Int;
+    Stored : Int;
+    Position : DInt;
+    NativeResult : Int;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_DocApply_D012 := FALSE;
+    #Position := 24;
+    #NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D012Data, DEST_VARIABLE => "FRK_PersistImages".D012, POS := #Position);
+    IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[12].Result.Length) THEN RETURN; END_IF;
+    IF "FRK_PersistImages".D012.SchemaVersion <> 1 OR "FRK_PersistImages".D012.Scope <> 'PressDemo' THEN RETURN; END_IF;
+    IF NOT "FRK_ModelApply"(RootIndex := 1, Image := "FRK_PersistImages".D012.Image) THEN RETURN; END_IF;
+    #FRK_DocApply_D012 := TRUE;
 END_FUNCTION
 FUNCTION "FRK_DocReject" : Void
 { S7_Optimized_Access := 'TRUE' }
@@ -1627,6 +1693,10 @@ BEGIN
             "FRK_LocalUsers".SchemaVersion := 0; "FRK_LocalUsers".Generation := 0; "FRK_LocalUsers".Checksum := DWORD#0;
             "FRK_AccessStorage".UsersCommissioned := TRUE; "FRK_AccessStorage".UsersReady := FALSE; "FRK_AccessStorage".UsersLost := TRUE;
         11:
+            "FRK_Line".Data.Dirty := FALSE;
+            "FRK_Line".Data.Status.SourceError := 0;
+            "FRK_ConfigLoss"(RootIndex := 1, Scope := 'PressDemo');
+        12:
             "FRK_ModelStore".Rows[1] := "FRK_ModelRuntime".BlankCatalog;
             "FRK_ModelStore".Rows[1].Scope := 'PressDemo';
             "FRK_ConfigLoss"(RootIndex := 1, Scope := 'PressDemo');
@@ -1657,6 +1727,7 @@ BEGIN
         9: #Ok := "FRK_DocCapture_D009"(Length := #Length);
         10: #Ok := "FRK_DocCapture_D010"(Length := #Length);
         11: #Ok := "FRK_DocCapture_D011"(Length := #Length);
+        12: #Ok := "FRK_DocCapture_D012"(Length := #Length);
         ELSE RETURN;
     END_CASE;
 END_FUNCTION
@@ -1680,6 +1751,7 @@ BEGIN
         9: #FRK_DocApply := "FRK_DocApply_D009"();
         10: #FRK_DocApply := "FRK_DocApply_D010"();
         11: #FRK_DocApply := "FRK_DocApply_D011"();
+        12: #FRK_DocApply := "FRK_DocApply_D012"();
         ELSE RETURN;
     END_CASE;
 END_FUNCTION
@@ -1700,7 +1772,7 @@ END_VAR
 BEGIN
     IF #Startup THEN
         "FRK_PersistConsumers".Ready := FALSE;
-        FOR #Slot := 1 TO 11 DO
+        FOR #Slot := 1 TO 12 DO
             "FRK_PersistConsumers".Rows[#Slot].State := 0; "FRK_PersistConsumers".Rows[#Slot].Ticket := 0;
             "FRK_PersistConsumers".Rows[#Slot].Dirty := FALSE; "FRK_PersistConsumers".Rows[#Slot].Failed := FALSE;
             "FRK_PersistConsumers".Rows[#Slot].Rejected := FALSE; "FRK_PersistConsumers".Rows[#Slot].Acknowledged := FALSE;
@@ -1711,7 +1783,7 @@ BEGIN
     END_IF;
     #Ready := TRUE;
     "FRK_PersistStatus".Failed := FALSE;
-    FOR #Slot := 1 TO 11 DO
+    FOR #Slot := 1 TO 12 DO
         IF "FRK_PersistConsumers".Rows[#Slot].State = 0 THEN
             IF NOT "FRK_PersistConsumers".Rows[#Slot].Failed OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "FRK_PersistConsumers".Rows[#Slot].RetrySince) >= 1000 THEN
                 "FRK_PersistConsumers".Rows[#Slot].Ticket := "FRK_PersistStart"(Slot := #Slot, WriteDocument := FALSE, Length := 0);
@@ -1755,7 +1827,7 @@ VAR_TEMP
 END_VAR
 BEGIN
     IF NOT "FRK_PersistConsumers".Ready THEN RETURN; END_IF;
-    FOR #Slot := 1 TO 11 DO
+    FOR #Slot := 1 TO 12 DO
         IF "FRK_PersistConsumers".Rows[#Slot].Ticket <> 0 THEN
             #Done := "FRK_PersistPoll"(Ticket := "FRK_PersistConsumers".Rows[#Slot].Ticket, Result := "FRK_PersistConsumers".Rows[#Slot].Result);
             IF #Done THEN

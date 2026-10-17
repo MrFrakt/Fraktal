@@ -1,0 +1,52 @@
+// Shared Unit boundary: fault recovery re-evaluates the retained step; boot,
+// mode change, abort and restore quiescence invalidate every attached chain.
+FUNCTION "FRK_SequenceOwnerUpdate" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Exec : DInt; Restart : Bool; END_VAR
+VAR_IN_OUT Life : "FRK_SequenceLifecycle"; END_VAR
+BEGIN
+    IF #Restart OR (#Exec = 4 AND #Life.ExecPrevious <> #Exec) THEN
+        #Life.RestartEpoch := #Life.RestartEpoch + 1;
+    END_IF;
+    IF #Life.Faulted AND #Exec <> 3 THEN
+        #Life.ResumeEpoch := #Life.ResumeEpoch + 1;
+    END_IF;
+    #Life.Faulted := #Exec = 3;
+    #Life.ExecPrevious := #Exec;
+    #Life.Valid := TRUE;
+END_FUNCTION
+FUNCTION "FRK_SeqLifecycleUpdate" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+    Exec : DInt;
+    Restart : Bool;
+END_VAR
+BEGIN
+    CASE #Owner OF
+        1:
+            IF "FRK_SequenceOwners".O001.Faulted AND #Exec <> 3 THEN
+                "FRK_SeqViewClearErrors"(Owner := #Owner);
+            END_IF;
+            "FRK_SequenceOwnerUpdate"(Exec := #Exec, Restart := #Restart, Life := "FRK_SequenceOwners".O001);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_SeqLifecycleRead" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Owner : DInt;
+END_VAR
+VAR_IN_OUT
+    Life : "FRK_SequenceLifecycle";
+END_VAR
+BEGIN
+    #Life := "FRK_SequenceOwners".Empty;
+    CASE #Owner OF
+        1: #Life := "FRK_SequenceOwners".O001;
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION

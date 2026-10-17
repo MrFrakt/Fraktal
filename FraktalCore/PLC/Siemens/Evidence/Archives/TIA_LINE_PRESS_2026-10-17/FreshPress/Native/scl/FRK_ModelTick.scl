@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_ModelTick" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelTick := FALSE;
+	IF #RootIndex < 1 OR #RootIndex > 1 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_ModelRuntime".Rows[#RootIndex].State <> 1 THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_ModelSaved"(RootIndex := #RootIndex) THEN
+	    RETURN;
+	END_IF;
+	"FRK_ModelStore".Rows[#RootIndex] := "FRK_ModelRuntime".Rows[#RootIndex].Stage;
+	"FRK_ModelRuntime".Rows[#RootIndex].State := 0;
+	#FRK_ModelTick := TRUE;
+	
+END_FUNCTION
+

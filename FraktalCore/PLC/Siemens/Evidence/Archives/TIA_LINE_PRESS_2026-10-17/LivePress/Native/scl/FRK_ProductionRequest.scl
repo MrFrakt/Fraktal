@@ -1,0 +1,51 @@
+﻿FUNCTION "FRK_ProductionRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+      Book : "FRK_Production";
+      Oee : "ST_Oee";
+      Trend : Array[1..60] of "ST_OeeSample";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> 18 THEN
+	    RETURN;
+	END_IF;
+	#Response.Accepted := FALSE;
+	#Response.Diagnostic := WSTRING#'std.error.accessDenied';
+	#Response.Report.Count := 0;
+	#Response.Report.Released := TRUE;
+	IF NOT #Access.PolicyLost AND #Access.CurrentLevel >= #Access.Policy.Required[1] THEN
+	    "FRK_OeeReset"(Good := #Unit.Good,
+	                   Nok := #Unit.Nok,
+	                   Book := #Book,
+	                   Oee := #Oee,
+	                   Trend := #Trend);
+	    "FRK_AlarmMessage"(AlarmLog := #AlarmLog,
+	                       Reason := 0,
+	                       Description := WSTRING#'std.audit.oeeReset',
+	                       SourcePath := STRING_TO_WSTRING(#Scope));
+	    #Response.Accepted := TRUE;
+	    #Response.Diagnostic := WSTRING#'';
+	    #Response.Report.Count := 0;
+	    #Response.Report.Released := TRUE;
+	ELSE
+	    "FRK_ReleaseReason"(Report := #Response.Report,
+	                        Description := #Response.Diagnostic,
+	                        Reason := 2002,
+	                        Path := STRING_TO_WSTRING(#Scope),
+	                        Kind := 4);
+	END_IF;
+	
+END_FUNCTION
+

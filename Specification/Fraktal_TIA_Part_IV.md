@@ -1809,3 +1809,16 @@ The frozen records describe implemented surface and impose no extra allocation
 on a station; sequence tables retain their declaration-derived dimensions.
 
 <!-- TIA-CONTRACTS-V1 sha256:65ea0e812b82586de6f27012880a9d0200f4ed283dee39a8f420a7dead101524 -->
+
+### Measured extension, 2026-10-17: complete Line profile admission
+
+Generator 0.25 admits owner and source-bound mirror declarations through normal
+generation when the complete V3 calendar is bound and every referencing root
+has production accounting. Partial engine experiments retain the explicit
+workbench entry point and manifest marker. The press composes a local Line
+owner beside station/model config, sharing typed validation, named sets and
+LOAD_DB persistence without a project cyclic service call. Calendar target
+edits affect future intervals; the active interval retains its start target.
+See [native and runtime qualification](Siemens/Evidence/TIA_LINE_PRESS_2026-10-17.md).
+The bound provider contract leaves P12 OUC TCP transport separate. This measured
+extension does not close R3/R5/R6, complete HMI or physical qualification.

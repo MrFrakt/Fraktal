@@ -1,5 +1,14 @@
 # Siemens press demo
 
+Line profile milestone (2026-10-17): `line_config` declares the local
+PRESS-DEMO-LINE owner beside station/model config. The shared V3 calendar
+defaults to unused rows; configure its days, durations, targets and start
+times through the ordinary Line config card. Active interval targets stay
+latched when future config changes. Named Line sets and restart share the
+existing typed/persistence services. See
+[the qualification report](../../../../../Specification/Siemens/Evidence/TIA_LINE_PRESS_2026-10-17.md).
+Main remains a calling routine and the wired GRAPH/ST paths are preserved.
+
 Runtime model milestone (2026-10-17): `model_config.capacity = 4` adds one
 runtime slot after ALUMINUM, PLASTIC and STEEL. The generic HMI can clone an
 existing model or complete saved model set; creation leaves the running recipe

@@ -86,7 +86,7 @@ BEGIN
     #Ok := "FRK_ConfigRecordValid"(Scope := #Scope, Record := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index]);
     IF NOT #Ok THEN RETURN; END_IF;
     // Reserve every destination before commit, including a missing cache row.
-    IF #ReserveTarget THEN
+    IF #ReserveTarget AND "FRK_ConfigScratch".Entry.ConfigKind <> 2 THEN
         #TargetSlot := "FRK_ConfigReserve"(Scope := #Scope, Key := "FRK_ConfigScratch".Entry.WriteKey, ModelCode := "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode, Reserved := "FRK_SetRuntime".Work[#RootIndex].Targets);
         IF #TargetSlot < 1 OR #TargetSlot > 22 THEN RETURN; END_IF;
         "FRK_SetRuntime".Work[#RootIndex].Targets[#Index] := #TargetSlot;
@@ -298,9 +298,11 @@ BEGIN
     IF NOT "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Used OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RootIdentity <> #RootIdentity
         OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetSchema <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ConfigRev = 0
         OR LEN("FRK_SetRuntime".Work[#RootIndex].Payload.Info.SetName) = 0
-        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount < 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount > 5 THEN RETURN; END_IF;
+        OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount < 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount > 21 THEN RETURN; END_IF;
     IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 0 THEN
         IF LEN("FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode) < 1 THEN RETURN; END_IF;
+    ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind = 2 THEN
+        IF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN RETURN; END_IF;
     ELSIF "FRK_SetRuntime".Work[#RootIndex].Payload.Info.Kind <> 1 OR "FRK_SetRuntime".Work[#RootIndex].Payload.Info.ModelCode <> '' THEN RETURN;
     END_IF;
     FOR #Index := 1 TO "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount DO
@@ -345,7 +347,7 @@ BEGIN
         "FRK_SetRuntime".Work[#RootIndex].Importing := TRUE;
     ELSE
         #Index := "FRK_SetRuntime".Work[#RootIndex].Received + 1;
-        IF #Index > 5 OR #Index > "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN RETURN; END_IF;
+        IF #Index > 21 OR #Index > "FRK_SetRuntime".Work[#RootIndex].Payload.Info.RecordCount THEN RETURN; END_IF;
         #Ok := "FRK_JsonReadRecord"(Count := "FRK_SetRuntime".Work[#RootIndex].FieldCount, Fields := "FRK_SetRuntime".Work[#RootIndex].Fields, Data := "FRK_SetRuntime".Work[#RootIndex].Payload.Records[#Index]);
         IF NOT #Ok THEN RETURN; END_IF;
         "FRK_SetRuntime".Work[#RootIndex].Received := #Index;
@@ -384,7 +386,7 @@ VAR_TEMP
 END_VAR
 BEGIN
     "FRK_SetRuntime".Work[#RootIndex].Matched := 0;
-    FOR #Index := 1 TO 5 DO "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := FALSE; END_FOR;
+    FOR #Index := 1 TO 21 DO "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := FALSE; END_FOR;
     FOR #Index := 1 TO 32 DO
         "FRK_SetRuntime".Work[#RootIndex].Targets[#Index] := 0;
         "FRK_SetRuntime".Work[#RootIndex].Schemas[#Index] := 0;
@@ -575,7 +577,7 @@ BEGIN
     FOR #Index := 1 TO #Count DO IF #Fields[#Index].Key = 'kind' THEN #Found := #Index; END_IF; END_FOR;
     IF #Found = 0 THEN RETURN; END_IF;
     IF #Fields[#Found].Quoted <> FALSE THEN RETURN; END_IF;
-    #Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+    #Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 2.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
     IF NOT #Ok THEN RETURN; END_IF;
     #Candidate.Kind := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
     #Found := 0;
@@ -588,7 +590,7 @@ BEGIN
     FOR #Index := 1 TO #Count DO IF #Fields[#Index].Key = 'records' THEN #Found := #Index; END_IF; END_FOR;
     IF #Found = 0 THEN RETURN; END_IF;
     IF #Fields[#Found].Quoted <> FALSE THEN RETURN; END_IF;
-    #Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 5.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+    #Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 21.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
     IF NOT #Ok THEN RETURN; END_IF;
     #Candidate.RecordCount := LINT_TO_INT("FRK_ConfigScratch".Value.Number);
     #Found := 0;
@@ -680,7 +682,7 @@ BEGIN
     FOR #Index := 1 TO #Count DO IF #Fields[#Index].Key = 'kind' THEN #Found := #Index; END_IF; END_FOR;
     IF #Found = 0 THEN RETURN; END_IF;
     IF #Fields[#Found].Quoted <> FALSE THEN RETURN; END_IF;
-    #Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 1.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
+    #Ok := "FRK_ConfigDecode"(Text := #Fields[#Found].Text, Storage := 4, Minimum := 0.0, Maximum := 2.0, MaxLength := 0, Value := "FRK_ConfigScratch".Value);
     IF NOT #Ok THEN RETURN; END_IF;
     #Candidate.Kind := LINT_TO_DINT("FRK_ConfigScratch".Value.Number);
     #Found := 0;

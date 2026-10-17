@@ -1,0 +1,81 @@
+﻿FUNCTION "FRK_AccessFinish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Unit : "FRK_Unit";
+      Response : "ST_HmiResponse";
+      SourcePath : WString;
+   END_VAR
+
+   VAR_IN_OUT 
+      Access : "FRK_Access";
+      AlarmLog : "FRK_AlarmLog";
+      Revision : UDInt;
+   END_VAR
+
+   VAR_TEMP 
+      What : WString[160];
+      AuditPath : WString[255];
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending THEN
+	    RETURN;
+	END_IF;
+	CASE #Unit.Request.Kind OF
+	    23, 15,
+	    16, 17,
+	    1:
+	        RETURN;
+	    2:
+	        "FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                          What := WSTRING#'std.audit.logout',
+	                          Who := #Unit.RequestUser,
+	                          SourcePath := #SourcePath);
+	        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	        RETURN;
+	    ELSE
+	        #What := WSTRING#'std.audit.accessDenied';
+	END_CASE;
+	IF #Response.Accepted THEN
+	    #What := WSTRING#'std.audit.operatorAction';
+	    IF #Access.CurrentLevel > 0 THEN
+	        #Access.LastActivity := "FRK_Clock".NowMs;
+	    END_IF;
+	    IF #Unit.Request.Kind = 24 OR #Unit.Request.Kind = 25 OR #Unit.Request.Kind = 36 THEN
+	        #Revision := "FRK_ConfigRevision"(Previous := #Revision);
+	    END_IF;
+	END_IF;
+	#AuditPath := #SourcePath;
+	IF #Unit.Request.Kind = 11 THEN
+	    IF #Response.Accepted THEN
+	        #AuditPath := #Unit.Request.TargetPath;
+	    END_IF;
+	    IF #Response.Accepted THEN
+	        #What := WSTRING#'std.audit.manualCommandAccepted';
+	    ELSE
+	        #What := WSTRING#'std.audit.manualCommandRejected';
+	    END_IF;
+	END_IF;
+	#What := CONCAT(IN1 := #What, IN2 := WSTRING#' kind=');
+	#What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.Kind));
+	#What := CONCAT(IN1 := #What, IN2 := WSTRING#' value=');
+	#What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.IntValue));
+	IF #Unit.Request.Kind = 36 THEN
+	    #What := CONCAT(IN1 := #What, IN2 := WSTRING#' class=');
+	    #What := CONCAT(IN1 := #What, IN2 := STRING_TO_WSTRING(#Unit.Request.NameValue));
+	    IF #Unit.Request.BoolValue THEN
+	        #What := CONCAT(IN1 := #What, IN2 := WSTRING#' write');
+	    ELSE
+	        #What := CONCAT(IN1 := #What, IN2 := WSTRING#' read');
+	    END_IF;
+	END_IF;
+	"FRK_AccessAudit"(AlarmLog := #AlarmLog,
+	                  What := #What,
+	                  Who := #Unit.RequestUser,
+	                  SourcePath := #AuditPath);
+	
+END_FUNCTION
+

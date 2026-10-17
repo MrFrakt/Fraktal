@@ -1,0 +1,37 @@
+﻿FUNCTION "F_PressDemoLoadPositionGraph" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Run : Bool;
+      Reset : Bool;
+      OwnerIndex : DInt;
+      ChainIndex : DInt;
+      Delta : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Target : "FB_PressDemoLoadPositionGraphOwner";
+      PressRam : "FB_CylinderCM";
+      Door : "FB_CylinderCM";
+      PartSlide : "FB_CylinderCM";
+      Chart : "FB_GRAPH_PressDemoLoadPosition";
+   END_VAR
+
+
+BEGIN
+	
+	// Each embedding chain passes its own identity, so two owners of the one
+	// motion chain never share a command lease.
+	#Target(Run := #Run,
+	        Reset := #Reset,
+	        OwnerIndex := #OwnerIndex,
+	        ChainIndex := #ChainIndex,
+	        Delta := #Delta,
+	        PressRam := #PressRam,
+	        Door := #Door,
+	        PartSlide := #PartSlide,
+	        Chart := #Chart);
+	#F_PressDemoLoadPositionGraph := #Target.Seq.Done;
+	
+END_FUNCTION
+

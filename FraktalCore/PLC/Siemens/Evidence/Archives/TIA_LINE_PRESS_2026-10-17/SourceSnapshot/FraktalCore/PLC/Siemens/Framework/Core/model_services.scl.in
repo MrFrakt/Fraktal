@@ -1,0 +1,88 @@
+// Core model identities and cloned configuration are one owned catalog domain.
+// Native UMAC/recipe CSV cannot replace its typed, root-scoped admission rules.
+FUNCTION "FRK_ModelCodeValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Code : String; END_VAR
+VAR_TEMP Index : Int; Value : Byte; END_VAR
+BEGIN
+    #FRK_ModelCodeValid := FALSE;
+    IF LEN(#Code) < 1 OR LEN(#Code) > @CODE_WIDTH@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO LEN(#Code) DO
+        #Value := CHAR_TO_BYTE(#Code[#Index]);
+        IF #Value < BYTE#32 OR #Value > BYTE#126 THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ModelCodeValid := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ModelCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Catalog : "FRK_ModelCatalog"; END_VAR
+VAR_TEMP Work : DWord; Index : Int; Character : Int; Size : Int; Text : String[80]; END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Catalog.SchemaVersion));
+    #Size := LEN(#Catalog.Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Catalog.Scope[#Character])); END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Catalog.Capacity));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Catalog.Count));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Catalog.Generation);
+    FOR #Index := 1 TO @CAPACITY@ DO
+        #Text := #Catalog.Codes[#Index]; #Size := LEN(#Text);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+    END_FOR;
+    #FRK_ModelCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_ModelValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RootIndex : Int; END_VAR
+VAR_IN_OUT Catalog : "FRK_ModelCatalog"; END_VAR
+VAR_TEMP Index : Int; Other : Int; END_VAR
+BEGIN
+    #FRK_ModelValid := FALSE;
+    IF #RootIndex < 1 OR #RootIndex > @ROOT_COUNT@ OR "FRK_ModelRoot"(Scope := #Catalog.Scope) <> #RootIndex THEN RETURN; END_IF;
+    IF #Catalog.SchemaVersion <> 1 OR #Catalog.Generation = 0 OR #Catalog.Capacity <> @CAPACITY@
+        OR #Catalog.Count < @SEED_COUNT@ OR #Catalog.Count > @CAPACITY@ THEN RETURN; END_IF;
+    IF @SEED_PREFIX@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO #Catalog.Count DO
+        IF NOT "FRK_ModelCodeValid"(Code := #Catalog.Codes[#Index]) THEN RETURN; END_IF;
+        FOR #Other := 1 TO #Index - 1 DO
+            IF #Catalog.Codes[#Index] = #Catalog.Codes[#Other] THEN RETURN; END_IF;
+        END_FOR;
+    END_FOR;
+    FOR #Index := #Catalog.Count + 1 TO @CAPACITY@ DO
+        IF #Catalog.Codes[#Index] <> '' THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ModelValid := #Catalog.Checksum = "FRK_ModelCrc"(Catalog := #Catalog);
+END_FUNCTION
+
+FUNCTION "FRK_ModelVirgin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Catalog : "FRK_ModelCatalog"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_ModelVirgin := FALSE;
+    IF #Catalog.SchemaVersion <> 0 OR #Catalog.Scope <> '' OR #Catalog.Capacity <> 0 OR #Catalog.Count <> 0
+        OR #Catalog.Generation <> 0 OR #Catalog.Checksum <> DWORD#0 THEN RETURN; END_IF;
+    FOR #Index := 1 TO @CAPACITY@ DO IF #Catalog.Codes[#Index] <> '' THEN RETURN; END_IF; END_FOR;
+    #FRK_ModelVirgin := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ModelKnown" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RootIndex : Int; Code : String; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_ModelKnown := FALSE;
+    IF #RootIndex < 1 OR #RootIndex > @ROOT_COUNT@ OR #Code = '' THEN RETURN; END_IF;
+    IF "FRK_ModelStore".Rows[#RootIndex].Count < @SEED_COUNT@ OR "FRK_ModelStore".Rows[#RootIndex].Count > @CAPACITY@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO "FRK_ModelStore".Rows[#RootIndex].Count DO
+        IF "FRK_ModelStore".Rows[#RootIndex].Codes[#Index] = #Code THEN #FRK_ModelKnown := TRUE; RETURN; END_IF;
+    END_FOR;
+END_FUNCTION

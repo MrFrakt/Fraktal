@@ -1,0 +1,214 @@
+FUNCTION "FRK_CyclicHook_TwoHandStartCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+// No cyclic extension declared.
+END_FUNCTION
+// Generated frame v0.24; change the declaration, then regenerate.
+FUNCTION_BLOCK "FB_TwoHandStartCM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Execute {ExternalWritable := 'False'} : Bool;
+    Abort {ExternalWritable := 'False'} : Bool;
+    Command {ExternalWritable := 'False'} : DInt;
+    ParCfg {ExternalWritable := 'False'} : "ST_TwoHandParCfg";
+    ParCmd {ExternalWritable := 'False'} : "ST_TwoHandParCmd";
+    ParentIndex {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    BoundPath {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : WString[254];
+END_VAR
+VAR_OUTPUT
+    Busy {ExternalWritable := 'False'} : Bool;
+    Done {ExternalWritable := 'False'} : Bool;
+    Error {ExternalWritable := 'False'} : Bool;
+    Aborted {ExternalWritable := 'False'} : Bool;
+    Held {ExternalWritable := 'False'} : Bool;
+    ErrorID {ExternalWritable := 'False'} : DWord;
+    Timing {ExternalWritable := 'False'} : "ST_ModuleTiming";
+    OutCmd {ExternalWritable := 'False'} : "ST_TwoHandOutCmd";
+END_VAR
+VAR_IN_OUT
+    Hal : "ST_TwoHandHal";
+END_VAR
+VAR
+    OutImm {ExternalWritable := 'False'} : "ST_TwoHandOutImm";
+    Status {ExternalWritable := 'False'} : "ST_ModuleStatus";
+    Core {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_Core";
+    LatchedParCmd {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_TwoHandParCmd";
+    Device {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_TwoHandDevice";
+    Catalog {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..12] of "ST_CommandInfo";
+    CatalogCount {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+    ManConditions {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..16] of "FRK_ManualConditionRow";
+    ManualOwned {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR_TEMP
+    InstancePath : WString[254];
+END_VAR
+VAR CONSTANT
+    EXEC_READY : DInt := 0;
+    MODULE_TIER : DInt := 3;
+END_VAR
+BEGIN
+    // ---- GENERATED: setup
+    IF #Startup OR NOT #Core.Named THEN
+        #InstancePath := #BoundPath;
+        "FRK_SetIdentity"(Core := #Core, Status := #Status, InstancePath := #InstancePath,
+            ModuleType := 3, TypeId := 3, Capabilities := DWORD#16#00000000, ParentIndex := #ParentIndex, TypeKey := 'std.moduleType.twoHand');
+        #CatalogCount := 0;
+    END_IF;
+    // ---- GENERATED: begin
+    "FRK_Begin"(Core := #Core, Status := #Status, Execute := #Execute, Abort := #Abort, Command := #Command);
+    IF #Core.EvCommandStart THEN
+        #LatchedParCmd := #ParCmd;
+        "FRK_Start"(Core := #Core, Status := #Status, Supported := FALSE, Timeout := T#0ms, Label := '');
+    END_IF;
+    // ---- AUTHORED: cyclic management
+    #Device.SafeActive := #Hal.SafeActive AND #Hal.FieldbusHealthy;
+    IF NOT #Hal.FieldbusHealthy THEN
+        #Device.Armed := FALSE;
+    ELSIF NOT #Hal.LeftPressed AND NOT #Hal.RightPressed AND NOT #Hal.SafeActive THEN
+        #Device.Armed := TRUE;
+    END_IF;
+    #Device.StartPulse := #Device.SafeActive AND NOT #Device.SafePrevious
+        AND (#Device.Armed OR NOT #ParCfg.RequireReleaseBetweenCycles);
+    IF #Device.StartPulse THEN
+        #Device.Armed := FALSE;
+    END_IF;
+    #Device.SafePrevious := #Device.SafeActive;
+    #OutImm.LeftPressed := #Hal.LeftPressed;
+    #OutImm.RightPressed := #Hal.RightPressed;
+    #OutImm.FieldbusHealthy := #Hal.FieldbusHealthy;
+    #OutImm.SafeActive := #Device.SafeActive;
+    #OutImm.StartPulse := #Device.StartPulse;
+    #OutImm.Armed := #Device.Armed;
+
+    // ---- GENERATED: end management
+    "FRK_RouteAbort"(Core := #Core, Abort := #Abort);
+    "FRK_End"(Core := #Core, Status := #Status,
+        Busy => #Busy, Done => #Done, Error => #Error, Aborted => #Aborted, Held => #Held, ErrorID => #ErrorID, Timing => #Timing);
+    // ---- AUTHORED: unconditional cyclic/derived data
+    "FRK_CyclicHook_TwoHandStartCM"();
+    // ---- GENERATED: diagnostic snapshot
+    "FRK_DiagSync"(Index := #Core.RegIndex, Withdraw := FALSE,
+        Status := #Status, Held := #Core.Held,
+        Timeout := T#0ms, ActiveTimeoutMs := #Core.TimeoutMs);
+    // ---- GENERATED: frame end
+END_FUNCTION_BLOCK
+FUNCTION "FRK_Route_TwoHandStartCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+END_VAR
+VAR_IN_OUT
+    Module : "FB_TwoHandStartCM";
+    Hal : "ST_TwoHandHal";
+    Report : "ST_ReleaseReport";
+END_VAR
+VAR_TEMP
+    RouteMatched : Bool;
+    Index : Int;
+END_VAR
+BEGIN
+    #FRK_Route_TwoHandStartCM := FALSE;
+    IF NOT "FRK_PathOwned"(OwnerPath := #Module.Status.Name, TargetPath := #Request.TargetPath) THEN RETURN; END_IF;
+    IF #Request.TargetPath = STRING_TO_WSTRING(#Module.Status.Name) THEN
+        FOR #Index := 1 TO 16 DO #Module.ManConditions[#Index].Used := FALSE; END_FOR;
+        "FRK_ManualApply"(Core := #Module.Core, Status := #Module.Status, Request := #Request, Commands := #Module.Catalog, Count := #Module.CatalogCount, Conditions := #Module.ManConditions, Report := #Report, Execute := #Module.Execute, Command := #Module.Command, ManualOwned := #Module.ManualOwned);
+        #FRK_Route_TwoHandStartCM := TRUE;
+        RETURN;
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_Config_TwoHandStartCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Access : "FRK_Access";
+    RootIndex : Int;
+    ModelIndex : UDInt;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_TwoHandStartCM";
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+END_VAR
+BEGIN
+    IF #ModelIndex = 0 THEN
+        "FRK_ConfigCatalog"(Scope := #Module.Status.Name, Catalog := #Module.Catalog, Count := #Module.CatalogCount, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_CfgWrite_TwoHandStartCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Request : "ST_HmiRequest";
+    Access : "FRK_Access";
+    RootIndex : Int;
+    RootReady : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_TwoHandStartCM";
+    Matched : Bool;
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+    Code : String[64];
+    Inactive : Bool;
+    Text : WString[255];
+END_VAR
+BEGIN
+    #FRK_CfgWrite_TwoHandStartCM := FALSE;
+END_FUNCTION
+FUNCTION "FRK_CfgRecipe_TwoHandStartCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    ModelCode : String;
+    Phase : Int;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_TwoHandStartCM";
+    RejectScope : String;
+    RejectKey : String;
+END_VAR
+VAR_TEMP
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_CfgRecipe_TwoHandStartCM := TRUE;
+END_FUNCTION
+FUNCTION "FRK_CfgSetWalk_TwoHandStartCM" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+    Phase : Int;
+    Access : "FRK_Access";
+    Ready : Bool;
+END_VAR
+VAR_IN_OUT
+    Module : "FB_TwoHandStartCM";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Stored : Int;
+    Ok : Bool;
+END_VAR
+BEGIN
+    #FRK_CfgSetWalk_TwoHandStartCM := FALSE;
+    #FRK_CfgSetWalk_TwoHandStartCM := TRUE;
+END_FUNCTION
+FUNCTION "FRK_Capture_TwoHandStartCM" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Module : "FB_TwoHandStartCM";
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    "FRK_AlarmCapture"(AlarmLog := #AlarmLog, Core := #Module.Core, Status := #Module.Status);
+END_FUNCTION

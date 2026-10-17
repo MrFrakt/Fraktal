@@ -30,16 +30,13 @@ def declaration(calendar=True):
     unit['config'].append(dict(member='StationCfg.CapturedCycles',key='capturedCycles',revision=1,label='test.config.preset',minimum=0,maximum=10,capture='OutImm.Cycles'))
     if calendar:
         from fraktal_tia_binding import Catalog
-        count=Catalog.read().capacities['MAX_WEEKLY_SHIFTS']
+        from fraktal_tia_line import calendar_contract
+        fields,values,members=calendar_contract(Catalog.read(),label='test.config.preset')
         original=OWNER.declaration()['records'][line['record']]
         line['record']='ST_LineProductionConfig'
-        line['shifts']=dict(utc_offset='UtcOffsetMin',start_min='ShiftStartMin',duration_min='ShiftDurationMin',active_days='ShiftActiveDays',target='ShiftTarget')
-        fields='UtcOffsetMin : DINT; '+' '.join('%s : ARRAY[1..%d] OF DINT;'%(line['shifts'][k],count) for k in ('start_min','duration_min','active_days','target'))
+        line['shifts']=members
         value['records'][line['record']]=original.replace('SchemaVersion : UINT := 1','SchemaVersion : UINT := 2').replace('END_STRUCT',fields+' END_STRUCT')
-        line['values'].append(dict(member='Line.UtcOffsetMin',key='line.shift.utcOffsetMin',revision=1,label='test.config.preset',minimum=-840,maximum=840))
-        for row in range(1,count+1):
-            for kind,key,minimum,maximum in [('start_min','startMin',-1,1439),('duration_min','durationMin',1,1440),('active_days','activeDays',0,127),('target','target',0,2147483647)]:
-                line['values'].append(dict(member='Line.%s[%d]'%(line['shifts'][kind],row),key='line.shift.%d.%s'%(row,key),revision=1,label='test.config.preset',minimum=minimum,maximum=maximum))
+        line['values'].extend(values)
         value['line']=line
     return value
 

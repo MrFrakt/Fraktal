@@ -1,0 +1,593 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-17T04:36:55.7734294Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="EventSlot" Datatype="Int" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="AlarmLog" Datatype="&quot;FRK_AlarmLog&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Active" Datatype="Array[1..16] of &quot;ST_AlarmEvent&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="ReasonCode" Datatype="DInt" />
+                <Member Name="Description" Datatype="WString[255]" />
+                <Member Name="SourcePath" Datatype="WString[255]" />
+                <Member Name="IoTag" Datatype="String[80]" />
+                <Member Name="IoAddress" Datatype="String[80]" />
+                <Member Name="Severity" Datatype="DInt" />
+                <Member Name="Category" Datatype="DInt" />
+                <Member Name="ResetClass" Datatype="DInt" />
+                <Member Name="State" Datatype="DInt" />
+                <Member Name="ComeAt" Datatype="LDT" />
+                <Member Name="GoneAt" Datatype="LDT" />
+                <Member Name="ResetAt" Datatype="LDT" />
+                <Member Name="Duration" Datatype="Time" />
+                <Member Name="Shelved" Datatype="Bool" />
+                <Member Name="ShelvedUntil" Datatype="LDT" />
+                <Member Name="ComeTimeSynchronized" Datatype="Bool" />
+                <Member Name="GoneTimeSynchronized" Datatype="Bool" />
+                <Member Name="ResetTimeSynchronized" Datatype="Bool" />
+                <Member Name="ShelfTimeSynchronized" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="NActive" Datatype="Int" />
+          <Member Name="Ring" Datatype="Array[1..64] of &quot;ST_AlarmEvent&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="ReasonCode" Datatype="DInt" />
+                <Member Name="Description" Datatype="WString[255]" />
+                <Member Name="SourcePath" Datatype="WString[255]" />
+                <Member Name="IoTag" Datatype="String[80]" />
+                <Member Name="IoAddress" Datatype="String[80]" />
+                <Member Name="Severity" Datatype="DInt" />
+                <Member Name="Category" Datatype="DInt" />
+                <Member Name="ResetClass" Datatype="DInt" />
+                <Member Name="State" Datatype="DInt" />
+                <Member Name="ComeAt" Datatype="LDT" />
+                <Member Name="GoneAt" Datatype="LDT" />
+                <Member Name="ResetAt" Datatype="LDT" />
+                <Member Name="Duration" Datatype="Time" />
+                <Member Name="Shelved" Datatype="Bool" />
+                <Member Name="ShelvedUntil" Datatype="LDT" />
+                <Member Name="ComeTimeSynchronized" Datatype="Bool" />
+                <Member Name="GoneTimeSynchronized" Datatype="Bool" />
+                <Member Name="ResetTimeSynchronized" Datatype="Bool" />
+                <Member Name="ShelfTimeSynchronized" Datatype="Bool" />
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="RingHead" Datatype="Int" />
+          <Member Name="Blocking" Datatype="Bool" />
+          <Member Name="Truncated" Datatype="Bool" />
+          <Member Name="ComeMs" Datatype="Array[1..16] of UDInt" />
+          <Member Name="ShelfSince" Datatype="Array[1..16] of UDInt" />
+          <Member Name="ShelfDuration" Datatype="Array[1..16] of UDInt" />
+          <Member Name="Automatic" Datatype="Array[1..16] of Bool" />
+          <Member Name="Touched" Datatype="Array[1..16] of Bool" />
+          <Member Name="RingUsed" Datatype="Int" />
+          <Member Name="HistorySlot" Datatype="Int" />
+          <Member Name="RecoverySlot" Datatype="Int" />
+          <Member Name="ElapsedBefore" Datatype="Array[1..16] of UDInt" />
+          <Member Name="Recovering" Datatype="Array[1..16] of Bool" />
+          <Member Name="DeliverySlot" Datatype="Int" />
+          <Member Name="DeliveryMuted" Datatype="Bool" />
+          <Member Name="DeliveryLossSlot" Datatype="Int" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp">
+    <Member Name="Slot" Datatype="Int" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_AlarmRecoveryClosePrepare</Name>
+      <Namespace />
+      <Number>80</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="Slot" UId="24" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="25" />
+  <Token Text=":=" UId="26" />
+  <Blank Num="1" UId="27" />
+  <Access Scope="LocalVariable" UId="28">
+    <Symbol UId="29">
+      <Component Name="AlarmLog" UId="30" />
+      <Token Text="." UId="31" />
+      <Component Name="RecoverySlot" UId="32" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="33" />
+  <NewLine Num="1" UId="34" />
+  <Token Text="IF" UId="35" />
+  <Blank Num="1" UId="36" />
+  <Access Scope="LocalVariable" UId="37">
+    <Symbol UId="38">
+      <Component Name="Slot" UId="39" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="40" />
+  <Token Text="&lt;" UId="41" />
+  <Blank Num="1" UId="42" />
+  <Access Scope="LiteralConstant" UId="43">
+    <Constant UId="44">
+      <ConstantValue UId="46">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="47" />
+  <Token Text="OR" UId="48" />
+  <Blank Num="1" UId="49" />
+  <Access Scope="LocalVariable" UId="50">
+    <Symbol UId="51">
+      <Component Name="Slot" UId="52" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="53" />
+  <Token Text="&gt;" UId="54" />
+  <Blank Num="1" UId="55" />
+  <Access Scope="LiteralConstant" UId="56">
+    <Constant UId="57">
+      <ConstantValue UId="59">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="60" />
+  <Token Text="OR" UId="61" />
+  <Blank Num="1" UId="62" />
+  <Access Scope="LocalVariable" UId="63">
+    <Symbol UId="64">
+      <Component Name="EventSlot" UId="65" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="66" />
+  <Token Text="&lt;" UId="67" />
+  <Blank Num="1" UId="68" />
+  <Access Scope="LiteralConstant" UId="69">
+    <Constant UId="70">
+      <ConstantValue UId="72">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="73" />
+  <Token Text="OR" UId="74" />
+  <Blank Num="1" UId="75" />
+  <Access Scope="LocalVariable" UId="76">
+    <Symbol UId="77">
+      <Component Name="EventSlot" UId="78" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="79" />
+  <Token Text="&gt;" UId="80" />
+  <Blank Num="1" UId="81" />
+  <Access Scope="LiteralConstant" UId="82">
+    <Constant UId="83">
+      <ConstantValue UId="85">16</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="86" />
+  <Token Text="THEN" UId="87" />
+  <NewLine Num="1" UId="88" />
+  <Blank Num="4" UId="89" />
+  <Token Text="RETURN" UId="90" />
+  <Token Text=";" UId="91" />
+  <NewLine Num="1" UId="92" />
+  <Token Text="END_IF" UId="93" />
+  <Token Text=";" UId="94" />
+  <NewLine Num="1" UId="95" />
+  <Token Text="IF" UId="96" />
+  <Blank Num="1" UId="97" />
+  <Access Scope="LocalVariable" UId="98">
+    <Symbol UId="99">
+      <Component Name="AlarmLog" UId="100" />
+      <Token Text="." UId="101" />
+      <Component Name="Active" UId="102">
+        <Token Text="[" UId="103" />
+        <Access Scope="LocalVariable" UId="104">
+          <Symbol UId="105">
+            <Component Name="EventSlot" UId="106" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="107" />
+      </Component>
+      <Token Text="." UId="108" />
+      <Component Name="ResetClass" UId="109" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="110" />
+  <Token Text="&lt;&gt;" UId="111" />
+  <Blank Num="1" UId="112" />
+  <Access Scope="LiteralConstant" UId="113">
+    <Constant UId="114">
+      <ConstantValue UId="116">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="117" />
+  <Token Text="THEN" UId="118" />
+  <NewLine Num="1" UId="119" />
+  <Blank Num="4" UId="120" />
+  <Token Text="RETURN" UId="121" />
+  <Token Text=";" UId="122" />
+  <NewLine Num="1" UId="123" />
+  <Token Text="END_IF" UId="124" />
+  <Token Text=";" UId="125" />
+  <NewLine Num="1" UId="126" />
+  <Access Scope="GlobalVariable" UId="127">
+    <Symbol UId="128">
+      <Component Name="FRK_AlarmRecovery" UId="129">
+        <BooleanAttribute Name="HasQuotes" UId="130">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="131" />
+      <Component Name="Rows" UId="132">
+        <Token Text="[" UId="133" />
+        <Access Scope="LocalVariable" UId="134">
+          <Symbol UId="135">
+            <Component Name="Slot" UId="136" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="137" />
+      </Component>
+      <Token Text="." UId="138" />
+      <Component Name="PendingSlot" UId="139" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="140" />
+  <Token Text=":=" UId="141" />
+  <Blank Num="1" UId="142" />
+  <Access Scope="LocalVariable" UId="143">
+    <Symbol UId="144">
+      <Component Name="EventSlot" UId="145" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="146" />
+  <NewLine Num="1" UId="147" />
+  <Access Scope="GlobalVariable" UId="148">
+    <Symbol UId="149">
+      <Component Name="FRK_AlarmRecovery" UId="150">
+        <BooleanAttribute Name="HasQuotes" UId="151">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="152" />
+      <Component Name="Rows" UId="153">
+        <Token Text="[" UId="154" />
+        <Access Scope="LocalVariable" UId="155">
+          <Symbol UId="156">
+            <Component Name="Slot" UId="157" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="158" />
+      </Component>
+      <Token Text="." UId="159" />
+      <Component Name="PendingClosed" UId="160" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="161" />
+  <Token Text=":=" UId="162" />
+  <Blank Num="1" UId="163" />
+  <Access Scope="LocalVariable" UId="164">
+    <Symbol UId="165">
+      <Component Name="AlarmLog" UId="166" />
+      <Token Text="." UId="167" />
+      <Component Name="Active" UId="168">
+        <Token Text="[" UId="169" />
+        <Access Scope="LocalVariable" UId="170">
+          <Symbol UId="171">
+            <Component Name="EventSlot" UId="172" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="173" />
+      </Component>
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="174" />
+  <NewLine Num="1" UId="175" />
+  <Access Scope="GlobalVariable" UId="176">
+    <Symbol UId="177">
+      <Component Name="FRK_AlarmRecovery" UId="178">
+        <BooleanAttribute Name="HasQuotes" UId="179">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="180" />
+      <Component Name="Rows" UId="181">
+        <Token Text="[" UId="182" />
+        <Access Scope="LocalVariable" UId="183">
+          <Symbol UId="184">
+            <Component Name="Slot" UId="185" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="186" />
+      </Component>
+      <Token Text="." UId="187" />
+      <Component Name="PendingCrc" UId="188" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="189" />
+  <Token Text=":=" UId="190" />
+  <Blank Num="1" UId="191" />
+  <Access Scope="Call" UId="192">
+    <CallInfo UId="193" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="195">
+        <Component Name="FRK_AlarmEventCrc" UId="194" />
+      </Instance>
+      <Token Text="(" UId="196" />
+      <Parameter Name="Ev" UId="197">
+        <Blank Num="1" UId="198" />
+        <Token Text=":=" UId="199" />
+        <Blank Num="1" UId="200" />
+        <Access Scope="LocalVariable" UId="201">
+          <Symbol UId="202">
+            <Component Name="AlarmLog" UId="203" />
+            <Token Text="." UId="204" />
+            <Component Name="Active" UId="205">
+              <Token Text="[" UId="206" />
+              <Access Scope="LocalVariable" UId="207">
+                <Symbol UId="208">
+                  <Component Name="EventSlot" UId="209" />
+                </Symbol>
+              </Access>
+              <Token Text="]" UId="210" />
+            </Component>
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="212" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="213" />
+  <NewLine Num="1" UId="214" />
+  <Access Scope="GlobalVariable" UId="215">
+    <Symbol UId="216">
+      <Component Name="FRK_AlarmRecovery" UId="217">
+        <BooleanAttribute Name="HasQuotes" UId="218">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="219" />
+      <Component Name="Rows" UId="220">
+        <Token Text="[" UId="221" />
+        <Access Scope="LocalVariable" UId="222">
+          <Symbol UId="223">
+            <Component Name="Slot" UId="224" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="225" />
+      </Component>
+      <Token Text="." UId="226" />
+      <Component Name="PendingHead" UId="227" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="228" />
+  <Token Text=":=" UId="229" />
+  <Blank Num="1" UId="230" />
+  <Token Text="(" UId="231" />
+  <Access Scope="LocalVariable" UId="232">
+    <Symbol UId="233">
+      <Component Name="AlarmLog" UId="234" />
+      <Token Text="." UId="235" />
+      <Component Name="RingHead" UId="236" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="237" />
+  <Token Text="MOD" UId="238" />
+  <Blank Num="1" UId="239" />
+  <Access Scope="LiteralConstant" UId="240">
+    <Constant UId="241">
+      <ConstantValue UId="243">64</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=")" UId="244" />
+  <Blank Num="1" UId="245" />
+  <Token Text="+" UId="246" />
+  <Blank Num="1" UId="247" />
+  <Access Scope="LiteralConstant" UId="248">
+    <Constant UId="249">
+      <ConstantValue UId="251">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="252" />
+  <NewLine Num="1" UId="253" />
+  <Access Scope="GlobalVariable" UId="254">
+    <Symbol UId="255">
+      <Component Name="FRK_AlarmRecovery" UId="256">
+        <BooleanAttribute Name="HasQuotes" UId="257">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="258" />
+      <Component Name="Rows" UId="259">
+        <Token Text="[" UId="260" />
+        <Access Scope="LocalVariable" UId="261">
+          <Symbol UId="262">
+            <Component Name="Slot" UId="263" />
+          </Symbol>
+        </Access>
+        <Token Text="]" UId="264" />
+      </Component>
+      <Token Text="." UId="265" />
+      <Component Name="PendingHistoryGeneration" UId="266" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="267" />
+  <Token Text=":=" UId="268" />
+  <Blank Num="1" UId="269" />
+  <Access Scope="Call" UId="270">
+    <CallInfo UId="271" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="273">
+        <Component Name="FRK_AccessNext" UId="272" />
+      </Instance>
+      <Token Text="(" UId="274" />
+      <Parameter Name="Previous" UId="275">
+        <Blank Num="1" UId="276" />
+        <Token Text=":=" UId="277" />
+        <Blank Num="1" UId="278" />
+        <Access Scope="GlobalVariable" UId="279">
+          <Symbol UId="280">
+            <Component Name="FRK_AlarmHistory" UId="281">
+              <BooleanAttribute Name="HasQuotes" UId="282">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="283" />
+            <Component Name="Rows" UId="284">
+              <Token Text="[" UId="285" />
+              <Access Scope="LocalVariable" UId="286">
+                <Symbol UId="287">
+                  <Component Name="AlarmLog" UId="288" />
+                  <Token Text="." UId="289" />
+                  <Component Name="HistorySlot" UId="290" />
+                </Symbol>
+              </Access>
+              <Token Text="]" UId="291" />
+            </Component>
+            <Token Text="." UId="292" />
+            <Component Name="Generation" UId="293" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="295" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="296" />
+  <NewLine Num="1" UId="297" />
+  <Access Scope="Call" UId="298">
+    <CallInfo UId="299" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="301">
+        <Component Name="FRK_AlarmRecoveryHeaderSave" UId="300" />
+      </Instance>
+      <Token Text="(" UId="302" />
+      <Parameter Name="Slot" UId="303">
+        <Blank Num="1" UId="304" />
+        <Token Text=":=" UId="305" />
+        <Blank Num="1" UId="306" />
+        <Access Scope="LocalVariable" UId="307">
+          <Symbol UId="308">
+            <Component Name="Slot" UId="309" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="310" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="311" />
+  <NewLine Num="1" UId="312" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

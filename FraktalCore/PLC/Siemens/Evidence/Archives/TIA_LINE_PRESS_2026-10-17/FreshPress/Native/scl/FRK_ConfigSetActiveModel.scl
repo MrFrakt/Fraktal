@@ -1,0 +1,22 @@
+﻿FUNCTION "FRK_ConfigSetActiveModel" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      ModelCode : String;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex < 1 OR #RootIndex > 1 THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_ConfigStore".ActiveModels[#RootIndex] = #ModelCode THEN
+	    RETURN;
+	END_IF;
+	"FRK_ConfigStore".ActiveModels[#RootIndex] := #ModelCode;
+	"FRK_ConfigActiveChanged"(RootIndex := #RootIndex);
+	
+END_FUNCTION
+

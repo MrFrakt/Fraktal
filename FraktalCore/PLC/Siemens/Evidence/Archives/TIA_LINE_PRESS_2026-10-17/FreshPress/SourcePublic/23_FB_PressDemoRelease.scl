@@ -1,0 +1,33 @@
+FUNCTION_BLOCK "FB_PressDemoRelease"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    AirPressureOk {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    DoorClosed {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    DoorHealthy {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    RamHealthy {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    SlideHealthy {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    SlideInside {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    TwoHandHeld {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR
+    Conditions {ExternalWritable := 'False'} : "ST_PressDemoReleaseConditions";
+    ModeStart {ExternalWritable := 'False'} : "FRK_PermCtx";
+    RamExtend {ExternalWritable := 'False'} : "FRK_PermCtx";
+END_VAR
+BEGIN
+    #Conditions.ModeStartAirPressureOk := #AirPressureOk;
+    #Conditions.RamGuardClosed := #DoorClosed;
+    #Conditions.RamSlideInside := #SlideInside;
+    #Conditions.RamDevicesHealthy := #RamHealthy AND #DoorHealthy AND #SlideHealthy;
+    #Conditions.RamAirPressureOk := #AirPressureOk;
+    #Conditions.RamTwoHandHeld := #TwoHandHeld;
+    "FRK_PermBegin"(Perm := #ModeStart);
+    "FRK_PermCondition"(Perm := #ModeStart, Label := 'project.condition.ModeStartAirPressureOk', Ok := #Conditions.ModeStartAirPressureOk);
+    "FRK_PermBegin"(Perm := #RamExtend);
+    "FRK_PermCondition"(Perm := #RamExtend, Label := 'project.condition.RamGuardClosed', Ok := #Conditions.RamGuardClosed);
+    "FRK_PermCondition"(Perm := #RamExtend, Label := 'project.condition.RamSlideInside', Ok := #Conditions.RamSlideInside);
+    "FRK_PermCondition"(Perm := #RamExtend, Label := 'project.condition.RamDevicesHealthy', Ok := #Conditions.RamDevicesHealthy);
+    "FRK_PermCondition"(Perm := #RamExtend, Label := 'project.condition.RamAirPressureOk', Ok := #Conditions.RamAirPressureOk);
+    "FRK_PermCondition"(Perm := #RamExtend, Label := 'project.condition.RamTwoHandHeld', Ok := #Conditions.RamTwoHandHeld);
+END_FUNCTION_BLOCK

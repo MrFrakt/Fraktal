@@ -1,0 +1,73 @@
+﻿FUNCTION "FRK_ModelCapture_R1" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Catalog : "FRK_ModelCatalog";
+      Image : "FRK_ModelImage";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      ModelSlot : Int;
+      RowIndex : Int;
+      Stored : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelCapture_R1 := FALSE;
+	IF NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Catalog) THEN
+	    RETURN;
+	END_IF;
+	#Image.Catalog := #Catalog;
+	#Image.RecordCount := 0;
+	FOR #Index := 1 TO 5 DO
+	    #Image.Rows[#Index] := "FRK_ModelRuntime".BlankSlot;
+	END_FOR;
+	FOR #ModelSlot := 4 TO #Catalog.Count DO
+	    #RowIndex := (#ModelSlot - 4) * 5 + 1;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+	    #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'idealCycleMs', ModelCode := #Catalog.Codes[#ModelSlot]);
+	    IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN
+	        RETURN;
+	    END_IF;
+	    #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+	    #Image.RecordCount := #Image.RecordCount + 1;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 2;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+	    #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'baselineWorkMs', ModelCode := #Catalog.Codes[#ModelSlot]);
+	    IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN
+	        RETURN;
+	    END_IF;
+	    #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+	    #Image.RecordCount := #Image.RecordCount + 1;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 3;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
+	    #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'modeSwitchTimeout', ModelCode := #Catalog.Codes[#ModelSlot]);
+	    IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN
+	        RETURN;
+	    END_IF;
+	    #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+	    #Image.RecordCount := #Image.RecordCount + 1;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 4;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
+	    #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'transferSettleTime', ModelCode := #Catalog.Codes[#ModelSlot]);
+	    IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN
+	        RETURN;
+	    END_IF;
+	    #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+	    #Image.RecordCount := #Image.RecordCount + 1;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 5;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
+	    #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'pressSettleTime', ModelCode := #Catalog.Codes[#ModelSlot]);
+	    IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN
+	        RETURN;
+	    END_IF;
+	    #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+	    #Image.RecordCount := #Image.RecordCount + 1;
+	END_FOR;
+	#FRK_ModelCapture_R1 := TRUE;
+	
+END_FUNCTION
+

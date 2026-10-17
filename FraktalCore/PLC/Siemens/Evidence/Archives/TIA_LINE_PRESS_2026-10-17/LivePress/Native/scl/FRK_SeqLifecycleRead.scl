@@ -1,0 +1,24 @@
+﻿FUNCTION "FRK_SeqLifecycleRead" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Life : "FRK_SequenceLifecycle";
+   END_VAR
+
+
+BEGIN
+	
+	#Life := "FRK_SequenceOwners".Empty;
+	CASE #Owner OF
+	    1:
+	        #Life := "FRK_SequenceOwners".O001;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

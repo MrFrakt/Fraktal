@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_SeqDecisionAsk" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      OwnerPath : WString;
+      Request : "ST_DecisionRequest";
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_SeqDecisionAsk := FALSE;
+	IF NOT #Seq.Running OR #Seq.Error THEN
+	    RETURN;
+	END_IF;
+	// A consumed answer waiting for pacing must not open a second prompt.
+	IF #Seq.DecisionAnswer <> 0 THEN
+	    #FRK_SeqDecisionAsk := TRUE;
+	    RETURN;
+	END_IF;
+	#FRK_SeqDecisionAsk := "FRK_DecisionAsk"(Owner := #Seq.OwnerIndex, OwnerPath := #OwnerPath, Request := #Request, AlarmLog := #AlarmLog);
+	
+END_FUNCTION
+

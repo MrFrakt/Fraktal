@@ -1,0 +1,55 @@
+// One edge/identity owner for nonblocking health and commissioning conditions.
+FUNCTION "FRK_ConditionEvent" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Active : Bool; Reason : DInt; Description : WString; Source : WString; END_VAR
+VAR_IN_OUT Slot : Int; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Diag : "ST_Diagnostic"; Gone : Bool; END_VAR
+BEGIN
+    IF #Slot < 0 OR #Slot > 16 THEN #Slot := 0; END_IF;
+    IF #Slot > 0 THEN
+        IF #AlarmLog.Active[#Slot].State = 0
+            OR #AlarmLog.Active[#Slot].ReasonCode <> #Reason
+            OR #AlarmLog.Active[#Slot].Description <> #Description
+            OR #AlarmLog.Active[#Slot].SourcePath <> #Source THEN #Slot := 0; END_IF;
+    END_IF;
+    IF #Active THEN
+        IF #Slot = 0 THEN
+            #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+            #Diag.ReasonCode := #Reason; #Diag.Description := #Description; #Diag.SourcePath := #Source;
+            #Diag.Severity := 0; #Diag.Category := 2;
+            #Slot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+        END_IF;
+    ELSIF #Slot > 0 THEN
+        #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #Slot); #Slot := 0;
+    END_IF;
+END_FUNCTION
+FUNCTION "FRK_EngineeringTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+VAR_IN_OUT
+    Slots : Array[1..1] of Int;
+    AlarmLog : "FRK_AlarmLog";
+END_VAR
+BEGIN
+    "FRK_ConditionEvent"(Active := TRUE, Reason := 2030, Description := WSTRING#'std.engineering.simulation', Source := STRING_TO_WSTRING(#Scope), Slot := #Slots[1], AlarmLog := #AlarmLog);
+END_FUNCTION
+FUNCTION "FRK_EngineeringManifest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Access : "FRK_Access";
+END_VAR
+VAR_IN_OUT
+    Cursor : "FRK_ConfigCursor";
+    Page : "ST_ConfigPage";
+END_VAR
+BEGIN
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'Engineering/Count', ValueText := WSTRING#'1', ValueType := 1, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'Engineering/Gates/1/Name', ValueText := WSTRING#'USE_SIMULATION', ValueType := 1, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);
+    "FRK_ConfigAppend"(Scope := #Scope, Item := 'Engineering/Gates/1/DescriptionKey', ValueText := WSTRING#'std.engineering.simulation', ValueType := 1, ReadLevel := #Access.Policy.Required[0], Readable := #Access.CurrentLevel >= #Access.Policy.Required[0], Cursor := #Cursor, Page := #Page);
+END_FUNCTION

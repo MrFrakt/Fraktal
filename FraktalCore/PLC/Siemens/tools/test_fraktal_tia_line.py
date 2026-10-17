@@ -16,6 +16,21 @@ spec.loader.exec_module(OWNER)
 
 
 class LineTests(unittest.TestCase):
+    def test_calendar_contract_is_complete_and_uses_core_capacity(self):
+        from fraktal_tia_line import calendar_contract
+        facts=Catalog.read();fields,values,members=calendar_contract(facts)
+        count=facts.capacities['MAX_WEEKLY_SHIFTS']
+        record=('ST_CalendarBindingTest','STRUCT SchemaVersion : UINT := 1; '+fields+' END_STRUCT')
+        line=Line.read(dict(id='TEST',owner='Owner',role='OWNER',roots=['StationA'],
+            record=record[0],values=values,shifts=members,stale_after_ms=1000),['StationA'])
+        engine=Engine(line,Catalog.read([record]))
+        self.assertEqual(len(engine.fields),1+4*count)
+        self.assertEqual({f.kind for f in engine.fields},{facts.enums['E_ConfigKind']['LINE_CFG']})
+        self.assertIn('line.shift.%d.target'%count,{f.key for f in engine.fields})
+        defaults=engine.sources()['05_FRK_LineDefaults.db']
+        self.assertIn('Values.ShiftStartMin[%d] := -1;'%count,defaults)
+        self.assertEqual(len({f.key for f in engine.fields}),len(engine.fields))
+
     def engine(self, value=None, record=None):
         return Engine(Line.read(value or FIX.declaration(), ['StationA', 'StationB']),
                       Catalog.read([record or FIX.RECORD]))
@@ -148,6 +163,32 @@ class LineTests(unittest.TestCase):
             manifest = gen.generate(model, output, True, line_workbench=True)
             self.assertIs(manifest['line_workbench'], True)
             self.assertEqual(gen.verify(output), len(manifest['generated']))
+
+    def test_complete_owner_and_bound_mirror_admit_without_workbench(self):
+        import fraktal_tia_generate as gen
+        spec=importlib.util.spec_from_file_location('line_complete_fixture',REPO/'FraktalCore/PLC/Siemens/Tests/Operations/make_frame_fixture.py')
+        complete=importlib.util.module_from_spec(spec);spec.loader.exec_module(complete)
+        value=complete.declaration()
+        _,metadata=gen.build(gen.DECL.validate(value),True)
+        self.assertNotIn('line_workbench',metadata)
+        value['line']['role']='MIRROR'
+        with self.assertRaisesRegex(DeclarationError,'bound .*image provider'):
+            gen.build(gen.DECL.validate(value),True)
+        value['line']['source']='F_TestLineImageSource'
+        _,metadata=gen.build(gen.DECL.validate(value),True)
+        self.assertNotIn('line_workbench',metadata)
+
+    def test_public_profile_round_trip_preserves_admission(self):
+        import fraktal_tia_generate as gen
+        import tempfile
+        from pathlib import Path
+        spec=importlib.util.spec_from_file_location('line_roundtrip_fixture',REPO/'FraktalCore/PLC/Siemens/Tests/Operations/make_frame_fixture.py')
+        complete=importlib.util.module_from_spec(spec);spec.loader.exec_module(complete)
+        with tempfile.TemporaryDirectory() as folder:
+            out=Path(folder)/'frames'
+            manifest=gen.generate(gen.DECL.validate(complete.declaration()),out,True)
+            self.assertNotIn('line_workbench',manifest)
+            self.assertEqual(gen.verify(out),len(manifest['generated']))
 
     def test_bound_mirror_round_trip_and_restore_boot_order(self):
         import fraktal_tia_generate as gen

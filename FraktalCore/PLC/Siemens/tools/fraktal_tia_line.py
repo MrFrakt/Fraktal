@@ -1,4 +1,4 @@
-"""P1 typed line engine and isolated owner composition (Core 1.5 workbench).
+"""Typed Line engine and owner/mirror composition (Core §3.8e / §8.5.2).
 
 The engine has no module identity, HAL, registry row or command lifecycle. Its
 caller supplies a complete source image and clock quality; it never trusts a
@@ -15,6 +15,24 @@ from fraktal_tia_declaration import DeclarationError, object_fields, items, iden
 TEMPLATE = Path(__file__).resolve().parents[1] / 'Framework/Core/line_services.scl.in'
 
 
+def calendar_contract(catalog, *, label=None):
+    """One flat V3 binding for projects and fixtures; Core owns row defaults."""
+    count=catalog.capacities['MAX_WEEKLY_SHIFTS']
+    members=dict(utc_offset='UtcOffsetMin',start_min='ShiftStartMin',
+                 duration_min='ShiftDurationMin',active_days='ShiftActiveDays',target='ShiftTarget')
+    fields='UtcOffsetMin : DINT; '+' '.join('%s : ARRAY[1..%d] OF DINT;'%(members[key],count)
+        for key in ('start_min','duration_min','active_days','target'))
+    values=[dict(member='Line.UtcOffsetMin',key='line.shift.utcOffsetMin',revision=1,
+        label=label or 'std.config.shiftUtcOffset',minimum=-840,maximum=840)]
+    for row in range(1,count+1):
+        for kind,key,suffix,minimum,maximum in (
+            ('start_min','startMin','start',-1,1439),('duration_min','durationMin','duration',1,1440),
+            ('active_days','activeDays','days',0,127),('target','target','target',0,2147483647)):
+            values.append(dict(member='Line.%s[%d]'%(members[kind],row),key='line.shift.%d.%s'%(row,key),
+                revision=1,label=label or 'std.config.shift.%d.%s'%(row,suffix),minimum=minimum,maximum=maximum))
+    return fields,values,members
+
+
 @dataclass(frozen=True)
 class Line:
     line_id: str
@@ -26,6 +44,10 @@ class Line:
     stale_after_ms: int
     source: str = ''
     shifts: tuple = ()
+
+    def require_complete(self):
+        if not self.shifts:
+            raise DeclarationError('T-GEN','line','Core 1.5 Line profile requires the complete V3 calendar; partial engine work needs line_workbench')
 
     def definition(self):
         return dict(id=self.line_id, owner=self.owner, role=self.role, roots=list(self.roots),

@@ -1,5 +1,10 @@
 # Fraktal/TIA specification working set
 
+Line profile milestone (2026-10-17): [press integration and public admission](Evidence/TIA_LINE_PRESS_2026-10-17.md)
+qualifies generator 0.25 with 37 Line and 64 GRAPH checks. Complete V3
+owner/bound-mirror declarations now use normal generation; partial engine
+experiments retain the workbench path. OUC TCP transport remains separate.
+
 Runtime model milestone (2026-10-17): [bounded model creation and atomic recovery](Evidence/TIA_RUNTIME_MODELS_2026-10-17.md)
 qualifies generator 0.24 with 31 PLC assertions and 110 live checks. The press
 now advertises capacity 4 while preserving its seeded indices. Configuration

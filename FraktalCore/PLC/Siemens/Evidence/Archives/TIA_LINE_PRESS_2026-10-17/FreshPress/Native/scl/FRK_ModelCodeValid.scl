@@ -1,0 +1,31 @@
+﻿FUNCTION "FRK_ModelCodeValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core model identities and cloned configuration are one owned catalog domain.
+// Native UMAC/recipe CSV cannot replace its typed, root-scoped admission rules.
+   VAR_INPUT 
+      Code : String;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Value : Byte;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelCodeValid := FALSE;
+	IF LEN(#Code) < 1 OR LEN(#Code) > 64 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO LEN(#Code) DO
+	    #Value := CHAR_TO_BYTE(#Code[#Index]);
+	    IF #Value < BYTE#32 OR #Value > BYTE#126 THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_ModelCodeValid := TRUE;
+	
+END_FUNCTION
+

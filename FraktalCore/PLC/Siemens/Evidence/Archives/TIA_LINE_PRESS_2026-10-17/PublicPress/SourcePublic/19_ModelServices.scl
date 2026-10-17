@@ -1,0 +1,351 @@
+FUNCTION "FRK_ModelRoot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_ModelRoot := 0;
+    IF #Scope = 'PressDemo' THEN #FRK_ModelRoot := 1; RETURN; END_IF;
+END_FUNCTION
+// Core model identities and cloned configuration are one owned catalog domain.
+// Native UMAC/recipe CSV cannot replace its typed, root-scoped admission rules.
+FUNCTION "FRK_ModelCodeValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Code : String; END_VAR
+VAR_TEMP Index : Int; Value : Byte; END_VAR
+BEGIN
+    #FRK_ModelCodeValid := FALSE;
+    IF LEN(#Code) < 1 OR LEN(#Code) > 64 THEN RETURN; END_IF;
+    FOR #Index := 1 TO LEN(#Code) DO
+        #Value := CHAR_TO_BYTE(#Code[#Index]);
+        IF #Value < BYTE#32 OR #Value > BYTE#126 THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ModelCodeValid := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ModelCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Catalog : "FRK_ModelCatalog"; END_VAR
+VAR_TEMP Work : DWord; Index : Int; Character : Int; Size : Int; Text : String[80]; END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Catalog.SchemaVersion));
+    #Size := LEN(#Catalog.Scope);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Catalog.Scope[#Character])); END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Catalog.Capacity));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Catalog.Count));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Catalog.Generation);
+    FOR #Index := 1 TO 4 DO
+        #Text := #Catalog.Codes[#Index]; #Size := LEN(#Text);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+    END_FOR;
+    #FRK_ModelCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_ModelValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RootIndex : Int; END_VAR
+VAR_IN_OUT Catalog : "FRK_ModelCatalog"; END_VAR
+VAR_TEMP Index : Int; Other : Int; END_VAR
+BEGIN
+    #FRK_ModelValid := FALSE;
+    IF #RootIndex < 1 OR #RootIndex > 1 OR "FRK_ModelRoot"(Scope := #Catalog.Scope) <> #RootIndex THEN RETURN; END_IF;
+    IF #Catalog.SchemaVersion <> 1 OR #Catalog.Generation = 0 OR #Catalog.Capacity <> 4
+        OR #Catalog.Count < 3 OR #Catalog.Count > 4 THEN RETURN; END_IF;
+    IF #Catalog.Codes[1] <> 'ALUMINUM' OR #Catalog.Codes[2] <> 'PLASTIC' OR #Catalog.Codes[3] <> 'STEEL' THEN RETURN; END_IF;
+    FOR #Index := 1 TO #Catalog.Count DO
+        IF NOT "FRK_ModelCodeValid"(Code := #Catalog.Codes[#Index]) THEN RETURN; END_IF;
+        FOR #Other := 1 TO #Index - 1 DO
+            IF #Catalog.Codes[#Index] = #Catalog.Codes[#Other] THEN RETURN; END_IF;
+        END_FOR;
+    END_FOR;
+    FOR #Index := #Catalog.Count + 1 TO 4 DO
+        IF #Catalog.Codes[#Index] <> '' THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ModelValid := #Catalog.Checksum = "FRK_ModelCrc"(Catalog := #Catalog);
+END_FUNCTION
+
+FUNCTION "FRK_ModelVirgin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Catalog : "FRK_ModelCatalog"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_ModelVirgin := FALSE;
+    IF #Catalog.SchemaVersion <> 0 OR #Catalog.Scope <> '' OR #Catalog.Capacity <> 0 OR #Catalog.Count <> 0
+        OR #Catalog.Generation <> 0 OR #Catalog.Checksum <> DWORD#0 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 4 DO IF #Catalog.Codes[#Index] <> '' THEN RETURN; END_IF; END_FOR;
+    #FRK_ModelVirgin := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ModelKnown" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT RootIndex : Int; Code : String; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_ModelKnown := FALSE;
+    IF #RootIndex < 1 OR #RootIndex > 1 OR #Code = '' THEN RETURN; END_IF;
+    IF "FRK_ModelStore".Rows[#RootIndex].Count < 3 OR "FRK_ModelStore".Rows[#RootIndex].Count > 4 THEN RETURN; END_IF;
+    FOR #Index := 1 TO "FRK_ModelStore".Rows[#RootIndex].Count DO
+        IF "FRK_ModelStore".Rows[#RootIndex].Codes[#Index] = #Code THEN #FRK_ModelKnown := TRUE; RETURN; END_IF;
+    END_FOR;
+END_FUNCTION
+FUNCTION "FRK_ModelCapture_R1" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Catalog : "FRK_ModelCatalog";
+    Image : "FRK_ModelImage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    ModelSlot : Int;
+    RowIndex : Int;
+    Stored : Int;
+END_VAR
+BEGIN
+    #FRK_ModelCapture_R1 := FALSE;
+    IF NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Catalog) THEN RETURN; END_IF;
+    #Image.Catalog := #Catalog; #Image.RecordCount := 0;
+    FOR #Index := 1 TO 5 DO #Image.Rows[#Index] := "FRK_ModelRuntime".BlankSlot; END_FOR;
+    FOR #ModelSlot := 4 TO #Catalog.Count DO
+        #RowIndex := (#ModelSlot - 4) * 5 + 1;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'idealCycleMs', ModelCode := #Catalog.Codes[#ModelSlot]);
+        IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN RETURN; END_IF;
+        #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+        #Image.RecordCount := #Image.RecordCount + 1;
+        #RowIndex := (#ModelSlot - 4) * 5 + 2;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'baselineWorkMs', ModelCode := #Catalog.Codes[#ModelSlot]);
+        IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN RETURN; END_IF;
+        #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+        #Image.RecordCount := #Image.RecordCount + 1;
+        #RowIndex := (#ModelSlot - 4) * 5 + 3;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
+        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'modeSwitchTimeout', ModelCode := #Catalog.Codes[#ModelSlot]);
+        IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN RETURN; END_IF;
+        #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+        #Image.RecordCount := #Image.RecordCount + 1;
+        #RowIndex := (#ModelSlot - 4) * 5 + 4;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
+        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'transferSettleTime', ModelCode := #Catalog.Codes[#ModelSlot]);
+        IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN RETURN; END_IF;
+        #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+        #Image.RecordCount := #Image.RecordCount + 1;
+        #RowIndex := (#ModelSlot - 4) * 5 + 5;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
+        #Stored := "FRK_ConfigFind"(Scope := 'PressDemo', Key := 'pressSettleTime', ModelCode := #Catalog.Codes[#ModelSlot]);
+        IF #Stored = 0 OR NOT "FRK_ConfigGet"(Scope := 'PressDemo', ModelCode := #Catalog.Codes[#ModelSlot]) THEN RETURN; END_IF;
+        #Image.Rows[#RowIndex] := "FRK_ConfigStore".Rows[#Stored];
+        #Image.RecordCount := #Image.RecordCount + 1;
+    END_FOR;
+    #FRK_ModelCapture_R1 := TRUE;
+END_FUNCTION
+FUNCTION "FRK_ModelApply_R1" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Image : "FRK_ModelImage";
+END_VAR
+VAR_TEMP
+    Index : Int;
+    ModelSlot : Int;
+    RowIndex : Int;
+    Stored : Int;
+    Targets : Array[1..32] of Int;
+END_VAR
+BEGIN
+    #FRK_ModelApply_R1 := FALSE;
+    IF NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image.Catalog) THEN RETURN; END_IF;
+    IF #Image.RecordCount <> (#Image.Catalog.Count - 3) * 5 THEN RETURN; END_IF;
+    FOR #Index := 1 TO 32 DO #Targets[#Index] := 0; END_FOR;
+    FOR #ModelSlot := 4 TO #Image.Catalog.Count DO
+        #RowIndex := (#ModelSlot - 4) * 5 + 1;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+        IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+            OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+            THEN RETURN; END_IF;
+        IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN RETURN; END_IF;
+        #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'idealCycleMs', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+        IF #Stored < 1 OR #Stored > 22 THEN RETURN; END_IF;
+        #Targets[#RowIndex] := #Stored;
+        #RowIndex := (#ModelSlot - 4) * 5 + 2;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+        IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+            OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+            THEN RETURN; END_IF;
+        IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN RETURN; END_IF;
+        #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'baselineWorkMs', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+        IF #Stored < 1 OR #Stored > 22 THEN RETURN; END_IF;
+        #Targets[#RowIndex] := #Stored;
+        #RowIndex := (#ModelSlot - 4) * 5 + 3;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
+        IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+            OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+            THEN RETURN; END_IF;
+        IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN RETURN; END_IF;
+        #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'modeSwitchTimeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+        IF #Stored < 1 OR #Stored > 22 THEN RETURN; END_IF;
+        #Targets[#RowIndex] := #Stored;
+        #RowIndex := (#ModelSlot - 4) * 5 + 4;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
+        IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+            OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+            THEN RETURN; END_IF;
+        IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN RETURN; END_IF;
+        #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'transferSettleTime', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+        IF #Stored < 1 OR #Stored > 22 THEN RETURN; END_IF;
+        #Targets[#RowIndex] := #Stored;
+        #RowIndex := (#ModelSlot - 4) * 5 + 5;
+        "FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
+        IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+            OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+            THEN RETURN; END_IF;
+        IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN RETURN; END_IF;
+        #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'pressSettleTime', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+        IF #Stored < 1 OR #Stored > 22 THEN RETURN; END_IF;
+        #Targets[#RowIndex] := #Stored;
+    END_FOR;
+    FOR #Index := 1 TO #Image.RecordCount DO
+        "FRK_ConfigStore".Rows[#Targets[#Index]] := #Image.Rows[#Index];
+    END_FOR;
+    "FRK_ModelStore".Rows[1] := #Image.Catalog;
+    "FRK_ConfigStore".SchemaVersion := 1;
+    #FRK_ModelApply_R1 := TRUE;
+END_FUNCTION
+FUNCTION "FRK_ModelCapture" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+VAR_IN_OUT
+    Image : "FRK_ModelImage";
+    Catalog : "FRK_ModelCatalog";
+END_VAR
+BEGIN
+    #FRK_ModelCapture := FALSE;
+    CASE #RootIndex OF
+        1: #FRK_ModelCapture := "FRK_ModelCapture_R1"(Image := #Image, Catalog := #Catalog);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_ModelApply" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+VAR_IN_OUT
+    Image : "FRK_ModelImage";
+END_VAR
+BEGIN
+    #FRK_ModelApply := FALSE;
+    CASE #RootIndex OF
+        1: #FRK_ModelApply := "FRK_ModelApply_R1"(Image := #Image);
+        ELSE RETURN;
+    END_CASE;
+END_FUNCTION
+FUNCTION "FRK_ModelDefaults" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+BEGIN
+    IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
+    "FRK_ModelStore".Rows[#RootIndex] := "FRK_ModelRuntime".BlankCatalog;
+    "FRK_ModelStore".Rows[#RootIndex].SchemaVersion := 1;
+    "FRK_ModelStore".Rows[#RootIndex].Capacity := 4;
+    "FRK_ModelStore".Rows[#RootIndex].Count := 3;
+    "FRK_ModelStore".Rows[#RootIndex].Generation := 1;
+    IF #RootIndex = 1 THEN "FRK_ModelStore".Rows[#RootIndex].Scope := 'PressDemo'; END_IF;
+    "FRK_ModelStore".Rows[#RootIndex].Codes[1] := 'ALUMINUM';
+    "FRK_ModelStore".Rows[#RootIndex].Codes[2] := 'PLASTIC';
+    "FRK_ModelStore".Rows[#RootIndex].Codes[3] := 'STEEL';
+    "FRK_ModelStore".Rows[#RootIndex].Checksum := "FRK_ModelCrc"(Catalog := "FRK_ModelStore".Rows[#RootIndex]);
+END_FUNCTION
+FUNCTION "FRK_ModelPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    RootIndex : Int;
+    Index : DInt;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    FOR #RootIndex := 1 TO 1 DO
+        "FRK_ModelRuntime".Rows[#RootIndex] := "FRK_ModelRuntime".BlankWork;
+        "FRK_ModelStore".Rows[#RootIndex] := "FRK_ModelRuntime".BlankCatalog;
+        "FRK_ConfigStore".ActiveModels[#RootIndex] := 'ALUMINUM';
+    END_FOR;
+    FOR #Index := 1 TO 22 DO "FRK_ConfigStore".Rows[#Index].Used := FALSE; END_FOR;
+END_FUNCTION
+FUNCTION "FRK_ModelBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup : Bool;
+END_VAR
+VAR_TEMP
+    Virgin : Bool;
+    Ok : Bool;
+END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Virgin := "FRK_ModelVirgin"(Catalog := "FRK_ModelStore".Rows[1]);
+    #Ok := "FRK_ModelValid"(RootIndex := 1, Catalog := "FRK_ModelStore".Rows[1]);
+    IF #Ok THEN #Ok := "FRK_ModelCapture"(RootIndex := 1, Catalog := "FRK_ModelStore".Rows[1], Image := "FRK_ModelRuntime".ScratchImage); END_IF;
+    IF NOT #Ok THEN
+        "FRK_ModelDefaults"(RootIndex := 1);
+        IF NOT #Virgin THEN "FRK_ConfigLoss"(RootIndex := 1, Scope := 'PressDemo'); END_IF;
+    END_IF;
+    IF NOT "FRK_ModelKnown"(RootIndex := 1, Code := "FRK_ConfigStore".ActiveModels[1]) THEN
+        "FRK_ConfigSetActiveModel"(RootIndex := 1, ModelCode := 'ALUMINUM');
+        IF NOT #Virgin OR "FRK_ConfigStore".SchemaVersion <> 0 THEN "FRK_ConfigLoss"(RootIndex := 1, Scope := 'PressDemo'); END_IF;
+    END_IF;
+    "FRK_ModelRuntime".Rows[1].Ready := TRUE;
+END_FUNCTION
+FUNCTION "FRK_ModelSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+BEGIN
+    "FRK_PersistModelsDirty"(RootIndex := #RootIndex);
+END_FUNCTION
+FUNCTION "FRK_ModelSaved" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+BEGIN
+    #FRK_ModelSaved := "FRK_PersistModelsSaved"(RootIndex := #RootIndex);
+END_FUNCTION
+FUNCTION "FRK_ModelTick" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    RootIndex : Int;
+END_VAR
+BEGIN
+    #FRK_ModelTick := FALSE;
+    IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
+    IF "FRK_ModelRuntime".Rows[#RootIndex].State <> 1 THEN RETURN; END_IF;
+    IF NOT "FRK_ModelSaved"(RootIndex := #RootIndex) THEN RETURN; END_IF;
+    "FRK_ModelStore".Rows[#RootIndex] := "FRK_ModelRuntime".Rows[#RootIndex].Stage;
+    "FRK_ModelRuntime".Rows[#RootIndex].State := 0;
+    #FRK_ModelTick := TRUE;
+END_FUNCTION

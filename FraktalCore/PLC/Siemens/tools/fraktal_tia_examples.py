@@ -603,6 +603,14 @@ def build():
         declaration['alarm_delivery']=definition['alarm_delivery']
     if definition.get('persistence'):
         declaration['persistence']=definition['persistence']
+    if definition.get('line_config'):
+        from fraktal_tia_line import calendar_contract
+        line=definition['line_config']
+        DECL.object_fields(line,('id','owner','stale_after_ms'),(),'press.line_config')
+        fields,values,members=calendar_contract(catalog)
+        record='ST_PressDemoLineConfig'
+        records[record]='STRUCT SchemaVersion : UINT := 1; '+fields+' END_STRUCT'
+        declaration['line']=dict(**line,role='OWNER',roots=['PressDemo'],record=record,values=values,shifts=members)
     sources,manifest=GEN.build(DECL.validate(declaration),True)
     # The complete package includes the composition root, chart DBs and one
     # hardware-driver boundary. Optional ST/LAD twins have no instances.

@@ -1,0 +1,32 @@
+﻿FUNCTION "FRK_ConfigRoot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RegIndex : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigRoot := 0;
+	CASE #RegIndex OF
+	    1:
+	        #FRK_ConfigRoot := 1;
+	    2:
+	        #FRK_ConfigRoot := 1;
+	    3:
+	        #FRK_ConfigRoot := 1;
+	    4:
+	        #FRK_ConfigRoot := 1;
+	    5:
+	        #FRK_ConfigRoot := 1;
+	    6:
+	        #FRK_ConfigRoot := 1;
+	    7:
+	        #FRK_ConfigRoot := 1;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

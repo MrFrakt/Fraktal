@@ -1,0 +1,21 @@
+﻿FUNCTION "F_PressDemoModelSelected" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// CHANGEOVER policy: the model is already applied atomically by SET_MODEL
+// (prepare/commit, gated by the CHANGEOVER release); the chain proves one is
+// selected, establishes the shared load position and asks the operator.
+   VAR_INPUT 
+      ModelCode : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	#F_PressDemoModelSelected := "FRK_SeqAwait"(Seq := #Seq, Label := 'project.condition.pressModelSelected', Ok := #ModelCode <> '');
+	
+END_FUNCTION
+

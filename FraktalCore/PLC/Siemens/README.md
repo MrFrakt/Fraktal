@@ -1,5 +1,13 @@
 # Fraktal/TIA — Siemens TIA Portal binding (working tree)
 
+Line profile milestone (2026-10-17): generator 0.25 admits complete V3 Line
+declarations through the public entry point and integrates the local owner,
+calendar/targets, atomic Line sets and persistence in the wired press. The
+[Line press fixture](Tests/LinePress/README.md) passes 37 Line checks and 64
+GRAPH regression checks; [the report](../../../Specification/Siemens/Evidence/TIA_LINE_PRESS_2026-10-17.md)
+records native read-back and the remaining scope. Partial engine experiments
+retain the explicit workbench API. OUC TCP remains the separate P12 phase.
+
 Runtime model milestone (2026-10-17): generator 0.24 adds bounded root catalogs,
 inactive cloning from models or complete model sets, shared typed admission and
 atomic LOAD_DB catalog/data checkpoints. BUSY creation leaves the running and

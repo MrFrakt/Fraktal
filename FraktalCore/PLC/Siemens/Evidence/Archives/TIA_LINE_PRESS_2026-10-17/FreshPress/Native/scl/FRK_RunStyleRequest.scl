@@ -1,0 +1,81 @@
+﻿FUNCTION "FRK_RunStyleRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Scope : String;
+      Exec : DInt;
+      Supported : Array[0..2] of Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Unit : "FRK_Unit";
+      Access : "FRK_Access";
+      Response : "ST_HmiResponse";
+   END_VAR
+
+   VAR_TEMP 
+      Gate : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Unit.RequestPending OR (#Unit.Request.Kind <> 12 AND #Unit.Request.Kind <> 13 AND #Unit.Request.Kind <> 14) THEN
+	    RETURN;
+	END_IF;
+	#Response.Accepted := FALSE;
+	#Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+	#Response.Report.Count := 0;
+	#Response.Report.Released := TRUE;
+	IF #Owner < 1 OR #Owner > 7 THEN
+	    RETURN;
+	END_IF;
+	IF #Unit.Request.Kind = 14 AND NOT #Unit.Request.BoolValue THEN
+	    // A release can never be refused, including after logout/mode change.
+	    "FRK_Registry".Rows[#Owner].HoldRun := FALSE;
+	    #Response.Accepted := TRUE;
+	ELSE
+	    #Gate := 5;
+	    IF #Unit.Request.Kind = 12 THEN
+	        #Gate := 4;
+	    END_IF;
+	    IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[#Gate] THEN
+	        #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+	    ELSIF NOT #Unit.ModePending THEN
+	        CASE #Unit.Request.Kind OF
+	            12:
+	                IF #Unit.Request.IntValue >= 0 AND #Unit.Request.IntValue <= 2 THEN
+	                    IF #Supported[#Unit.Request.IntValue] THEN
+	                        "FRK_Registry".Rows[#Owner].RunStyle := #Unit.Request.IntValue;
+	                        "FRK_Registry".Rows[#Owner].StepToken := FALSE;
+	                        "FRK_Registry".Rows[#Owner].HoldRun := FALSE;
+	                        #Response.Accepted := TRUE;
+	                    END_IF;
+	                END_IF;
+	            13:
+	                IF #Exec = 1 AND "FRK_Registry".Rows[#Owner].RunStyle = 1 THEN
+	                    "FRK_Registry".Rows[#Owner].StepToken := TRUE;
+	                    #Response.Accepted := TRUE;
+	                END_IF;
+	            14:
+	                IF #Exec = 1 AND "FRK_Registry".Rows[#Owner].RunStyle = 2 THEN
+	                    "FRK_Registry".Rows[#Owner].HoldRun := TRUE;
+	                    #Response.Accepted := TRUE;
+	                END_IF;
+	            ELSE
+	                RETURN;
+	        END_CASE;
+	    END_IF;
+	END_IF;
+	IF #Response.Accepted THEN
+	    #Response.Diagnostic := WSTRING#'';
+	ELSE "FRK_ReleaseReason"(Report := #Response.Report,
+	                             Description := #Response.Diagnostic,
+	                             Reason := 2002,
+	                             Path := STRING_TO_WSTRING(#Scope),
+	                             Kind := 4);
+	END_IF;
+	
+END_FUNCTION
+

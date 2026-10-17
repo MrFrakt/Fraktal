@@ -1,0 +1,23 @@
+﻿FUNCTION "FRK_SeqProfilePrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Run : Bool;
+      Withdraw : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	CASE #Owner OF
+	    1:
+	        "FRK_ProfilePrepare"(Run := #Run,
+	                             Withdraw := #Withdraw,
+	                             Book := "FRK_Profiles".P001.Book);
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

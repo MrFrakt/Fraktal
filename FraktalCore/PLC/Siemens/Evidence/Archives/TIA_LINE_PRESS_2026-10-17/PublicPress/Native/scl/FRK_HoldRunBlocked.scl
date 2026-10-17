@@ -1,0 +1,18 @@
+﻿FUNCTION "FRK_HoldRunBlocked" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_HoldRunBlocked := TRUE;
+	IF #Owner < 1 OR #Owner > 7 THEN
+	    RETURN;
+	END_IF;
+	#FRK_HoldRunBlocked := "FRK_Registry".Rows[#Owner].RunStyle = 2 AND NOT "FRK_Registry".Rows[#Owner].HoldRun;
+	
+END_FUNCTION
+

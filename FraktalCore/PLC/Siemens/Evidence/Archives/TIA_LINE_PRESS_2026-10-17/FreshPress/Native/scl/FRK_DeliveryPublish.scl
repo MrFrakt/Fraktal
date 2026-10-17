@@ -1,0 +1,53 @@
+﻿FUNCTION "FRK_DeliveryPublish" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Head : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Slot < 1 OR #Slot > 1 THEN
+	    RETURN;
+	END_IF;
+	// Copy event text only on a lifecycle change; never every scan.
+	IF "FRK_EventDeliveryRuntime".PublishedRevision[#Slot] = "FRK_EventDeliveryStore".Images[#Slot].Revision
+	    AND "FRK_EventDeliveryView".Rows[#Slot].SchemaVersion = 1 THEN
+	    RETURN;
+	END_IF;
+	"FRK_EventDeliveryView".Rows[#Slot].SchemaVersion := 1;
+	"FRK_EventDeliveryView".Rows[#Slot].Scope := "FRK_DeliveryScope"(Slot := #Slot);
+	"FRK_EventDeliveryView".Rows[#Slot].StreamId := '6c62c9b6-57d9-41b5-b689-e0540f642b31';
+	"FRK_EventDeliveryView".Rows[#Slot].Capacity := 32;
+	"FRK_EventDeliveryView".Rows[#Slot].AnchorValid := "FRK_EventDeliveryRuntime".AnchorValid[#Slot];
+	"FRK_EventDeliveryView".Rows[#Slot].RestoreLost := NOT "FRK_EventDeliveryRuntime".Valid[#Slot];
+	"FRK_EventDeliveryView".Rows[#Slot].Pending := 0;
+	"FRK_EventDeliveryView".Rows[#Slot].Token := '';
+	"FRK_EventDeliveryView".Rows[#Slot].Checksum := 0;
+	"FRK_EventDeliveryView".Rows[#Slot].Ev := "FRK_UnitScratch".EmptyEvent;
+	IF "FRK_EventDeliveryRuntime".AnchorValid[#Slot] THEN
+	    "FRK_EventDeliveryView".Rows[#Slot].Epoch := "FRK_EventDeliveryStore".Anchors[#Slot].Epoch;
+	END_IF;
+	IF "FRK_EventDeliveryRuntime".Valid[#Slot] THEN
+	    "FRK_EventDeliveryView".Rows[#Slot].Pending := "FRK_EventDeliveryStore".Images[#Slot].Count;
+	    "FRK_EventDeliveryView".Rows[#Slot].Overflow := "FRK_EventDeliveryStore".Images[#Slot].Overflow;
+	    "FRK_EventDeliveryView".Rows[#Slot].Dropped := "FRK_EventDeliveryStore".Images[#Slot].Dropped;
+	    #Head := "FRK_EventDeliveryStore".Images[#Slot].Head;
+	    IF "FRK_EventDeliveryStore".Images[#Slot].Count > 0 AND #Head >= 1 AND #Head <= 32 THEN
+	        "FRK_EventDeliveryView".Rows[#Slot].Token := "FRK_DeliveryToken"(Slot := #Slot, Sequence := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Sequence);
+	        "FRK_EventDeliveryView".Rows[#Slot].Checksum := DWORD_TO_UDINT("FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Checksum);
+	        "FRK_EventDeliveryView".Rows[#Slot].Ev := "FRK_EventDeliveryStore".Images[#Slot].Entries[#Head].Ev;
+	    END_IF;
+	ELSE
+	    "FRK_EventDeliveryView".Rows[#Slot].Overflow := TRUE;
+	    "FRK_EventDeliveryView".Rows[#Slot].Dropped := 0;
+	END_IF;
+	"FRK_EventDeliveryRuntime".PublishedRevision[#Slot] := "FRK_EventDeliveryStore".Images[#Slot].Revision;
+	
+END_FUNCTION
+

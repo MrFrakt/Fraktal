@@ -1,0 +1,535 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-17T04:24:09.9357573Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FC ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="DurationMs" Datatype="UDInt" Accessibility="Public" />
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut">
+    <Member Name="Row" Datatype="&quot;ST_TimingRow&quot;" Accessibility="Public">
+      <Sections>
+        <Section Name="None">
+          <Member Name="Id" Datatype="DInt" />
+          <Member Name="Label" Datatype="String[120]" />
+          <Member Name="TimeClass" Datatype="DInt" />
+          <Member Name="Count" Datatype="UDInt" />
+          <Member Name="Last" Datatype="Time" />
+          <Member Name="Minimum" Datatype="Time" />
+          <Member Name="Maximum" Datatype="Time" />
+          <Member Name="Avg" Datatype="Time" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+  <Section Name="Temp">
+    <Member Name="BoundedMs" Datatype="UDInt" />
+    <Member Name="Duration" Datatype="Time" />
+    <Member Name="AverageMs" Datatype="LInt" />
+  </Section>
+  <Section Name="Constant" />
+  <Section Name="Return">
+    <Member Name="Ret_Val" Datatype="Void" Accessibility="Public" />
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <Name>FRK_TimingUpdate</Name>
+      <Namespace />
+      <Number>28</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Access Scope="LocalVariable" UId="22">
+    <Symbol UId="23">
+      <Component Name="BoundedMs" UId="24" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="25" />
+  <Token Text=":=" UId="26" />
+  <Blank Num="1" UId="27" />
+  <Access Scope="LocalVariable" UId="28">
+    <Symbol UId="29">
+      <Component Name="DurationMs" UId="30" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="31" />
+  <NewLine Num="1" UId="32" />
+  <Token Text="IF" UId="33" />
+  <Blank Num="1" UId="34" />
+  <Access Scope="LocalVariable" UId="35">
+    <Symbol UId="36">
+      <Component Name="BoundedMs" UId="37" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="38" />
+  <Token Text="&gt;" UId="39" />
+  <Blank Num="1" UId="40" />
+  <Access Scope="TypedConstant" UId="41">
+    <Constant UId="42">
+      <ConstantValue UId="43">UDINT#2147483647</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="44" />
+  <Token Text="THEN" UId="45" />
+  <NewLine Num="1" UId="46" />
+  <Blank Num="4" UId="47" />
+  <Access Scope="LocalVariable" UId="48">
+    <Symbol UId="49">
+      <Component Name="BoundedMs" UId="50" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="51" />
+  <Token Text=":=" UId="52" />
+  <Blank Num="1" UId="53" />
+  <Access Scope="TypedConstant" UId="54">
+    <Constant UId="55">
+      <ConstantValue UId="56">UDINT#2147483647</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="57" />
+  <NewLine Num="1" UId="58" />
+  <Token Text="END_IF" UId="59" />
+  <Token Text=";" UId="60" />
+  <NewLine Num="1" UId="61" />
+  <Access Scope="LocalVariable" UId="62">
+    <Symbol UId="63">
+      <Component Name="Duration" UId="64" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="65" />
+  <Token Text=":=" UId="66" />
+  <Blank Num="1" UId="67" />
+  <Access Scope="Call" UId="68">
+    <Instruction Name="DINT_TO_TIME" UId="69">
+      <Token Text="(" UId="70" />
+      <NamelessParameter UId="71">
+        <Access Scope="Call" UId="72">
+          <Instruction Name="UDINT_TO_DINT" UId="73">
+            <Token Text="(" UId="74" />
+            <NamelessParameter UId="75">
+              <Access Scope="LocalVariable" UId="76">
+                <Symbol UId="77">
+                  <Component Name="BoundedMs" UId="78" />
+                </Symbol>
+              </Access>
+            </NamelessParameter>
+            <Token Text=")" UId="80" />
+          </Instruction>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="82" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="83" />
+  <NewLine Num="1" UId="84" />
+  <Token Text="IF" UId="85" />
+  <Blank Num="1" UId="86" />
+  <Access Scope="LocalVariable" UId="87">
+    <Symbol UId="88">
+      <Component Name="Row" UId="89" />
+      <Token Text="." UId="90" />
+      <Component Name="Count" UId="91" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="92" />
+  <Token Text="&lt;" UId="93" />
+  <Blank Num="1" UId="94" />
+  <Access Scope="TypedConstant" UId="95">
+    <Constant UId="96">
+      <ConstantValue UId="97">UDINT#4294967295</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="98" />
+  <Token Text="THEN" UId="99" />
+  <NewLine Num="1" UId="100" />
+  <Blank Num="4" UId="101" />
+  <Access Scope="LocalVariable" UId="102">
+    <Symbol UId="103">
+      <Component Name="Row" UId="104" />
+      <Token Text="." UId="105" />
+      <Component Name="Count" UId="106" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="107" />
+  <Token Text=":=" UId="108" />
+  <Blank Num="1" UId="109" />
+  <Access Scope="LocalVariable" UId="110">
+    <Symbol UId="111">
+      <Component Name="Row" UId="112" />
+      <Token Text="." UId="113" />
+      <Component Name="Count" UId="114" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="115" />
+  <Token Text="+" UId="116" />
+  <Blank Num="1" UId="117" />
+  <Access Scope="LiteralConstant" UId="118">
+    <Constant UId="119">
+      <ConstantValue UId="121">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="122" />
+  <NewLine Num="1" UId="123" />
+  <Token Text="END_IF" UId="124" />
+  <Token Text=";" UId="125" />
+  <NewLine Num="1" UId="126" />
+  <Access Scope="LocalVariable" UId="127">
+    <Symbol UId="128">
+      <Component Name="Row" UId="129" />
+      <Token Text="." UId="130" />
+      <Component Name="Last" UId="131" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="132" />
+  <Token Text=":=" UId="133" />
+  <Blank Num="1" UId="134" />
+  <Access Scope="LocalVariable" UId="135">
+    <Symbol UId="136">
+      <Component Name="Duration" UId="137" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="138" />
+  <NewLine Num="1" UId="139" />
+  <Token Text="IF" UId="140" />
+  <Blank Num="1" UId="141" />
+  <Access Scope="LocalVariable" UId="142">
+    <Symbol UId="143">
+      <Component Name="Row" UId="144" />
+      <Token Text="." UId="145" />
+      <Component Name="Count" UId="146" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="147" />
+  <Token Text="=" UId="148" />
+  <Blank Num="1" UId="149" />
+  <Access Scope="LiteralConstant" UId="150">
+    <Constant UId="151">
+      <ConstantValue UId="153">1</ConstantValue>
+    </Constant>
+  </Access>
+  <Blank Num="1" UId="154" />
+  <Token Text="OR" UId="155" />
+  <Blank Num="1" UId="156" />
+  <Access Scope="LocalVariable" UId="157">
+    <Symbol UId="158">
+      <Component Name="Duration" UId="159" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="160" />
+  <Token Text="&lt;" UId="161" />
+  <Blank Num="1" UId="162" />
+  <Access Scope="LocalVariable" UId="163">
+    <Symbol UId="164">
+      <Component Name="Row" UId="165" />
+      <Token Text="." UId="166" />
+      <Component Name="Minimum" UId="167" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="168" />
+  <Token Text="THEN" UId="169" />
+  <NewLine Num="1" UId="170" />
+  <Blank Num="4" UId="171" />
+  <Access Scope="LocalVariable" UId="172">
+    <Symbol UId="173">
+      <Component Name="Row" UId="174" />
+      <Token Text="." UId="175" />
+      <Component Name="Minimum" UId="176" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="177" />
+  <Token Text=":=" UId="178" />
+  <Blank Num="1" UId="179" />
+  <Access Scope="LocalVariable" UId="180">
+    <Symbol UId="181">
+      <Component Name="Duration" UId="182" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="183" />
+  <NewLine Num="1" UId="184" />
+  <Token Text="END_IF" UId="185" />
+  <Token Text=";" UId="186" />
+  <NewLine Num="1" UId="187" />
+  <Token Text="IF" UId="188" />
+  <Blank Num="1" UId="189" />
+  <Access Scope="LocalVariable" UId="190">
+    <Symbol UId="191">
+      <Component Name="Duration" UId="192" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="193" />
+  <Token Text="&gt;" UId="194" />
+  <Blank Num="1" UId="195" />
+  <Access Scope="LocalVariable" UId="196">
+    <Symbol UId="197">
+      <Component Name="Row" UId="198" />
+      <Token Text="." UId="199" />
+      <Component Name="Maximum" UId="200" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="201" />
+  <Token Text="THEN" UId="202" />
+  <NewLine Num="1" UId="203" />
+  <Blank Num="4" UId="204" />
+  <Access Scope="LocalVariable" UId="205">
+    <Symbol UId="206">
+      <Component Name="Row" UId="207" />
+      <Token Text="." UId="208" />
+      <Component Name="Maximum" UId="209" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="210" />
+  <Token Text=":=" UId="211" />
+  <Blank Num="1" UId="212" />
+  <Access Scope="LocalVariable" UId="213">
+    <Symbol UId="214">
+      <Component Name="Duration" UId="215" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="216" />
+  <NewLine Num="1" UId="217" />
+  <Token Text="END_IF" UId="218" />
+  <Token Text=";" UId="219" />
+  <NewLine Num="1" UId="220" />
+  <Access Scope="LocalVariable" UId="221">
+    <Symbol UId="222">
+      <Component Name="AverageMs" UId="223" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="224" />
+  <Token Text=":=" UId="225" />
+  <Blank Num="1" UId="226" />
+  <Access Scope="Call" UId="227">
+    <Instruction Name="DINT_TO_LINT" UId="228">
+      <Token Text="(" UId="229" />
+      <NamelessParameter UId="230">
+        <Access Scope="Call" UId="231">
+          <Instruction Name="TIME_TO_DINT" UId="232">
+            <Token Text="(" UId="233" />
+            <NamelessParameter UId="234">
+              <Access Scope="LocalVariable" UId="235">
+                <Symbol UId="236">
+                  <Component Name="Row" UId="237" />
+                  <Token Text="." UId="238" />
+                  <Component Name="Avg" UId="239" />
+                </Symbol>
+              </Access>
+            </NamelessParameter>
+            <Token Text=")" UId="241" />
+          </Instruction>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="243" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="244" />
+  <NewLine Num="1" UId="245" />
+  <Access Scope="LocalVariable" UId="246">
+    <Symbol UId="247">
+      <Component Name="AverageMs" UId="248" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="249" />
+  <Token Text=":=" UId="250" />
+  <Blank Num="1" UId="251" />
+  <Access Scope="LocalVariable" UId="252">
+    <Symbol UId="253">
+      <Component Name="AverageMs" UId="254" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="255" />
+  <Token Text="+" UId="256" />
+  <Blank Num="1" UId="257" />
+  <Token Text="(" UId="258" />
+  <Access Scope="Call" UId="259">
+    <Instruction Name="UDINT_TO_LINT" UId="260">
+      <Token Text="(" UId="261" />
+      <NamelessParameter UId="262">
+        <Access Scope="LocalVariable" UId="263">
+          <Symbol UId="264">
+            <Component Name="BoundedMs" UId="265" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="267" />
+    </Instruction>
+  </Access>
+  <Blank Num="1" UId="268" />
+  <Token Text="-" UId="269" />
+  <Blank Num="1" UId="270" />
+  <Access Scope="LocalVariable" UId="271">
+    <Symbol UId="272">
+      <Component Name="AverageMs" UId="273" />
+    </Symbol>
+  </Access>
+  <Token Text=")" UId="274" />
+  <Blank Num="1" UId="275" />
+  <Token Text="/" UId="276" />
+  <Blank Num="1" UId="277" />
+  <Access Scope="Call" UId="278">
+    <Instruction Name="UDINT_TO_LINT" UId="279">
+      <Token Text="(" UId="280" />
+      <NamelessParameter UId="281">
+        <Access Scope="LocalVariable" UId="282">
+          <Symbol UId="283">
+            <Component Name="Row" UId="284" />
+            <Token Text="." UId="285" />
+            <Component Name="Count" UId="286" />
+          </Symbol>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="288" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="289" />
+  <NewLine Num="1" UId="290" />
+  <Access Scope="LocalVariable" UId="291">
+    <Symbol UId="292">
+      <Component Name="Row" UId="293" />
+      <Token Text="." UId="294" />
+      <Component Name="Avg" UId="295" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="296" />
+  <Token Text=":=" UId="297" />
+  <Blank Num="1" UId="298" />
+  <Access Scope="Call" UId="299">
+    <Instruction Name="DINT_TO_TIME" UId="300">
+      <Token Text="(" UId="301" />
+      <NamelessParameter UId="302">
+        <Access Scope="Call" UId="303">
+          <Instruction Name="LINT_TO_DINT" UId="304">
+            <Token Text="(" UId="305" />
+            <NamelessParameter UId="306">
+              <Access Scope="LocalVariable" UId="307">
+                <Symbol UId="308">
+                  <Component Name="AverageMs" UId="309" />
+                </Symbol>
+              </Access>
+            </NamelessParameter>
+            <Token Text=")" UId="311" />
+          </Instruction>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="313" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="314" />
+  <NewLine Num="1" UId="315" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FC>
+</Document>

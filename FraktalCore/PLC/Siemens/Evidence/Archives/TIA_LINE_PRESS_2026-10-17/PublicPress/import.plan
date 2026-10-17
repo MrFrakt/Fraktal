@@ -1,0 +1,14 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Press_Features_20261016\FrkS12\FrkS12.ap20"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Press_20261017\r02\grouped\Framework\Modules\ControlModules\Cylinder" --only "20_000_FB_CylinderCM.scl" --group "Framework/Modules/ControlModules/Cylinder"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Press_20261017\r02\grouped\Framework\Modules\ControlModules\TwoHand" --only "20_001_FB_TwoHandStartCM.scl" --group "Framework/Modules/ControlModules/TwoHand"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Press_20261017\r02\grouped\Framework\Modules\ControlModules\DigitalInput" --only "20_002_FB_DigitalInputCM.scl" --group "Framework/Modules/ControlModules/DigitalInput"
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Press_20261017\r02\grouped\Framework\Modules\ControlModules\AirPressure" --only "20_003_FB_AirPressureMonitorCM.scl" --group "Framework/Modules/ControlModules/AirPressure"
+save
+compile --plc PLC_1
+save
+import-sources --plc PLC_1 --dir "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Press_20261017\r02\grouped\Examples\PressDemo\01_PneumaticPress" --only "29_FB_PressDemoUnit.scl" --group "Examples/PressDemo/01_PneumaticPress"
+save
+compile --plc PLC_1
+list-groups --plc PLC_1
+export --plc PLC_1 --out "C:\Users\Siemens\AppData\Local\Fraktal\TiaSpikes\Line_Press_20261017\r02\native" --scl true
+save

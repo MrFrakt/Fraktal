@@ -3,9 +3,9 @@
 A census of what the Siemens binding still lacks against the TwinCAT reference,
 taken after the press demo first ran end to end on the simulated CPU1516
 ([press evidence](../Evidence/TIA_PRESS_COMPLETE_2026-10-15.md)), and an ordered
-plan to close it. Line configuration is planned in detail because it is the
-largest functional gap an operator meets. This is a plan, not a claim: every
-item below is **not implemented** unless the census says otherwise.
+plan to close it. The baseline census below is retained to explain the plan;
+the dated implementation progress in section 5 records subsequent completion
+and its measured limits.
 
 Continuation, 2026-10-15: **P1 is in progress.** The shared typed line engine now
 has native owner/mirror, atomic-image, staleness/event and image-reapplication
@@ -18,10 +18,12 @@ Continuation, 2026-10-16: owner named line sets/current export now reuse the
 ordinary root catalog, typed staging and LOAD_DB documents. A bound synthetic
 mirror provider and offline mirror restore are implemented and measured; see
 [sets/mirror evidence](../Evidence/TIA_LINE_SETS_MIRROR_2026-10-16.md).
-Shifts, data classes/capture and complete press profile integration remain.
-Normal generation refuses the partial profile (Core 1.5); the explicit workbench
-API is for isolated tests only. The census below continues to describe the
-shipped press; the Line profile is not closed.
+Continuation, 2026-10-17: shifts, classes/capture and runtime model creation are
+implemented. The wired press now includes a local Line owner, complete V3
+calendar/targets, atomic Line sets and LOAD_DB recovery. Normal generation
+admits complete owner/bound-mirror profiles; partial engine experiments retain
+the workbench API. See [press integration evidence](../Evidence/TIA_LINE_PRESS_2026-10-17.md).
+P12 OUC TCP and full HMI/conformance/physical qualification remain separate.
 
 ## 1. Method
 
@@ -47,7 +49,7 @@ plant; native HMI direct link (`s7web://`, entered login) and gateway transport.
 
 ## 3. Gap census
 
-### 3.1 Line profile — not implemented (Core §3.8e, §8.5.2)
+### 3.1 Line profile — baseline gaps (Core §3.8e, §8.5.2)
 
 | Missing | TC3 reference | Effect today |
 |---|---|---|
@@ -200,6 +202,19 @@ later phase adds published surface that the frozen contract must then cover.
 
 ### Implementation progress
 
+**October17 Line press milestone — generator 0.25.**
+[Measured scope and evidence](../Evidence/TIA_LINE_PRESS_2026-10-17.md):
+P1 local-owner/press integration and public complete-profile admission are
+implemented. The press declares its Line beside station/model config through
+one shared V3 calendar contract; Main gains no service wiring. The reserved
+CPU1516 passes 37 Line and 64 wired-GRAPH checks, including atomic sets, target
+latching, model coexistence and actual restart. Fresh-project native builds
+pass both stages with zero errors/warnings; 617 canonical objects, 162 interfaces
+and 71 DB interfaces match read-back. All 266 engineering tests pass. Complete
+bound-mirror admission retains whole-image validation; the synthetic provider
+does not implement P12. OUC TCP, MANUAL_HELD, I/O/modules, durable host delivery,
+reusable connectors and remaining conformance/deployment gates stay open.
+
 **October17 runtime models milestone — generator 0.24.**
 [Measured scope and evidence](../Evidence/TIA_RUNTIME_MODELS_2026-10-17.md):
 P7 bounded root catalogs, model/set cloning, per-field read/write admission,
@@ -258,11 +273,10 @@ workbench progress is recorded above; P12 transport decisions do not block it.
 the reserved `line.*` namespace, with both cases tested. Owner/local mirror,
 replication, persistence and Line presentation are now measured on the isolated
 workbench. Owner sets/current export and a bound synthetic mirror source with
-durable offline restore are also measured. P1 stays open until the complete
-profile can ship: shifts (P2) and classes/capture (P7) are now measured; full
-press integration and profile admission remain;
-the normal generator continues to refuse partial Line profiles. P12 transport
-is separate and is not implemented by the synthetic source fixture.
+durable offline restore are also measured. Shifts (P2), classes/capture (P7),
+press integration and complete-profile admission are now implemented, as
+recorded above. Normal generation continues to refuse partial Line profiles.
+P12 transport is separate and is not implemented by the synthetic source fixture.
 
 **Physical bench companion added at the owner's request:** the
 [1214C I/O bridge and matching simulator driver](../Evidence/TIA_PRESS_IO_BRIDGE_2026-10-15.md)

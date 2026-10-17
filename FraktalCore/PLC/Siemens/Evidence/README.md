@@ -1,5 +1,10 @@
 # Siemens evidence payloads
 
+Line profile milestone (2026-10-17):
+[qualification report](../../../../Specification/Siemens/Evidence/TIA_LINE_PRESS_2026-10-17.md),
+[sealed payload](Archives/TIA_LINE_PRESS_2026-10-17/packaging.json).
+Earlier payloads remain immutable.
+
 Runtime model milestone (2026-10-17):
 [qualification report](../../../../Specification/Siemens/Evidence/TIA_RUNTIME_MODELS_2026-10-17.md),
 [sealed payload](Archives/TIA_RUNTIME_MODELS_2026-10-17/packaging.json).

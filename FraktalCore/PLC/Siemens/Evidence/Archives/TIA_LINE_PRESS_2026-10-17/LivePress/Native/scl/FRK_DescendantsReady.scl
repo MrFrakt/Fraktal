@@ -1,0 +1,45 @@
+﻿FUNCTION "FRK_DescendantsReady" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      OwnerIndex : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Parent : DInt;
+      Depth : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DescendantsReady := FALSE;
+	IF "FRK_Registry".Fault OR #OwnerIndex < 1 OR #OwnerIndex > "FRK_Registry".Count OR "FRK_Registry".Count > 7 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO "FRK_Registry".Count DO
+	    #Parent := "FRK_Registry".Rows[#Index].Parent;
+	    FOR #Depth := 1 TO 7 DO
+	        IF #Parent = #OwnerIndex THEN
+	            IF "FRK_Registry".Rows[#Index].Exec <> 0 THEN
+	                RETURN;
+	            END_IF;
+	            EXIT;
+	        END_IF;
+	        IF #Parent = 0 THEN
+	            EXIT;
+	        END_IF;
+	        IF #Parent < 1 OR #Parent > "FRK_Registry".Count THEN
+	            RETURN;
+	        END_IF;
+	        #Parent := "FRK_Registry".Rows[#Parent].Parent;
+	    END_FOR;
+	    IF #Depth > 7 AND #Parent <> 0 THEN
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	#FRK_DescendantsReady := TRUE;
+	
+END_FUNCTION
+

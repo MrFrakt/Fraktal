@@ -1,0 +1,113 @@
+﻿FUNCTION "FRK_PartProcessed" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Verdict : DInt;
+      Reason : DInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Core : "FRK_Core";
+      Unit : "FRK_Unit";
+      Status : "ST_ModuleStatus";
+      Part : "ST_PartContext";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Index : DInt;
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PartProcessed := FALSE;
+	#Index := #Unit.CarrierIndex;
+	IF #Index = 0 OR NOT #Part.Present THEN
+	    RETURN;
+	END_IF;
+	IF #Verdict < 1 OR #Verdict > 3 OR (#Verdict = 2 AND #Reason = 0) THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2023,
+	                Description := WSTRING#'std.error.nokReasonRequired');
+	    RETURN;
+	END_IF;
+	IF #Index < 1 OR #Index > 7 THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2021,
+	                Description := WSTRING#'std.error.partCarrierWriteFailed');
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_Carriers".Slots[#Index].Enabled THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2021,
+	                Description := WSTRING#'std.error.partCarrierWriteFailed');
+	    RETURN;
+	END_IF;
+	IF #Part.Uid <> "FRK_Carriers".Slots[#Index].Context.Uid THEN
+	    "FRK_Fault"(Core := #Core,
+	                Status := #Status,
+	                ReasonCode := 2022,
+	                Description := WSTRING#'std.error.partCarrierReadFailed');
+	    RETURN;
+	END_IF;
+	#Part.Result.Verdict := #Verdict;
+	#Part.Result.ReasonCode := #Reason;
+	#Part.Result.StationPath := STRING_TO_WSTRING(#Status.Name);
+	#Part.Result.TimeSynchronized := FALSE;
+	#ResultCode := RD_SYS_T(OUT => #Stamp);
+	IF #ResultCode = 0 THEN
+	    #Part.Result.Stamp := DTL_TO_LDT(#Stamp);
+	END_IF;
+	"FRK_Carriers".Slots[#Index].Written := #Part;
+	IF "FRK_Carriers".Slots[#Index].Writes < UDINT#4294967295 THEN
+	    "FRK_Carriers".Slots[#Index].Writes := "FRK_Carriers".Slots[#Index].Writes + 1;
+	END_IF;
+	CASE #Verdict OF
+	    1:
+	        IF #Unit.Good < UDINT#4294967295 THEN
+	            #Unit.Good := #Unit.Good + 1;
+	        END_IF;
+	    2:
+	        IF #Unit.Nok < UDINT#4294967295 THEN
+	            #Unit.Nok := #Unit.Nok + 1;
+	        END_IF;
+	        #Unit.NokReason := #Reason;
+	    3:
+	        IF #Unit.Rework < UDINT#4294967295 THEN
+	            #Unit.Rework := #Unit.Rework + 1;
+	        END_IF;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	// The provider result is written before publishing EVENT_PART_PROCESSED.
+	"FRK_PartEvent"(AlarmLog := #AlarmLog,
+	                Reason := 2026,
+	                Uid := #Part.Uid,
+	                SourcePath := #Status.Name);
+	"FRK_HostEmit"(Kind := 3,
+	               Scope := #Status.Name,
+	               PartUid := #Part.Uid,
+	               Subject := '',
+	               Value := '',
+	               Verdict := #Verdict,
+	               Reason := #Reason);
+	IF #Verdict = 2 THEN
+	    "FRK_HostEmit"(Kind := 10,
+	                   Scope := #Status.Name,
+	                   PartUid := #Part.Uid,
+	                   Subject := '',
+	                   Value := '',
+	                   Verdict := #Verdict,
+	                   Reason := #Reason);
+	END_IF;
+	#Part.Present := FALSE;
+	#FRK_PartProcessed := TRUE;
+	
+END_FUNCTION
+

@@ -10,7 +10,7 @@ END_VAR
 BEGIN
     IF #RootIndex < 1 OR #RootIndex > 1 THEN RETURN; END_IF;
     #Persist.Pending := FALSE; #Persist.PendingSince := LDT#1970-01-01-00:00:00;
-    #Persist.WindowMs := 17000;
+    #Persist.WindowMs := 18000;
     IF #RootIndex = 1 THEN
         #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[1].Failed;
         IF "FRK_PersistConsumers".Rows[1].Dirty OR "FRK_PersistConsumers".Rows[1].Ticket <> 0 THEN
@@ -87,6 +87,17 @@ BEGIN
             IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[11].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[11].PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := "FRK_PersistConsumers".Rows[11].PendingSince; END_IF;
         END_IF;
     END_IF;
+    IF (#RootIndex = 1) AND "FRK_PersistConsumers".Rows[11].Rejected AND NOT "FRK_PersistConsumers".Rows[11].Acknowledged THEN
+        #Persist.RestoreLost := TRUE; #Persist.RestoreAcknowledged := FALSE;
+        #Persist.LostPath := 'PressDemo';
+    END_IF;
+    IF #RootIndex = 1 THEN
+        #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[12].Failed;
+        IF "FRK_PersistConsumers".Rows[12].Dirty OR "FRK_PersistConsumers".Rows[12].Ticket <> 0 THEN
+            #Persist.Pending := TRUE;
+            IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[12].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[12].PendingSince < #Persist.PendingSince) THEN #Persist.PendingSince := "FRK_PersistConsumers".Rows[12].PendingSince; END_IF;
+        END_IF;
+    END_IF;
     IF "FRK_ModelRuntime".Rows[#RootIndex].State = 1 THEN
         #Persist.Pending := TRUE;
         IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 THEN #Persist.PendingSince := "FRK_ModelRuntime".Rows[#RootIndex].PendingSince; END_IF;
@@ -150,9 +161,17 @@ BEGIN
         "FRK_PersistRepair"(Slot := 9);
         "FRK_PersistDirty"(Slot := 9);
     END_IF;
-    IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[11].Rejected THEN
+    IF (#RootIndex = 1) AND "FRK_PersistConsumers".Rows[11].Rejected THEN
         "FRK_PersistConsumers".Rows[11].Acknowledged := TRUE;
         "FRK_PersistRepair"(Slot := 11);
         "FRK_PersistDirty"(Slot := 11);
+    END_IF;
+    IF (#RootIndex = 1) AND "FRK_PersistConsumers".Rows[11].Acknowledged AND "FRK_ConfigStore".LostPath[1] = 'PressDemo' THEN
+        "FRK_ConfigStore".Acknowledged[1] := TRUE;
+    END_IF;
+    IF #RootIndex = 1 AND "FRK_PersistConsumers".Rows[12].Rejected THEN
+        "FRK_PersistConsumers".Rows[12].Acknowledged := TRUE;
+        "FRK_PersistRepair"(Slot := 12);
+        "FRK_PersistDirty"(Slot := 12);
     END_IF;
 END_FUNCTION

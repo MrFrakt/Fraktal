@@ -1,0 +1,37 @@
+﻿FUNCTION "FRK_LineAnnounce" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      State : "FRK_LineState";
+      AlarmLog : "FRK_AlarmLog";
+   END_VAR
+
+   VAR_TEMP 
+      Diag : "ST_Diagnostic";
+      Gone : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	IF #State.Status.Role = 2 AND #State.Status.Stale THEN
+	    IF #State.StaleSlot = 0 THEN
+	        #Diag := "FRK_UnitScratch".EmptyDiagnostic;
+	        #Diag.ReasonCode := 0;
+	        #Diag.Description := WSTRING#'std.error.lineDataStale';
+	        #Diag.SourcePath := STRING_TO_WSTRING(#Scope);
+	        #Diag.Severity := 0;
+	        #Diag.Category := 2;
+	        #State.StaleSlot := "FRK_AlarmRaise"(AlarmLog := #AlarmLog, Diag := #Diag, ResetClass := 0);
+	    END_IF;
+	ELSIF #State.StaleSlot > 0 THEN
+	    #Gone := "FRK_AlarmGone"(AlarmLog := #AlarmLog, Slot := #State.StaleSlot);
+	    #State.StaleSlot := 0;
+	END_IF;
+	
+END_FUNCTION
+

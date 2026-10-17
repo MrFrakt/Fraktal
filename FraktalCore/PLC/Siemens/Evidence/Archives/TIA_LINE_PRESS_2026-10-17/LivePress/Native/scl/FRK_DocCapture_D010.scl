@@ -1,0 +1,41 @@
+﻿FUNCTION "FRK_DocCapture_D010" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Length : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocCapture_D010 := FALSE;
+	"FRK_PersistImages".D010.SchemaVersion := 1;
+	"FRK_PersistImages".D010.Scope := 'users';
+	IF NOT "FRK_AccessStorage".UsersReady THEN
+	    RETURN;
+	END_IF;
+	"FRK_PersistImages".D010.Generation := "FRK_LocalUsers".Generation;
+	"FRK_PersistImages".D010.Count := "FRK_LocalUsers".Count;
+	"FRK_PersistImages".D010.Rows := "FRK_LocalUsers".Rows;
+	"FRK_PersistImages".D010.Checksum := "FRK_LocalUsers".Checksum;
+	FOR #Index := 0 TO 8727 DO
+	    "FRK_PersistBuffers".D010Data[#Index] := BYTE#0;
+	END_FOR;
+	#Position := 24;
+	#NativeResult := Serialize(SRC_VARIABLE := "FRK_PersistImages".D010, DEST_ARRAY => "FRK_PersistBuffers".D010Data, POS := #Position);
+	IF #NativeResult <> 0 OR #Position < 24 OR #Position > 8728 THEN
+	    RETURN;
+	END_IF;
+	#Length := #Position - 24;
+	#FRK_DocCapture_D010 := TRUE;
+	
+END_FUNCTION
+

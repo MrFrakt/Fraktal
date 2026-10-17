@@ -1,0 +1,44 @@
+﻿FUNCTION "FRK_State" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Idx : Int;
+      Key : String;
+      Ok : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Flags : Array[1..12] of "ST_StateFlag";
+      Count : Int;
+      Touched : Array[1..12] of Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Stamp {InstructionName := 'DTL'; LibVersion := '1.0'} : DTL;
+      ResultCode : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_State := #Ok;
+	IF #Idx < 1 OR #Idx > 12 OR LEN(#Key) = 0 OR LEN(#Key) > 120 THEN
+	    RETURN;
+	END_IF;
+	IF #Idx > #Count THEN
+	    #Count := #Idx;
+	END_IF;
+	IF #Flags[#Idx].Value <> #Ok OR #Flags[#Idx].Key <> #Key OR #Flags[#Idx].Stale THEN
+	    #Flags[#Idx].Since := LDT#1970-01-01-00:00:00.000000000;
+	    #ResultCode := RD_SYS_T(OUT => #Stamp);
+	    IF #ResultCode = 0 THEN
+	        #Flags[#Idx].Since := DTL_TO_LDT(#Stamp);
+	    END_IF;
+	END_IF;
+	#Flags[#Idx].Key := #Key;
+	#Flags[#Idx].Value := #Ok;
+	#Flags[#Idx].Stale := FALSE;
+	#Touched[#Idx] := TRUE;
+	
+END_FUNCTION
+

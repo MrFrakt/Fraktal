@@ -1,0 +1,16 @@
+﻿FUNCTION "FRK_SeqCycleEnd" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Seq : "FRK_SequenceCtx";
+   END_VAR
+
+
+BEGIN
+	
+	#Seq.StartLatched := FALSE;
+	IF #Seq.BranchIndex = 0 THEN "FRK_SeqProfileComplete"(Owner := #Seq.OwnerIndex);
+	END_IF;
+	
+END_FUNCTION
+

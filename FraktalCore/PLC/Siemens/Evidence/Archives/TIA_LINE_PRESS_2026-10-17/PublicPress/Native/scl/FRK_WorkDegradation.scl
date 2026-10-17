@@ -1,0 +1,57 @@
+﻿FUNCTION "FRK_WorkDegradation" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      CycleNo : UDInt;
+      WorkMs : UDInt;
+      BaselineMs : UDInt;
+      BandPercent : UInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Book : "FRK_Production";
+   END_VAR
+
+   VAR_TEMP 
+      Above : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_WorkDegradation := FALSE;
+	IF #BaselineMs = 0 THEN
+	    #Book.Degraded := FALSE;
+	    #Book.WorkSamples := 0;
+	    #Book.WorkTotalMs := 0.0;
+	    RETURN;
+	END_IF;
+	IF #Book.BaselineSeen <> #BaselineMs OR #Book.BandSeen <> #BandPercent THEN
+	    #Book.WorkSamples := 0;
+	    #Book.WorkTotalMs := 0.0;
+	    #Book.Degraded := FALSE;
+	    IF #Book.BaselineSeen <> 0 THEN
+	        #Book.CycleSeen := #CycleNo;
+	        #Book.BaselineSeen := #BaselineMs;
+	        #Book.BandSeen := #BandPercent;
+	        RETURN;
+	    END_IF;
+	    #Book.BaselineSeen := #BaselineMs;
+	    #Book.BandSeen := #BandPercent;
+	END_IF;
+	IF #CycleNo = 0 OR #CycleNo = #Book.CycleSeen THEN
+	    RETURN;
+	END_IF;
+	#Book.CycleSeen := #CycleNo;
+	IF #Book.WorkSamples = UDINT#4294967295 THEN
+	    #Book.WorkSamples := 0;
+	    #Book.WorkTotalMs := 0.0;
+	END_IF;
+	#Book.WorkSamples := #Book.WorkSamples + 1;
+	#Book.WorkTotalMs := #Book.WorkTotalMs + UDINT_TO_LREAL(#WorkMs);
+	#Above := #Book.WorkTotalMs / UDINT_TO_LREAL(#Book.WorkSamples) > UDINT_TO_LREAL(#BaselineMs) * (1.0 + UINT_TO_LREAL(#BandPercent) / 100.0);
+	#FRK_WorkDegradation := #Above AND NOT #Book.Degraded;
+	#Book.Degraded := #Above;
+	
+END_FUNCTION
+

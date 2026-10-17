@@ -1,0 +1,63 @@
+﻿FUNCTION "FRK_LineValue" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      FieldIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Values : "ST_PressDemoLineConfig";
+   END_VAR
+
+
+BEGIN
+	
+	CASE #FieldIndex OF
+	    1:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.UtcOffsetMin);
+	    2:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[1]);
+	    3:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[1]);
+	    4:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[1]);
+	    5:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[1]);
+	    6:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[2]);
+	    7:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[2]);
+	    8:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[2]);
+	    9:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[2]);
+	    10:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[3]);
+	    11:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[3]);
+	    12:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[3]);
+	    13:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[3]);
+	    14:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[4]);
+	    15:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[4]);
+	    16:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[4]);
+	    17:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[4]);
+	    18:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftStartMin[5]);
+	    19:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftDurationMin[5]);
+	    20:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftActiveDays[5]);
+	    21:
+	        "FRK_ConfigScratch".Entry.ValueText := DINT_TO_WSTRING(#Values.ShiftTarget[5]);
+	    ELSE
+	        "FRK_ConfigScratch".Entry.ValueText := WSTRING#'';
+	END_CASE;
+	
+END_FUNCTION
+

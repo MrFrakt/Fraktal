@@ -1,0 +1,40 @@
+﻿FUNCTION "FRK_ReasonShelvable" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Reason : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ReasonShelvable := FALSE;
+	CASE #Reason OF
+	    11:
+	        #FRK_ReasonShelvable := TRUE;
+	    12:
+	        #FRK_ReasonShelvable := TRUE;
+	    16:
+	        #FRK_ReasonShelvable := TRUE;
+	    17:
+	        #FRK_ReasonShelvable := TRUE;
+	    19:
+	        #FRK_ReasonShelvable := TRUE;
+	    21:
+	        #FRK_ReasonShelvable := TRUE;
+	    2005:
+	        #FRK_ReasonShelvable := TRUE;
+	    2007:
+	        #FRK_ReasonShelvable := TRUE;
+	    2011:
+	        #FRK_ReasonShelvable := TRUE;
+	    10402:
+	        #FRK_ReasonShelvable := TRUE;
+	    10404:
+	        #FRK_ReasonShelvable := TRUE;
+	    ELSE
+	        RETURN;
+	END_CASE;
+	
+END_FUNCTION
+

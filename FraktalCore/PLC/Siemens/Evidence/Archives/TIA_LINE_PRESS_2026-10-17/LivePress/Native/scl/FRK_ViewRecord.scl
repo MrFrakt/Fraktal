@@ -1,0 +1,130 @@
+﻿FUNCTION "FRK_ViewRecord" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      StepNo : DInt;
+      Branch : DInt;
+      Depth : Int;
+      Visit : UDInt;
+      StepName : String;
+      AwaitingLabel : String;
+      AwaitsPath : String;
+      TimeClass : DInt;
+      ExpectedTime : Time;
+      Elapsed : Time;
+   END_VAR
+
+   VAR_IN_OUT 
+      Defs : Array[*] of "ST_SequenceStepDef";
+      Rows : Array[*] of "ST_SequenceStep";
+      Cursors : Array[*] of "ST_SequenceCursor";
+      Notes : Array[*] of "ST_SequenceAnnotation";
+      Count : Int;
+      NoteCount : Int;
+      Current : "ST_StepRecord";
+      Book : "FRK_ViewBook";
+      Touched : Array[*] of Bool;
+      Depths : Array[*] of Int;
+      Visits : Array[*] of UDInt;
+      GuardInputs : Array[*] of Time;
+      GuardDefaults : Array[*] of Time;
+      GuardTouched : Array[*] of Bool;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      RowIdx : Int;
+      Leg : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #StepNo < 0 OR #StepNo > 32767 OR #Branch < 0 OR #Branch > UPPER_BOUND(ARR := #Cursors, DIM := 1)
+	    OR #Depth < 0 OR #ExpectedTime < T#0ms OR #Elapsed < T#0ms THEN
+	    #Book.Overflow := TRUE;
+	    RETURN;
+	END_IF;
+	#Leg := DINT_TO_INT(#Branch);
+	#RowIdx := 0;
+	FOR #Index := 1 TO #Count DO
+	    IF #Defs[#Index].StepNo = #StepNo THEN
+	        #RowIdx := #Index;
+	        EXIT;
+	    END_IF;
+	END_FOR;
+	IF #RowIdx = 0 THEN
+	    IF #Count >= UPPER_BOUND(ARR := #Rows, DIM := 1) THEN
+	        #Book.Overflow := TRUE;
+	        RETURN;
+	    END_IF;
+	    #Count := #Count + 1;
+	    #RowIdx := #Count;
+	    #Defs[#RowIdx].StepNo := DINT_TO_INT(#StepNo);
+	    #Defs[#RowIdx].Branch := #Leg;
+	    #Defs[#RowIdx].StepName := #StepName;
+	    #Defs[#RowIdx].AwaitingLabel := #AwaitingLabel;
+	    #Defs[#RowIdx].AwaitsPath := #AwaitsPath;
+	    #Defs[#RowIdx].TimeClass := #TimeClass;
+	    #Defs[#RowIdx].ExpectedTime := #ExpectedTime;
+	    #Book.Dirty := TRUE;
+	    #Book.ChangedMs := "FRK_Clock".NowMs;
+	ELSIF #Defs[#RowIdx].Branch <> #Leg OR #Defs[#RowIdx].StepName <> #StepName THEN
+	    // A number is a unique identity within the running mode; fail closed on aliasing.
+	    #Book.Overflow := TRUE;
+	    RETURN;
+	END_IF;
+	#GuardInputs[#RowIdx] := #ExpectedTime;
+	#GuardTouched[#RowIdx] := TRUE;
+	IF #Defs[#RowIdx].TimeClass <> #TimeClass
+	    OR #Defs[#RowIdx].AwaitingLabel <> #AwaitingLabel OR #Defs[#RowIdx].AwaitsPath <> #AwaitsPath THEN
+	    #Defs[#RowIdx].TimeClass := #TimeClass;
+	    #Defs[#RowIdx].AwaitingLabel := #AwaitingLabel;
+	    #Defs[#RowIdx].AwaitsPath := #AwaitsPath;
+	    #Book.Dirty := TRUE;
+	    #Book.ChangedMs := "FRK_Clock".NowMs;
+	END_IF;
+	IF #Visits[#RowIdx] <> #Visit THEN
+	    #Rows[#RowIdx].WarningActive := FALSE;
+	    "FRK_ViewClearNotes"(RowIdx := #RowIdx,
+	                         IsError := FALSE,
+	                         Notes := #Notes,
+	                         NoteCount := #NoteCount);
+	    #Visits[#RowIdx] := #Visit;
+	END_IF;
+	#Rows[#RowIdx].Visited := TRUE;
+	#Rows[#RowIdx].LastDuration := #Elapsed;
+	// A composite's parent row cannot replace a deeper active sub-chain cursor,
+	// regardless of whether its call precedes or follows the parent's action.
+	IF #Depth >= #Depths[#Leg] THEN
+	    #Cursors[#Leg].RowIdx := #RowIdx;
+	    #Cursors[#Leg].Elapsed := #Elapsed;
+	    #Cursors[#Leg].TimedOut := #Defs[#RowIdx].ExpectedTime > T#0ms AND #Elapsed > #Defs[#RowIdx].ExpectedTime;
+	    #Depths[#Leg] := #Depth;
+	    #Touched[#Leg] := TRUE;
+	    IF #Leg = 0 THEN
+	        IF #Current.StepNo <> #StepNo THEN
+	            #Current := "FRK_ViewScratch".Step;
+	            #Book.CondIndex := 0;
+	            #Book.PendingFound := FALSE;
+	            #Book.AwaitIndex := 0;
+	        END_IF;
+	        #Current.StepNo := DINT_TO_INT(#StepNo);
+	        #Current.StepName := #StepName;
+	        #Current.AwaitingLabel := #AwaitingLabel;
+	        #Current.TimeClass := #TimeClass;
+	        #Current.ExpectedTime := #Defs[#RowIdx].ExpectedTime;
+	        "FRK_SeqProfileStep"(Owner := #Owner,
+	                             StepNo := #StepNo,
+	                             Visit := #Visit,
+	                             StepName := #StepName,
+	                             TimeClass := #TimeClass,
+	                             Expected := #Current.ExpectedTime,
+	                             NowMs := "FRK_Clock".NowMs,
+	                             Stamp := "FRK_Now"());
+	    END_IF;
+	END_IF;
+	
+END_FUNCTION
+

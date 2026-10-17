@@ -1,0 +1,42 @@
+﻿FUNCTION "FRK_PersistStart" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Slot : Int;
+      WriteDocument : Bool;
+      Length : DInt;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_PersistStart := 0;
+	IF #Slot < 1 OR #Slot > 12 THEN
+	    RETURN;
+	END_IF;
+	IF #Length < 0 OR #Length > "FRK_PersistRuntime".Capacity[#Slot] OR "FRK_PersistRuntime".Leased[#Slot] THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistRuntime".LastTicket = UDINT#4294967295 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 4 DO
+	    IF "FRK_PersistRuntime".Queue[#Index].State = 0 THEN
+	        "FRK_PersistRuntime".LastTicket := "FRK_PersistRuntime".LastTicket + 1;
+	        "FRK_PersistRuntime".Queue[#Index].Ticket := "FRK_PersistRuntime".LastTicket;
+	        "FRK_PersistRuntime".Queue[#Index].Slot := #Slot;
+	        "FRK_PersistRuntime".Queue[#Index].WriteDocument := #WriteDocument;
+	        "FRK_PersistRuntime".Queue[#Index].Length := #Length;
+	        "FRK_PersistRuntime".Queue[#Index].State := 1;
+	        "FRK_PersistRuntime".Leased[#Slot] := TRUE;
+	        #FRK_PersistStart := "FRK_PersistRuntime".LastTicket;
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

@@ -1,0 +1,98 @@
+FUNCTION "FRK_TowerTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT MachineState : DInt; AlarmActive : Bool; HighestSeverity : DInt; OperatorActionRequired : Bool; ParCfg : "ST_SignalTowerParCfg"; END_VAR
+VAR_IN_OUT Book : "FRK_TowerBook"; Status : "ST_SignalTowerOut"; END_VAR
+VAR_TEMP TestActive : Bool; END_VAR
+BEGIN
+    IF #Book.TestActive AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Book.StartedMs) >= #Book.DurationMs THEN #Book.TestActive := FALSE; END_IF;
+    #TestActive := #Book.TestActive;
+#Status.Red := FALSE;
+#Status.Amber := FALSE;
+#Status.Green := FALSE;
+#Status.Blue := FALSE;
+#Status.White := FALSE;
+#Status.Horn := FALSE;
+#Status.TestActive := #TestActive;
+IF #TestActive THEN
+    #Status.Red := TRUE;
+    #Status.Amber := TRUE;
+    #Status.Green := TRUE;
+    #Status.Blue := TRUE;
+    #Status.White := TRUE;
+    #Status.Horn := TRUE;
+ELSE
+    CASE #MachineState OF
+        4:
+            #Status.Red := TRUE;
+        2, 3, 5:
+            #Status.Amber := TRUE;
+        0:
+            #Status.Green := TRUE;
+        1, 6:
+            #Status.TestActive := #TestActive;
+        ELSE
+            #Status.Red := TRUE; // unknown state fails conspicuously
+    END_CASE;
+    IF #AlarmActive THEN
+        CASE #HighestSeverity OF
+            2:
+                #Status.Red := TRUE;
+                #Status.Green := FALSE;
+                IF #ParCfg.HornOnHigh THEN #Status.Horn := TRUE; ELSE #Status.TestActive := #TestActive; END_IF;
+            1, 0:
+                IF NOT #Status.Red THEN #Status.Amber := TRUE; ELSE #Status.TestActive := #TestActive; END_IF;
+            ELSE
+                #Status.Red := TRUE;
+                #Status.Green := FALSE;
+        END_CASE;
+    ELSE
+        #Status.TestActive := #TestActive;
+    END_IF;
+    IF #OperatorActionRequired THEN
+        IF #ParCfg.OperatorUsesWhite THEN #Status.White := TRUE; ELSE #Status.Blue := TRUE; END_IF;
+    ELSE
+        #Status.TestActive := #TestActive;
+    END_IF;
+END_IF;
+
+END_FUNCTION
+
+FUNCTION "FRK_TowerRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; ParCfg : "ST_SignalTowerParCfg"; END_VAR
+VAR_IN_OUT Core : "FRK_Core"; Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse"; Book : "FRK_TowerBook"; END_VAR
+VAR_TEMP Duration : Time; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> 26 THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[2] THEN #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    ELSIF #Core.Exec <> 1 THEN
+        #Duration := #ParCfg.LampTestDuration;
+        IF #ParCfg.SchemaVersion <> 1 OR #Duration <= T#0ms THEN #Duration := T#3s;
+        ELSIF #Duration > T#30s THEN #Duration := T#30s; END_IF;
+        #Book.DurationMs := TIME_TO_UDINT(#Duration); #Book.StartedMs := "FRK_Clock".NowMs; #Book.TestActive := TRUE;
+        #Response.Accepted := TRUE;
+    END_IF;
+    IF #Response.Accepted THEN #Response.Diagnostic := WSTRING#'';
+    ELSE "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := 2002, Path := STRING_TO_WSTRING(#Scope), Kind := 4); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_TowerFrame" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT MachineState : DInt; OperatorActionRequired : Bool; ParCfg : "ST_SignalTowerParCfg"; END_VAR
+VAR_IN_OUT Book : "FRK_TowerBook"; AlarmLog : "FRK_AlarmLog"; Status : "ST_SignalTowerOut"; END_VAR
+VAR_TEMP Index : Int; Highest : DInt; Active : Bool; END_VAR
+BEGIN
+    #Highest := 0; #Active := FALSE;
+    FOR #Index := 1 TO 16 DO
+        IF #AlarmLog.Active[#Index].State <> 0 AND NOT #AlarmLog.Active[#Index].Shelved THEN
+            #Active := TRUE;
+            #Highest := MAX(IN1 := #Highest, IN2 := #AlarmLog.Active[#Index].Severity);
+        END_IF;
+    END_FOR;
+    "FRK_TowerTick"(MachineState := #MachineState, AlarmActive := #Active, HighestSeverity := #Highest, OperatorActionRequired := #OperatorActionRequired, ParCfg := #ParCfg, Book := #Book, Status := #Status);
+END_FUNCTION

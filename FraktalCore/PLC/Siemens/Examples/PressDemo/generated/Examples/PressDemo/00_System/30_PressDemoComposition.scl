@@ -20,6 +20,7 @@ BEGIN
         "FRK_Registry".Fault := FALSE;
     END_IF;
     "FRK_ClockTick"();
+    IF #Startup THEN "FRK_LineBoot"(OwnerRole := TRUE, NowMs := "FRK_Clock".NowMs, State := "FRK_Line".Data); END_IF;
     IF #Startup THEN #MediaBoot := TRUE; END_IF;
     "FRK_ModelPrepare"(Startup := #Startup);
     "FRK_PersistEnter"(Startup := #Startup);
@@ -31,10 +32,12 @@ BEGIN
     #RootStartup := #MediaBoot; #MediaBoot := FALSE;
     "FRK_AlarmRecoveryPrepare"(Startup := #RootStartup);
     "FRK_AccessStoreBoot"(Startup := #RootStartup);
+    "FRK_Line".Ready := ("PressDemo".Core.Exec = 0 AND NOT "PressDemo".Unit.ModePending AND NOT "PressDemo".Unit.Clearing AND "FRK_DescendantsReady"(OwnerIndex := "PressDemo".Core.RegIndex));
     "FRK_ModelBoot"(Startup := #RootStartup);
     "FRK_SetBoot"(Startup := #RootStartup);
     "FRK_ConfigBoot"(Startup := #RootStartup);
     "FRK_S7HealthProbe"(Startup := #RootStartup);
     "PressDemo"(ParentIndex := 0, Startup := #RootStartup, Hal := "GDB_FraktalHal".Data.PressDemo, BoundPath := WSTRING#'PressDemo');
+    "FRK_PersistLineTick"();
     "FRK_DocCyclic"();
 END_FUNCTION_BLOCK

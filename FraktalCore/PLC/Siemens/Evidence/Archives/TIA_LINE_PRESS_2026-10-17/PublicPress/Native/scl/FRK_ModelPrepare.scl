@@ -1,0 +1,29 @@
+﻿FUNCTION "FRK_ModelPrepare" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Startup : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      RootIndex : Int;
+      Index : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF NOT #Startup THEN
+	    RETURN;
+	END_IF;
+	FOR #RootIndex := 1 TO 1 DO
+	    "FRK_ModelRuntime".Rows[#RootIndex] := "FRK_ModelRuntime".BlankWork;
+	    "FRK_ModelStore".Rows[#RootIndex] := "FRK_ModelRuntime".BlankCatalog;
+	    "FRK_ConfigStore".ActiveModels[#RootIndex] := 'ALUMINUM';
+	END_FOR;
+	FOR #Index := 1 TO 22 DO
+	    "FRK_ConfigStore".Rows[#Index].Used := FALSE;
+	END_FOR;
+	
+END_FUNCTION
+

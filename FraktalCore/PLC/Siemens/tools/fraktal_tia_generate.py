@@ -13,7 +13,7 @@ from fraktal_tia_binding import Catalog, PRIVATE, READONLY, REPO, literal, type_
 import fraktal_tia_declaration as DECL
 
 HERE = Path(__file__).resolve().parent
-VERSION = "0.24"
+VERSION = "0.25"
 KIND = "fraktal.tia.generated.frames.v1"
 ROLES = ("ParCfg", "ParCmd", "OutCmd", "OutImm")
 RESERVED_BLOCKS = {"frk_core", "frk_registry", "frk_registryrow", "frk_setidentity",
@@ -113,7 +113,7 @@ def build(model, shared_runtime=False, *, line_workbench=False):
     if model.model_capacity and not shared_runtime:
         raise DECL.DeclarationError('T-GEN', 'model_config.capacity', 'runtime model profile requires the shared Unit runtime')
     if model.line and not line_workbench:
-        raise DECL.DeclarationError('T-GEN', 'line', 'Line profile is incomplete (Core 1.5); isolated line_workbench only until shifts and owner sets are qualified')
+        model.line.require_complete()
     catalog = Catalog.read(model.records)
     config_runtime = bool(model.line or model.config_set_capacity or model.model_config or any(t.config or t.station_config for t in model.types))
     config = None
@@ -456,10 +456,10 @@ def build(model, shared_runtime=False, *, line_workbench=False):
         duplicate = next(n for n in emitted if emitted.count(n) > 1)
         raise DECL.DeclarationError('T-COLLIDE', duplicate, 'project and framework global declarations collide')
     return sources, {"kind": KIND, "generator_version": VERSION, "declaration": definition(model),
-                     **({'line_workbench': True} if model.line else {}),
+                     **({'line_workbench': True} if model.line and line_workbench else {}),
                      "inventory": model.inventory(), "core_inputs": catalog.inputs,
                      "types": types, "type_ids": type_ids, "hal_types": hal_names,
-                     "runtime_dependencies": ["FRK_Core", "FRK_Begin", "FRK_RouteAbort", "FRK_End", "FRK_ClockTick", "FRK_Start"] + ([model.event_sink] if model.event_sink else []),
+                     "runtime_dependencies": ["FRK_Core", "FRK_Begin", "FRK_RouteAbort", "FRK_End", "FRK_ClockTick", "FRK_Start"] + ([model.event_sink] if model.event_sink else []) + ([model.line.source] if model.line and model.line.source else []),
                      "shared_runtime": shared_runtime, "runtime": runtime_metadata,
                      "template_sha256": hashlib.sha256(template.read_bytes()).hexdigest()}
 
