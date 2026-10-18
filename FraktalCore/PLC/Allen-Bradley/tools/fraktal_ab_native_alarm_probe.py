@@ -3,7 +3,9 @@
 ALMD is a provider comparison, not the Fraktal lifecycle owner. Its object tag
 requires Read/Write access on this target; that is not an approved command
 surface. Stimulus tags are inert/read-only and the S12 task disables outputs.
-Tag-based projection import remains a separate, unaccepted experiment.
+Tag-based cases use the v38 native export spelling, not the incompatible
+RM014 XML example. These are offline probes; runtime projection and operator
+command isolation remain separate gates.
 """
 from __future__ import annotations
 
@@ -20,6 +22,10 @@ PROFILE = s12.ProbeProfile('v38-5580-native-alarm-exploratory', '1756-L81E', '38
                           'offline-not-runtime-accepted', ())
 INPUT = 'FRK_NativeAlarmInput'
 ALMD = 'FRK_NativeAlmd'
+REASON = 'FRK_NativeAlarmReason'
+SOURCE = 'FRK_NativeAlarmSource'
+ALARM_NAME = 'Projected'
+TAG_ALARM = INPUT + '.@Alarms.' + ALARM_NAME
 
 
 @dataclass(frozen=True)
@@ -27,6 +33,7 @@ class Case:
     key: str
     expected: str
     statements: tuple[str, ...]
+    tag_based: bool = False
 
 
 CASES = (
@@ -40,7 +47,54 @@ CASES = (
     Case('invalid_alarm_attribute', 'fail', (
         f'IF {ALMD}.FRK_NotAnAttribute THEN {s12.TAG} := 1; END_IF;',
     )),
+    Case('tag_alarm_st', 'pass', (
+        f'{TAG_ALARM}.ProgSuppress := 0;',
+        f'{TAG_ALARM}.ProgUnsuppress := 1;',
+        f'{TAG_ALARM}.ProgUnshelve := 1;',
+        f'{TAG_ALARM}.ProgEnable := 1;',
+        f'{s12.TAG} := 0;',
+        f'IF {TAG_ALARM}.InAlarm THEN {s12.TAG} := {s12.TAG} + 1; END_IF;',
+        f'IF {TAG_ALARM}.Acked THEN {s12.TAG} := {s12.TAG} + 2; END_IF;',
+        f'IF {TAG_ALARM}.Suppressed THEN {s12.TAG} := {s12.TAG} + 4; END_IF;',
+        f'IF {TAG_ALARM}.Shelved THEN {s12.TAG} := {s12.TAG} + 8; END_IF;',
+        f'IF {TAG_ALARM}.Disabled THEN {s12.TAG} := {s12.TAG} + 16; END_IF;',
+    ), tag_based=True),
+    Case('invalid_tag_alarm_attribute', 'fail', (
+        f'IF {TAG_ALARM}.FRK_NotAnAttribute THEN {s12.TAG} := 1; END_IF;',
+    ), tag_based=True),
+    Case('invalid_tag_alarm_status_write', 'fail', (
+        f'{TAG_ALARM}.InAlarm := 1;',
+    ), tag_based=True),
+    # v38 help calls OperShelve programmatically read-only, but the tested
+    # compiler accepts this assignment. Observe the discrepancy explicitly;
+    # neither compiler outcome establishes runtime effect or authorization.
+    Case('tag_alarm_operator_write_discriminator', 'observe', (
+        f'{TAG_ALARM}.OperShelve := 1;',
+    ), tag_based=True),
 )
+
+
+def tag_alarm_tags():
+    """Disposable condition derived from a native L81E/v38 export.
+
+    '= 1' is an enum value; 'Input = 1' is rejected. The native exporter also
+    spells OnDelay/OffDelay, AlarmSet*Included and EvaluationPeriod differently
+    from RM014's XML example. Keep all requested metadata in read-back checks.
+    """
+    alarm = f'''<AlarmConditions>
+<AlarmCondition Name="{ALARM_NAME}" Input=".0" ConditionType="TRIP" Limit="0.0"
+Severity="700" OnDelay="0" OffDelay="0" ShelveDuration="0" MaxShelveDuration="1"
+Deadband="0.0" Used="true" InFault="false" AckRequired="false" Latched="false"
+AlarmSetOperIncluded="false" AlarmSetRollupIncluded="true"
+EvaluationPeriod="500 millisecond" Expression="= 1"
+AssocTag1="{REASON}" AssocTag2="{SOURCE}">
+<AlarmConfig><Messages><Message Type="CAM"><Text Lang="en-US"><![CDATA[Fraktal native projection probe]]></Text></Message></Messages>
+<AlarmClass><![CDATA[FraktalProbe]]></AlarmClass></AlarmConfig>
+</AlarmCondition></AlarmConditions>'''
+    owner = scalar_tag(INPUT, 'DINT', 'Decimal', '0', 'Read Only')
+    owner = replace_once(owner, '<Data Format="L5K">', alarm + '\n<Data Format="L5K">')
+    return [owner, scalar_tag(REASON, 'DINT', 'Decimal', '10101', 'Read Only'),
+            scalar_tag(SOURCE, 'DINT', 'Decimal', '0', 'Read Only')]
 
 
 def generate_all(seed: Path, directory: Path):
@@ -57,8 +111,9 @@ def generate_all(seed: Path, directory: Path):
             s12.generate_case(seed, path, candidate, 'use', profile=PROFILE)
             text = path.read_text(encoding='utf-8')
             text = replace_once(text, 'ExternalAccess="Read/Write"', 'ExternalAccess="Read Only"')
-            extra = [scalar_tag(INPUT,'DINT','Decimal','0','Read Only'),
-                     f'<Tag Name="{ALMD}" TagType="Base" DataType="ALARM_DIGITAL" Constant="false" ExternalAccess="Read/Write"/>']
+            extra = tag_alarm_tags() if case.tag_based else [
+                scalar_tag(INPUT,'DINT','Decimal','0','Read Only'),
+                f'<Tag Name="{ALMD}" TagType="Base" DataType="ALARM_DIGITAL" Constant="false" ExternalAccess="Read/Write"/>']
             # First closing Tags belongs to the controller, before the Program.
             index = text.index('</Tags>')
             text = text[:index] + '\n'.join(extra) + '\n' + text[index:]

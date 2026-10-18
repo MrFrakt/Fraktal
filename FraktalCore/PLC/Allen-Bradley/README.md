@@ -114,8 +114,24 @@ adds clean ALMD ST compiler/read-back proof on both v38 targets and actual
 invalid-member rejections. The shared read-back gate now verifies native alarm
 parameters, conditions, definitions, messages and identity references. Core
 retains lifecycle ownership; the native object needs Read/Write access and its
-latched reset differs from Core. Tag-based XML trials remain refused/unaccepted.
-These are offline probes, with no production alarm-provider or controller change.
+latched reset differs from Core. The subsequent
+[tag-based alarm continuation](../../../Specification/AllenBradley/Evidence/AB_TAG_ALARMS_COMPILE_2026-10-18.md)
+resolves XML import using a native v38 export and proves tag-based ST attribute
+access with configuration/message read-back on both compiler targets. The
+manual's XML example uses incompatible enum/attribute spellings on this target.
+These are offline probes; runtime projection, external operator-command isolation
+and native shelving/history integration remain separate gates. Core retains
+alarm ownership and the deployed observer image is unchanged.
+Status writes are rejected, but `OperShelve` assignments compile despite the
+help's programmatic Read-only designation; runtime effect remains unqualified.
+
+```powershell
+python tools/fraktal_ab_native_alarm_probe.py C:/work/echo38_5580_seed.L5X C:/work/alarms_new
+python tools/fraktal_ab_native_alarm_gate.py C:/work/alarms_new/generation.json C:/work/alarms_compiled_new
+```
+
+Both directories must be new. Optional repeatable `--case` and `--target`
+arguments select a bounded subset through the same guarded compiler gate.
 
 Current status (2026-10-04): **R0-R6 PASS at their recorded scope; main press
 operation and Phase 0-6 features have reference-bench proof on press68.** R6's

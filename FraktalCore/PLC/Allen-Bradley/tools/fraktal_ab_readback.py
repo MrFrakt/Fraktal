@@ -12,10 +12,30 @@ from decimal import Decimal
 import json
 import re
 import xml.etree.ElementTree as ET
+from xml.dom import minidom
 from pathlib import Path
 
 import fraktal_ab_l5x_inventory as inventory
 import fraktal_ab_sfc_roundtrip_compare as sfc
+
+
+def alarm_root(path):
+    """Keep message bytes inside CDATA, ignore its native XML line wrapping.
+
+    Studio wraps AlarmConfig leaf CDATA with newlines outside the section.
+    ElementTree alone merges those presentation nodes into the actual message.
+    Never strip the CDATA payload itself (leading/trailing spaces matter).
+    """
+    with minidom.parse(str(path)) as document:
+        for config in document.getElementsByTagName('AlarmConfig'):
+            for node in config.getElementsByTagName('*'):
+                children = list(node.childNodes)
+                if (any(c.nodeType == c.CDATA_SECTION_NODE for c in children)
+                        and not any(c.nodeType == c.ELEMENT_NODE for c in children)):
+                    for child in children:
+                        if child.nodeType == child.TEXT_NODE and not child.data.strip():
+                            node.removeChild(child)
+        return ET.fromstring(document.toxml())
 
 
 def normalized(text):
@@ -168,7 +188,9 @@ def compare(source: Path, exported: Path):
     data_a, data_b = initials(first), initials(second)
     code_diff = ['/'.join(k) for k in sorted(set(code_a) | set(code_b)) if code_a.get(k) != code_b.get(k)]
     data_diff = [k for k in sorted(data_a) if data_a[k] != data_b.get(k)]
-    alarm_count, alarm_diff = alarm_differences(first, second)
+    alarm_count, alarm_diff = alarm_differences(
+        alarm_root(source) if first.find('.//AlarmConfig') is not None else first,
+        alarm_root(exported) if second.find('.//AlarmConfig') is not None else second)
     return dict(Schema='fraktal.ab.native-readback', SchemaVersion=1,
                 Inventory=shape, SFC=graph, ExecutableBodies=len(code_a),
                 ExecutableDifferences=code_diff, AuthoredInitialValues=len(data_a),

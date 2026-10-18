@@ -43,9 +43,31 @@ class NativeAlarmProbes(unittest.TestCase):
     def test_positive_and_real_compiler_negative_are_both_generated(self):
         result = probe.generate_all(self.seed,self.output)
         self.assertEqual({r['Case']:r['ExpectedBuild'] for r in result['Cases']},
-                         {'almd_st':'pass','invalid_alarm_attribute':'fail'})
+                         {'almd_st':'pass','invalid_alarm_attribute':'fail',
+                          'tag_alarm_st':'pass','invalid_tag_alarm_attribute':'fail',
+                          'invalid_tag_alarm_status_write':'fail',
+                          'tag_alarm_operator_write_discriminator':'observe'})
         self.assertIn('ALMD(', (self.output/'almd_st.L5X').read_text())
         self.assertIn('FRK_NotAnAttribute',(self.output/'invalid_alarm_attribute.L5X').read_text())
+
+    def test_tag_alarm_preserves_native_configuration_and_derived_identity(self):
+        probe.generate_all(self.seed,self.output)
+        for name in (case.key for case in probe.CASES if case.tag_based):
+            root = ET.parse(self.output/(name+'.L5X'))
+            alarm = root.find('.//AlarmCondition')
+            self.assertEqual(alarm.get('Expression'),'= 1')
+            self.assertEqual(alarm.get('Input'),'.0')
+            self.assertEqual(alarm.get('AckRequired'),'false')
+            self.assertEqual(alarm.get('Latched'),'false')
+            self.assertEqual(alarm.get('AlarmSetOperIncluded'),'false')
+            self.assertEqual(alarm.get('EvaluationPeriod'),'500 millisecond')
+            self.assertEqual(alarm.get('AssocTag1'),probe.REASON)
+            self.assertEqual(alarm.get('AssocTag2'),probe.SOURCE)
+            self.assertEqual(alarm.find('AlarmConfig/AlarmClass').text,'FraktalProbe')
+            self.assertEqual(alarm.find('.//Text').text,'Fraktal native projection probe')
+            self.assertIsNone(root.find('.//Tag[@DataType="ALARM_DIGITAL"]'))
+            self.assertTrue(all(t.get('ExternalAccess') == 'Read Only'
+                                for t in root.findall('Controller/Tags/Tag')))
 
     def test_existing_evidence_and_seed_are_never_modified(self):
         original = self.seed.read_bytes()
@@ -71,6 +93,14 @@ class NativeAlarmProbes(unittest.TestCase):
                 self.assertEqual(call.call_args.args[0],report)
                 self.assertEqual(call.call_args.kwargs,dict(expected_schema=probe.SCHEMA,
                                                             expected_profile=probe.PROFILE.key))
+
+    def test_selected_case_and_target_are_forwarded_to_the_shared_gate(self):
+        probe.generate_all(self.seed,self.output)
+        with patch.object(gate,'compile_cases',return_value={'ConformsToExpectations':True}) as call:
+            self.assertEqual(gate.main([str(self.output/'generation.json'),str(self.root/'compiled'),
+                                       '--case','tag_alarm_st','--target','EchoController']),0)
+            self.assertEqual(call.call_args.args[2],('tag_alarm_st',))
+            self.assertEqual(call.call_args.kwargs['targets'],('EchoController',))
 
 
 if __name__ == '__main__':

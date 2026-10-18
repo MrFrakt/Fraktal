@@ -68,7 +68,9 @@ class NativeReadback(unittest.TestCase):
         alarm = ET.SubElement(ET.SubElement(tag,'AlarmConditions'),'AlarmCondition',
                               dict(Name='Fault',Input='.0',ConditionType='TRIP',
                                    Severity='700',AckRequired='false',Latched='false',
-                                   Expression='Input = 1',AssocTag1='Reason',**attributes))
+                                   Expression='= 1',AssocTag1='Reason',OnDelay='0',OffDelay='0',
+                                   AlarmSetOperIncluded='false',EvaluationPeriod='500 millisecond',
+                                   **attributes))
         config = ET.SubElement(alarm,'AlarmConfig')
         ET.SubElement(config,'AlarmClass').text = 'Fraktal'
         text = ET.SubElement(ET.SubElement(ET.SubElement(config,'Messages'),'Message',Type='CAM'),'Text',Lang='en-US')
@@ -95,7 +97,10 @@ class NativeReadback(unittest.TestCase):
         first, alarm = self.alarm()
         mutations = [lambda n:n.set('Input','.1'),lambda n:n.set('Severity','900'),
                      lambda n:n.set('AssocTag1','OtherReason'),lambda n:n.set('Latched','true'),
-                     lambda n:n.set('AckRequired','true'),lambda n:n.set('Expression','Input = 0'),
+                     lambda n:n.set('AckRequired','true'),lambda n:n.set('Expression','= 0'),
+                     lambda n:n.set('OnDelay','1000'),lambda n:n.set('OffDelay','1000'),
+                     lambda n:n.set('AlarmSetOperIncluded','true'),
+                     lambda n:n.set('EvaluationPeriod','1000 millisecond'),
                      lambda n:n.find('AlarmConfig/AlarmClass').__setattr__('text','Other'),
                      lambda n:n.find('.//Text').__setattr__('text','Wrong message')]
         for mutate in mutations:
@@ -108,7 +113,7 @@ class NativeReadback(unittest.TestCase):
         second = ET.fromstring(ET.tostring(first))
         node = second.find('.//AlarmCondition')
         node.set('Severity','700.0')
-        node.set('Expression','Input=1')
+        node.set('Expression','=1')
         node.set('DelayOn','0')
         self.assertEqual(readback.alarm_differences(first,second)[1],[])
         node.set('Severity','701')
@@ -150,6 +155,21 @@ class NativeReadback(unittest.TestCase):
         data = ET.SubElement(second.find('Controller/Tags/Tag'),'Data',Format='Alarm')
         ET.SubElement(data,'AlarmDigitalParameters',Severity='500')
         self.assertTrue(readback.alarm_differences(first,second)[1])
+
+    def test_native_cdata_wrapping_is_presentation_but_message_spaces_are_not(self):
+        source, _ = self.alarm()
+        text = ET.tostring(source, encoding='unicode')
+        message = 'Actual fault message'
+        # The source may be compact; Studio places newlines outside CDATA.
+        compact = text.replace(message, '<![CDATA[  '+message+'  ]]>')
+        wrapped = compact.replace('<![CDATA[', '\n<![CDATA[').replace(']]>', ']]>\n')
+        with tempfile.TemporaryDirectory() as folder:
+            first, second = Path(folder)/'a.L5X', Path(folder)/'b.L5X'
+            first.write_text(compact)
+            second.write_text(wrapped)
+            self.assertTrue(readback.compare(first,second)['Equivalent'])
+            second.write_text(wrapped.replace('  '+message+'  ',message))
+            self.assertFalse(readback.compare(first,second)['Equivalent'])
 
 
 if __name__ == '__main__':

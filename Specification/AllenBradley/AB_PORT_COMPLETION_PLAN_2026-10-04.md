@@ -90,6 +90,16 @@ silent condition/message/identity loss. Tag-based XML import and native runtime
 projection remain unaccepted; no second alarm authority or production feature
 is introduced by this compiler proof.
 
+The [tag-based alarm continuation](Evidence/AB_TAG_ALARMS_COMPILE_2026-10-18.md)
+now closes the XML-import blocker. A native v38 L5K-to-L5X round trip reveals
+the accepted enum and attribute names; the generated tag-based positive and
+invalid-member cases pass their expected outcomes on both compiler targets,
+with full message/configuration/identity read-back. The comparison now ignores
+Studio's XML wrapping outside CDATA while retaining message whitespace inside
+it. Runtime projection, native operator-command isolation, shelving/history
+comparison and physical acceptance remain open. The current Echo image and
+production alarm owner are unchanged.
+
 The [TIA follow-up](AB_TIA_FOLLOWUP_2026-10-18.md) records the implemented
 active-endpoint display, independent AB channel sample validity and repaired
 specification gate, with their validation. Gateway/controller identity display,

@@ -112,6 +112,21 @@ closing a silent-loss hole. Tag-based XML projection trials were refused at
 import and remain unaccepted; runtime reset/shelving/history comparison and
 operator-command isolation are still owed before an integration is deployed.
 
+The subsequent [tag-based compiler record](Evidence/AB_TAG_ALARMS_COMPILE_2026-10-18.md)
+supersedes the failed XML-import status above. A native v38 export supplies the
+accepted `Expression="= 1"`, `OnDelay`/`OffDelay`, `AlarmSet*Included` and
+`EvaluationPeriod` forms. Both compiler targets accept the generated condition
+and programmatic ST access with actual metadata read-back; invalid-member
+controls reach the compiler and fail. A scalar DINT input remains Read Only;
+no ALARM_DIGITAL object is needed in the tag-based cases. This establishes an
+offline projection candidate, not native operator security or a deployed
+replacement for the Core event owner. Preserve the earlier rejected forms as
+evidence rather than treating their import failure as a missing v38 feature.
+The status-write negative is rejected, but the compiler accepts `OperShelve := 1`
+despite its documented programmatic Read-only designation. This remains an
+observational discriminator; runtime effect and operator isolation are unproved.
+Compiler acceptance cannot establish an authorization boundary.
+
 The optional Core §8.13 tower uses the native ST `TONR(FBD_TIMER)` for its
 bounded test, rather than accumulating declared scan periods. Rockwell lists
 [TONR as a Structured Text instruction](https://www.rockwellautomation.com/en-us/docs/studio-5000-logix-designer/38-03/contents-ditamap/instruction-set/timer-and-counter-instructions/timer-on-delay-with-reset--tonr-.html);
