@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RobotPlanner_Tests" Id="{f814416f-e6b3-4283-97fd-6cf5934a55ee}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex I I.9-I.10.2 route planner, against the geometry of the reviewed cell.
+//
+// The fixture is deliberately the real thing rather than a toy: five help
+// points, the twelve work positions of a plasma-clean handling cell, and the
+// scan position that sits between two transit regions - reachable from the
+// drawer side via HELP4 and the process side via HELP5. That junction is the
+// case the reference framework could not express declaratively and hand-coded
+// in two different methods from private state; if the affinity table cannot
+// reproduce it in BOTH directions with no branching, the model has failed and
+// it is better to find out here than in an annex.
+//
+// No arm, no connector, no motion: the planner is pure logic (S5.7, Annex H).
+FUNCTION_BLOCK FB_RobotPlanner_Tests EXTENDS TcUnit.FB_TestSuite
+VAR CONSTANT
+    // helps
+    HELP1 : INT := 1;   // change-position side
+    HELP2 : INT := 2;   // left drawer
+    HELP3 : INT := 3;   // home / NIO drawer
+    HELP4 : INT := 4;   // drawer-side scan approach
+    HELP5 : INT := 5;   // process side
+    // nests
+    CP_GRIPPER1    : INT := 1;
+    READ_GRIPPER   : INT := 2;
+    SCAN_PART      : INT := 3;
+    DRAWER_LEFT    : INT := 4;
+    DRAWER_RIGHT   : INT := 5;
+    DRAWER_NIO     : INT := 6;
+    PROCESS_START  : INT := 7;
+    ONE_WAY_NEST   : INT := 8;   // synthetic: entry-only, to prove the loud refusal
+    ISLAND_NEST    : INT := 9;   // synthetic: served by a help with no graph edge
+    // transit regions
+    REGION_DRAWER  : DWORD := 1;
+    REGION_PROCESS : DWORD := 2;
+    // grippers
+    G_WITH : INT := 1;   // a gripper is coupled - tall approach
+    G_NONE : INT := 2;   // nothing coupled - short approach
+END_VAR
+VAR
+    _graph : ST_RouteGraph;
+    _geom  : ST_RobotGeometry;
+    _p     : FB_RobotRoutePlanner;
+    _route : ST_RobotPointList;
+    _ret   : DINT;
+    _help  : INT;
+    _built : BOOL;
+    _w1, _w2, _w3, _w4, _w5, _w6, _w7, _w8, _w9, _w10 : BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT _built THEN
+    _M_BuildFixture();
+    _built := TRUE;
+END_IF
+
+Scan_junction_resolves_the_process_side_help();
+Scan_junction_resolves_the_drawer_side_help_in_the_same_table();
+Nest_to_nest_emits_depart_then_transit_then_approach();
+Approach_corridor_is_reversed_and_lands_exactly_on_the_nest();
+Corridor_differs_per_gripper_with_no_conditional_code();
+Taught_corridor_emits_a_list_reference_instead_of_offsets();
+Disconnected_graph_yields_ROBOT_NO_ROUTE();
+One_way_nest_refuses_the_reversal_loudly();
+Malformed_endpoints_are_rejected_before_planning();
+Direct_nest_list_bypasses_help_routing();]]></ST>
+    </Implementation>
+      <Method Name="_M_BuildFixture" Id="{1968e069-84e6-48de-9cdb-60459a0af6ac}">
+        <Declaration><![CDATA[// The reviewed cell as configuration - which is the whole point: a station
+// supplies a table, not traversal code.
+METHOD PRIVATE _M_BuildFixture
+VAR
+    _i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// --- help geometry and the transit graph -------------------------------
+_geom.HelpPose[HELP1].X := 0;    _geom.HelpPose[HELP1].Z := 1000;
+_geom.HelpPose[HELP2].X := 500;  _geom.HelpPose[HELP2].Z := 1000;
+_geom.HelpPose[HELP3].X := 1000; _geom.HelpPose[HELP3].Z := 1000;
+_geom.HelpPose[HELP4].X := 1500; _geom.HelpPose[HELP4].Z := 1000;
+_geom.HelpPose[HELP5].X := 2000; _geom.HelpPose[HELP5].Z := 1000;
+
+_graph.HelpRegion[HELP1] := REGION_DRAWER;
+_graph.HelpRegion[HELP2] := REGION_DRAWER;
+_graph.HelpRegion[HELP3] := REGION_DRAWER;
+_graph.HelpRegion[HELP4] := REGION_DRAWER;
+_graph.HelpRegion[HELP5] := REGION_PROCESS;
+
+// a simple chain HELP1..HELP5, bidirectional
+FOR _i := 1 TO 4 DO
+    _graph.HelpAdj[_i, _i + 1] := TRUE;
+    _graph.HelpAdj[_i + 1, _i] := TRUE;
+END_FOR
+
+// --- nest geometry -----------------------------------------------------
+_geom.NestPose[G_WITH, DRAWER_LEFT].X  := 500;
+_geom.NestPose[G_WITH, DRAWER_LEFT].Y  := 200;
+_geom.NestPose[G_WITH, DRAWER_LEFT].Z  := 100;
+_geom.NestPose[G_NONE, DRAWER_LEFT]    := _geom.NestPose[G_WITH, DRAWER_LEFT];
+_geom.NestPose[G_WITH, PROCESS_START].X := 2000;
+_geom.NestPose[G_WITH, PROCESS_START].Z := 300;
+_geom.NestPose[G_WITH, SCAN_PART].X     := 1500;
+_geom.NestPose[G_WITH, SCAN_PART].Z     := 400;
+_geom.NestPose[G_WITH, READ_GRIPPER].X  := 0;
+_geom.NestPose[G_WITH, READ_GRIPPER].Z  := 200;
+
+// --- affinity: single-help nests are the trivial case ------------------
+_M_Affinity1(G_WITH, CP_GRIPPER1,   HELP1);
+_M_Affinity1(G_WITH, READ_GRIPPER,  HELP1);
+_M_Affinity1(G_WITH, DRAWER_LEFT,   HELP2);
+_M_Affinity1(G_WITH, DRAWER_RIGHT,  HELP4);
+_M_Affinity1(G_WITH, DRAWER_NIO,    HELP3);
+_M_Affinity1(G_WITH, PROCESS_START, HELP5);
+_M_Affinity1(G_NONE, DRAWER_LEFT,   HELP2);
+
+// --- the junction: TWO corridors, both bidirectional, split by region ---
+// This is the case the reference hand-codes. Here it is two table rows.
+_graph.NestHelp[G_WITH, SCAN_PART].Count := 2;
+_graph.NestHelp[G_WITH, SCAN_PART].Helps[1].HelpId   := HELP4;
+_graph.NestHelp[G_WITH, SCAN_PART].Helps[1].Role     := E_HelpRole.EITHER;
+_graph.NestHelp[G_WITH, SCAN_PART].Helps[1].RegionId := REGION_DRAWER;
+_graph.NestHelp[G_WITH, SCAN_PART].Helps[2].HelpId   := HELP5;
+_graph.NestHelp[G_WITH, SCAN_PART].Helps[2].Role     := E_HelpRole.EITHER;
+_graph.NestHelp[G_WITH, SCAN_PART].Helps[2].RegionId := REGION_PROCESS;
+
+// --- a genuinely one-way nest: entry only ------------------------------
+_graph.NestHelp[G_WITH, ONE_WAY_NEST].Count := 1;
+_graph.NestHelp[G_WITH, ONE_WAY_NEST].Helps[1].HelpId := HELP3;
+_graph.NestHelp[G_WITH, ONE_WAY_NEST].Helps[1].Role   := E_HelpRole.APPROACH;
+
+// --- a nest whose help has no edge into the graph -----------------------
+_graph.NestHelp[G_WITH, ISLAND_NEST].Count := 1;
+_graph.NestHelp[G_WITH, ISLAND_NEST].Helps[1].HelpId := 7;   // HelpAdj[7,*] all FALSE
+
+// --- corridors: the reference's real geometry --------------------------
+// With a gripper coupled the arm backs out and lifts; with nothing coupled it
+// simply clears. Same nest, different gripper index - no conditional code.
+_M_Corridor2(G_WITH, DRAWER_LEFT, HELP2, 0, -100, 0, 0, -100, 200);
+_M_Corridor1(G_NONE, DRAWER_LEFT, HELP2, 0, 0, 50);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Affinity1" Id="{acae1bec-163d-496e-88e3-d8a7c835b532}">
+        <Declaration><![CDATA[// One nest served by one help, both directions, offsets unset.
+METHOD PRIVATE _M_Affinity1
+VAR_INPUT
+    Gripper : INT;
+    Nest    : INT;
+    HelpId  : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_graph.NestHelp[Gripper, Nest].Count := 1;
+_graph.NestHelp[Gripper, Nest].Helps[1].HelpId := HelpId;
+_graph.NestHelp[Gripper, Nest].Helps[1].Role   := E_HelpRole.EITHER;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Corridor1" Id="{448c431a-3f38-45de-b027-6f6124e6d1e4}">
+        <Declaration><![CDATA[// A one-step corridor, used for both approach and depart.
+METHOD PRIVATE _M_Corridor1
+VAR_INPUT
+    Gripper : INT;
+    Nest    : INT;
+    HelpId  : INT;
+    DX, DY, DZ : LREAL;
+END_VAR
+VAR
+    _i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_i := _M_FindAffinity(Gripper, Nest, HelpId);
+IF _i = 0 THEN RETURN; END_IF
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.StepCount := 1;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].D.X := DX;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].D.Y := DY;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].D.Z := DZ;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].MoveClass := E_MoveClass.SLOW_LINEAR;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Depart := _graph.NestHelp[Gripper, Nest].Helps[_i].Approach;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Corridor2" Id="{7ea7c43a-9147-48ec-9532-f165b672703a}">
+        <Declaration><![CDATA[// A two-step corridor - the reference's "back out, then lift" retract.
+METHOD PRIVATE _M_Corridor2
+VAR_INPUT
+    Gripper : INT;
+    Nest    : INT;
+    HelpId  : INT;
+    D1X, D1Y, D1Z : LREAL;
+    D2X, D2Y, D2Z : LREAL;
+END_VAR
+VAR
+    _i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_i := _M_FindAffinity(Gripper, Nest, HelpId);
+IF _i = 0 THEN RETURN; END_IF
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.StepCount := 2;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].D.X := D1X;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].D.Y := D1Y;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].D.Z := D1Z;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[1].MoveClass := E_MoveClass.SLOW_LINEAR;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[2].D.X := D2X;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[2].D.Y := D2Y;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[2].D.Z := D2Z;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Approach.Steps[2].MoveClass := E_MoveClass.SLOW_LINEAR;
+_graph.NestHelp[Gripper, Nest].Helps[_i].Depart := _graph.NestHelp[Gripper, Nest].Helps[_i].Approach;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_FindAffinity" Id="{c5cfedce-6c04-409b-8d87-d95fb0154d78}">
+        <Declaration><![CDATA[METHOD PRIVATE _M_FindAffinity : INT
+VAR_INPUT
+    Gripper : INT;
+    Nest    : INT;
+    HelpId  : INT;
+END_VAR
+VAR
+    _i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_FindAffinity := 0;
+FOR _i := 1 TO _graph.NestHelp[Gripper, Nest].Count DO
+    IF _graph.NestHelp[Gripper, Nest].Helps[_i].HelpId = HelpId THEN
+        _M_FindAffinity := _i;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Scan_junction_resolves_the_process_side_help" Id="{2dd49f4c-a503-4492-974a-4847b560e7e7}">
+        <Declaration><![CDATA[METHOD PRIVATE Scan_junction_resolves_the_process_side_help]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Scan_junction_resolves_the_process_side_help');
+IF NOT _w1 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    // Leaving the scan position toward PROCESS_START. Both corridors are
+    // bidirectional, so the direction filter keeps both and the REGION of the
+    // other endpoint decides - reproducing the reference's hand-coded choice.
+    _help := _p.ResolveHelp(Gripper := G_WITH, Nest := SCAN_PART,
+        OtherRegion := REGION_PROCESS, Dir := E_HelpRole.DEPART);
+    AssertEquals_INT(Expected := HELP5, Actual := _help,
+        Message := 'a move toward the process side leaves scan via HELP5');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Scan_junction_resolves_the_drawer_side_help_in_the_same_table" Id="{ffdeb835-87d3-472e-b581-f1c9bcc717d3}">
+        <Declaration><![CDATA[METHOD PRIVATE Scan_junction_resolves_the_drawer_side_help_in_the_same_table]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Scan_junction_resolves_the_drawer_side_help_in_the_same_table');
+IF NOT _w2 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    // Same two table rows, opposite direction, no per-direction duplication -
+    // which is exactly what the reference needed two hand-written methods for.
+    _help := _p.ResolveHelp(Gripper := G_WITH, Nest := SCAN_PART,
+        OtherRegion := REGION_DRAWER, Dir := E_HelpRole.APPROACH);
+    AssertEquals_INT(Expected := HELP4, Actual := _help,
+        Message := 'a move from the drawer side enters scan via HELP4');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Nest_to_nest_emits_depart_then_transit_then_approach" Id="{a5133b99-7c98-41bc-8203-dc15a132ef7d}">
+        <Declaration><![CDATA[METHOD PRIVATE Nest_to_nest_emits_depart_then_transit_then_approach]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Nest_to_nest_emits_depart_then_transit_then_approach');
+IF NOT _w3 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := DRAWER_LEFT, FromHelp := 0,
+        ToNest := 0, ToHelp := HELP5, Route := _route);
+    AssertEquals_DINT(Expected := 0, Actual := _ret,
+        Message := 'a routable pair plans without error');
+    // 2 depart offsets + the help chain HELP2,HELP3,HELP4,HELP5
+    AssertEquals_INT(Expected := 6, Actual := _route.Count,
+        Message := 'depart corridor then the transit chain');
+    AssertTrue(Condition := _route.Points[1].MoveClass = E_MoveClass.SLOW_LINEAR,
+        Message := 'pre-positions are flown slow');
+    AssertTrue(Condition := _route.Points[3].MoveClass = E_MoveClass.FAST_PTP,
+        Message := 'transit between helps is flown fast');
+    AssertEquals_LREAL(Expected := 2000, Actual := _route.Points[6].Target.X, Delta := 0.001,
+        Message := 'and it ends on the target help');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Approach_corridor_is_reversed_and_lands_exactly_on_the_nest" Id="{bea476f7-7a4b-4a35-8738-b48fd7bf1d43}">
+        <Declaration><![CDATA[METHOD PRIVATE Approach_corridor_is_reversed_and_lands_exactly_on_the_nest]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Approach_corridor_is_reversed_and_lands_exactly_on_the_nest');
+IF NOT _w4 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := 0, FromHelp := HELP5,
+        ToNest := DRAWER_LEFT, ToHelp := 0, Route := _route);
+    AssertEquals_DINT(Expected := 0, Actual := _ret, Message := 'plans without error');
+    // chain HELP5..HELP2 (4) + 2 approach offsets reversed + the nest itself
+    AssertEquals_INT(Expected := 7, Actual := _route.Count,
+        Message := 'transit chain, reversed approach, then the nest');
+    // reversed: the FAR offset (-100,+200) is flown before the NEAR one (-100,0)
+    AssertEquals_LREAL(Expected := 300, Actual := _route.Points[5].Target.Z, Delta := 0.001,
+        Message := 'the outer pre-position comes first on the way in');
+    AssertEquals_LREAL(Expected := 100, Actual := _route.Points[6].Target.Z, Delta := 0.001,
+        Message := 'then the inner one');
+    // S I.8: the last point of a path is reached exactly, never blended short
+    AssertEquals_LREAL(Expected := 200, Actual := _route.Points[7].Target.Y, Delta := 0.001,
+        Message := 'and the route lands exactly on the taught nest');
+    AssertTrue(Condition := _route.Points[7].MoveClass = E_MoveClass.SLOW_LINEAR,
+        Message := 'the final approach is linear, not blended PTP');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Corridor_differs_per_gripper_with_no_conditional_code" Id="{c973bd14-e2d4-4862-a7c9-72bb3cbfda45}">
+        <Declaration><![CDATA[METHOD PRIVATE Corridor_differs_per_gripper_with_no_conditional_code]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Corridor_differs_per_gripper_with_no_conditional_code');
+IF NOT _w5 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    // The reference branches on the clutch to pick a tall or short approach.
+    // Affinity is indexed [gripper, nest], so the two are simply different
+    // gripper indices - the state-dependence falls out of a dimension the
+    // model already has (I.10.2).
+    _ret := _p.BuildRoute(Gripper := G_NONE, FromNest := 0, FromHelp := HELP2,
+        ToNest := DRAWER_LEFT, ToHelp := 0, Route := _route);
+    AssertEquals_DINT(Expected := 0, Actual := _ret, Message := 'plans without error');
+    // HELP2 only (start = target help) + 1 approach offset + the nest
+    AssertEquals_INT(Expected := 3, Actual := _route.Count,
+        Message := 'with nothing coupled the short corridor is one step');
+    AssertEquals_LREAL(Expected := 150, Actual := _route.Points[2].Target.Z, Delta := 0.001,
+        Message := 'clearing by 50 rather than lifting by 200');
+    _w5 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Taught_corridor_emits_a_list_reference_instead_of_offsets" Id="{11cf3eab-2725-4560-92b3-b86d77a9e28b}">
+        <Declaration><![CDATA[METHOD PRIVATE Taught_corridor_emits_a_list_reference_instead_of_offsets
+VAR
+    _i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Taught_corridor_emits_a_list_reference_instead_of_offsets');
+IF NOT _w6 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    // Generation is the default, teaching the escape hatch: StepCount = 0 with
+    // a ListId names a taught list for geometry offsets cannot express (I.10.2).
+    _i := _M_FindAffinity(G_WITH, READ_GRIPPER, HELP1);
+    _graph.NestHelp[G_WITH, READ_GRIPPER].Helps[_i].Approach.StepCount := 0;
+    _graph.NestHelp[G_WITH, READ_GRIPPER].Helps[_i].Approach.ListId    := 77;
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := 0, FromHelp := HELP1,
+        ToNest := READ_GRIPPER, ToHelp := 0, Route := _route);
+    AssertEquals_DINT(Expected := 0, Actual := _ret, Message := 'plans without error');
+    AssertEquals_DWORD(Expected := 77, Actual := _route.Points[_route.Count].ListId,
+        Message := 'the taught list is named for the executor to run');
+    _w6 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Disconnected_graph_yields_ROBOT_NO_ROUTE" Id="{96d3d206-e2f5-4be6-af28-49380e6a8a8e}">
+        <Declaration><![CDATA[METHOD PRIVATE Disconnected_graph_yields_ROBOT_NO_ROUTE]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Disconnected_graph_yields_ROBOT_NO_ROUTE');
+IF NOT _w7 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    // ISLAND_NEST's serving help has no edge into the transit graph. The
+    // planner refuses with a clean first-out rather than inventing a move.
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := 0, FromHelp := HELP1,
+        ToNest := ISLAND_NEST, ToHelp := 0, Route := _route);
+    AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_NO_ROUTE, Actual := _ret,
+        Message := 'an unreachable help is ROBOT_NO_ROUTE, not a silent move');
+    AssertEquals_INT(Expected := 0, Actual := _route.Count,
+        Message := 'and no partial route is left behind');
+    _w7 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="One_way_nest_refuses_the_reversal_loudly" Id="{9a2a1d19-a77a-48ee-8faa-476c70d5c9f5}">
+        <Declaration><![CDATA[METHOD PRIVATE One_way_nest_refuses_the_reversal_loudly]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('One_way_nest_refuses_the_reversal_loudly');
+IF NOT _w8 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    // Entry is legal...
+    _help := _p.ResolveHelp(Gripper := G_WITH, Nest := ONE_WAY_NEST,
+        OtherRegion := 0, Dir := E_HelpRole.APPROACH);
+    AssertEquals_INT(Expected := HELP3, Actual := _help,
+        Message := 'an APPROACH-only nest can be entered');
+    // ...and leaving through it is refused rather than mis-routed. This is the
+    // NOK-reversal case of I.10.1: a real cell constraint surfaced, loudly.
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := ONE_WAY_NEST, FromHelp := 0,
+        ToNest := 0, ToHelp := HELP1, Route := _route);
+    AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_NO_HELP_FOR_NEST, Actual := _ret,
+        Message := 'and reversing out of it fails loudly, never silently');
+    _w8 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Malformed_endpoints_are_rejected_before_planning" Id="{f7057875-45b7-419c-9f88-580c023dbcc3}">
+        <Declaration><![CDATA[METHOD PRIVATE Malformed_endpoints_are_rejected_before_planning]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Malformed_endpoints_are_rejected_before_planning');
+IF NOT _w9 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    // Both a nest AND a help at one end is malformed regardless of geometry,
+    // so it is rejected before anything is resolved (S5.6).
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := DRAWER_LEFT, FromHelp := HELP2,
+        ToNest := 0, ToHelp := HELP5, Route := _route);
+    AssertTrue(Condition := _ret <> 0,
+        Message := 'a start that is both a nest and a help is refused');
+    // Neither is equally malformed.
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := 0, FromHelp := HELP2,
+        ToNest := 0, ToHelp := 0, Route := _route);
+    AssertTrue(Condition := _ret <> 0, Message := 'and so is a target that is neither');
+    _w9 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Direct_nest_list_bypasses_help_routing" Id="{7cc6f1c7-147c-4694-a688-74c2249b6fc1}">
+        <Declaration><![CDATA[METHOD PRIVATE Direct_nest_list_bypasses_help_routing]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Direct_nest_list_bypasses_help_routing');
+IF NOT _w10 THEN
+    _p.rGraph REF= _graph;
+    _p.rGeom  REF= _geom;
+    _graph.DirectNest[DRAWER_LEFT, PROCESS_START] := 42;
+    _ret := _p.BuildRoute(Gripper := G_WITH, FromNest := DRAWER_LEFT, FromHelp := 0,
+        ToNest := PROCESS_START, ToHelp := 0, Route := _route);
+    AssertEquals_DINT(Expected := 0, Actual := _ret, Message := 'plans without error');
+    AssertEquals_INT(Expected := 1, Actual := _route.Count,
+        Message := 'a taught direct list replaces the whole generated route');
+    AssertEquals_DWORD(Expected := 42, Actual := _route.Points[1].ListId,
+        Message := 'and names that list');
+    _graph.DirectNest[DRAWER_LEFT, PROCESS_START] := 0;
+    _w10 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+  </POU>
+</TcPlcObject>

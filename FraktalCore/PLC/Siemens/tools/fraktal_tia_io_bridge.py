@@ -74,12 +74,15 @@ class Frame:
 
 def read_map():
     value = json.loads(MAP.read_bytes())
-    if value['schema_version'] != 1:
+    if value['schema_version'] != 2:
         raise ValueError('unsupported bridge I/O map')
-    for name in ('physical_address', 'simulator_bench_address'):
+    for name in ('physical_address', 'simulator_bench_address', 'simulator_engineering_address'):
         ipaddress.IPv4Address(value[name])
-    if value['physical_address'] == value['simulator_bench_address']:
+    if len({value[n] for n in ('physical_address','simulator_bench_address','simulator_engineering_address')}) != 3:
         raise ValueError('bridge endpoints require distinct addresses')
+    ports = [value[name] for name in ('physical_receive_port', 'physical_send_port')]
+    if any(type(port) is not int or not 1 <= port <= 49151 for port in ports) or ports[0] == ports[1]:
+        raise ValueError('physical bridge requires two distinct valid S7-1200 TCP listener ports')
     if not 20 <= value['period_ms'] <= 100 or not 200 <= value['watchdog_ms'] <= 1000:
         raise ValueError('bridge timing outside qualified bounds')
     if not value['period_ms'] * 3 < value['watchdog_ms']:
@@ -123,8 +126,8 @@ def config_lines(mapping, physical):
     for slot, octet in enumerate(ipaddress.IPv4Address(peer).packed, 1):
         lines.append('    #Config.PeerAddress[%d] := %d;' % (slot, octet))
     lines += ['    #Config.%s := %d;' % (n, v) for n, v in (
-        ('SendPort', mapping['simulator_receive_port' if physical else 'physical_receive_port']),
-        ('ReceivePort', mapping['physical_receive_port' if physical else 'simulator_receive_port']),
+        ('SendPort', mapping['physical_send_port' if physical else 'physical_receive_port']),
+        ('ReceivePort', mapping['physical_receive_port' if physical else 'physical_send_port']),
         ('PeriodMs', mapping['period_ms']), ('WatchdogMs', mapping['watchdog_ms']))]
     return lines
 
@@ -204,10 +207,14 @@ def client_driver(mapping):
               '        LocalSignals := #Demands, LocalEnable := TRUE,',
               '        BootEpoch := "GDB_IoBridgeEpoch".Epoch, Config := #Config,',
               '        LinkHealthy => #Connected, PeerEnable => #PeerEnabled, PeerSignals => #Signals);']
+    # Every input, including the Control On and E-stop mirrors the press only
+    # publishes on its fieldbus view (control power is the bench circuit's).
     for row in mapping['inputs']:
-        if row['signal'] not in ('ControlOnFeedback', 'EStopReleasedMirror'):
-            lines.append('    "GDB_PressDemoIO".%s := #Signals.%%X%d;' % (row['signal'], row['bit']))
-    lines += ['    "GDB_PressDemoIO".StandardIoHealthy := #Connected AND #PeerEnabled;',
+        lines.append('    "GDB_PressDemoIO".%s := #Signals.%%X%d;' % (row['signal'], row['bit']))
+    # Input freshness is independent of the physical output commissioning gate.
+    # PeerEnabled is output authority; using it as input quality hides a live
+    # input-only bridge whenever OUTPUT_MAPPING_CONFIRMED is deliberately FALSE.
+    lines += ['    "GDB_PressDemoIO".StandardIoHealthy := #Connected;',
               '    "GDB_PressDemoIO".PartQuality := FALSE; // No quality sensor exists in the supplied I/O list.',
               'END_FUNCTION_BLOCK', '', 'DATA_BLOCK "GDB_PressIoBridgeClient"',
               "{ S7_Optimized_Access := 'TRUE' }", 'VERSION : 0.1', 'NON_RETAIN',
@@ -334,7 +341,8 @@ def prepare_plan(sources, project, native, physical=True):
         organize(sources, sources / 'grouped', project, native)
         target = sources / 'grouped/import.plan'
         text = target.read_text(encoding='ascii')
-        text = text.replace('delete-blocks --plc PLC_1\n', 'delete-blocks --plc PLC_1\nset-ip --plc PLC_1 --ip ' + read_map()['simulator_bench_address'] + ' --mask 255.255.255.0\n')
+        mapping=read_map()
+        text = text.replace('delete-blocks --plc PLC_1\n', 'delete-blocks --plc PLC_1\nset-ip --plc PLC_1 --ip ' + mapping['simulator_bench_address'] + ' --mask 255.255.255.0 --item "PROFINET interface_1"\nset-ip --plc PLC_1 --ip ' + mapping['simulator_engineering_address'] + ' --mask 255.255.0.0 --item "PROFINET interface_2"\n')
         target.write_bytes(text.encode('ascii'))
     return target
 

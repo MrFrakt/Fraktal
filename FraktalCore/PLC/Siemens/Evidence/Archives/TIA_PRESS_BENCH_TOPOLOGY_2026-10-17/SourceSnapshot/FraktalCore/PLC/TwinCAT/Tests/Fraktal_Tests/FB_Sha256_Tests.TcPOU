@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Sha256_Tests" Id="{fc2bc675-8364-444d-ae3d-e13b6b4d288f}" SpecialFunc="None">
+    <Declaration><![CDATA[// §14 under test: F_Sha256 against the FIPS 180-4 example vectors - the empty
+// message, one block, and a message whose padding spills into a second block.
+FUNCTION_BLOCK FB_Sha256_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _digest : ARRAY[0..31] OF BYTE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[The_empty_message_hashes_to_the_published_digest();
+One_block_hashes_to_the_published_digest();
+Two_blocks_hash_to_the_published_digest();]]></ST>
+    </Implementation>
+    <Method Name="_M_Hex" Id="{0da5dfb8-69d1-4173-9377-52d3e479765a}">
+      <Declaration><![CDATA[// The digest of Text as 64 lowercase hex characters.
+METHOD PRIVATE _M_Hex : STRING(64)
+VAR_INPUT
+    Text : STRING(80);
+END_VAR
+VAR
+    i : INT;
+    nib : BYTE;
+    hex : STRING(16) := '0123456789abcdef';
+    out : STRING(64);
+    pOut : POINTER TO BYTE;
+    pHex : POINTER TO BYTE;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[F_Sha256(pData := ADR(Text), Size := INT_TO_UDINT(LEN(Text)), Digest := _digest);
+pOut := ADR(out);
+pHex := ADR(hex);
+FOR i := 0 TO 31 DO
+    nib := SHR(_digest[i], 4);
+    pOut[2 * i] := pHex[nib];
+    nib := _digest[i] AND 16#0F;
+    pOut[2 * i + 1] := pHex[nib];
+END_FOR
+pOut[64] := 0;
+_M_Hex := out;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="The_empty_message_hashes_to_the_published_digest" Id="{ee661187-0185-48c5-bf66-e5d34788a927}">
+      <Declaration><![CDATA[METHOD The_empty_message_hashes_to_the_published_digest]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('The_empty_message_hashes_to_the_published_digest');
+AssertEquals_STRING(
+    Expected := 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    Actual := _M_Hex(Text := ''), Message := 'SHA-256 of the empty message');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="One_block_hashes_to_the_published_digest" Id="{622ab1a2-1503-4b1d-993e-def718ba7c44}">
+      <Declaration><![CDATA[METHOD One_block_hashes_to_the_published_digest]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('One_block_hashes_to_the_published_digest');
+AssertEquals_STRING(
+    Expected := 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    Actual := _M_Hex(Text := 'abc'), Message := 'SHA-256 of abc');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Two_blocks_hash_to_the_published_digest" Id="{f15cd7b9-f3b0-41ca-89e4-1a9212410cf0}">
+      <Declaration><![CDATA[METHOD Two_blocks_hash_to_the_published_digest]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('Two_blocks_hash_to_the_published_digest');
+AssertEquals_STRING(
+    Expected := '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1',
+    Actual := _M_Hex(Text := 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq'),
+    Message := 'SHA-256 of the 56-byte FIPS message (padding needs a second block)');
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

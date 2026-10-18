@@ -1,0 +1,20 @@
+# Dependencies for fraktal_ab_gateway.py — the read-only HMI gateway that serves
+# the Allen-Bradley projection to the generic Fraktal HMI over its own
+# fraktal.opcua.gateway.v1 WebSocket protocol.
+#
+# Recreate a virtualenv OUTSIDE the repository (the phase-0 gate venv is kept
+# that way deliberately), then `pip install -r requirements-gateway.txt`. On a
+# workstation with a TLS-intercepting proxy, add `--cert <proxy-root>.pem`.
+#
+#   pylogix     EtherNet/IP to the Logix controller (the same pin the phase-0
+#               gate uses; see requirements-phase0.txt for its hash).
+#   websockets  the asyncio WebSocket server the HMI's gateway client speaks to.
+#               Chosen over serving the protocol from the existing Dart gateway
+#               because that gateway is ADS/TwinCAT-specific and the AB tooling
+#               is already Python that speaks EtherNet/IP; a Python transport
+#               reuses fraktal_ab_projection directly. Rationale is recorded in
+#               Evidence/AB_HMI_GATEWAY_2026-09-21.md.
+#
+# Read-only: neither dependency is used to write to the controller. See §11.2.1.
+pylogix==1.1.5
+websockets==17.1

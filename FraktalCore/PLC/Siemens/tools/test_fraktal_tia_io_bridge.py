@@ -10,6 +10,13 @@ import fraktal_tia_io_bridge as bridge
 
 
 class IoBridgeTests(unittest.TestCase):
+    def test_inhibited_peer_still_publishes_fresh_input_quality(self):
+        client=bridge.client_driver(bridge.read_map())
+        self.assertIn('"GDB_PressDemoIO".StandardIoHealthy := #Connected;',client)
+        self.assertNotIn('StandardIoHealthy := #Connected AND #PeerEnabled',client)
+        for row in bridge.read_map()['inputs']:
+            self.assertIn('"GDB_PressDemoIO".%s := #Signals.%%X%d;'%(row['signal'],row['bit']),client)
+
     def test_wire_layout_has_network_order_and_independent_ccitt_checksum(self):
         frame = bridge.Frame(1, 0x01020304, 0x11223344, 17, 19, 0x1234, True)
         raw = frame.encode()
@@ -46,10 +53,12 @@ class IoBridgeTests(unittest.TestCase):
                 self.assertEqual(mapping['outputs'][output['opposite']]['opposite'], output['bit'])
 
     def test_invalid_duplicate_mapping_and_timing_fail_before_generation(self):
-        for case in ('address', 'tag', 'bit', 'peer', 'period'):
+        for case in ('address', 'tag', 'bit', 'peer', 'engineering', 'period', 'schema'):
             mapping = copy.deepcopy(bridge.read_map())
             if case in ('address', 'tag', 'bit'): mapping['inputs'][1][case] = mapping['inputs'][0][case]
             elif case == 'peer': mapping['physical_address'] = mapping['simulator_bench_address']
+            elif case == 'engineering': mapping['simulator_engineering_address'] = mapping['physical_address']
+            elif case == 'schema': mapping['schema_version'] = 1
             else: mapping['period_ms'] = 1000
             with patch.object(bridge.json, 'loads', return_value=mapping):
                 with self.subTest(case=case), self.assertRaises(ValueError): bridge.read_map()
@@ -67,6 +76,13 @@ class IoBridgeTests(unittest.TestCase):
             mapping = copy.deepcopy(bridge.read_map()); mapping[kind][0]['address'] = address
             with patch.object(bridge.json, 'loads', return_value=mapping):
                 with self.subTest(address=address), self.assertRaises(ValueError): bridge.read_map()
+
+    def test_physical_listeners_require_distinct_valid_ports(self):
+        for invalid in (0, 49152, True, bridge.read_map()['physical_receive_port']):
+            mapping = copy.deepcopy(bridge.read_map())
+            mapping['physical_send_port'] = invalid
+            with patch.object(bridge.json, 'loads', return_value=mapping):
+                with self.subTest(port=invalid), self.assertRaises(ValueError): bridge.read_map()
 
     def test_forging_manifest_hash_cannot_bypass_source_replay(self):
         with tempfile.TemporaryDirectory() as temporary:

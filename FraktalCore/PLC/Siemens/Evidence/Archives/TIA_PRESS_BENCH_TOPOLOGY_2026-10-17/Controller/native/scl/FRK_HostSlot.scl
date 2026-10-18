@@ -1,0 +1,19 @@
+﻿FUNCTION "FRK_HostSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+// Core 11.6 fixed vocabulary and shape; stores exist only for deployed Units.
+   VAR_INPUT 
+      Scope : String;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_HostSlot := 0;
+	IF #Scope = 'PressDemo' THEN
+	    #FRK_HostSlot := 1;
+	    RETURN;
+	END_IF;
+	
+END_FUNCTION
+

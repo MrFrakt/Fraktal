@@ -1,0 +1,28 @@
+﻿FUNCTION "FRK_PersistPutNumber" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Offset : Int;
+      Value : DWord;
+   END_VAR
+
+   VAR_IN_OUT 
+      Bytes : Array[*] of Byte;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Offset < 0 OR #Offset > UPPER_BOUND(ARR := #Bytes, DIM := 1) - 3 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 0 TO 3 DO
+	    #Bytes[#Offset + #Index] := DWORD_TO_BYTE(SHR(IN := #Value, N := INT_TO_UINT(#Index * 8)));
+	END_FOR;
+	
+END_FUNCTION
+

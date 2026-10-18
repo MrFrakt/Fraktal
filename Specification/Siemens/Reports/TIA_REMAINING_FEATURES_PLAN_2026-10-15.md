@@ -284,6 +284,16 @@ compile and pass native protocol/read-back gates. Its output commissioning
 gates remain disabled. It supplies bench connectivity without claiming the
 S7-1200 Fraktal profile or closing P8's generic topology/PN-health scope.
 
+**P8 topology/bridge slice measured (October17):** the
+[live bench report](../Evidence/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17.md) records
+3 generic topology nodes, 14 fresh inputs and 10 unconfirmed DQ channels, all
+derived from the approved I/O catalog. A separate saved FraktalBench exchanges
+OUC frames with the physical 1214C, with both streams initiated by the controller.
+The staged generic HMI and bench power-loss/recovery checks pass. Output
+commissioning gates remain FALSE; native PROFINET health/forcing, applied-output
+feedback and physical motion/SAT acceptance remain open. This does not close
+P8 as a whole or implement P12 Line transport.
+
 ## 6. Decisions for the owner
 
 1. **Cross-controller line transport** (P12): owner selected **OUC TCP between

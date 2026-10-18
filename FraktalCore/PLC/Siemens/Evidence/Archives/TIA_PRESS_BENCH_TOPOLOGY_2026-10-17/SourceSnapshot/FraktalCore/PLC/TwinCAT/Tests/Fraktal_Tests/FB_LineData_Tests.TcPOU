@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LineData_Tests" Id="{604bb8e0-7d46-4860-9a22-a10d65ca52f9}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8e under test: one owner, read-only mirrors applied whole.
+// Every unit runs every scan at the top of the suite, so a mirror polls exactly as
+// it would on a station; the tests only observe.
+FUNCTION_BLOCK FB_LineData_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _owner, _mirror, _odd, _flaky, _adsMirror : FB_ProbeLineUnit;
+    _src, _oddSrc, _flakySrc : FB_ProbeLineSource;
+    _ads : FB_LineAdsSource;
+    _init : BOOL;
+    _rev : UDINT;
+    _takt : DINT;
+    _staleSeen : BOOL;
+    _n2, _n4, _n5, _n6 : INT;
+    _k : INT;
+    _found : STRING(80);
+    _w1, _w2, _w3, _w4, _w5, _w6, _w7 : BOOL;
+    _probe : DINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF NOT _init THEN
+    _init := TRUE;
+    _owner.Setup(Name := 'Test.LineOwner', Role := E_LineRole.OWNER, Source := 0,
+        StaleAfterMs := 0, ExtraKey := FALSE);
+    _src.Setup(pOwner := ADR(_owner.Line));
+    _oddSrc.Setup(pOwner := ADR(_owner.Line));
+    _flakySrc.Setup(pOwner := ADR(_owner.Line));
+    _ads.Setup(NetId := '', Port := 851, Symbol := 'PRG_TcUnitRunner.LineTests._owner.Line.Image');
+    _mirror.Setup(Name := 'Test.LineMirror', Role := E_LineRole.MIRROR, Source := _src,
+        StaleAfterMs := 5000, ExtraKey := FALSE);
+    _odd.Setup(Name := 'Test.LineOdd', Role := E_LineRole.MIRROR, Source := _oddSrc,
+        StaleAfterMs := 5000, ExtraKey := TRUE);
+    _flaky.Setup(Name := 'Test.LineFlaky', Role := E_LineRole.MIRROR, Source := _flakySrc,
+        StaleAfterMs := 0, ExtraKey := FALSE);
+    _adsMirror.Setup(Name := 'Test.LineAds', Role := E_LineRole.MIRROR, Source := _ads,
+        StaleAfterMs := 5000, ExtraKey := FALSE);
+END_IF
+_owner();
+_mirror();
+_odd();
+_flaky();
+_adsMirror();
+The_owner_revision_rises_with_every_accepted_write();
+A_mirror_applies_the_owner_revision_whole();
+A_mirror_refuses_a_direct_write();
+A_mirror_that_cannot_apply_a_revision_applies_nothing();
+A_mirror_without_updates_goes_stale_and_recovers();
+The_ADS_source_reads_the_owner_image();
+A_line_is_no_child_and_its_keys_are_its_own();]]></ST>
+    </Implementation>
+    <Method Name="The_owner_revision_rises_with_every_accepted_write" Id="{d032aac7-e0ab-4f32-9afb-d5b236ca39da}">
+      <Declaration><![CDATA[METHOD The_owner_revision_rises_with_every_accepted_write]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('The_owner_revision_rises_with_every_accepted_write');
+IF NOT _w1 THEN
+    _rev := _owner.Line.OutImm.Revision;
+    AssertTrue(Condition := _owner.WriteConfig(TargetPath := 'Test.LineOwner',
+        WriteKey := 'line.taktMs', Revision := 1, TextValue := '1200'),
+        Message := 'a line value is edited at the owner like any other value');
+    _owner();
+    AssertEquals_UDINT(Expected := _rev + 1, Actual := _owner.Line.OutImm.Revision,
+        Message := 'the accepted write raised the line revision');
+    AssertEquals_UDINT(Expected := _rev + 1, Actual := _owner.Line.Image.Revision,
+        Message := 'and the whole line was republished at it');
+    // Found by key: the line also carries its shift calendar (§8.5.2), registered first.
+    _found := '';
+    FOR _k := 1 TO _owner.Line.Image.Count DO
+        IF _owner.Line.Image.Records[_k].WriteKey = 'line.taktMs' THEN
+            _found := _owner.Line.Image.Records[_k].ValueText;
+        END_IF
+    END_FOR
+    AssertEquals_STRING(Expected := '1200', Actual := _found,
+        Message := 'carrying the new value');
+    _w1 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_mirror_applies_the_owner_revision_whole" Id="{d580b1e5-7e89-4cb9-bd73-0739026618eb}">
+      <Declaration><![CDATA[METHOD A_mirror_applies_the_owner_revision_whole]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_mirror_applies_the_owner_revision_whole');
+IF NOT _w2 THEN
+    _n2 := _n2 + 1;
+    IF (_mirror.Line.OutImm.Revision <> _owner.Line.OutImm.Revision) AND (_n2 < 20) THEN
+        RETURN;                           // across scans: a mirror polls its source
+    END_IF
+    AssertEquals_UDINT(Expected := _owner.Line.OutImm.Revision, Actual := _mirror.Line.OutImm.Revision,
+        Message := 'the mirror holds the owner revision');
+    AssertEquals_DINT(Expected := _owner.Takt, Actual := _mirror.Takt,
+        Message := 'and the owner value, applied through its own typed handler');
+    AssertEquals_STRING(Expected := 'Test.LineOwnerLine', Actual := _mirror.Line.OutImm.Owner,
+        Message := 'and names the copy it came from');
+    _w2 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_mirror_refuses_a_direct_write" Id="{f2e533a2-7540-4073-b4c5-80e1347ec1a5}">
+      <Declaration><![CDATA[METHOD A_mirror_refuses_a_direct_write]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_mirror_refuses_a_direct_write');
+IF NOT _w3 THEN
+    _takt := _mirror.Takt;
+    AssertFalse(Condition := _mirror.WriteConfig(TargetPath := 'Test.LineMirror',
+        WriteKey := 'line.taktMs', Revision := 1, TextValue := '5'),
+        Message := 'two editable copies of one fact are the drift line data removes');
+    AssertEquals_DINT(Expected := _takt, Actual := _mirror.Takt, Message := 'nothing changed');
+    _w3 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_mirror_that_cannot_apply_a_revision_applies_nothing" Id="{0a624015-fca6-454f-9e9f-404da082ade3}">
+      <Declaration><![CDATA[METHOD A_mirror_that_cannot_apply_a_revision_applies_nothing]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_mirror_that_cannot_apply_a_revision_applies_nothing');
+IF NOT _w4 THEN
+    _n4 := _n4 + 1;
+    IF _n4 < 5 THEN
+        RETURN;
+    END_IF
+    AssertEquals_DINT(Expected := 2, Actual := _odd.Line.OutImm.SourceError,
+        Message := 'a line with a value the owner does not carry is not applicable whole');
+    AssertEquals_DINT(Expected := 1000, Actual := _odd.Takt,
+        Message := 'and not even the value both sides share was applied');
+    _w4 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_mirror_without_updates_goes_stale_and_recovers" Id="{0c2ed46c-6965-404e-844a-f3add2db56fc}">
+      <Declaration><![CDATA[METHOD A_mirror_without_updates_goes_stale_and_recovers]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_mirror_without_updates_goes_stale_and_recovers');
+IF NOT _w5 THEN
+    _n5 := _n5 + 1;
+    IF NOT _staleSeen THEN
+        _flakySrc.M_SetFail(Fail := TRUE);
+        _staleSeen := _flaky.Line.OutImm.Stale;
+        IF _n5 < 50 THEN
+            RETURN;
+        END_IF
+    END_IF
+    AssertTrue(Condition := _staleSeen, Message := 'a mirror with no update past its window says Stale');
+    _flakySrc.M_SetFail(Fail := FALSE);
+    IF _flaky.Line.OutImm.Stale AND (_n5 < 100) THEN
+        RETURN;
+    END_IF
+    AssertFalse(Condition := _flaky.Line.OutImm.Stale, Message := 'and recovers by itself');
+    AssertEquals_DINT(Expected := 0, Actual := _flaky.Line.OutImm.SourceError,
+        Message := 'with no error left standing');
+    _w5 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="The_ADS_source_reads_the_owner_image" Id="{7e3ef3e2-a576-462e-a4a7-0dc55e260e54}">
+      <Declaration><![CDATA[METHOD The_ADS_source_reads_the_owner_image]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('The_ADS_source_reads_the_owner_image');
+IF NOT _w6 THEN
+    _n6 := _n6 + 1;
+    IF (_adsMirror.Line.OutImm.Revision <> _owner.Line.OutImm.Revision) AND (_n6 < 300) THEN
+        RETURN;
+    END_IF
+    AssertEquals_UDINT(Expected := _owner.Line.OutImm.Revision, Actual := _adsMirror.Line.OutImm.Revision,
+        Message := 'a mirror fed over ADS by symbol reaches the owner revision');
+    AssertEquals_DINT(Expected := _owner.Takt, Actual := _adsMirror.Takt,
+        Message := 'and applies the owner value');
+    AssertEquals_DINT(Expected := 0, Actual := _adsMirror.Line.OutImm.SourceError,
+        Message := 'with no transport error');
+    _w6 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="A_line_is_no_child_and_its_keys_are_its_own" Id="{25d7fce5-1753-453b-945b-f25145a5ba50}">
+      <Declaration><![CDATA[METHOD A_line_is_no_child_and_its_keys_are_its_own]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TEST('A_line_is_no_child_and_its_keys_are_its_own');
+IF NOT _w7 THEN
+    // §3.8e(a): the line is referenced, never registered, so it has no path under
+    // the root; its values are the root's line data, reached by the root's scope.
+    AssertFalse(Condition := _owner.WriteConfig(TargetPath := 'Test.LineOwner.Line',
+        WriteKey := 'line.taktMs', Revision := 1, TextValue := '1300'),
+        Message := 'a line is not a child of the root that references it');
+    // One key space per kind: a line value is keyed line.*, and nothing else is.
+    AssertFalse(Condition := _owner.Line.M_RegisterConfigNumber(Key := 'taktMs2',
+        Item := 'LineCfg/X', LabelKey := '', Unit := E_EngUnit.NONE,
+        Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(_probe), Minimum := 0.0, Maximum := 1.0, RequiresReady := FALSE),
+        Message := 'a line value without the line. prefix is refused');
+    AssertFalse(Condition := _owner.M_RegisterConfigNumber(Key := 'line.stolen',
+        Item := 'StationCfg/X', LabelKey := '', Unit := E_EngUnit.NONE,
+        Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(_probe), Minimum := 0.0, Maximum := 1.0, RequiresReady := FALSE),
+        Message := 'and a station value may not take a line key');
+    _w7 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

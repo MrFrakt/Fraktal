@@ -1,0 +1,9 @@
+# Tags for the Fraktal HMI test suite.
+#
+# `live` tests talk to a real local TF6100 server and need the built native
+# bridge; they are skipped in normal runs. Execute explicitly with:
+#   flutter build windows --debug
+#   flutter test --run-skipped -t live test/live_fieldbus_probe_test.dart
+tags:
+  live:
+    skip: "Requires a live local TF6100 (opc.tcp://127.0.0.1:4840) and the built fraktal_opcua.dll"

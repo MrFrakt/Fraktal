@@ -1,0 +1,15 @@
+﻿{"utc":"2026-10-17T21:08:18.1781993Z","event":"preserved-original","name":"Fraktal","cpu":"CPU1516","state":"Run","comm":"TCPIP","addresses":["169.254.212.49","192.168.1.1"],"ie1":0,"ie2":0,"ie3":0}
+{"utc":"2026-10-17T21:08:19.0238767Z","event":"network","benchAddress":"192.168.0.20","physicalAddress":"192.168.0.10","adapterIndex":9,"adapterName":"Ethernet1","vSwitch":true,"mode":"TCPIPSingleAdapter"}
+powershell.exe : Exception calling "SetValue" with "2" argument(s): "Error Code: -72, InstanceAlreadyRunning"
+At line:2 char:188
++ ... | Out-Null; & powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Exception calli...AlreadyRunning":String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+At C:\Projects\Fraktal\FraktalCore\PLC\Siemens\tools\Invoke-TiaPressBench.ps1:63 char:5
++     $manager.GetProperty('NetworkMode').SetValue($null,[enum]::Parse( ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : SimulationRuntimeException
+ 

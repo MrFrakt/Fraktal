@@ -1,0 +1,89 @@
+FUNCTION_BLOCK "FB_PressIoBridgeHardwareDriver"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Startup {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR_OUTPUT
+    LinkHealthy {ExternalWritable := 'False'} : Bool;
+    OutputsEnabled {ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR
+    Endpoint {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FB_IoBridgeEndpoint";
+    Config {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_IoBridgeConfig";
+    Inputs {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DWord;
+    Demands {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DWord;
+    Connected {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    PeerEnabled {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+    PermitOutputs {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+END_VAR
+VAR CONSTANT
+    OUTPUT_MAPPING_CONFIRMED : Bool := FALSE;
+    EVALUATED_TWO_HAND_WIRED : Bool := FALSE;
+END_VAR
+BEGIN
+    #Config.SchemaVersion := 1;
+    #Config.InterfaceId := 64;
+    #Config.SendId := 257;
+    #Config.ReceiveId := 258;
+    #Config.PeerAddress[1] := 192;
+    #Config.PeerAddress[2] := 168;
+    #Config.PeerAddress[3] := 0;
+    #Config.PeerAddress[4] := 20;
+    #Config.SendPort := 24002;
+    #Config.ReceivePort := 24001;
+    #Config.PeriodMs := 50;
+    #Config.WatchdogMs := 500;
+    #Inputs := DW#16#0;
+    #Inputs.%X0 := "_101B301A";
+    #Inputs.%X1 := "_101B301B";
+    #Inputs.%X2 := "_101B201A";
+    #Inputs.%X3 := "_101B201B";
+    #Inputs.%X4 := "_101B202A";
+    #Inputs.%X5 := "_101B202B";
+    #Inputs.%X6 := "_101S101";
+    #Inputs.%X7 := "_101S102";
+    #Inputs.%X8 := "_000MB085A_2";
+    #Inputs.%X9 := "_000MB085A_4";
+    #Inputs.%X10 := "_101B601";
+    #Inputs.%X11 := "_000K911_Y32";
+    #Inputs.%X12 := "_000K910A";
+    #Inputs.%X13 := "_EvaluatedTwoHand" AND #EVALUATED_TWO_HAND_WIRED;
+    #Endpoint(Startup := #Startup, Enabled := TRUE, PhysicalRole := TRUE,
+        LocalSignals := #Inputs, LocalEnable := #OUTPUT_MAPPING_CONFIRMED,
+        BootEpoch := "GDB_IoBridgeEpoch".Epoch, Config := #Config,
+        LinkHealthy => #Connected, PeerEnable => #PeerEnabled, PeerSignals => #Demands);
+    #LinkHealthy := #Connected;
+    #PermitOutputs := #OUTPUT_MAPPING_CONFIRMED AND #Connected AND #PeerEnabled
+        AND #Inputs.%X11 AND #Inputs.%X12 AND #Inputs.%X9 AND NOT #Inputs.%X8;
+    #OutputsEnabled := #PermitOutputs;
+    "_101K301A" := #PermitOutputs AND #Demands.%X0 AND NOT #Demands.%X1;
+    "_101K301B" := #PermitOutputs AND #Demands.%X1 AND NOT #Demands.%X0;
+    "_101K201A" := #PermitOutputs AND #Demands.%X2 AND NOT #Demands.%X3;
+    "_101K201B" := #PermitOutputs AND #Demands.%X3 AND NOT #Demands.%X2;
+    "_101K202A" := #PermitOutputs AND #Demands.%X4 AND NOT #Demands.%X5 AND #Inputs.%X2 AND #Inputs.%X13;
+    "_101K202B" := #PermitOutputs AND #Demands.%X5 AND NOT #Demands.%X4;
+    "_101P101" := #PermitOutputs AND #Demands.%X6;
+    "_101P102" := #PermitOutputs AND #Demands.%X7;
+    "_000K951_A1" := FALSE;
+    "_000K911_A1" := FALSE;
+END_FUNCTION_BLOCK
+
+DATA_BLOCK "GDB_PressIoBridgeHardwareDriver"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"FB_PressIoBridgeHardwareDriver"
+BEGIN
+END_DATA_BLOCK
+
+ORGANIZATION_BLOCK "Main"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Initial_Call : Bool;
+    Remanence : Bool;
+END_VAR
+BEGIN
+    "GDB_PressIoBridgeHardwareDriver"(Startup := #Initial_Call);
+END_ORGANIZATION_BLOCK

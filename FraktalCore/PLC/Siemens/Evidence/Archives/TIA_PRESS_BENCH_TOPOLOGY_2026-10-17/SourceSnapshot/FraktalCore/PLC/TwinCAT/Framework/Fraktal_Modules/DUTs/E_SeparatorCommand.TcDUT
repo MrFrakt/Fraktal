@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_SeparatorCommand" Id="{7a9e9a25-3d75-4395-af55-1ffcb633aa4f}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Annex A separator/stopper. NONE is the unset value: dispatch rejects it (S5.6).
+TYPE E_SeparatorCommand : (
+    NONE       := 0,
+    SEPARATE   := 1,    // release exactly one carrier
+    OPEN_CLOSE := 2     // hold the stopper open or closed per ParCmd.OpenStopper
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

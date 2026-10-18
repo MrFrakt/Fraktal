@@ -1,0 +1,611 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-17T21:54:39.7855022Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.GlobalDB ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <DBAccessibleFromOPCUA>true</DBAccessibleFromOPCUA>
+      <DBAccessibleFromWebserver>true</DBAccessibleFromWebserver>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Static">
+    <Member Name="Topology" Datatype="&quot;ST_FieldbusTopology&quot;" Remanence="NonRetain" Accessibility="Public">
+      <AttributeList>
+        <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">true</BooleanAttribute>
+        <BooleanAttribute Name="ExternalVisible" SystemDefined="true">true</BooleanAttribute>
+        <BooleanAttribute Name="ExternalWritable" SystemDefined="true">false</BooleanAttribute>
+        <BooleanAttribute Name="SetPoint" SystemDefined="true">true</BooleanAttribute>
+      </AttributeList>
+      <Sections>
+        <Section Name="None">
+          <Member Name="NodeCount" Datatype="Int">
+            <StartValue>3</StartValue>
+          </Member>
+          <Member Name="Nodes" Datatype="Array[1..3] of &quot;ST_BusNode&quot;">
+            <Sections>
+              <Section Name="None">
+                <Member Name="Name" Datatype="String[80]">
+                  <Subelement Path="1">
+                    <StartValue>'PressIo1214C'</StartValue>
+                  </Subelement>
+                  <Subelement Path="2">
+                    <StartValue>'PressIo1214C DI'</StartValue>
+                  </Subelement>
+                  <Subelement Path="3">
+                    <StartValue>'PressIo1214C DQ'</StartValue>
+                  </Subelement>
+                </Member>
+                <Member Name="DescriptionKey" Datatype="String[160]">
+                  <Subelement Path="1">
+                    <StartValue>'project.hardware.s71214c'</StartValue>
+                  </Subelement>
+                  <Subelement Path="2">
+                    <StartValue>'project.hardware.s71214cDi'</StartValue>
+                  </Subelement>
+                  <Subelement Path="3">
+                    <StartValue>'project.hardware.s71214cDq'</StartValue>
+                  </Subelement>
+                </Member>
+                <Member Name="TypeId" Datatype="String[80]">
+                  <Subelement Path="1">
+                    <StartValue>'CPU 1214C DC/DC/DC 6ES7 214-1AG40-0XB0'</StartValue>
+                  </Subelement>
+                  <Subelement Path="2">
+                    <StartValue>'Onboard DI 14 x 24 V DC'</StartValue>
+                  </Subelement>
+                  <Subelement Path="3">
+                    <StartValue>'Onboard DQ 10 x 24 V DC'</StartValue>
+                  </Subelement>
+                </Member>
+                <Member Name="Address" Datatype="String[40]">
+                  <Subelement Path="1">
+                    <StartValue>'192.168.0.10 (I/O bridge)'</StartValue>
+                  </Subelement>
+                  <Subelement Path="2">
+                    <StartValue>'%I0.0..%I1.5'</StartValue>
+                  </Subelement>
+                  <Subelement Path="3">
+                    <StartValue>'%Q0.0..%Q1.1'</StartValue>
+                  </Subelement>
+                </Member>
+                <Member Name="State" Datatype="DInt" />
+                <Member Name="LinkOk" Datatype="Bool" />
+                <Member Name="ParentIdx" Datatype="Int">
+                  <Subelement Path="2">
+                    <StartValue>1</StartValue>
+                  </Subelement>
+                  <Subelement Path="3">
+                    <StartValue>1</StartValue>
+                  </Subelement>
+                </Member>
+                <Member Name="ChannelCount" Datatype="Int">
+                  <Subelement Path="2">
+                    <StartValue>14</StartValue>
+                  </Subelement>
+                  <Subelement Path="3">
+                    <StartValue>10</StartValue>
+                  </Subelement>
+                </Member>
+                <Member Name="Channels" Datatype="Array[1..14] of &quot;ST_IoChannel&quot;">
+                  <Sections>
+                    <Section Name="None">
+                      <Member Name="Name" Datatype="String[80]">
+                        <Subelement Path="2,1">
+                          <StartValue>'_101B301A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,2">
+                          <StartValue>'_101B301B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,3">
+                          <StartValue>'_101B201A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,4">
+                          <StartValue>'_101B201B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,5">
+                          <StartValue>'_101B202A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,6">
+                          <StartValue>'_101B202B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,7">
+                          <StartValue>'_101S101'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,8">
+                          <StartValue>'_101S102'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,9">
+                          <StartValue>'_000MB085A_2'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,10">
+                          <StartValue>'_000MB085A_4'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,11">
+                          <StartValue>'_101B601'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,12">
+                          <StartValue>'_000K911_Y32'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,13">
+                          <StartValue>'_000K910A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,14">
+                          <StartValue>'_EvaluatedTwoHand'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,1">
+                          <StartValue>'_101K301A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,2">
+                          <StartValue>'_101K301B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,3">
+                          <StartValue>'_101K201A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,4">
+                          <StartValue>'_101K201B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,5">
+                          <StartValue>'_101K202A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,6">
+                          <StartValue>'_101K202B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,7">
+                          <StartValue>'_101P101'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,8">
+                          <StartValue>'_101P102'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,9">
+                          <StartValue>'_000K951_A1'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,10">
+                          <StartValue>'_000K911_A1'</StartValue>
+                        </Subelement>
+                      </Member>
+                      <Member Name="DescriptionKey" Datatype="String[160]">
+                        <Subelement Path="2,1">
+                          <StartValue>'project.io.101B301A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,2">
+                          <StartValue>'project.io.101B301B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,3">
+                          <StartValue>'project.io.101B201A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,4">
+                          <StartValue>'project.io.101B201B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,5">
+                          <StartValue>'project.io.101B202A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,6">
+                          <StartValue>'project.io.101B202B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,7">
+                          <StartValue>'project.io.101S101'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,8">
+                          <StartValue>'project.io.101S102'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,9">
+                          <StartValue>'project.io.000MB085A_2'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,10">
+                          <StartValue>'project.io.000MB085A_4'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,11">
+                          <StartValue>'project.io.101B601'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,12">
+                          <StartValue>'project.io.000K911_Y32'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,13">
+                          <StartValue>'project.io.000K910A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,14">
+                          <StartValue>'project.io.EvaluatedTwoHand'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,1">
+                          <StartValue>'project.io.101K301A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,2">
+                          <StartValue>'project.io.101K301B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,3">
+                          <StartValue>'project.io.101K201A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,4">
+                          <StartValue>'project.io.101K201B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,5">
+                          <StartValue>'project.io.101K202A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,6">
+                          <StartValue>'project.io.101K202B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,7">
+                          <StartValue>'project.io.101P101'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,8">
+                          <StartValue>'project.io.101P102'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,9">
+                          <StartValue>'project.io.000K951_A1'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,10">
+                          <StartValue>'project.io.000K911_A1'</StartValue>
+                        </Subelement>
+                      </Member>
+                      <Member Name="Address" Datatype="String[80]">
+                        <Subelement Path="2,1">
+                          <StartValue>'%I0.0'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,2">
+                          <StartValue>'%I0.1'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,3">
+                          <StartValue>'%I0.2'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,4">
+                          <StartValue>'%I0.3'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,5">
+                          <StartValue>'%I0.4'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,6">
+                          <StartValue>'%I0.5'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,7">
+                          <StartValue>'%I0.6'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,8">
+                          <StartValue>'%I0.7'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,9">
+                          <StartValue>'%I1.0'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,10">
+                          <StartValue>'%I1.1'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,11">
+                          <StartValue>'%I1.2'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,12">
+                          <StartValue>'%I1.3'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,13">
+                          <StartValue>'%I1.4'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,14">
+                          <StartValue>'%I1.5'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,1">
+                          <StartValue>'%Q0.0'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,2">
+                          <StartValue>'%Q0.1'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,3">
+                          <StartValue>'%Q0.2'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,4">
+                          <StartValue>'%Q0.3'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,5">
+                          <StartValue>'%Q0.4'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,6">
+                          <StartValue>'%Q0.5'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,7">
+                          <StartValue>'%Q0.6'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,8">
+                          <StartValue>'%Q0.7'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,9">
+                          <StartValue>'%Q1.0'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,10">
+                          <StartValue>'%Q1.1'</StartValue>
+                        </Subelement>
+                      </Member>
+                      <Member Name="Path" Datatype="WString[255]">
+                        <Subelement Path="2,1">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101B301A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,2">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101B301B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,3">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101B201A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,4">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101B201B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,5">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101B202A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,6">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101B202B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,7">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101S101'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,8">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101S102'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,9">
+                          <StartValue>WSTRING#'PressIo1214C DI/_000MB085A_2'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,10">
+                          <StartValue>WSTRING#'PressIo1214C DI/_000MB085A_4'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,11">
+                          <StartValue>WSTRING#'PressIo1214C DI/_101B601'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,12">
+                          <StartValue>WSTRING#'PressIo1214C DI/_000K911_Y32'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,13">
+                          <StartValue>WSTRING#'PressIo1214C DI/_000K910A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,14">
+                          <StartValue>WSTRING#'PressIo1214C DI/_EvaluatedTwoHand'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,1">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101K301A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,2">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101K301B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,3">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101K201A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,4">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101K201B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,5">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101K202A'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,6">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101K202B'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,7">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101P101'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,8">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_101P102'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,9">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_000K951_A1'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,10">
+                          <StartValue>WSTRING#'PressIo1214C DQ/_000K911_A1'</StartValue>
+                        </Subelement>
+                      </Member>
+                      <Member Name="ModulePath" Datatype="WString[255]">
+                        <Subelement Path="2,1">
+                          <StartValue>WSTRING#'PressDemo.PartSlide'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,2">
+                          <StartValue>WSTRING#'PressDemo.PartSlide'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,3">
+                          <StartValue>WSTRING#'PressDemo.Door'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,4">
+                          <StartValue>WSTRING#'PressDemo.Door'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,5">
+                          <StartValue>WSTRING#'PressDemo.PressRam'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,6">
+                          <StartValue>WSTRING#'PressDemo.PressRam'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,7">
+                          <StartValue>WSTRING#'PressDemo.TwoHand'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,8">
+                          <StartValue>WSTRING#'PressDemo.TwoHand'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,9">
+                          <StartValue>WSTRING#'PressDemo.AirPressureMonitor'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,10">
+                          <StartValue>WSTRING#'PressDemo.AirPressureMonitor'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,11">
+                          <StartValue>WSTRING#'PressDemo.PartPresentSensor'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,12">
+                          <StartValue>WSTRING#'PressDemo'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,13">
+                          <StartValue>WSTRING#'PressDemo'</StartValue>
+                        </Subelement>
+                        <Subelement Path="2,14">
+                          <StartValue>WSTRING#'PressDemo.TwoHand'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,1">
+                          <StartValue>WSTRING#'PressDemo.PartSlide'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,2">
+                          <StartValue>WSTRING#'PressDemo.PartSlide'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,3">
+                          <StartValue>WSTRING#'PressDemo.Door'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,4">
+                          <StartValue>WSTRING#'PressDemo.Door'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,5">
+                          <StartValue>WSTRING#'PressDemo.PressRam'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,6">
+                          <StartValue>WSTRING#'PressDemo.PressRam'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,7">
+                          <StartValue>WSTRING#'PressDemo'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,8">
+                          <StartValue>WSTRING#'PressDemo'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,9">
+                          <StartValue>WSTRING#'PressDemo'</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,10">
+                          <StartValue>WSTRING#'PressDemo'</StartValue>
+                        </Subelement>
+                      </Member>
+                      <Member Name="Dir" Datatype="DInt">
+                        <Subelement Path="3,1">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,2">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,3">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,4">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,5">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,6">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,7">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,8">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,9">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                        <Subelement Path="3,10">
+                          <StartValue>1</StartValue>
+                        </Subelement>
+                      </Member>
+                      <Member Name="Kind" Datatype="DInt" />
+                      <Member Name="BoolValue" Datatype="Bool" />
+                      <Member Name="AnalogValue" Datatype="Real" />
+                      <Member Name="Unit" Datatype="String[16]" />
+                      <Member Name="Forced" Datatype="Bool" />
+                      <Member Name="Quality" Datatype="Bool" />
+                      <Member Name="FaultActive" Datatype="Bool" />
+                      <Member Name="Diagnostic" Datatype="WString[255]" />
+                      <Member Name="Forceable" Datatype="Bool" />
+                      <Member Name="ForceBool" Datatype="Bool" />
+                      <Member Name="ForceAnalog" Datatype="Real" />
+                    </Section>
+                  </Sections>
+                </Member>
+              </Section>
+            </Sections>
+          </Member>
+          <Member Name="MappingValid" Datatype="Bool">
+            <StartValue>TRUE</StartValue>
+          </Member>
+          <Member Name="MappingDiagnostic" Datatype="WString[255]" />
+          <Member Name="ForcesEnabled" Datatype="Bool" />
+        </Section>
+      </Sections>
+    </Member>
+  </Section>
+</Sections></Interface>
+      <IsOnlyStoredInLoadMemory>false</IsOnlyStoredInLoadMemory>
+      <IsRetainMemResEnabled>false</IsRetainMemResEnabled>
+      <IsWriteProtectedInAS>false</IsWriteProtectedInAS>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <MemoryReserve>100</MemoryReserve>
+      <Name>GDB_PressDemoFieldbus</Name>
+      <Namespace />
+      <Number>78</Number>
+      <ProgrammingLanguage>DB</ProgrammingLanguage>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text> Core 10.5.1: identity is fixed at generation; the publisher writes live state.</Text>
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <MultilingualText ID="3" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="4" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.GlobalDB>
+</Document>

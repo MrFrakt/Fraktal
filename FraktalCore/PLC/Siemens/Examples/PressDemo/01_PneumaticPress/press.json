@@ -392,6 +392,37 @@
     "root": "PressDemo",
     "simulate_feedback": true
   },
+  "fieldbus": {
+    "io_list": "Examples/PressIoBridge/00_System/io.json",
+    "image": "GDB_PressDemoIO",
+    "healthy": "StandardIoHealthy",
+    "block": "GDB_PressDemoFieldbus",
+    "publisher": "F_PressDemoPublishFieldbus",
+    "station": {
+      "name": "PressIo1214C",
+      "description_key": "project.hardware.s71214c"
+    },
+    "groups": {
+      "inputs": {
+        "name": "PressIo1214C DI",
+        "description_key": "project.hardware.s71214cDi",
+        "type_id": "Onboard DI 14 x 24 V DC"
+      },
+      "outputs": {
+        "name": "PressIo1214C DQ",
+        "description_key": "project.hardware.s71214cDq",
+        "type_id": "Onboard DQ 10 x 24 V DC"
+      }
+    },
+    "owners": {
+      "PartSlide": ["SlideInside", "SlideOutside", "SlideExtend", "SlideRetract"],
+      "Door": ["DoorClosed", "DoorOpen", "DoorClose", "DoorRelease"],
+      "PressRam": ["RamExtended", "RamRetracted", "RamExtend", "RamRetract"],
+      "TwoHand": ["TwoHandRight", "TwoHandLeft", "TwoHandSafeActive"],
+      "AirPressureMonitor": ["AirLowPressure", "AirOperatingPressure"],
+      "PartPresentSensor": ["PartPresent"]
+    }
+  },
   "station_config": [
     {
       "name": "DegradationPercent",

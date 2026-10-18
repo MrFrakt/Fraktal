@@ -1,5 +1,12 @@
 # Siemens press demo
 
+Physical bridge/topology milestone (2026-10-17): FraktalBench at 192.168.0.20
+uses 169.254.212.61 for the local HMI and exchanges frames with the 1214C.
+The generic fieldbus view has 3 operational nodes and 14 fresh inputs. DQ values
+remain unconfirmed demands; output gates stay FALSE. See the
+[report](../../../../../Specification/Siemens/Evidence/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17.md)
+and [bridge setup](../PressIoBridge/README.md). Main still makes three calls.
+
 Line profile milestone (2026-10-17): `line_config` declares the local
 PRESS-DEMO-LINE owner beside station/model config. The shared V3 calendar
 defaults to unused rows; configure its days, durations, targets and start

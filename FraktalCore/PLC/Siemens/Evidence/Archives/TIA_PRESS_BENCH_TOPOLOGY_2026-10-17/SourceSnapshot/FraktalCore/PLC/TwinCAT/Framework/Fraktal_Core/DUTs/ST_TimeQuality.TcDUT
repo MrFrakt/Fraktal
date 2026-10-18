@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_TimeQuality" Id="{1c96ab76-f1f2-41d0-948b-6952088f8df6}">
+    <Declaration><![CDATA[// Core §2.7 — quality of the one PLC wall clock used by every Fraktal stamp.
+// Available=FALSE is deliberately not equivalent to synchronized.
+TYPE ST_TimeQuality :
+STRUCT
+    Available    : BOOL;
+    Synchronized : BOOL;
+    Source       : STRING(32);   // documented station source: PTP, DC, NTP, ...
+    OffsetUs     : DINT;         // signed offset from the selected source
+    LastSyncAt   : DT;
+    ObservedAt   : DT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

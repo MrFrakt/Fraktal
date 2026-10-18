@@ -1,0 +1,49 @@
+﻿FUNCTION "FRK_ConfigReserve" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Scope : String;
+      Key : String;
+      ModelCode : String;
+   END_VAR
+
+   VAR_IN_OUT 
+      Reserved : Array[1..32] of Int;
+   END_VAR
+
+   VAR_TEMP 
+      Found : Int;
+      Candidate : DInt;
+      Prior : Int;
+      CandidateFree : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ConfigReserve := 0;
+	#Found := "FRK_ConfigFind"(Scope := #Scope, Key := #Key, ModelCode := #ModelCode);
+	IF #Found > 0 THEN
+	    FOR #Prior := 1 TO 32 DO
+	        IF #Reserved[#Prior] = #Found THEN
+	            RETURN;
+	        END_IF;
+	    END_FOR;
+	    #FRK_ConfigReserve := #Found;
+	    RETURN;
+	END_IF;
+	FOR #Candidate := 1 TO 22 DO
+	    #CandidateFree := NOT "FRK_ConfigStore".Rows[#Candidate].Used;
+	    FOR #Prior := 1 TO 32 DO
+	        IF #Reserved[#Prior] = DINT_TO_INT(#Candidate) THEN
+	            #CandidateFree := FALSE;
+	        END_IF;
+	    END_FOR;
+	    IF #CandidateFree THEN
+	        #FRK_ConfigReserve := DINT_TO_INT(#Candidate);
+	        RETURN;
+	    END_IF;
+	END_FOR;
+	
+END_FUNCTION
+

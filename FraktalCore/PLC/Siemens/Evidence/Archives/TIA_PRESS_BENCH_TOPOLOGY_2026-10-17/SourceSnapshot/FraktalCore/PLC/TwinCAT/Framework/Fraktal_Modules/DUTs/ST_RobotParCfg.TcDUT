@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotParCfg" Id="{6ced9c19-96e0-4560-b9a0-c8162a0fd611}">
+    <Declaration><![CDATA[// Recipe-class configuration (S3.8), versioned.
+TYPE ST_RobotParCfg :
+STRUCT
+    SchemaVersion : UINT := 1;
+    MoveTimeout   : TIME := T#60S;   // per-command guard; the Unit step's ExpectedTime (S6.5) remains the outer one
+    HomeTimeout   : TIME := T#120S;
+    SpeedScaleMin : REAL := 1.0;     // band a recipe SpeedScale is validated against (I.4a(b))
+    SpeedScaleMax : REAL := 100.0;
+    // Ceiling per controller operating mode; the CM applies MIN(ceiling, ParCmd.SpeedScale).
+    // UNKNOWN = 0 so an unreported mode yields the safest ceiling, not the fastest.
+    // Indexed by E_RobotOpMode's ordinals - UNKNOWN, AUTO_REMOTE,
+    // MANUAL_REDUCED, MANUAL_HIGH. UNKNOWN is 0.0 on purpose: a mode the
+    // controller has not reported never earns a speed allowance.
+    SpeedCeiling  : ARRAY[0..3] OF REAL := [0.0, 100.0, 25.0, 100.0];
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

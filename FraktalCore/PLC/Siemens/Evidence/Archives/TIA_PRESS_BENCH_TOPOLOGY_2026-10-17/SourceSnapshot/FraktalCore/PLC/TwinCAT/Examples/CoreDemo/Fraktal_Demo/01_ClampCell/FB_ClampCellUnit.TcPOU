@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ClampCellUnit" Id="{3e8b5d17-0a4c-4f92-b6d1-7c2e9f81a345}" SpecialFunc="None">
+    <Declaration><![CDATA[// Project-owned root Unit of the core demo: one clamp EM from the reusable library,
+// cycled clamp -> unclamp by the AUTO chain. Wiring only (§6.8): every step lives
+// in FB_ClampCellAuto, and the base restarts that chain on first scan, mode change
+// and abort, so this type writes no lifecycle glue (§1.1 O1).
+FUNCTION_BLOCK FB_ClampCellUnit EXTENDS FB_UnitBase
+VAR_OUTPUT
+    Clamp : FB_ClampEM;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _autoSequence : FB_ClampCellAuto;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{8a2f4c61-7d93-4b0e-a5c8-1e6d3b9f0724}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name : STRING(80);
+    HalA : REFERENCE TO ST_CylinderHal;
+    HalB : REFERENCE TO ST_CylinderHal;
+    Recipe : I_RecipeProvider;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+_M_SetPresentation(DisplayNameKey := 'project.module.clampCell.name',
+    DescriptionKey := 'project.module.clampCell.description',
+    TypeKey := 'project.moduleType.clampCell');
+Setup := Clamp.Setup(Name := CONCAT(Name, '.Clamp'), HalA := HalA, HalB := HalB, Recipe := Recipe)
+    AND _M_Register(Child := Clamp)
+    AND _autoSequence.Setup(Host := THIS^, Clamp := Clamp);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{c5e19a73-2b48-4d06-9f3e-a7b0d2c64e18}">
+      <Declaration><![CDATA[// Thin mode router: AUTO runs the chain; MANUAL commands the clamp directly.
+METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE ModeActive OF
+    E_Mode.AUTO:
+        _autoSequence.M_Run();
+ELSE
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'project.error.clampCellModeHasNoSequence');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

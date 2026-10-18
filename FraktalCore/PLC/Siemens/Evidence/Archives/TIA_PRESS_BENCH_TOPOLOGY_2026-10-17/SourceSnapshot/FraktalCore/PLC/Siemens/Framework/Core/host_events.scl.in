@@ -1,0 +1,94 @@
+// Core 11.6 fixed vocabulary and shape; stores exist only for deployed Units.
+FUNCTION "FRK_HostSlot" : Int
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+END_VAR
+BEGIN
+    #FRK_HostSlot := 0;
+@SLOTS@
+END_FUNCTION
+
+FUNCTION "FRK_HostEmit" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Kind : DInt;
+    Scope : String;
+    PartUid : String;
+    Subject : String;
+    Value : String;
+    Verdict : DInt;
+    Reason : DInt;
+END_VAR
+VAR_TEMP
+    Slot : Int;
+    Head : Int;
+    Stamp : DTL;
+    ResultCode : Int;
+END_VAR
+BEGIN
+    #Slot := "FRK_HostSlot"(Scope := #Scope);
+    IF #Slot < 1 OR #Slot > @UNIT_COUNT@ THEN RETURN; END_IF;
+    // An invalid enum or over-width untrusted argument never truncates a record.
+    CASE #Kind OF
+        @VALID_KINDS@: #Head := "FRK_HostStore".Rows[#Slot].View.RingHead;
+        ELSE RETURN;
+    END_CASE;
+    IF LEN(#PartUid) > @PART_WIDTH@ OR LEN(#Subject) > @SUBJECT_WIDTH@ OR LEN(#Value) > @VALUE_WIDTH@ THEN RETURN; END_IF;
+    IF "FRK_HostStore".Rows[#Slot].Sequence = UDINT#4294967295 THEN
+        "FRK_HostStore".Rows[#Slot].Sequence := 1;
+        "FRK_HostStore".Rows[#Slot].View.Wrapped := TRUE;
+    ELSE
+        "FRK_HostStore".Rows[#Slot].Sequence := "FRK_HostStore".Rows[#Slot].Sequence + 1;
+    END_IF;
+    #Head := (#Head MOD @CAPACITY@) + 1;
+    "FRK_HostStore".Rows[#Slot].View.Capacity := @CAPACITY@;
+    "FRK_HostStore".Rows[#Slot].View.RingHead := #Head;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Sequence := "FRK_HostStore".Rows[#Slot].Sequence;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Kind := #Kind;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].StationPath := STRING_TO_WSTRING(#Scope);
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].PartUid := #PartUid;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Subject := #Subject;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Value := #Value;
+    // RD_SYS_T availability is not synchronization qualification (Core 2.7).
+    #ResultCode := RD_SYS_T(OUT => #Stamp);
+    IF #ResultCode = 0 THEN
+        "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Stamp := DTL_TO_LDT(#Stamp);
+    ELSE
+        "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Stamp := LDT#1970-01-01-00:00:00.000000000;
+    END_IF;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].TimeSynchronized := FALSE;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].Verdict := #Verdict;
+    "FRK_HostStore".Rows[#Slot].View.Ring[#Head].ReasonCode := #Reason;
+    IF "FRK_HostStore".Rows[#Slot].View.Count < @CAPACITY@ THEN
+        "FRK_HostStore".Rows[#Slot].View.Count := "FRK_HostStore".Rows[#Slot].View.Count + 1;
+    ELSE
+        "FRK_HostStore".Rows[#Slot].View.Wrapped := TRUE;
+    END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_HostMirror" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Scope : String;
+    Startup : Bool;
+END_VAR
+VAR_IN_OUT
+    Seen : UDInt;
+    View : "FRK_HostEvents";
+END_VAR
+VAR_TEMP
+    Slot : Int;
+END_VAR
+BEGIN
+    #Slot := "FRK_HostSlot"(Scope := #Scope);
+    IF #Slot < 1 OR #Slot > @UNIT_COUNT@ THEN RETURN; END_IF;
+    "FRK_HostStore".Rows[#Slot].View.Capacity := @CAPACITY@;
+    IF #Startup OR #Seen <> "FRK_HostStore".Rows[#Slot].Sequence THEN
+        #View := "FRK_HostStore".Rows[#Slot].View;
+        #Seen := "FRK_HostStore".Rows[#Slot].Sequence;
+    END_IF;
+END_FUNCTION

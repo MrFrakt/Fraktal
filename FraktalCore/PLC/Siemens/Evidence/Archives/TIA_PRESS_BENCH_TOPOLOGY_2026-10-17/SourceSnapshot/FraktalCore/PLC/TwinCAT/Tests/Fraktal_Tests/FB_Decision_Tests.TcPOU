@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Decision_Tests" Id="{70c0d17c-734e-43fb-b07c-a48e82ff413c}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §6.11: one active request, safe resolution, timeout/default and audit.
+FUNCTION_BLOCK FB_Decision_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _operator : FB_ProbeUnit;
+    _overlap  : FB_ProbeUnit;
+    _timeout  : FB_ProbeUnit;
+    _invalid  : FB_ProbeUnit;
+    _operatorReq : ST_DecisionRequest;
+    _overlapReq  : ST_DecisionRequest;
+    _otherReq    : ST_DecisionRequest;
+    _timeoutReq  : ST_DecisionRequest;
+    _invalidReq  : ST_DecisionRequest;
+    _report : ST_ReleaseReport;
+    _wOperator, _wOverlap, _wTimeout, _wInvalid : BOOL;
+    _ringHead : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Operator_choice_is_validated_consumed_and_logged();
+Repeated_request_is_idempotent_and_overlap_rejects();
+Timeout_uses_the_validated_safe_default();
+Invalid_timeout_default_faults_without_publication();]]></ST>
+    </Implementation>
+    <Method Name="Operator_choice_is_validated_consumed_and_logged" Id="{d1bfbfd1-df46-433f-9cd7-b7358c9b4b88}">
+      <Declaration><![CDATA[METHOD Operator_choice_is_validated_consumed_and_logged
+VAR
+    answer : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Operator_choice_is_validated_consumed_and_logged');
+IF NOT _wOperator THEN
+    _operator.Setup(Name := 'Test.DecisionOperator');
+    AssertTrue(Condition := _operator.Start(), Message := 'Unit starts');
+    _operator();
+    _operatorReq.Prompt := 'project.decision.operator';
+    _operatorReq.Options[1] := 'project.option.retry';
+    _operatorReq.Options[2] := 'project.option.continue';
+    _operatorReq.Default := 1;
+    _operatorReq.Timeout := T#5S;
+    AssertTrue(Condition := _operator.M_TestAskDecision(Req := _operatorReq),
+        Message := 'valid request is published');
+    AssertTrue(Condition := _operator.SubmitDecision(Option := 2, Report := _report),
+        Message := 'active published option is accepted through the authoritative entry');
+    _operator();
+    answer := _operator.M_TestTakeDecision();
+    AssertEquals_INT(Expected := 2, Actual := answer,
+        Message := 'answer is consumed exactly once');
+    AssertEquals_STRING(Expected := '', Actual := _operator.Decision.Prompt,
+        Message := 'consumption clears the complete public slot');
+    AssertEquals_STRING(Expected := 'std.audit.decisionOperatorResolved option=2',
+        Actual := _operator.AlarmLog.Ring[_operator.AlarmLog.RingHead].Description,
+        Message := 'operator resolution is a domain audit event');
+    _wOperator := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Repeated_request_is_idempotent_and_overlap_rejects" Id="{aaae95be-ac67-4e74-a857-5d507234a162}">
+      <Declaration><![CDATA[METHOD Repeated_request_is_idempotent_and_overlap_rejects]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Repeated_request_is_idempotent_and_overlap_rejects');
+IF NOT _wOverlap THEN
+    _overlap.Setup(Name := 'Test.DecisionOverlap');
+    AssertTrue(Condition := _overlap.Start(), Message := 'Unit starts');
+    _overlap();
+    _overlapReq.Prompt := 'project.decision.first';
+    _overlapReq.Options[1] := 'project.option.ok';
+    _overlapReq.Timeout := T#0S;
+    _otherReq.Prompt := 'project.decision.second';
+    _otherReq.Options[1] := 'project.option.cancel';
+    _otherReq.Timeout := T#0S;
+    AssertTrue(Condition := _overlap.M_TestAskDecision(Req := _overlapReq),
+        Message := 'first request owns the slot');
+    _ringHead := _overlap.AlarmLog.RingHead;
+    AssertTrue(Condition := _overlap.M_TestAskDecision(Req := _overlapReq),
+        Message := 'same request is idempotent');
+    AssertEquals_INT(Expected := _ringHead, Actual := _overlap.AlarmLog.RingHead,
+        Message := 'idempotent presentation does not duplicate request audit');
+    AssertFalse(Condition := _overlap.M_TestAskDecision(Req := _otherReq),
+        Message := 'different request cannot overwrite the active slot');
+    AssertEquals_STRING(Expected := 'project.decision.first', Actual := _overlap.Decision.Prompt,
+        Message := 'first producer retains ownership');
+    AssertEquals_STRING(Expected := 'std.audit.decisionOverlapRejected',
+        Actual := _overlap.AlarmLog.Ring[_overlap.AlarmLog.RingHead].Description,
+        Message := 'overlap is rejected and logged');
+    _ringHead := _overlap.AlarmLog.RingHead;
+    AssertFalse(Condition := _overlap.M_TestAskDecision(Req := _otherReq),
+        Message := 'repeated conflict remains rejected');
+    AssertEquals_INT(Expected := _ringHead, Actual := _overlap.AlarmLog.RingHead,
+        Message := 'one repeated producer cannot flood the bounded event ring');
+    _overlap.M_TestClearDecision();
+    _wOverlap := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Timeout_uses_the_validated_safe_default" Id="{29aa9f8b-36f4-468c-9193-25b35c7f671c}">
+      <Declaration><![CDATA[METHOD Timeout_uses_the_validated_safe_default
+VAR
+    answer : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Timeout_uses_the_validated_safe_default');
+IF NOT _wTimeout THEN
+    _timeout.Setup(Name := 'Test.DecisionTimeout');
+    AssertTrue(Condition := _timeout.Start(), Message := 'Unit starts');
+    _timeout();
+    _timeoutReq.Prompt := 'project.decision.timeout';
+    _timeoutReq.Options[1] := 'project.option.safeStop';
+    _timeoutReq.Options[2] := 'project.option.continue';
+    _timeoutReq.Default := 1;
+    _timeoutReq.Timeout := T#1MS;
+    AssertTrue(Condition := _timeout.M_TestAskDecision(Req := _timeoutReq),
+        Message := 'timed request is published');
+    _wTimeout := TRUE;
+ELSE
+    _timeout();
+    IF _timeout.DecisionAnswer > 0 THEN
+        answer := _timeout.M_TestTakeDecision();
+        AssertEquals_INT(Expected := 1, Actual := answer,
+            Message := 'timeout resolves to the validated safe default');
+        AssertEquals_STRING(Expected := 'std.audit.decisionTimeoutResolved option=1',
+            Actual := _timeout.AlarmLog.Ring[_timeout.AlarmLog.RingHead].Description,
+            Message := 'timeout origin is explicit in the audit');
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Invalid_timeout_default_faults_without_publication" Id="{cdfd3ccb-1e89-4d66-a430-e34515ec80e6}">
+      <Declaration><![CDATA[METHOD Invalid_timeout_default_faults_without_publication]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Invalid_timeout_default_faults_without_publication');
+IF NOT _wInvalid THEN
+    _invalid.Setup(Name := 'Test.DecisionInvalid');
+    AssertTrue(Condition := _invalid.Start(), Message := 'Unit starts');
+    _invalid();
+    _invalidReq.Prompt := 'project.decision.invalid';
+    _invalidReq.Options[1] := 'project.option.safeStop';
+    _invalidReq.Default := 2;
+    _invalidReq.Timeout := T#1S;
+    AssertFalse(Condition := _invalid.M_TestAskDecision(Req := _invalidReq),
+        Message := 'missing default option is rejected');
+    _invalid();
+    AssertTrue(Condition := _invalid.Error,
+        Message := 'invalid application request faults on the lifecycle output mapping');
+    AssertEquals_STRING(Expected := '', Actual := _invalid.Decision.Prompt,
+        Message := 'invalid request is never published');
+    _wInvalid := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

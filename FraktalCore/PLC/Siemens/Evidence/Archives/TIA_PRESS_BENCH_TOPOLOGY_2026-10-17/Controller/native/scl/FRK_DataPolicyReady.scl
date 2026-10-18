@@ -1,0 +1,14 @@
+﻿FUNCTION "FRK_DataPolicyReady" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Access : "FRK_Access";
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DataPolicyReady := NOT #Access.PolicyLost;
+	
+END_FUNCTION
+

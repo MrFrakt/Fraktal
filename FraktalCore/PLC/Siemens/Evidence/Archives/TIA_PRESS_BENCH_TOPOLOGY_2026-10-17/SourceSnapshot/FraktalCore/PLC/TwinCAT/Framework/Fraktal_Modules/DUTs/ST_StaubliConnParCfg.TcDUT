@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_StaubliConnParCfg" Id="{3296e0e0-8dbd-4415-b337-7fcb55a4d2a6}">
+    <Declaration><![CDATA[// Deployment configuration for the VAL3 connector (S3.8a station config).
+TYPE ST_StaubliConnParCfg :
+STRUCT
+    SchemaVersion : UINT := 1;
+    Host          : STRING(80);
+    Port          : UINT := 11000;      // VAL3 fraktal_server command socket
+    Terminator    : STRING(2) := '$R';  // ASCII 13, as the Staubli sioLink default
+    RespTimeout   : TIME := T#2S;       // per-request; motion completion is polled, not awaited
+    StatusPeriod  : TIME := T#100MS;    // idle status poll interval
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

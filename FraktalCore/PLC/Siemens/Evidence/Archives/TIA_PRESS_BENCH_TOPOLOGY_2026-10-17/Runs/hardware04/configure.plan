@@ -1,0 +1,7 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Press_IoBridge_Press1500_20261015\FrkS12\FrkS12.ap20"
+set-ip --plc PLC_1 --ip 169.254.212.61 --mask 255.255.0.0 --item "PROFINET interface_2"
+webserver-user --plc PLC_1 --name fraktal --permissions ReadTagStatus,ModifyTagStatus --password-env FRAKTAL_TIA_WEB_PASSWORD
+save
+compile --plc PLC_1 --hw
+interfaces --plc PLC_1
+save

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "cpu_order": "6ES7 214-1AG40-0XB0",
+  "physical_address": "192.168.0.10",
+  "simulator_bench_address": "192.168.0.20",
+  "simulator_engineering_address": "169.254.212.61",
+  "period_ms": 50,
+  "watchdog_ms": 500,
+  "physical_receive_port": 24001,
+  "simulator_receive_port": 24002,
+  "inputs": [
+    {"bit": 0, "tag": "_101B301A", "address": "%I0.0", "signal": "SlideInside", "description": "Feeder retracted: slide inside"},
+    {"bit": 1, "tag": "_101B301B", "address": "%I0.1", "signal": "SlideOutside", "description": "Feeder extended: slide outside"},
+    {"bit": 2, "tag": "_101B201A", "address": "%I0.2", "signal": "DoorClosed", "description": "Door closed"},
+    {"bit": 3, "tag": "_101B201B", "address": "%I0.3", "signal": "DoorOpen", "description": "Door open"},
+    {"bit": 4, "tag": "_101B202A", "address": "%I0.4", "signal": "RamExtended", "description": "Press down"},
+    {"bit": 5, "tag": "_101B202B", "address": "%I0.5", "signal": "RamRetracted", "description": "Press up"},
+    {"bit": 6, "tag": "_101S101", "address": "%I0.6", "signal": "TwoHandRight", "description": "Right button ordinary mirror"},
+    {"bit": 7, "tag": "_101S102", "address": "%I0.7", "signal": "TwoHandLeft", "description": "Left button ordinary mirror"},
+    {"bit": 8, "tag": "_000MB085A_2", "address": "%I1.0", "signal": "AirLowPressure", "description": "Air below 0.3 bar"},
+    {"bit": 9, "tag": "_000MB085A_4", "address": "%I1.1", "signal": "AirOperatingPressure", "description": "Air above 4.5 bar"},
+    {"bit": 10, "tag": "_101B601", "address": "%I1.2", "signal": "PartPresent", "description": "Part present"},
+    {"bit": 11, "tag": "_000K911_Y32", "address": "%I1.3", "signal": "ControlOnFeedback", "description": "Control On feedback"},
+    {"bit": 12, "tag": "_000K910A", "address": "%I1.4", "signal": "EStopReleasedMirror", "description": "E-stop released ordinary mirror"},
+    {"bit": 13, "tag": "_EvaluatedTwoHand", "address": "%I1.5", "signal": "TwoHandSafeActive", "description": "Additional evaluated two-hand relay result; requires verified wiring"}
+  ],
+  "outputs": [
+    {"bit": 0, "tag": "_101K301A", "address": "%Q0.0", "signal": "SlideExtend", "opposite": 1},
+    {"bit": 1, "tag": "_101K301B", "address": "%Q0.1", "signal": "SlideRetract", "opposite": 0},
+    {"bit": 2, "tag": "_101K201A", "address": "%Q0.2", "signal": "DoorClose", "opposite": 3},
+    {"bit": 3, "tag": "_101K201B", "address": "%Q0.3", "signal": "DoorRelease", "opposite": 2},
+    {"bit": 4, "tag": "_101K202A", "address": "%Q0.4", "signal": "RamExtend", "opposite": 5},
+    {"bit": 5, "tag": "_101K202B", "address": "%Q0.5", "signal": "RamRetract", "opposite": 4},
+    {"bit": 6, "tag": "_101P101", "address": "%Q0.6", "signal": "StartLamp"},
+    {"bit": 7, "tag": "_101P102", "address": "%Q0.7", "signal": "StartLamp"}
+  ],
+  "inhibited_outputs": [
+    {"tag": "_000K951_A1", "address": "%Q1.0", "description": "SwitchControlOn: unverified electrical semantics; always off"},
+    {"tag": "_000K911_A1", "address": "%Q1.1", "description": "EnableControlOn: unverified electrical semantics; always off"}
+  ]
+}

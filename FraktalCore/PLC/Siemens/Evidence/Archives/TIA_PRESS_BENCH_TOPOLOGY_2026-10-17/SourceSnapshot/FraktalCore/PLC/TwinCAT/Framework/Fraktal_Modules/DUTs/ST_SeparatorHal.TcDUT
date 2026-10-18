@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_SeparatorHal" Id="{d0bece50-78da-477d-8582-13159a69a74a}">
+    <Declaration><![CDATA[// HAL view (S10.3). The driver owns invert/debounce and the raw %I/%Q symbols;
+// the module only ever touches these clean signals, so simulation and hardware
+// are the same code (S2.6).
+TYPE ST_SeparatorHal :
+STRUCT
+    CarrierAt    : BOOL;   // input  - carrier present at the separator
+    CarrierAfter : BOOL;   // input  - carrier present just past the separator
+    OpenedFb     : BOOL;   // input  - separator-opened feedback (optional)
+    ValveOpen    : BOOL;   // output - drives the open solenoid
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -7,6 +7,11 @@ signals and enable. `FB_IoBridgeProtocol` owns admission, sequence/echo tracking
 watchdog and neutral rearming; `FB_IoBridgeEndpoint` owns asynchronous TCP jobs,
 immutable send buffers, elapsed clock and connection recovery.
 
+The controller initiates both TCP streams. The physical companion listens on
+the two project-configured ports, accepting the controller's send and receive
+connections. Connection roles belong to this shared endpoint; application
+drivers only declare their role and supply their I/O image.
+
 The generator pins instruction versions from the qualified native exports.
 The project-owned map, raw tag table and final output permit live in
 [`Examples/PressIoBridge`](../../Examples/PressIoBridge/README.md). The press

@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ConfigSetDocument" Id="{f654151c-0fde-485c-aa7d-ff4d8faf4ba7}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b - one parameter set as a DOCUMENT on an I_PersistMedium: exactly
+// the text FB_ConfigSetJson exports (a header line, then one line per record,
+// each ended by LF), rendered from and parsed back into any I_ConfigStore.
+// Written once and used by both the medium-backed set store and the root's live
+// configuration documents, so a set file and a live file are the same format.
+//
+// Records, not an image (§3.8b): every value keeps its (Scope, WriteKey)
+// identity in the file and is replayed through its owner's typed handler. A
+// document is parsed completely, or refused - a store sees a set either whole
+// or not at all.
+FUNCTION_BLOCK FB_ConfigSetDocument
+VAR_OUTPUT
+    Busy    : BOOL;     // a medium request is in flight
+    Ok      : BOOL;     // last request: written durably / the medium answered
+    Found   : BOOL;     // last read: a document came back
+    Lost    : BOOL;     // last read: the medium lost a document it had confirmed
+    ErrorId : UDINT;    // last medium error (0 = none)
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _medium : I_PersistMedium;
+    _ticket : UDINT;
+    _result : ST_PersistResult;
+    _length : UDINT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _json   : FB_ConfigSetJson;
+    {attribute 'OPC.UA.DA' := '0'}
+    _doc    : ARRAY[0..PL_Fraktal.MAX_PERSIST_DOC_BYTES - 1] OF BYTE;
+END_VAR
+VAR CONSTANT
+    LINE_MAX : UDINT := 480;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// no cyclic body: the owner calls M_Poll while Busy]]></ST>
+    </Implementation>
+    <Method Name="M_Write" Id="{20c11a88-960c-44e2-bd85-643ef281f22b}">
+      <Declaration><![CDATA[// Render the named set of Store and start writing it under Key. FALSE = busy,
+// a line the projection refused to render, a document over
+// MAX_PERSIST_DOC_BYTES, or a medium that refused the request.
+METHOD M_Write : BOOL
+VAR_INPUT
+    Medium  : I_PersistMedium;
+    Key     : STRING(80);
+    Store   : I_ConfigStore;
+    SetName : STRING(80);
+END_VAR
+VAR
+    info   : ST_ConfigSetInfo;
+    record : ST_ConfigRecord;
+    line   : STRING(480);
+    i      : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Write := FALSE;
+IF Busy OR (Medium = 0) OR (Store = 0) THEN
+    RETURN;
+END_IF
+ErrorId := 16#705;                          // not rendered (until _M_Start says otherwise)
+IF NOT Store.M_ReadInfo(SetName := SetName, Info := info) THEN
+    RETURN;
+END_IF
+_length := 0;
+line := _json.M_Header(Info := info);
+IF NOT _M_AppendLine(Line := line) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO info.RecordCount DO
+    IF NOT Store.M_ReadRecord(SetName := SetName, Index := i, Record := record) THEN
+        RETURN;
+    END_IF
+    line := _json.M_Record(Record := record);
+    IF NOT _M_AppendLine(Line := line) THEN
+        RETURN;
+    END_IF
+END_FOR
+M_Write := _M_Start(Medium := Medium, Key := Key, Write := TRUE);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Delete" Id="{d9413fb5-1418-40f9-859f-0361b59d3f7f}">
+      <Declaration><![CDATA[// Start writing an empty document under Key: the set is gone.
+METHOD M_Delete : BOOL
+VAR_INPUT
+    Medium : I_PersistMedium;
+    Key    : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Delete := FALSE;
+IF Busy OR (Medium = 0) THEN
+    RETURN;
+END_IF
+_length := 0;
+M_Delete := _M_Start(Medium := Medium, Key := Key, Write := TRUE);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Read" Id="{2f3c4f29-67a5-4e6f-a488-042a604ce12c}">
+      <Declaration><![CDATA[// Start reading the document under Key; M_Parse takes it once M_Poll is done.
+METHOD M_Read : BOOL
+VAR_INPUT
+    Medium : I_PersistMedium;
+    Key    : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Read := FALSE;
+IF Busy OR (Medium = 0) THEN
+    RETURN;
+END_IF
+_length := 0;
+M_Read := _M_Start(Medium := Medium, Key := Key, Write := FALSE);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Poll" Id="{c8c91e30-cd1f-48fd-a9c0-d6cba47dd48d}">
+      <Declaration><![CDATA[// Advance the request. TRUE once nothing is in flight, with the outputs set.
+METHOD M_Poll : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Poll := TRUE;
+IF NOT Busy THEN
+    RETURN;
+END_IF
+IF NOT _medium.M_Poll(Ticket := _ticket, Result := _result) THEN
+    M_Poll := FALSE;
+    RETURN;
+END_IF
+Busy := FALSE;
+_ticket := 0;
+Ok := _result.Ok;
+Found := _result.Found;
+Lost := _result.Lost;
+ErrorId := _result.ErrorId;
+IF Found THEN
+    _length := _result.Length;
+ELSE
+    _length := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Parse" Id="{e741e3b5-4a8c-4c64-8a01-ee8efc89e2d2}">
+      <Declaration><![CDATA[// Parse the document last read into Store as one set, and return its header.
+// FALSE = not a whole, well-formed set: a line too long, a header or record that
+// does not parse, a record count that disagrees, or a store that refused it.
+METHOD M_Parse : BOOL
+VAR_INPUT
+    Store : I_ConfigStore;
+END_VAR
+VAR_IN_OUT
+    Info : ST_ConfigSetInfo;
+END_VAR
+VAR
+    header  : ST_ConfigSetInfo;
+    record  : ST_ConfigRecord;
+    line    : STRING(480);
+    pLine   : POINTER TO BYTE;
+    pos     : UDINT;
+    n       : UDINT;
+    lines   : INT;
+    records : INT;
+    opened  : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Parse := FALSE;
+IF Busy OR NOT Found OR (Store = 0) OR (_length = 0) THEN
+    RETURN;
+END_IF
+pLine := ADR(line);
+pos := 0;
+lines := 0;
+records := 0;
+opened := FALSE;
+WHILE pos < _length DO
+    n := 0;
+    WHILE (pos < _length) AND (_doc[pos] <> 10) DO
+        IF n >= LINE_MAX THEN
+            IF opened THEN Store.M_SaveAbort(); END_IF
+            RETURN;                         // longer than any line we write
+        END_IF
+        pLine[n] := _doc[pos];
+        n := n + 1;
+        pos := pos + 1;
+    END_WHILE
+    pos := pos + 1;                         // past the LF
+    IF n > 0 THEN
+        IF pLine[n - 1] = 13 THEN
+            n := n - 1;                     // tolerate CRLF
+        END_IF
+    END_IF
+    pLine[n] := 0;
+    IF n > 0 THEN
+        IF lines = 0 THEN
+            IF NOT _json.M_ParseHeader(Line := line, Info := header) THEN
+                RETURN;
+            END_IF
+            header.Used := TRUE;
+            IF NOT Store.M_SaveBegin(Info := header) THEN
+                RETURN;
+            END_IF
+            opened := TRUE;
+        ELSE
+            IF NOT _json.M_ParseRecord(Line := line, Record := record) THEN
+                Store.M_SaveAbort();
+                RETURN;
+            END_IF
+            IF NOT Store.M_SaveRecord(Record := record) THEN
+                Store.M_SaveAbort();
+                RETURN;
+            END_IF
+            records := records + 1;
+        END_IF
+        lines := lines + 1;
+    END_IF
+END_WHILE
+IF NOT opened THEN
+    RETURN;
+END_IF
+IF records <> header.RecordCount THEN
+    Store.M_SaveAbort();
+    RETURN;
+END_IF
+IF NOT Store.M_SaveCommit() THEN
+    RETURN;
+END_IF
+Info := header;
+M_Parse := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Start" Id="{789474fc-1462-45cb-9510-a3c0b93dfb83}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Start : BOOL
+VAR_INPUT
+    Medium : I_PersistMedium;
+    Key    : STRING(80);
+    Write  : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Start := FALSE;
+Ok := FALSE;
+Found := FALSE;
+Lost := FALSE;
+IF Write THEN
+    _ticket := Medium.M_StartWrite(Key := Key, pData := ADR(_doc), Size := _length);
+ELSE
+    _ticket := Medium.M_StartRead(Key := Key, pData := ADR(_doc),
+        Size := PL_Fraktal.MAX_PERSIST_DOC_BYTES);
+END_IF
+IF _ticket = 0 THEN
+    ErrorId := 16#706;                      // refused: bad key, size or a full queue
+    RETURN;
+END_IF
+_medium := Medium;
+ErrorId := 0;
+Busy := TRUE;
+_M_Start := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_AppendLine" Id="{fda2f52f-a370-4819-a73e-40cd7b257a4b}">
+      <Declaration><![CDATA[// Append one rendered line and its LF. An empty line is a line the projection
+// refused to render, so the document is refused rather than written with a hole.
+METHOD PRIVATE _M_AppendLine : BOOL
+VAR_IN_OUT
+    Line : STRING(480);
+END_VAR
+VAR
+    p : POINTER TO BYTE;
+    n : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_AppendLine := FALSE;
+p := ADR(Line);
+n := 0;
+WHILE (n < LINE_MAX) AND (p[n] <> 0) DO
+    n := n + 1;
+END_WHILE
+IF (n = 0) OR ((_length + n + 1) > PL_Fraktal.MAX_PERSIST_DOC_BYTES) THEN
+    RETURN;
+END_IF
+MEMCPY(destAddr := ADR(_doc) + _length, srcAddr := p, n := n);
+_length := _length + n;
+_doc[_length] := 10;
+_length := _length + 1;
+_M_AppendLine := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

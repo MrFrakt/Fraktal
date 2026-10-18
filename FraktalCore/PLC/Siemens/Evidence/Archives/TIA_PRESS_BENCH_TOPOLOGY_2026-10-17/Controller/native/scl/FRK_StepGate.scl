@@ -1,0 +1,39 @@
+﻿FUNCTION "FRK_StepGate" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Owner : DInt;
+      Steppable : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_StepGate := FALSE;
+	IF #Owner < 1 OR #Owner > 7 OR #Owner > "FRK_Registry".Count OR "FRK_Registry".Fault THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_Registry".Rows[#Owner].Valid THEN
+	    RETURN;
+	END_IF;
+	IF NOT #Steppable THEN
+	    #FRK_StepGate := TRUE;
+	    RETURN;
+	END_IF;
+	CASE "FRK_Registry".Rows[#Owner].RunStyle OF
+	    0:
+	        #FRK_StepGate := TRUE;
+	    1:
+	        #FRK_StepGate := "FRK_Registry".Rows[#Owner].StepToken;
+	        "FRK_Registry".Rows[#Owner].StepToken := FALSE;
+	    2:
+	        #FRK_StepGate := "FRK_Registry".Rows[#Owner].HoldRun;
+	    ELSE
+	        #FRK_StepGate := FALSE;
+	END_CASE;
+	IF NOT #FRK_StepGate THEN
+	    "FRK_Registry".Rows[#Owner].StepWait := TRUE;
+	END_IF;
+	
+END_FUNCTION
+

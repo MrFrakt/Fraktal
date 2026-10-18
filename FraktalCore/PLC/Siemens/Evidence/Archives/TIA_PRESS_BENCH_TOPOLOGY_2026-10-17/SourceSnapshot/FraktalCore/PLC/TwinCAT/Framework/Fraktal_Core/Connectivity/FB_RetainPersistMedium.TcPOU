@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RetainPersistMedium" Id="{9d64a674-9e2e-4ded-811c-873d004f2ec1}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b - the RETENTIVE-MEMORY medium (E_ConfigStore.LOCAL_RETAIN): a
+// bounded pool of documents in the controller's PERSISTENT area, made durable
+// by the shipped FB_PersistentDataWriter after every write. For a station with
+// no usable file system, or one whose project prefers retentive memory.
+//
+// Limits stated, not hidden:
+//   * MAX_RETAIN_DOCUMENTS documents of up to MAX_PERSIST_DOC_BYTES each, all
+//     reserved in the persistent budget (8 x 16 kB as shipped); a write that
+//     finds no free slot fails and is reported.
+//   * A document's CRC catches a damaged copy, but a persistent image TwinCAT
+//     itself could not restore comes back as a first boot: this medium cannot
+//     tell that loss from an empty machine. The file medium can.
+//   * PERSISTENT data is restored by symbol, so the pool is symbol-readable over
+//     ADS. It is excluded from OPC UA, but it is NOT confidential: a credential
+//     store refuses this medium (M_Confidential = FALSE).
+FUNCTION_BLOCK FB_RetainPersistMedium EXTENDS FB_PersistMediumBase
+VAR_OUTPUT
+    StorageError : UDINT;   // last error (0 = none)
+END_VAR
+VAR PERSISTENT
+    {attribute 'OPC.UA.DA' := '0'}
+    _schema : UINT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _docs : ARRAY[1..PL_Fraktal.MAX_RETAIN_DOCUMENTS] OF ST_RetainDocument;
+END_VAR
+VAR
+    _checked  : BOOL;
+    _rejected : BOOL;      // an unrecognized pool was cleared: reads report Lost
+    {attribute 'OPC.UA.DA' := '0'}
+    _writer   : FB_PersistentDataWriter;
+    _phase    : INT;
+END_VAR
+VAR CONSTANT
+    POOL_SCHEMA : UINT := 1;
+    NO_SPACE    : UDINT := 16#70A;  // ADSERR_DEVICE_NOMEMORY
+    TOO_LARGE   : UDINT := 16#705;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// no cyclic body: every caller's M_Poll advances the medium]]></ST>
+    </Implementation>
+    <Method Name="M_Kind" Id="{a139bd62-7764-4e6f-8b8d-f1fc24f62501}">
+      <Declaration><![CDATA[METHOD M_Kind : E_ConfigStore]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Kind := E_ConfigStore.LOCAL_RETAIN;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_Confidential" Id="{c0e4f2ae-e47c-4f56-96c1-4e75084777d2}">
+      <Declaration><![CDATA[METHOD M_Confidential : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_Confidential := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Step" Id="{87b87986-bf1a-4eb8-8cae-d5ec8c7cf3b3}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Step : BOOL
+VAR
+    i    : INT;
+    slot : INT;
+    free : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Step := FALSE;
+_M_Check();
+IF _phase = 1 THEN              // a write waiting for the persistent image
+    IF NOT _writer.M_Cyclic() THEN
+        _qResult[_active].Ok := NOT _writer.M_Failed();
+        IF _writer.M_Failed() THEN
+            _qResult[_active].ErrorId := INVALID_REQUEST;
+            StorageError := INVALID_REQUEST;
+        ELSE
+            StorageError := 0;
+        END_IF
+        _phase := 0;
+        _M_Step := TRUE;
+    END_IF
+    RETURN;
+END_IF
+slot := 0;
+free := 0;
+FOR i := 1 TO PL_Fraktal.MAX_RETAIN_DOCUMENTS DO
+    IF _docs[i].Key = _qKey[_active] THEN
+        slot := i;
+    ELSIF (_docs[i].Key = '') AND (free = 0) THEN
+        free := i;
+    END_IF
+END_FOR
+IF NOT _qWrite[_active] THEN
+    _qResult[_active].Ok := TRUE;
+    _qResult[_active].Lost := _rejected;
+    IF slot > 0 THEN
+        IF (_docs[slot].Length = 0) OR (_docs[slot].Length > PL_Fraktal.MAX_PERSIST_DOC_BYTES) THEN
+            _qResult[_active].Lost := TRUE;
+        ELSIF F_Crc32(pData := ADR(_docs[slot].Data), Size := _docs[slot].Length) <> _docs[slot].Crc THEN
+            _qResult[_active].Lost := TRUE;
+        ELSIF _docs[slot].Length > _qSize[_active] THEN
+            _qResult[_active].Ok := FALSE;
+            _qResult[_active].ErrorId := TOO_LARGE;
+        ELSE
+            MEMCPY(destAddr := _qData[_active], srcAddr := ADR(_docs[slot].Data),
+                n := _docs[slot].Length);
+            _qResult[_active].Found := TRUE;
+            _qResult[_active].Length := _docs[slot].Length;
+        END_IF
+    END_IF
+    _M_Step := TRUE;
+    RETURN;
+END_IF
+// Write. A zero-length document frees the slot.
+IF _qSize[_active] = 0 THEN
+    IF slot > 0 THEN
+        _docs[slot].Key := '';
+        _docs[slot].Length := 0;
+    END_IF
+ELSE
+    IF slot = 0 THEN
+        slot := free;
+    END_IF
+    IF slot = 0 THEN
+        _qResult[_active].ErrorId := NO_SPACE;
+        StorageError := NO_SPACE;
+        _M_Step := TRUE;
+        RETURN;
+    END_IF
+    MEMCPY(destAddr := ADR(_docs[slot].Data), srcAddr := _qData[_active],
+        n := _qSize[_active]);
+    _docs[slot].Length := _qSize[_active];
+    _docs[slot].Crc := F_Crc32(pData := ADR(_docs[slot].Data), Size := _qSize[_active]);
+    _docs[slot].Generation := _docs[slot].Generation + 1;
+    _docs[slot].Key := _qKey[_active];      // last: the slot is claimed once whole
+END_IF
+_writer.M_Request();
+_phase := 1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Check" Id="{66d276ca-b317-4814-81e1-0b6b7fff78ef}">
+      <Declaration><![CDATA[// §3.8b - the pool is versioned like every retained image: 0 is a first boot,
+// any other unrecognized version is a rejected pool, cleared and reported.
+METHOD PRIVATE _M_Check
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _checked THEN
+    RETURN;
+END_IF
+_checked := TRUE;
+IF _schema = POOL_SCHEMA THEN
+    RETURN;
+END_IF
+_rejected := _schema <> 0;
+FOR i := 1 TO PL_Fraktal.MAX_RETAIN_DOCUMENTS DO
+    _docs[i].Key := '';
+    _docs[i].Length := 0;
+END_FOR
+_schema := POOL_SCHEMA;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

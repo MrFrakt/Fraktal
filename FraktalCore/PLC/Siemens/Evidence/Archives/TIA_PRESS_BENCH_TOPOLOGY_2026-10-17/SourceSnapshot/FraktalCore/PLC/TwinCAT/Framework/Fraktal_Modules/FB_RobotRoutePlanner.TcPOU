@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RobotRoutePlanner" Id="{797a3949-1eb9-4366-baec-fc8382619485}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex I I.9-I.10.2 / Core S10.7 - the generic route planner.
+//
+// The station supplies a route graph and taught geometry as CONFIGURATION and
+// writes no traversal code. This type resolves, for any pair of positions:
+//
+//     from -> departHelp -> (help-graph search) -> approachHelp -> to
+//
+// and emits the resulting bounded point list. It is pure logic: no I/O, no
+// connector, no motion. That is deliberate - it makes the part of the robot
+// layer that is genuinely Fraktal's own testable against a fixture with no arm
+// (S5.7, Annex H), which is why it is built first.
+//
+// Positions are indices, not enum values: the application's HELPn / nest enums
+// map onto 1..MAX_HELPS and 1..MAX_NESTS. 0 means "not this kind of position",
+// so exactly one of Nest/Help is non-zero at each end of a move.
+FUNCTION_BLOCK FB_RobotRoutePlanner
+VAR_INPUT
+    {attribute 'OPC.UA.DA' := '0'}
+    rGraph : REFERENCE TO ST_RouteGraph;
+    {attribute 'OPC.UA.DA' := '0'}
+    rGeom  : REFERENCE TO ST_RobotGeometry;
+END_VAR
+VAR
+    // bounded breadth-first search over the help graph; no allocation (O10)
+    _seen  : ARRAY[1..PL_RobotPlanner.MAX_HELPS] OF BOOL;
+    _prev  : ARRAY[1..PL_RobotPlanner.MAX_HELPS] OF INT;
+    _queue : ARRAY[1..PL_RobotPlanner.MAX_HELPS] OF INT;
+    _chain : ARRAY[1..PL_RobotPlanner.MAX_HELPS] OF INT;
+    _chainCount : INT;
+    _overflow   : BOOL;   // a route longer than MAX_ROUTE_POINTS was attempted
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Nothing cyclic: the planner is called on demand.
+;]]></ST>
+    </Implementation>
+      <Method Name="BuildRoute" Id="{60e1f48a-621b-443c-8088-750a5a717b1d}">
+        <Declaration><![CDATA[// Plan a move and emit its point list. Returns 0 on success, or the S8.8 reason
+// the caller should fault with - the planner never raises events itself, so it
+// stays usable from a test with no module around it.
+METHOD PUBLIC BuildRoute : DINT
+VAR_INPUT
+    Gripper  : INT;
+    FromNest : INT;   // 0 = start is a help position
+    FromHelp : INT;   // 0 = start is a nest
+    ToNest   : INT;   // 0 = target is a help position
+    ToHelp   : INT;   // 0 = target is a nest
+END_VAR
+VAR_IN_OUT
+    Route : ST_RobotPointList;
+END_VAR
+VAR
+    _departHelp   : INT;
+    _approachHelp : INT;
+    _direct       : DWORD;
+    _i            : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Route.Count := 0;
+_overflow := FALSE;
+BuildRoute := 0;
+
+IF NOT __ISVALIDREF(rGraph) OR NOT __ISVALIDREF(rGeom) THEN
+    BuildRoute := PL_ModuleReasons.ROBOT_NO_ROUTE;
+    RETURN;
+END_IF
+IF NOT _M_ValidEnds(Gripper, FromNest, FromHelp, ToNest, ToHelp) THEN
+    BuildRoute := PL_ModuleReasons.ROBOT_NO_ROUTE;
+    RETURN;
+END_IF
+
+// A taught nest -> nest list bypasses help routing entirely (I.9 DirectNest).
+IF (FromNest <> 0) AND (ToNest <> 0) THEN
+    _direct := rGraph.DirectNest[FromNest, ToNest];
+    IF _direct <> 0 THEN
+        _M_AddList(_direct, Route);
+        IF _overflow THEN BuildRoute := PL_ModuleReasons.ROBOT_NO_ROUTE; END_IF
+        RETURN;
+    END_IF
+END_IF
+
+// Leaving a nest: resolve the corridor out, then emit it (nest-ward -> help-ward).
+_departHelp := FromHelp;
+IF FromNest <> 0 THEN
+    _departHelp := ResolveHelp(Gripper := Gripper, Nest := FromNest,
+        OtherRegion := _M_RegionOf(Gripper, ToNest, ToHelp), Dir := E_HelpRole.DEPART);
+    IF _departHelp = 0 THEN
+        BuildRoute := PL_ModuleReasons.ROBOT_NO_HELP_FOR_NEST;
+        RETURN;
+    END_IF
+    _M_EmitCorridor(Gripper, FromNest, _departHelp, E_HelpRole.DEPART, Route);
+END_IF
+
+// Entering a nest: resolve the corridor in BEFORE searching, so an unroutable
+// nest is reported as such rather than as a missing help-graph edge (S5.6).
+_approachHelp := ToHelp;
+IF ToNest <> 0 THEN
+    _approachHelp := ResolveHelp(Gripper := Gripper, Nest := ToNest,
+        OtherRegion := _M_RegionOf(Gripper, FromNest, FromHelp), Dir := E_HelpRole.APPROACH);
+    IF _approachHelp = 0 THEN
+        BuildRoute := PL_ModuleReasons.ROBOT_NO_HELP_FOR_NEST;
+        RETURN;
+    END_IF
+END_IF
+
+// The transit itself.
+IF NOT _M_FindHelpChain(_departHelp, _approachHelp) THEN
+    BuildRoute := PL_ModuleReasons.ROBOT_NO_ROUTE;
+    RETURN;
+END_IF
+FOR _i := 1 TO _chainCount DO
+    _M_AddPose(rGeom.HelpPose[_chain[_i]], E_MoveClass.FAST_PTP, Route);
+END_FOR
+
+// Arriving: the approach corridor reversed, ending exactly on the nest.
+IF ToNest <> 0 THEN
+    _M_EmitCorridor(Gripper, ToNest, _approachHelp, E_HelpRole.APPROACH, Route);
+END_IF
+
+IF _overflow THEN
+    Route.Count := 0;
+    BuildRoute := PL_ModuleReasons.ROBOT_NO_ROUTE;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="ResolveHelp" Id="{ceaa2c76-099b-4b4d-aa74-f8ae8e67fd87}">
+        <Declaration><![CDATA[// Which help serves this nest for this direction of travel. Role-primary:
+// direction is the higher-consequence constraint, because a wrong-direction
+// corridor can drive the tool into the fixture while a wrong region is only a
+// longer, still-safe route. Region breaks ties among same-direction corridors.
+// Returns 0 when no corridor is legal - a one-way nest asked to reverse.
+METHOD PUBLIC ResolveHelp : INT
+VAR_INPUT
+    Gripper     : INT;
+    Nest        : INT;
+    OtherRegion : DWORD;
+    Dir         : E_HelpRole;
+END_VAR
+VAR
+    _i     : INT;
+    _n     : INT;
+    _cand  : ARRAY[1..PL_RobotPlanner.MAX_HELPS_PER_NEST] OF INT;
+    _first : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ResolveHelp := 0;
+IF NOT __ISVALIDREF(rGraph) THEN RETURN; END_IF
+IF (Gripper < 1) OR (Gripper > PL_RobotPlanner.MAX_GRIPPERS) THEN RETURN; END_IF
+IF (Nest < 1) OR (Nest > PL_RobotPlanner.MAX_NESTS) THEN RETURN; END_IF
+
+// 1) VALIDITY FILTER - keep only corridors legal for this direction.
+//    EITHER is always legal, so a nest is exit-able the way it was entered
+//    unless its geometry is declared physically one-way.
+_n := 0;
+FOR _i := 1 TO rGraph.NestHelp[Gripper, Nest].Count DO
+    IF rGraph.NestHelp[Gripper, Nest].Helps[_i].HelpId <> 0 THEN
+        IF (rGraph.NestHelp[Gripper, Nest].Helps[_i].Role = Dir)
+        OR (rGraph.NestHelp[Gripper, Nest].Helps[_i].Role = E_HelpRole.EITHER) THEN
+            _n := _n + 1;
+            _cand[_n] := _i;
+        END_IF
+    END_IF
+END_FOR
+
+IF _n = 0 THEN RETURN; END_IF
+IF _n = 1 THEN
+    ResolveHelp := rGraph.NestHelp[Gripper, Nest].Helps[_cand[1]].HelpId;
+    RETURN;
+END_IF
+
+// 2) TIE-BREAK - among same-direction corridors prefer the one whose region
+//    matches the other endpoint's side; otherwise the first candidate. Region
+//    configuration is therefore needed ONLY on a nest with two corridors for
+//    the same direction.
+_first := rGraph.NestHelp[Gripper, Nest].Helps[_cand[1]].HelpId;
+FOR _i := 1 TO _n DO
+    IF (OtherRegion <> 0)
+    AND (rGraph.NestHelp[Gripper, Nest].Helps[_cand[_i]].RegionId = OtherRegion) THEN
+        ResolveHelp := rGraph.NestHelp[Gripper, Nest].Helps[_cand[_i]].HelpId;
+        RETURN;
+    END_IF
+END_FOR
+ResolveHelp := _first;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_FindHelpChain" Id="{55460d90-8b8e-4ad1-a807-6f653e380104}">
+        <Declaration><![CDATA[// Breadth-first search over the help adjacency, filling _chain / _chainCount
+// with the help sequence from a to b inclusive. Bounded and allocation-free.
+METHOD PRIVATE _M_FindHelpChain : BOOL
+VAR_INPUT
+    HelpFrom : INT;
+    HelpTo   : INT;
+END_VAR
+VAR
+    _head : INT;
+    _tail : INT;
+    _cur  : INT;
+    _nxt  : INT;
+    _i    : INT;
+    _walk : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_FindHelpChain := FALSE;
+_chainCount := 0;
+IF (HelpFrom < 1) OR (HelpFrom > PL_RobotPlanner.MAX_HELPS) THEN RETURN; END_IF
+IF (HelpTo   < 1) OR (HelpTo   > PL_RobotPlanner.MAX_HELPS) THEN RETURN; END_IF
+
+IF HelpFrom = HelpTo THEN
+    _chain[1] := HelpFrom;
+    _chainCount := 1;
+    _M_FindHelpChain := TRUE;
+    RETURN;
+END_IF
+
+FOR _i := 1 TO PL_RobotPlanner.MAX_HELPS DO
+    _seen[_i] := FALSE;
+    _prev[_i] := 0;
+END_FOR
+
+_head := 1;
+_tail := 1;
+_queue[1] := HelpFrom;
+_seen[HelpFrom] := TRUE;
+
+WHILE _head <= _tail DO
+    _cur := _queue[_head];
+    _head := _head + 1;
+    FOR _nxt := 1 TO PL_RobotPlanner.MAX_HELPS DO
+        IF rGraph.HelpAdj[_cur, _nxt] AND NOT _seen[_nxt] THEN
+            _seen[_nxt] := TRUE;
+            _prev[_nxt] := _cur;
+            IF _nxt = HelpTo THEN
+                // walk the predecessors back, then reverse into _chain
+                _walk := HelpTo;
+                _chainCount := 0;
+                WHILE _walk <> 0 DO
+                    _chainCount := _chainCount + 1;
+                    _queue[_chainCount] := _walk;
+                    _walk := _prev[_walk];
+                END_WHILE
+                FOR _i := 1 TO _chainCount DO
+                    _chain[_i] := _queue[_chainCount - _i + 1];
+                END_FOR
+                _M_FindHelpChain := TRUE;
+                RETURN;
+            END_IF
+            _tail := _tail + 1;
+            _queue[_tail] := _nxt;
+        END_IF
+    END_FOR
+END_WHILE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_EmitCorridor" Id="{13294249-fb6a-44ee-98dc-f37534740e76}">
+        <Declaration><![CDATA[// Emit one corridor. DEPART runs the steps nest-ward -> help-ward, leaving the
+// arm heading out; APPROACH runs them reversed and then lands exactly on the
+// nest. They are separate definitions, not one another reversed, so a
+// lift-then-clear retract can differ from a straight-in approach (I.10.1).
+METHOD PRIVATE _M_EmitCorridor
+VAR_INPUT
+    Gripper : INT;
+    Nest    : INT;
+    HelpId  : INT;
+    Dir     : E_HelpRole;
+END_VAR
+VAR_IN_OUT
+    Route : ST_RobotPointList;
+END_VAR
+VAR
+    _i   : INT;
+    _idx : INT;
+    _c   : ST_Corridor;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_idx := _M_AffinityIndex(Gripper, Nest, HelpId);
+IF _idx = 0 THEN RETURN; END_IF
+
+IF Dir = E_HelpRole.DEPART THEN
+    _c := rGraph.NestHelp[Gripper, Nest].Helps[_idx].Depart;
+ELSE
+    _c := rGraph.NestHelp[Gripper, Nest].Helps[_idx].Approach;
+END_IF
+
+// A taught corridor: one point naming the list, for the executor to run here.
+IF (_c.StepCount = 0) AND (_c.ListId <> 0) THEN
+    _M_AddList(_c.ListId, Route);
+    RETURN;
+END_IF
+
+IF Dir = E_HelpRole.DEPART THEN
+    FOR _i := 1 TO _c.StepCount DO
+        _M_AddPose(_M_Offset(rGeom.NestPose[Gripper, Nest], _c.Steps[_i].D),
+                   _c.Steps[_i].MoveClass, Route);
+    END_FOR
+ELSE
+    FOR _i := _c.StepCount TO 1 BY -1 DO
+        _M_AddPose(_M_Offset(rGeom.NestPose[Gripper, Nest], _c.Steps[_i].D),
+                   _c.Steps[_i].MoveClass, Route);
+    END_FOR
+    // and finally the nest itself, reached exactly (I.8 last-point-exact)
+    _M_AddPose(rGeom.NestPose[Gripper, Nest], E_MoveClass.SLOW_LINEAR, Route);
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_AffinityIndex" Id="{493b3972-d56a-4326-a16f-e039e9ecff22}">
+        <Declaration><![CDATA[// Index of the affinity entry naming this help on this nest; 0 if absent.
+METHOD PRIVATE _M_AffinityIndex : INT
+VAR_INPUT
+    Gripper : INT;
+    Nest    : INT;
+    HelpId  : INT;
+END_VAR
+VAR
+    _i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_AffinityIndex := 0;
+FOR _i := 1 TO rGraph.NestHelp[Gripper, Nest].Count DO
+    IF rGraph.NestHelp[Gripper, Nest].Helps[_i].HelpId = HelpId THEN
+        _M_AffinityIndex := _i;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_RegionOf" Id="{77bc73a7-1e9b-48d3-88cf-dccae190529f}">
+        <Declaration><![CDATA[// The transit region of the move's other endpoint, used only to break ties
+// between same-direction corridors. A help carries its region directly; a nest
+// borrows the region of its first serving help.
+METHOD PRIVATE _M_RegionOf : DWORD
+VAR_INPUT
+    Gripper : INT;
+    Nest    : INT;
+    Help    : INT;
+END_VAR
+VAR
+    _h : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_RegionOf := 0;
+IF (Help >= 1) AND (Help <= PL_RobotPlanner.MAX_HELPS) THEN
+    _M_RegionOf := rGraph.HelpRegion[Help];
+    RETURN;
+END_IF
+IF (Nest >= 1) AND (Nest <= PL_RobotPlanner.MAX_NESTS)
+AND (Gripper >= 1) AND (Gripper <= PL_RobotPlanner.MAX_GRIPPERS) THEN
+    IF rGraph.NestHelp[Gripper, Nest].Count >= 1 THEN
+        _h := rGraph.NestHelp[Gripper, Nest].Helps[1].HelpId;
+        IF (_h >= 1) AND (_h <= PL_RobotPlanner.MAX_HELPS) THEN
+            _M_RegionOf := rGraph.HelpRegion[_h];
+        END_IF
+    END_IF
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Offset" Id="{da0846b4-6594-4434-b18a-61aa5d467ffa}">
+        <Declaration><![CDATA[// Pose + offset, in the nest's own frame. This is a corridor step, not a
+// general transform - chained frames are the connector's job (I.12).
+METHOD PRIVATE _M_Offset : ST_RobotPose
+VAR_INPUT
+    Base : ST_RobotPose;
+    D    : ST_RobotPose;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_Offset.X  := Base.X  + D.X;
+_M_Offset.Y  := Base.Y  + D.Y;
+_M_Offset.Z  := Base.Z  + D.Z;
+_M_Offset.RX := Base.RX + D.RX;
+_M_Offset.RY := Base.RY + D.RY;
+_M_Offset.RZ := Base.RZ + D.RZ;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_AddPose" Id="{56607cc4-b80b-44b3-8056-8449e6435c18}">
+        <Declaration><![CDATA[// Append a move-to-pose point, refusing rather than growing past the bound.
+METHOD PRIVATE _M_AddPose
+VAR_INPUT
+    P  : ST_RobotPose;
+    MC : E_MoveClass;
+END_VAR
+VAR_IN_OUT
+    Route : ST_RobotPointList;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF Route.Count >= PL_RobotPlanner.MAX_ROUTE_POINTS THEN
+    _overflow := TRUE;
+    RETURN;
+END_IF
+Route.Count := Route.Count + 1;
+Route.Points[Route.Count].Target    := P;
+Route.Points[Route.Count].MoveClass := MC;
+Route.Points[Route.Count].ListId    := 0;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_AddList" Id="{685e06b9-9d77-46be-849c-b00bd89b0ab3}">
+        <Declaration><![CDATA[// Append a run-this-taught-list point.
+METHOD PRIVATE _M_AddList
+VAR_INPUT
+    ListId : DWORD;
+END_VAR
+VAR_IN_OUT
+    Route : ST_RobotPointList;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF Route.Count >= PL_RobotPlanner.MAX_ROUTE_POINTS THEN
+    _overflow := TRUE;
+    RETURN;
+END_IF
+Route.Count := Route.Count + 1;
+Route.Points[Route.Count].ListId := ListId;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_ValidEnds" Id="{7ffc0f2c-d420-444b-80fa-63f7c6f015dc}">
+        <Declaration><![CDATA[// Exactly one of Nest/Help at each end, and every index in range (S5.6).
+METHOD PRIVATE _M_ValidEnds : BOOL
+VAR_INPUT
+    Gripper  : INT;
+    FromNest : INT;
+    FromHelp : INT;
+    ToNest   : INT;
+    ToHelp   : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_ValidEnds := FALSE;
+IF (Gripper < 1) OR (Gripper > PL_RobotPlanner.MAX_GRIPPERS) THEN RETURN; END_IF
+IF (FromNest = 0) = (FromHelp = 0) THEN RETURN; END_IF
+IF (ToNest   = 0) = (ToHelp   = 0) THEN RETURN; END_IF
+IF (FromNest < 0) OR (FromNest > PL_RobotPlanner.MAX_NESTS) THEN RETURN; END_IF
+IF (ToNest   < 0) OR (ToNest   > PL_RobotPlanner.MAX_NESTS) THEN RETURN; END_IF
+IF (FromHelp < 0) OR (FromHelp > PL_RobotPlanner.MAX_HELPS) THEN RETURN; END_IF
+IF (ToHelp   < 0) OR (ToHelp   > PL_RobotPlanner.MAX_HELPS) THEN RETURN; END_IF
+_M_ValidEnds := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+  </POU>
+</TcPlcObject>

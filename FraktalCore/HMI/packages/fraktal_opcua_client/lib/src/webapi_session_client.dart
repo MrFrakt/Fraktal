@@ -242,6 +242,9 @@ class WebApiSessionClient
   }
 
   /// Every DB whose top level carries a `Status` structure is a module root.
+  /// A DB whose top level carries a `Topology` structure is the station's
+  /// Core §10.5.1 fieldbus table (TwinCAT publishes it the same way, beside
+  /// the roots); it is discovered with them but never counts as a root.
   Future<List<String>> _findRoots() async {
     final top = await _call('PlcProgram.Browse', {'mode': 'children'});
     final dbs = [
@@ -250,6 +253,7 @@ class WebApiSessionClient
           entry['name'] as String,
     ];
     final roots = <String>[];
+    final topology = <String>[];
     for (var i = 0; i < dbs.length; i += _batchSize) {
       final chunk = dbs.sublist(i, i + _batchSize > dbs.length ? dbs.length : i + _batchSize);
       final replies = await _batch([
@@ -259,8 +263,12 @@ class WebApiSessionClient
       for (var k = 0; k < chunk.length; k++) {
         final children = replies[k].result;
         if (children is! List) continue; // an inaccessible DB is not a root
-        if (children.any((c) => c is Map && c['name'] == 'Status' && c['has_children'] == true)) {
+        bool structure(String name) => children.any(
+            (c) => c is Map && c['name'] == name && c['has_children'] == true);
+        if (structure('Status')) {
           roots.add(chunk[k]);
+        } else if (structure('Topology')) {
+          topology.add(chunk[k]);
         }
       }
     }
@@ -269,7 +277,7 @@ class WebApiSessionClient
           'Web API discovery found no DB with a Status structure: no deployed '
           'root is accessible to this user, or none is published.');
     }
-    return roots;
+    return [...roots, ...topology];
   }
 
   /// `Rows` with dimensions [{start_index: 0, count: 2}] → `Rows[0]`, `Rows[1]`;

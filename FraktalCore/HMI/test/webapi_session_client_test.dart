@@ -235,6 +235,33 @@ void main() {
     expect(reads, contains('"Unit"."CylA"."Status"'));
   });
 
+  test('a top-level Topology DB is discovered beside the roots, never as one', () async {
+    final cpu = _FakeCpu();
+    cpu.dbs['GDB_StationFieldbus'] = {
+      'Topology': {
+        'NodeCount': _Leaf('int', 1),
+        'Nodes': _Array(1, 1, {
+          'Name': _Leaf('string', 'PressIo1214C'),
+          'ChannelCount': _Leaf('int', 0),
+        }),
+      },
+    };
+    final client = await _connect(cpu);
+    addTearDown(client.close);
+    expect(await client.discoverPaths(), containsAll(<String>[
+      'PLC1/GDB_StationFieldbus/Topology/NodeCount',
+      'PLC1/GDB_StationFieldbus/Topology/Nodes[1]/Name',
+      'PLC1/Unit/Status/Name',
+    ]));
+
+    // A station that publishes only a topology has no module root to show.
+    final bare = _FakeCpu()..dbs.remove('Unit');
+    bare.dbs['GDB_StationFieldbus'] = {
+      'Topology': {'NodeCount': _Leaf('int', 0)},
+    };
+    await expectLater(_connect(bare), throwsA(isA<OpcUaTransportException>()));
+  });
+
   test('snapshot is the shared v1 document: Good values, Bad leaves stay Bad', () async {
     final cpu = _FakeCpu();
     final client = await _connect(cpu);

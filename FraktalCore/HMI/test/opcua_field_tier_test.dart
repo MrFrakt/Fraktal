@@ -204,6 +204,24 @@ void main() {
           isFalse);
     });
 
+    test('a standalone topology beside the roots in one container is kept', () {
+      // S7 Web API: every DB, root or not, sits directly under PLC1.
+      const s7 = ['PLC1/PressDemo'];
+      expect(
+          OpcUaFieldTier.isOutsidePublishedRoots(
+              'PLC1/GDB_PressDemoFieldbus/Topology/Nodes[2]/Channels[1]/Name',
+              s7),
+          isFalse);
+      expect(
+          OpcUaFieldTier.onDemandScopeOf(
+              'PLC1/GDB_PressDemoFieldbus/Topology/NodeCount', s7),
+          OpcUaFieldTier.fieldbusScope);
+      expect(
+          OpcUaFieldTier.isOutsidePublishedRoots('PLC1/GDB_PressDemoIO/RamExtend', s7),
+          isTrue,
+          reason: 'only the published topology is exempt');
+    });
+
     test('a forest of peer roots keeps every root (Core 3.1a)', () {
       const forest = ['PLC1/MAIN/PneumaticPress', 'PLC1/MAIN/Bench'];
       expect(

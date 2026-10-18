@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="PRG_PressTestRunner" Id="{BEC9B299-8EF5-41E0-B590-6A749F48771F}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core 5.7 / TC3 5.7 - internal Press feature-bench integration gate.
+// Split out of the aggregate Fraktal_Tests suite: TwinCAT rejects a Compile
+// path containing '..', so a manifest inside Tests/ cannot reach the press
+// sources in Examples/. These two suites therefore run from the example they
+// exercise, against the SAME source objects that deploy (linked, never copied).
+PROGRAM PRG_PressTestRunner
+VAR
+    PressDemoTests     : FB_PressDemoUnit_Tests;
+    FaultRecoveryTests : FB_FaultRecovery_Tests;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[TcUnit.RUN();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,420 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LineData" Id="{2f7f5706-15f1-49e6-abbb-a1813d86c154}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8e - data shared by every station on a line, held once. A line is NOT
+// part of the Unit forest: it is no Unit, EM or CM, has no parent, and is never
+// registered as anyone's child. The composition root declares it beside the roots
+// (as it does a control domain, §9.8) and every root on the line references it
+// with SetLine. A project registers its line values here (the ordinary
+// M_RegisterConfig* calls, Kind := LINE_CFG, keys 'line.*'); each referencing
+// root publishes them as its own line data and routes their writes here, so they
+// are edited, audited and access-classed exactly like any other value, through
+// the one mailbox. It extends FB_ModuleBase only because the typed value registry
+// lives there (ModuleType NONE); commands are refused.
+//
+// The OWNER is the only editable copy; every accepted change raises Revision and
+// the whole line is republished as Image. A MIRROR, on another controller or a
+// root that is not the owner's, obtains the owner's Image through I_LineSource and
+// applies a new revision whole or not at all; its values are read-only to every
+// client. A mirror that stops updating keeps running on the revision it has and
+// says so (Stale): a shift boundary one revision old is a reporting error, not a
+// hazard, so staleness never blocks production on its own (§3.8e(d)).
+FUNCTION_BLOCK FB_LineData EXTENDS FB_ModuleBase
+VAR_INPUT
+    ParCfg : ST_LineDataParCfg;
+    ParCmd : ST_LineDataParCmd;
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_LineDataOutCmd;
+    OutImm : ST_LineStatus;       // §3.8e(d) - what this copy says about itself
+    Image      : ST_LineImage;    // what a mirror reads, by symbol, over its source
+END_VAR
+VAR PERSISTENT
+    _revision : UDINT;            // owner: current; mirror: last applied
+    Calendar  : ST_ShiftCalendar; // §8.5.2 - line data like any other: edited at the owner
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _source : I_LineSource;
+    {attribute 'OPC.UA.DA' := '0'}
+    _log : POINTER TO FB_AlarmLog;
+    _role          : E_LineRole;
+    _lastOkMs      : DWORD;
+    _applied       : BOOL;        // not persistent: every boot re-applies once
+    _imageBuilt    : BOOL;
+    _imageRevision : UDINT;
+    _syncing       : BOOL;
+    _staleEvt      : INT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _host          : PVOID;       // the root that ticks this line and lends its alarm log
+    {attribute 'OPC.UA.DA' := '0'}
+    _schedule : FB_ShiftSchedule;
+    _dailyView : ST_ShiftCalendarV3;
+    _incoming      : ST_LineImage; // mirror staging buffer - an instance member, never a local
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{bc4edb1b-a235-4c92-97e7-5672a9050909}">
+      <Declaration><![CDATA[// OWNER takes no source. A MIRROR needs one, and StaleAfterMs is the window it
+// declares for staying current (§3.8e(d)). Name is the line's own identity, never
+// a path under a Unit.
+METHOD Setup : BOOL
+VAR_INPUT
+    Name         : STRING(80);
+    LineId       : STRING(40);
+    Role         : E_LineRole;
+    Source       : I_LineSource;
+    StaleAfterMs : UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+Setup := FALSE;
+IF (LineId = '') OR ((Role <> E_LineRole.OWNER) AND (Role <> E_LineRole.MIRROR)) THEN
+    RETURN;
+END_IF
+IF (Role = E_LineRole.MIRROR) AND (Source = 0) THEN
+    RETURN;                                // a mirror with nothing to mirror
+END_IF
+_role := Role;
+_source := Source;
+ParCfg.StaleAfterMs := StaleAfterMs;
+OutImm.LineId := LineId;
+OutImm.Role := Role;
+IF (Role = E_LineRole.OWNER) AND (_revision = 0) THEN
+    _revision := 1;                        // a published line is never at revision 0
+END_IF
+_lastOkMs := TIME_TO_DWORD(TIME());
+Setup := _M_RegisterCalendar();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_RegisterCalendar" Id="{92d4d8d1-edfa-49c7-b6f4-0cf9711ec4db}">
+      <Declaration><![CDATA[// §8.5.2(a) - every line carries a shift calendar, registered identically on owner
+// and mirror so a mirror can apply the owner's line whole.
+METHOD PROTECTED _M_RegisterCalendar : BOOL
+VAR
+    n    : INT;
+    ok   : BOOL;
+    key  : STRING(160);
+    item : STRING(255);
+    label : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ok := M_RegisterConfigNumber(Key := 'line.shift.utcOffsetMin', Item := 'Calendar/UtcOffsetMin',
+    LabelKey := 'std.config.shiftUtcOffset', Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG,
+    Storage := E_ConfigStorage.AS_DINT, pTarget := ADR(Calendar.UtcOffsetMin),
+    Minimum := -720.0, Maximum := 840.0, RequiresReady := FALSE);
+FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
+    key := CONCAT('line.shift.', CONCAT(TO_STRING(n), '.startMin'));
+    item := CONCAT('Calendar/StartMin[', CONCAT(TO_STRING(n), ']'));
+    // One label per shift: the four sit together in a root's line data group.
+    label := CONCAT('std.config.shift.', CONCAT(TO_STRING(n), '.start'));
+    ok := M_RegisterConfigNumber(Key := key, Item := item, LabelKey := label,
+        Unit := E_EngUnit.MINUTE, Kind := E_ConfigKind.LINE_CFG, Storage := E_ConfigStorage.AS_DINT,
+        pTarget := ADR(Calendar.StartMin[n]), Minimum := -1.0, Maximum := 1439.0,
+        RequiresReady := FALSE) AND ok;
+END_FOR
+_M_RegisterCalendar := ok;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_BindHost" Id="{4b7a5160-6d79-4393-bfb7-2b0c62db590d}">
+      <Declaration><![CDATA[// §3.8e(a) - called by FB_UnitBase.SetLine. The FIRST root to reference the line
+// hosts it: it ticks the line once per scan and lends its alarm log for the
+// staleness event. Every later root only references it; the host binding again
+// stays the host. TRUE = you host it.
+METHOD M_BindHost : BOOL
+VAR_INPUT
+    pHost     : PVOID;
+    pAlarmLog : POINTER TO FB_AlarmLog;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_BindHost := FALSE;
+IF (pHost = 0) OR ((_host <> 0) AND (_host <> pHost)) THEN
+    RETURN;
+END_IF
+_host := pHost;
+_log := pAlarmLog;
+M_BindHost := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AppendLineConfig" Id="{401d3a21-e261-480e-b3df-4b4039345e21}">
+      <Declaration><![CDATA[// §3.8e - a referencing root publishes the line's values as ITS line data: under
+// the root's scope, items prefixed 'Line/', keys 'line.*' (M_RegisterConfigWrite
+// holds every line key to that prefix, so they cannot collide with the root's).
+METHOD M_AppendLineConfig : BOOL
+VAR_INPUT
+    Pager : REFERENCE TO FB_ConfigPager;
+    Scope : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_AppendCapabilities(Pager := Pager, Scope := Scope, ItemPrefix := 'Line/');
+M_AppendLineConfig := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_MinuteOfDay" Id="{26653073-56c6-4393-8fe7-5b182fa0887f}">
+      <Declaration><![CDATA[// §8.5.2 - minutes after LOCAL midnight for a UTC timestamp, with the line's offset.
+METHOD M_MinuteOfDay : DINT
+VAR_INPUT
+    Now : DT;
+END_VAR
+VAR
+    secOfDay : DINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[secOfDay := UDINT_TO_DINT(DT_TO_UDINT(Now) MOD 86400) + Calendar.UtcOffsetMin * 60;
+secOfDay := ((secOfDay MOD 86400) + 86400) MOD 86400;   // normalize a negative offset
+M_MinuteOfDay := secOfDay / 60;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_CurrentShift" Id="{83d209b5-e158-4396-ada6-e9996e5e7896}">
+      <Declaration><![CDATA[// §8.5.2(a) - the used shift in force at a local minute: the latest start at or
+// before it, and before the day's first start the day's LAST shift (a night shift
+// wraps midnight). 0 when no shift is used. Complete by construction: no gaps.
+METHOD M_CurrentShift : INT
+VAR_INPUT
+    MinuteOfDay : DINT;
+END_VAR
+VAR
+    n           : INT;
+    best        : INT;
+    bestStart   : DINT;
+    latest      : INT;
+    latestStart : DINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[best := 0;
+bestStart := -1;
+latest := 0;
+latestStart := -1;
+FOR n := 1 TO PL_Fraktal.MAX_SHIFTS DO
+    IF (Calendar.StartMin[n] >= 0) AND (Calendar.StartMin[n] <= 1439) THEN
+        IF (Calendar.StartMin[n] <= MinuteOfDay) AND (Calendar.StartMin[n] > bestStart) THEN
+            best := n;
+            bestStart := Calendar.StartMin[n];
+        END_IF
+        IF Calendar.StartMin[n] > latestStart THEN
+            latest := n;
+            latestStart := Calendar.StartMin[n];
+        END_IF
+    END_IF
+END_FOR
+IF best = 0 THEN
+    best := latest;
+END_IF
+M_CurrentShift := best;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{3f9ea1d4-b648-4a70-af34-f92c35c671c5}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+CASE _role OF
+    E_LineRole.OWNER:
+        _M_BuildImage();
+        OutImm.Owner := Status.Name;
+        OutImm.Stale := FALSE;
+    E_LineRole.MIRROR:
+        _M_Mirror();
+ELSE
+    ;                                      // not set up: publishes nothing to mirror
+END_CASE
+OutImm.Revision := _revision;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{120f9302-ea80-49ac-b72e-93ccfe222e57}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.passiveInputHasNoCommand');]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ConfigReadOnly" Id="{bbce2c67-d86d-4196-9b8e-efe0d35e3499}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_ConfigReadOnly : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_ConfigReadOnly := (_role = E_LineRole.MIRROR) AND NOT _syncing;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{4248afab-c0a4-44b0-b828-77c099742a55}">
+      <Declaration><![CDATA[// The owner's revision rises with every accepted change, so a mirror can tell a
+// new line from the one it has. A mirror's own apply never counts.
+METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_ApplyConfigWrite := SUPER^.M_ApplyConfigWrite(Scope := Scope, WriteKey := WriteKey,
+    Revision := Revision, TextValue := TextValue, RootReady := RootReady);
+IF M_ApplyConfigWrite AND (_role = E_LineRole.OWNER) THEN
+    _revision := _revision + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_BuildImage" Id="{1faf6602-7347-4ed0-b679-a2fcab0bb45a}">
+      <Declaration><![CDATA[// Republish the whole line when its revision moved (or on the first scan, after
+// every value has been registered). Values change only through the write path.
+METHOD PRIVATE _M_BuildImage
+VAR
+    i     : INT;
+    count : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _imageBuilt AND (_imageRevision = _revision) THEN
+    RETURN;
+END_IF
+Image.LineId := OutImm.LineId;
+Image.Owner := Status.Name;
+Image.Revision := _revision;
+count := 0;
+FOR i := 1 TO _nConfigWrite DO
+    IF (_pConfigWrite[i - 1].Kind = E_ConfigKind.LINE_CFG)
+    AND (count < PL_Fraktal.MAX_LINE_RECORDS) THEN
+        count := count + 1;
+        Image.Records[count].WriteKey := _pConfigWrite[i - 1].Key;
+        Image.Records[count].Revision := _pConfigWrite[i - 1].Revision;
+        Image.Records[count].ValueText := _M_ConfigValueText(Idx := i);
+    END_IF
+END_FOR
+Image.Count := count;
+_imageRevision := _revision;
+_imageBuilt := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Mirror" Id="{37c786ba-a217-46bc-b585-0c13264fcc27}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Mirror
+VAR
+    ok      : BOOL;
+    nowMs   : DWORD;
+    elapsed : DWORD;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ok := FALSE;
+nowMs := TIME_TO_DWORD(TIME());
+IF _source.M_Poll(Image := _incoming) THEN
+    IF _incoming.LineId <> OutImm.LineId THEN
+        OutImm.SourceError := 1;       // somebody else's line: never applied
+    ELSIF _applied AND (_incoming.Revision = _revision) THEN
+        ok := TRUE;                        // current
+    ELSIF _M_ApplyIncoming() THEN
+        _revision := _incoming.Revision;
+        _applied := TRUE;
+        Image := _incoming;
+        OutImm.Owner := _incoming.Owner;
+        ok := TRUE;
+    ELSE
+        OutImm.SourceError := 2;       // not applicable whole: nothing applied
+    END_IF
+ELSIF _source.M_Error() <> 0 THEN
+    OutImm.SourceError := _source.M_Error();
+END_IF
+IF ok THEN
+    _lastOkMs := nowMs;
+    OutImm.SourceError := 0;
+    OutImm.LastUpdate := F_Now();
+    OutImm.TimeSynchronized := F_TimeSynchronized();
+END_IF
+// Unsigned subtraction: a wrapping millisecond counter never fakes an expiry.
+elapsed := nowMs - _lastOkMs;
+OutImm.Stale := elapsed > TO_DWORD(ParCfg.StaleAfterMs);
+IF OutImm.Stale AND (_staleEvt = 0) AND (_log <> 0) THEN
+    _staleEvt := _log^.Raise(Reason := E_Reason.NONE, Text := 'std.error.lineDataStale',
+        Source := Status.Name, Severity := E_Severity.LOW, Category := E_Category.SYSTEM,
+        ResetClass := E_ResetClass.AUTO_RESET);
+ELSIF NOT OutImm.Stale AND (_staleEvt > 0) THEN
+    IF _log <> 0 THEN
+        _log^.Gone(Slot := _staleEvt);
+    END_IF
+    _staleEvt := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ApplyIncoming" Id="{46bdcba6-5052-4a0c-b1b6-35597a2a08ea}">
+      <Declaration><![CDATA[// §3.8e(c) - whole or not at all. The image must carry exactly the line values
+// this copy registered; every record is staged through its typed handler before
+// any is applied, as a §3.8b set load is.
+METHOD PRIVATE _M_ApplyIncoming : BOOL
+VAR
+    i     : INT;
+    j     : INT;
+    n     : INT;
+    local : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_ApplyIncoming := FALSE;
+n := LIMIT(0, _incoming.Count, PL_Fraktal.MAX_LINE_RECORDS);
+local := 0;
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Kind = E_ConfigKind.LINE_CFG THEN
+        local := local + 1;
+    END_IF
+END_FOR
+IF (n <> local) OR (n <> _incoming.Count) THEN
+    RETURN;                                // the two sides disagree on what the line is
+END_IF
+// Duplicate identities cannot substitute for a missing field.
+FOR i := 1 TO n DO
+    FOR j := i + 1 TO n DO
+        IF _incoming.Records[i].WriteKey = _incoming.Records[j].WriteKey THEN RETURN; END_IF
+    END_FOR
+END_FOR
+IF NOT M_BeginConfigBatch() THEN RETURN; END_IF
+_syncing := TRUE;
+FOR i := 1 TO n DO
+    IF NOT M_StageConfigWrite(Scope := Status.Name, WriteKey := _incoming.Records[i].WriteKey,
+            Revision := _incoming.Records[i].Revision,
+            TextValue := _incoming.Records[i].ValueText, RootReady := TRUE) THEN
+        M_EndConfigBatch();
+        _syncing := FALSE;
+        RETURN;
+    END_IF
+END_FOR
+IF NOT M_ValidateConfigBatch() THEN
+    M_EndConfigBatch(); _syncing := FALSE; RETURN;
+END_IF
+FOR i := 1 TO n DO
+    M_ApplyConfigWrite(Scope := Status.Name, WriteKey := _incoming.Records[i].WriteKey,
+        Revision := _incoming.Records[i].Revision,
+        TextValue := _incoming.Records[i].ValueText, RootReady := TRUE);
+END_FOR
+M_CommitConfigBatch();
+_syncing := FALSE;
+_M_ApplyIncoming := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ShiftInterval" Id="{5bde5e43-d6ab-4bde-adaa-1775e475f102}">
+      <Declaration><![CDATA[METHOD M_ShiftInterval : BOOL
+VAR_INPUT
+    Now : DT;
+END_VAR
+VAR_OUTPUT
+    ShiftIndex : INT;
+    StartAt : DT;
+    EndAt : DT;
+    Target : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ShiftInterval := _schedule.M_MigrateV1(Source := Calendar, Target := _dailyView);
+IF M_ShiftInterval THEN
+    _schedule.M_Interval(Now := Now, Calendar := _dailyView,
+        ShiftIndex => ShiftIndex, StartAt => StartAt, EndAt => EndAt, Target => Target);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_BeginConfigBatch" Id="{ffa3e171-5498-4c53-ab65-da6bff9a4490}">
+      <Declaration><![CDATA[METHOD M_BeginConfigBatch : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_BeginConfigBatch := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ValidateConfigBatch" Id="{3297d9d3-97d0-43ad-9358-0af16d74c5a2}">
+      <Declaration><![CDATA[METHOD M_ValidateConfigBatch : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_ValidateConfigBatch := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_EndConfigBatch" Id="{72998af8-be4a-44f1-93be-e866b6419213}">
+      <Declaration><![CDATA[METHOD M_EndConfigBatch]]></Declaration>
+      <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_CommitConfigBatch" Id="{020a43b2-9d00-4807-abf6-292fa751b914}">
+      <Declaration><![CDATA[METHOD M_CommitConfigBatch : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_CommitConfigBatch := TRUE;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,6 @@
+open-project --path "C:\Users\Siemens\AppData\Local\Fraktal\TiaStations\Press_IoBridge_Press1500_20261015\FrkS12\FrkS12.ap20"
+set-hw-attribute --plc PLC_1 --item "PROFINET interface_2" --attr UseWebServerForInterface --value true
+save
+compile --plc PLC_1 --hw
+download --plc PLC_1 --pc-interface "Siemens PLCSIM Virtual Ethernet Adapter" --pc-number 1 --target "1 X2" --confirm-target 192.168.0.20 --user-management keep
+save

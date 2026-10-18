@@ -1,0 +1,22 @@
+TYPE "ST_IoChannel"
+VERSION : 0.1
+   STRUCT
+      "Name" : String[80];
+      "DescriptionKey" : String[160];
+      "Address" : String[80];
+      "Path" : WString[255];
+      "ModulePath" : WString[255];
+      "Dir" : DInt;
+      "Kind" : DInt;
+      "BoolValue" : Bool;
+      "AnalogValue" : Real;
+      "Unit" : String[16];
+      "Forced" : Bool;
+      "Quality" : Bool;
+      "FaultActive" : Bool;
+      "Diagnostic" : WString[255];
+      "Forceable" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      "ForceBool" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      "ForceAnalog" {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Real;
+   END_STRUCT;
+END_TYPE

@@ -1,0 +1,25 @@
+﻿FUNCTION "FRK_SetValidateBegin" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+   END_VAR
+
+
+BEGIN
+	
+	"FRK_SetRuntime".Work[#RootIndex].Matched := 0;
+	FOR #Index := 1 TO 21 DO
+	    "FRK_SetRuntime".Work[#RootIndex].Seen[#Index] := FALSE;
+	END_FOR;
+	FOR #Index := 1 TO 32 DO
+	    "FRK_SetRuntime".Work[#RootIndex].Targets[#Index] := 0;
+	    "FRK_SetRuntime".Work[#RootIndex].Schemas[#Index] := 0;
+	END_FOR;
+	
+END_FUNCTION
+

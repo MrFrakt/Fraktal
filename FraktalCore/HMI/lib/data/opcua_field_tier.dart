@@ -237,6 +237,13 @@ class OpcUaFieldTier {
   /// how the roots become known in the first place.
   static bool isOutsidePublishedRoots(
       String browsePath, Iterable<String> rootBases) {
+    // The Core §10.5.1 topology is published standalone, beside the roots
+    // (TwinCAT's standalone-data marker, Part II §3.10). Where every block
+    // shares the roots' container — the S7 Web API's PLC1 — it would otherwise
+    // read as unpublished and the fieldbus view would never be served.
+    if (browsePath.split('/').any((s) => _stripIndex(s) == 'Topology')) {
+      return false;
+    }
     var underContainer = false;
     for (final base in rootBases) {
       final cut = base.lastIndexOf('/');

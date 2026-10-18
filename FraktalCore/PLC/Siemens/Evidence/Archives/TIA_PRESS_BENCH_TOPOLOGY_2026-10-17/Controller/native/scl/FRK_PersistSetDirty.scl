@@ -1,0 +1,26 @@
+﻿FUNCTION "FRK_PersistSetDirty" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+      Ordinal : Int;
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex = 1 AND #Ordinal = 1 THEN
+	    "FRK_PersistDirty"(Slot := 6);
+	END_IF;
+	IF #RootIndex = 1 AND #Ordinal = 2 THEN
+	    "FRK_PersistDirty"(Slot := 7);
+	END_IF;
+	IF #RootIndex = 1 AND #Ordinal = 3 THEN
+	    "FRK_PersistDirty"(Slot := 8);
+	END_IF;
+	IF #RootIndex = 1 AND #Ordinal = 4 THEN
+	    "FRK_PersistDirty"(Slot := 9);
+	END_IF;
+	
+END_FUNCTION
+

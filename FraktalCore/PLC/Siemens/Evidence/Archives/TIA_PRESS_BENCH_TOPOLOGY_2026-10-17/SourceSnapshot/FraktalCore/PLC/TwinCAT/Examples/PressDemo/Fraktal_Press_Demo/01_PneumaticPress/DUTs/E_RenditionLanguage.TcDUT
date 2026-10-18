@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_RenditionLanguage" Id="{bda76291-faf7-44ae-a41d-8b7bb0ebe6f0}">
+    <Declaration><![CDATA[// Which language a parallel rendition of the same engineering is written in.
+// The internal press bench carries the AUTO chain three times and the release
+// engineering twice — the same behaviour in a second language is a
+// demonstration of §5.5/§6.8 language parity, not §1.1 O9 duplication.
+// FB_PressDemoUnit selects one of each; the compiler folds the branches the
+// selection does not take, so the unselected renditions are inert.
+//
+// ONE type for both selections on purpose: a value has to mean the same
+// language wherever it appears. The release engineering has no
+// SEQUENTIAL_FUNCTION_CHART rendition — SFC is a sequence language and has
+// nothing to say about a permissive — so that member is simply never selected
+// there. The gap is deliberate; it is not an invitation to reuse the value for
+// something else.
+//
+// The members are spelled out rather than abbreviated because 'ST' is a
+// reserved word (the IL store operator). As an enumeration member it desyncs
+// the parser and cascades misleading errors onto innocent lines (lint C2).
+{attribute 'qualified_only'}
+TYPE E_RenditionLanguage :
+(
+    STRUCTURED_TEXT           := 0,   // §6.8 reference form: CASE _step OF + M_Advance
+    SEQUENTIAL_FUNCTION_CHART := 1,   // native XAE chart; sequences only
+    LADDER_DIAGRAM            := 2    // rung-per-state integer machine over _step
+) DINT;
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

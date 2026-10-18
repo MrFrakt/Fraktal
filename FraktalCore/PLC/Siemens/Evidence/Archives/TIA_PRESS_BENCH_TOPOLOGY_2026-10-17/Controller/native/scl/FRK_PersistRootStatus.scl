@@ -1,0 +1,151 @@
+﻿FUNCTION "FRK_PersistRootStatus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      RootIndex : Int;
+   END_VAR
+
+   VAR_IN_OUT 
+      Persist : "ST_ConfigPersistStatus";
+   END_VAR
+
+
+BEGIN
+	
+	IF #RootIndex < 1 OR #RootIndex > 1 THEN
+	    RETURN;
+	END_IF;
+	#Persist.Pending := FALSE;
+	#Persist.PendingSince := LDT#1970-01-01-00:00:00;
+	#Persist.WindowMs := 18000;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[1].Failed;
+	    IF "FRK_PersistConsumers".Rows[1].Dirty OR "FRK_PersistConsumers".Rows[1].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[1].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[1].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[1].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[2].Failed;
+	    IF "FRK_PersistConsumers".Rows[2].Dirty OR "FRK_PersistConsumers".Rows[2].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[2].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[2].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[2].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[3].Failed;
+	    IF "FRK_PersistConsumers".Rows[3].Dirty OR "FRK_PersistConsumers".Rows[3].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[3].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[3].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[3].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[4].Failed;
+	    IF "FRK_PersistConsumers".Rows[4].Dirty OR "FRK_PersistConsumers".Rows[4].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[4].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[4].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[4].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[5].Failed;
+	    IF "FRK_PersistConsumers".Rows[5].Dirty OR "FRK_PersistConsumers".Rows[5].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[5].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[5].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[5].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[6].Failed;
+	    IF "FRK_PersistConsumers".Rows[6].Dirty OR "FRK_PersistConsumers".Rows[6].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[6].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[6].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[6].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[7].Failed;
+	    IF "FRK_PersistConsumers".Rows[7].Dirty OR "FRK_PersistConsumers".Rows[7].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[7].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[7].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[7].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[8].Failed;
+	    IF "FRK_PersistConsumers".Rows[8].Dirty OR "FRK_PersistConsumers".Rows[8].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[8].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[8].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[8].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[9].Failed;
+	    IF "FRK_PersistConsumers".Rows[9].Dirty OR "FRK_PersistConsumers".Rows[9].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[9].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[9].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[9].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	
+	#Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[10].Failed;
+	IF "FRK_PersistConsumers".Rows[10].Dirty OR "FRK_PersistConsumers".Rows[10].Ticket <> 0 THEN
+	    #Persist.Pending := TRUE;
+	    IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[10].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[10].PendingSince < #Persist.PendingSince) THEN
+	        #Persist.PendingSince := "FRK_PersistConsumers".Rows[10].PendingSince;
+	    END_IF;
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[11].Failed;
+	    IF "FRK_PersistConsumers".Rows[11].Dirty OR "FRK_PersistConsumers".Rows[11].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[11].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[11].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[11].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF (#RootIndex = 1) AND "FRK_PersistConsumers".Rows[11].Rejected AND NOT "FRK_PersistConsumers".Rows[11].Acknowledged THEN
+	    #Persist.RestoreLost := TRUE;
+	    #Persist.RestoreAcknowledged := FALSE;
+	    #Persist.LostPath := 'PressDemo';
+	END_IF;
+	IF #RootIndex = 1 THEN
+	    #Persist.Failed := #Persist.Failed OR "FRK_PersistConsumers".Rows[12].Failed;
+	    IF "FRK_PersistConsumers".Rows[12].Dirty OR "FRK_PersistConsumers".Rows[12].Ticket <> 0 THEN
+	        #Persist.Pending := TRUE;
+	        IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 OR ("FRK_PersistConsumers".Rows[12].PendingSince <> LDT#1970-01-01-00:00:00 AND "FRK_PersistConsumers".Rows[12].PendingSince < #Persist.PendingSince) THEN
+	            #Persist.PendingSince := "FRK_PersistConsumers".Rows[12].PendingSince;
+	        END_IF;
+	    END_IF;
+	END_IF;
+	IF "FRK_ModelRuntime".Rows[#RootIndex].State = 1 THEN
+	    #Persist.Pending := TRUE;
+	    IF #Persist.PendingSince = LDT#1970-01-01-00:00:00 THEN
+	        #Persist.PendingSince := "FRK_ModelRuntime".Rows[#RootIndex].PendingSince;
+	    END_IF;
+	END_IF;
+	IF #Persist.Pending THEN
+	    IF "FRK_PersistRootSince".WasPending[#RootIndex] THEN
+	        IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "FRK_PersistRootSince".SinceMs[#RootIndex]) > #Persist.WindowMs THEN
+	            #Persist.Failed := TRUE;
+	        END_IF;
+	    ELSE
+	        "FRK_PersistRootSince".SinceMs[#RootIndex] := "FRK_Clock".NowMs;
+	    END_IF;
+	END_IF;
+	"FRK_PersistRootSince".WasPending[#RootIndex] := #Persist.Pending;
+	
+END_FUNCTION
+

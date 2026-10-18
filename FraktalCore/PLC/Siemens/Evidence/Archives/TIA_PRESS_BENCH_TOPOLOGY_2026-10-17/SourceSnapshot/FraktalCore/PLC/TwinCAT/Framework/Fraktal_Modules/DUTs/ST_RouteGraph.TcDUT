@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RouteGraph" Id="{700997c3-d69e-42e5-8f8b-2cd1bf4e40b9}">
+    <Declaration><![CDATA[// Annex I I.9 / Core S10.7 - the declarative routing model. The application
+// supplies configuration, not traversal code: one generic planner resolves it
+// for every station.
+TYPE ST_RouteGraph :
+STRUCT
+    // help <-> help adjacency: which transits are allowed
+    HelpAdj    : ARRAY[1..PL_RobotPlanner.MAX_HELPS, 1..PL_RobotPlanner.MAX_HELPS] OF BOOL;
+    // the transit region each help belongs to; used only to break ties between
+    // same-direction corridors (I.10)
+    HelpRegion : ARRAY[1..PL_RobotPlanner.MAX_HELPS] OF DWORD;
+    // per gripper, per nest: one OR MORE serving help points (I.10, I.12)
+    NestHelp   : ARRAY[1..PL_RobotPlanner.MAX_GRIPPERS, 1..PL_RobotPlanner.MAX_NESTS] OF ST_NestHelpAffinity;
+    // optional taught nest -> nest list, bypassing the help routing entirely
+    DirectNest : ARRAY[1..PL_RobotPlanner.MAX_NESTS, 1..PL_RobotPlanner.MAX_NESTS] OF DWORD;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

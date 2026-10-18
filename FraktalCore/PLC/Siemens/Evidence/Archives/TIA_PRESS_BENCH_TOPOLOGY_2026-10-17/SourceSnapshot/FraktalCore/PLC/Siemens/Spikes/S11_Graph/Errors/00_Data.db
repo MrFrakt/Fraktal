@@ -1,0 +1,19 @@
+DATA_BLOCK "S11Errors"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+   VAR
+      State : Int;
+      Idx : Int := 99;
+      Samples : Array[0..1] of DInt;
+      ValueRead : DInt := -1;
+      LocalCode : Word;
+      GlobalCalls : UDInt;
+      FaultId : Byte;
+      ReactionSeen : USInt;
+      BlockSeen : UInt;
+      AfterLocal : Bool;
+      AfterGlobal : Bool;
+   END_VAR
+BEGIN
+END_DATA_BLOCK

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_RecipeCatalog" Id="{2406f8ba-d099-4dc6-85e5-9b3396a1ddde}">
+    <Declaration><![CDATA[// Optional bounded creation, discovered on I_RecipeProvider. The root validates
+// the complete typed model projection before this provider commits storage.
+INTERFACE I_RecipeCatalog]]></Declaration>
+    <Method Name="M_ModelCount" Id="{23e13c5d-74f4-4f2b-96b7-dd9517c3a6b4}">
+      <Declaration><![CDATA[METHOD M_ModelCount : INT
+VAR_INPUT
+    RecipeKey : STRING(80);
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ModelCapacity" Id="{b693637f-bb65-40d5-b911-a64dda4d212a}">
+      <Declaration><![CDATA[METHOD M_ModelCapacity : INT
+VAR_INPUT
+    RecipeKey : STRING(80);
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_ModelAt" Id="{4e55ab92-da3b-4f7f-b0bc-9fcc0edc6838}">
+      <Declaration><![CDATA[METHOD M_ModelAt : BOOL
+VAR_INPUT
+    RecipeKey : STRING(80);
+    Index : INT;
+END_VAR
+VAR_IN_OUT
+    Id : ST_ModelId;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_CreateModel" Id="{4f11658c-b278-495b-aea3-7a787c7453a2}">
+      <Declaration><![CDATA[METHOD M_CreateModel : BOOL
+VAR_INPUT
+    ModelCode : STRING(64);
+    RecipeKey : STRING(80);
+    pData : PVOID;
+    Size : UDINT;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="M_TakeCatalogRestoreLoss" Id="{51d19005-6037-4a4d-950c-5469df970c0d}">
+      <Declaration><![CDATA[METHOD M_TakeCatalogRestoreLoss : BOOL
+VAR_OUTPUT
+    Found : UINT;
+END_VAR]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

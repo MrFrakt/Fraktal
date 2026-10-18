@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_LiveConfig_Tests" Id="{28d0709a-a8d7-480a-962b-16c370b527f9}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.8b under test: a root's live configuration and its parameter sets on a
+// persistence medium, through the surface a station uses - SetPersistMedium and
+// SetConfigStore - and the real file service of the test runtime.
+//
+// A "restart" is a second root instance with the same identity over the same
+// files. Each test uses per-run names and removes what it wrote.
+FUNCTION_BLOCK FB_LiveConfig_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _tag     : STRING(24);
+    _name    : STRING(80);
+    _garbage : ARRAY[0..15] OF BYTE := [16(16#5A)];
+    _report  : ST_ReleaseReport;
+    _s1 : INT;
+    _t1 : TON;
+    _m1 : FB_FilePersistMedium;
+    _m2 : FB_FilePersistMedium;
+    _r1 : FB_LocalRecipeProvider;
+    _r2 : FB_LocalRecipeProvider;
+    _rec0a, _recAa, _recBa : ST_ProbeModelParCfg;
+    _rec0b, _recAb, _recBb : ST_ProbeModelParCfg;
+    _u1 : FB_ProbeModelUnit;
+    _u2 : FB_ProbeModelUnit;
+    _u3 : FB_ProbeModelUnit;
+    _f1 : FB_ProbeFileOps;
+    _n1 : INT;
+    _s2 : INT;
+    _t2 : TON;
+    _m3  : FB_FilePersistMedium;
+    _m3b : FB_FilePersistMedium;
+    _st1 : FB_MediumConfigStore;
+    _st2 : FB_MediumConfigStore;
+    _st3 : FB_MediumConfigStore;
+    _f2 : FB_ProbeFileOps;
+    _s3 : INT;
+    _t3 : TON;
+    _m4 : FB_FilePersistMedium;
+    _st4 : FB_MediumConfigStore;
+    _r4 : FB_LocalRecipeProvider;
+    _rec4 : ST_ProbeModelParCfg;
+    _u4 : FB_ProbeModelUnit;
+    _f3 : FB_ProbeFileOps;
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#60S;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF _tag = '' THEN
+    _tag := ULINT_TO_STRING(Tc2_Utilities.F_GetSystemTime() MOD 1000000000000);
+    _name := CONCAT('Live', _tag);
+END_IF
+Station_and_model_data_come_back_from_their_documents();
+Parameter_sets_come_back_from_the_medium();
+A_saved_set_is_pending_until_its_document_is_written();]]></ST></Implementation>
+    <Method Name="_M_Restoring" Id="{307838a0-2573-4a52-b7be-cf8e365a1a05}">
+      <Declaration><![CDATA[// Start names the restore while the documents are being read back.
+METHOD PRIVATE _M_Restoring : BOOL
+VAR_IN_OUT
+    Unit : FB_ProbeModelUnit;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Restoring := FALSE;
+Unit.ReleaseReportStart(Report := _report);
+FOR i := 1 TO MIN(_report.Count, PL_Fraktal.MAX_RELEASE_REASONS) DO
+    IF _report.Reasons[i].Description = 'std.release.configRestoring' THEN
+        _M_Restoring := TRUE;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_LiveFile" Id="{bcd512c1-d2ee-41ff-83c1-e28821c2a669}">
+      <Declaration><![CDATA[// The n-th file of this root's live documents: station, then models 1 and 2,
+// each slot a then b.
+METHOD PRIVATE _M_LiveFile : STRING(255)
+VAR_INPUT
+    Index : INT;
+END_VAR
+VAR
+    doc : STRING(40);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[CASE Index / 2 OF
+    0: doc := '.station';
+    1: doc := '.model1';
+ELSE
+    doc := '.model2';
+END_CASE
+IF (Index MOD 2) = 0 THEN
+    _M_LiveFile := CONCAT(_name, CONCAT(doc, '.a'));
+ELSE
+    _M_LiveFile := CONCAT(_name, CONCAT(doc, '.b'));
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Station_and_model_data_come_back_from_their_documents" Id="{36c05bee-8e88-455e-bf2b-b8330505b8e5}">
+      <Declaration><![CDATA[METHOD Station_and_model_data_come_back_from_their_documents]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Station_and_model_data_come_back_from_their_documents');
+_t1(IN := _s1 < 99, PT := TEST_TIMEOUT);
+IF _t1.Q AND (_s1 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s1)));
+    _s1 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+_f1.Cyclic();
+CASE _s1 OF
+    0:      // first run
+        _rec0a.Speed := 1;
+        _recAa.Speed := 10;
+        _recBa.Speed := 20;
+        _r1.Register(ModelCode := '', RecipeKey := 'ProbeModel', pData := ADR(_rec0a), Size := SIZEOF(_rec0a));
+        _r1.Register(ModelCode := 'A', RecipeKey := 'ProbeModel', pData := ADR(_recAa), Size := SIZEOF(_recAa));
+        _r1.Register(ModelCode := 'B', RecipeKey := 'ProbeModel', pData := ADR(_recBa), Size := SIZEOF(_recBa));
+        _u1.ParCfg := _rec0a;
+        _u1.Setup(Name := _name, Provider := _r1);
+        _m1.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+        AssertTrue(Condition := _u1.SetPersistMedium(Medium := _m1), Message := 'the medium is accepted');
+        _u1();
+        AssertFalse(Condition := _u1.WriteConfig(TargetPath := _name, WriteKey := 'probe.limit',
+            Revision := 1, TextValue := '42'),
+            Message := 'a write before the documents are back is refused: the restore would replay over it');
+        AssertTrue(Condition := _M_Restoring(Unit := _u1), Message := 'and Start names the restore');
+        _s1 := 1;
+    1:
+        _u1();
+        IF NOT _M_Restoring(Unit := _u1) THEN
+            AssertFalse(Condition := _u1.ConfigPersist.RestoreLost,
+                Message := 'documents that never existed lost nothing');
+            AssertTrue(Condition := _u1.WriteConfig(TargetPath := _name, WriteKey := 'probe.limit',
+                Revision := 1, TextValue := '42'), Message := 'a station value is written');
+            AssertTrue(Condition := _u1.WriteModelConfig(ModelIndex := 2, TargetPath := _name,
+                WriteKey := 'probe.speed', Revision := 1, TextValue := '25'),
+                Message := 'a model value of model B is written');
+            AssertTrue(Condition := _u1.ConfigPersist.Pending, Message := 'live, not yet durable');
+            _s1 := 2;
+        END_IF
+    2:
+        _u1();
+        IF NOT _u1.ConfigPersist.Pending THEN
+            AssertFalse(Condition := _u1.ConfigPersist.Failed,
+                Message := 'the documents are written within the declared window');
+            _s1 := 3;
+        END_IF
+    3:      // restart: a new instance of the same root over the same files
+        _rec0b.Speed := 1;
+        _recAb.Speed := 10;
+        _recBb.Speed := 20;
+        _r2.Register(ModelCode := '', RecipeKey := 'ProbeModel', pData := ADR(_rec0b), Size := SIZEOF(_rec0b));
+        _r2.Register(ModelCode := 'A', RecipeKey := 'ProbeModel', pData := ADR(_recAb), Size := SIZEOF(_recAb));
+        _r2.Register(ModelCode := 'B', RecipeKey := 'ProbeModel', pData := ADR(_recBb), Size := SIZEOF(_recBb));
+        _u2.ParCfg := _rec0b;
+        _u2.Setup(Name := _name, Provider := _r2);
+        _m2.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+        _u2.SetPersistMedium(Medium := _m2);
+        _u2();
+        _s1 := 4;
+    4:
+        _u2();
+        IF NOT _M_Restoring(Unit := _u2) THEN
+            AssertEquals_DINT(Expected := 42, Actual := _u2.StationLimit,
+                Message := 'the station value comes back from its document');
+            AssertEquals_DINT(Expected := 25, Actual := _recBb.Speed,
+                Message := 'model B$'s value comes back into B$'s record');
+            AssertEquals_DINT(Expected := 10, Actual := _recAb.Speed,
+                Message := 'model A keeps its own value');
+            AssertFalse(Condition := _u2.ConfigPersist.RestoreLost, Message := 'nothing was lost');
+            _s1 := 5;
+        END_IF
+    5:      // damage both copies of the station document
+        _u2();
+        IF NOT _u2.ConfigPersist.Pending AND _f1.M_Write(Path := _M_LiveFile(Index := 0),
+                Where := Tc2_System.PATH_BOOTPATH, pData := ADR(_garbage), Size := SIZEOF(_garbage)) THEN
+            _s1 := 6;
+        END_IF
+    6:
+        IF NOT _f1.Busy AND _f1.M_Write(Path := _M_LiveFile(Index := 1),
+                Where := Tc2_System.PATH_BOOTPATH, pData := ADR(_garbage), Size := SIZEOF(_garbage)) THEN
+            _s1 := 7;
+        END_IF
+    7:      // restart over the medium that confirmed the writes
+        IF NOT _f1.Busy THEN
+            _u3.ParCfg := _rec0b;
+            _u3.Setup(Name := _name, Provider := _r2);
+            _u3.SetPersistMedium(Medium := _m2);
+            _u3();
+            _s1 := 8;
+        END_IF
+    8:
+        _u3();
+        IF NOT _M_Restoring(Unit := _u3) THEN
+            _u3();                      // the loss is drained on the next scan
+            AssertTrue(Condition := _u3.ConfigPersist.RestoreLost,
+                Message := 'a station document confirmed and then lost is a loss (3.8b)');
+            AssertEquals_STRING(Expected := CONCAT(_name, '.station'),
+                Actual := _u3.ConfigPersist.LostPath, Message := 'named by its document');
+            AssertTrue(Condition := F_ProbeAlarmActive(pLog := ADR(_u3.AlarmLog),
+                Reason := E_Reason.CONFIG_RESTORE_LOST, Source := CONCAT(_name, '.station')),
+                Message := 'and announced');
+            AssertEquals_DINT(Expected := 5, Actual := _u3.StationLimit,
+                Message := 'nothing is taken from a damaged document');
+            AssertEquals_DINT(Expected := 25, Actual := _recBb.Speed,
+                Message := 'an intact model document still restores');
+            _s1 := 9;
+        END_IF
+    9:      // the baseline is rewritten; then remove every file
+        _u3();
+        IF NOT _u3.ConfigPersist.Pending THEN
+            _n1 := 0;
+            _s1 := 10;
+        END_IF
+    10:
+        IF _n1 > 5 THEN
+            _s1 := 99;
+            TEST_FINISHED();
+        ELSIF NOT _f1.Busy AND _f1.M_Delete(Path := _M_LiveFile(Index := _n1),
+                Where := Tc2_System.PATH_BOOTPATH) THEN
+            _n1 := _n1 + 1;
+        END_IF
+    99:
+        ;
+ELSE
+    _s1 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Parameter_sets_come_back_from_the_medium" Id="{5636d43a-2e93-4689-9f4c-e12bff9c3b20}">
+      <Declaration><![CDATA[METHOD Parameter_sets_come_back_from_the_medium
+VAR
+    info   : ST_ConfigSetInfo;
+    record : ST_ConfigRecord;
+    prefix : STRING(60);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Parameter_sets_come_back_from_the_medium');
+_t2(IN := _s2 < 99, PT := TEST_TIMEOUT);
+IF _t2.Q AND (_s2 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s2)));
+    _s2 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+prefix := CONCAT('FrkSets_', _tag);
+_f2.Cyclic();
+CASE _s2 OF
+    0:
+        _m3.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+        AssertTrue(Condition := _st1.Setup(Medium := _m3, KeyPrefix := prefix),
+            Message := 'the store takes the medium');
+        info.SetName := 'Recipe';
+        info.RootIdentity := 'Test.Sets';
+        info.SetSchema := 1;
+        info.ConfigRev := 7;
+        info.Kind := E_ConfigKind.STATION_CFG;
+        AssertFalse(Condition := _st1.M_SaveBegin(Info := info),
+            Message := 'no save before the stored sets are back');
+        _s2 := 1;
+    1:
+        _st1.M_Cyclic();
+        IF _st1.Restored THEN
+            AssertEquals_INT(Expected := 0, Actual := _st1.M_Count(), Message := 'an empty medium');
+            AssertFalse(Condition := _st1.RestoreLost, Message := 'lost nothing');
+            info.SetName := 'Recipe';
+            info.RootIdentity := 'Test.Sets';
+            info.SetSchema := 1;
+            info.ConfigRev := 7;
+            info.Kind := E_ConfigKind.STATION_CFG;
+            AssertTrue(Condition := _st1.M_SaveBegin(Info := info), Message := 'a save opens');
+            record.Scope := 'Test.Sets';
+            record.WriteKey := 'probe.limit';
+            record.Revision := 1;
+            record.Kind := E_ConfigKind.STATION_CFG;
+            record.ValueType := E_ConfigValueType.NUMBER;
+            record.ValueText := '42';
+            _st1.M_SaveRecord(Record := record);
+            record.WriteKey := 'probe.text';
+            record.ValueType := E_ConfigValueType.TEXT;
+            record.ValueText := 'with "quotes", a \ and a , comma';
+            _st1.M_SaveRecord(Record := record);
+            AssertTrue(Condition := _st1.M_SaveCommit(), Message := 'and commits');
+            AssertFalse(Condition := _st1.Durable, Message := 'live, not yet written');
+            _s2 := 2;
+        END_IF
+    2:
+        _st1.M_Cyclic();
+        IF _st1.Durable THEN
+            _m3b.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+            _st2.Setup(Medium := _m3b, KeyPrefix := prefix);
+            _s2 := 3;
+        END_IF
+    3:
+        _st2.M_Cyclic();
+        IF _st2.Restored THEN
+            AssertEquals_INT(Expected := 1, Actual := _st2.M_Count(), Message := 'the set comes back');
+            AssertTrue(Condition := _st2.M_ReadInfo(SetName := 'Recipe', Info := info),
+                Message := 'under its name');
+            AssertEquals_INT(Expected := 2, Actual := info.RecordCount, Message := 'whole');
+            AssertEquals_STRING(Expected := 'Test.Sets', Actual := info.RootIdentity,
+                Message := 'with the identity of the root that took it');
+            AssertTrue(Condition := _st2.M_ReadRecord(SetName := 'Recipe', Index := 2,
+                Record := record), Message := 'a record reads back');
+            AssertEquals_STRING(Expected := 'with "quotes", a \ and a , comma',
+                Actual := record.ValueText, Message := 'a text value survives the file exactly');
+            AssertTrue(Condition := _st2.M_Delete(SetName := 'Recipe'), Message := 'the set is deleted');
+            _s2 := 4;
+        END_IF
+    4:
+        _st2.M_Cyclic();
+        IF _st2.Durable THEN
+            _st3.Setup(Medium := _m3b, KeyPrefix := prefix);
+            _s2 := 5;
+        END_IF
+    5:
+        _st3.M_Cyclic();
+        IF _st3.Restored THEN
+            AssertEquals_INT(Expected := 0, Actual := _st3.M_Count(),
+                Message := 'a deleted set stays deleted');
+            AssertFalse(Condition := _st3.RestoreLost, Message := 'by intent, not lost');
+            _f2.M_Delete(Path := CONCAT(prefix, '.set1.a'), Where := Tc2_System.PATH_BOOTPATH);
+            _s2 := 6;
+        END_IF
+    6:
+        IF NOT _f2.Busy THEN
+            _f2.M_Delete(Path := CONCAT(prefix, '.set1.b'), Where := Tc2_System.PATH_BOOTPATH);
+            _s2 := 7;
+        END_IF
+    7:
+        IF NOT _f2.Busy THEN
+            _s2 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s2 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_saved_set_is_pending_until_its_document_is_written" Id="{3b787715-3a08-4d3b-9119-2d76a78bfeba}">
+      <Declaration><![CDATA[// The root finds the store's own writer (__QUERYINTERFACE) and drives it, so a
+// saved set is PersistPending until its document is written - one SetConfigStore.
+METHOD A_saved_set_is_pending_until_its_document_is_written
+VAR
+    prefix : STRING(60);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_saved_set_is_pending_until_its_document_is_written');
+_t3(IN := _s3 < 99, PT := TEST_TIMEOUT);
+IF _t3.Q AND (_s3 < 99) THEN
+    AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_s3)));
+    _s3 := 99;
+    TEST_FINISHED();
+    RETURN;
+END_IF
+prefix := CONCAT('FrkRootSets_', _tag);
+_f3.Cyclic();
+CASE _s3 OF
+    0:
+        _rec4.Speed := 3;
+        _r4.Register(ModelCode := '', RecipeKey := 'ProbeModel', pData := ADR(_rec4), Size := SIZEOF(_rec4));
+        _u4.ParCfg := _rec4;
+        _u4.Setup(Name := CONCAT('Sets', _tag), Provider := _r4);
+        _m4.Setup(Folder := '', Where := Tc2_System.PATH_BOOTPATH);
+        _st4.Setup(Medium := _m4, KeyPrefix := prefix);
+        AssertTrue(Condition := _u4.SetConfigStore(Store := _st4), Message := 'the store is wired');
+        _u4();
+        _s3 := 1;
+    1:
+        _u4();                          // the root, not the test, drives the store
+        IF _st4.Restored THEN
+            AssertEquals_DINT(Expected := TO_DINT(E_ConfigStore.FILE_JSON),
+                Actual := TO_DINT(_u4.ConfigPersist.StoreKind), Message := 'published as a file store');
+            AssertTrue(Condition := _u4.SaveConfigSet(SetName := 'Commissioned',
+                Kind := E_ConfigKind.STATION_CFG), Message := 'a station set is saved');
+            AssertTrue(Condition := _u4.ConfigPersist.Pending, Message := 'pending');
+            _s3 := 2;
+        END_IF
+    2:
+        _u4();
+        IF NOT _u4.ConfigPersist.Pending THEN
+            AssertTrue(Condition := _st4.Durable,
+                Message := 'Pending cleared only once the set document is written');
+            AssertFalse(Condition := _u4.ConfigPersist.Failed, Message := 'without a failure');
+            _f3.M_Delete(Path := CONCAT(prefix, '.set1.a'), Where := Tc2_System.PATH_BOOTPATH);
+            _s3 := 3;
+        END_IF
+    3:
+        IF NOT _f3.Busy THEN
+            _s3 := 99;
+            TEST_FINISHED();
+        END_IF
+    99:
+        ;
+ELSE
+    _s3 := 99;
+END_CASE]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_PressDemoReleaseState" Id="{60cff678-66c5-4c0a-87c4-335c90743b38}" SpecialFunc="None">
+    <Declaration><![CDATA[// The state the press's two release renditions (ST FB_PressDemoRelease, LD
+// FB_LD_PressDemoRelease) share. Both declared this block word for word; it is
+// declared once here and each rendition keeps only its LOGIC, which is the
+// part the bench exists to carry twice (§1.1 O9). Not a Fraktal module.
+FUNCTION_BLOCK FB_PressDemoReleaseState
+VAR_OUTPUT
+    ModeStart : FB_PermIntlk;
+    ModeStartAirPressureOk : BOOL;
+    // Ram-extend permissive, split into individually named conditions. A single
+    // composite permit could only ever report one composite key, so releasing
+    // the two-hand button - the NORMAL way an operator stops a stroke - was
+    // indistinguishable from a guard fault, an air loss or a power loss.
+    RamGuardClosed   : BOOL;
+    RamSlideInside   : BOOL;
+    RamDevicesHealthy: BOOL;
+    RamAirPressureOk : BOOL;
+    RamTwoHandHeld   : BOOL;
+    RamControlPowerOn: BOOL;
+END_VAR
+VAR
+    _unitPath : STRING(255);
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[;]]></ST>
+    </Implementation>
+    <Method Name="M_PublishTo" Id="{800d18e6-6ee3-435e-ad5f-726cd01a89f2}">
+      <Declaration><![CDATA[// Copy the evaluated conditions into the Unit's published record. Called for
+// the SELECTED rendition only, straight after it evaluated, every scan.
+METHOD M_PublishTo
+VAR_IN_OUT
+    Conditions : ST_PressDemoReleaseConditions;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Conditions.ModeStartAirPressureOk := ModeStartAirPressureOk;
+Conditions.RamGuardClosed := RamGuardClosed;
+Conditions.RamSlideInside := RamSlideInside;
+Conditions.RamDevicesHealthy := RamDevicesHealthy;
+Conditions.RamAirPressureOk := RamAirPressureOk;
+Conditions.RamTwoHandHeld := RamTwoHandHeld;
+Conditions.RamControlPowerOn := RamControlPowerOn;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

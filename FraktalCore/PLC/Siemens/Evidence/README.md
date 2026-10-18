@@ -1,5 +1,11 @@
 # Siemens evidence payloads
 
+Press bridge/topology milestone (2026-10-17):
+[live I/O and recovery report](../../../../Specification/Siemens/Evidence/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17.md),
+[sealed payload](Archives/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17/packaging.json).
+Private bootstrap files are omitted with whole-file hash witnesses; ordinary
+I/O topology is measured, with output gates disabled and P8 PN/forcing open.
+
 Line profile milestone (2026-10-17):
 [qualification report](../../../../Specification/Siemens/Evidence/TIA_LINE_PRESS_2026-10-17.md),
 [sealed payload](Archives/TIA_LINE_PRESS_2026-10-17/packaging.json).

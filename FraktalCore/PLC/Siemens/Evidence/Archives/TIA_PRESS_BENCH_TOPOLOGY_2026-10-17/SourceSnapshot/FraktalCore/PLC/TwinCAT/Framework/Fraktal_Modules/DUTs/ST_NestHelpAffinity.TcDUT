@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_NestHelpAffinity" Id="{e37b52ed-66b6-4229-8604-f84f0399e4c1}">
+    <Declaration><![CDATA[// Annex I I.10 - the help points serving one nest. Count = 1 is the trivial
+// single-help case; multi-help is the general one.
+TYPE ST_NestHelpAffinity :
+STRUCT
+    Helps : ARRAY[1..PL_RobotPlanner.MAX_HELPS_PER_NEST] OF ST_HelpAffinity;
+    Count : INT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

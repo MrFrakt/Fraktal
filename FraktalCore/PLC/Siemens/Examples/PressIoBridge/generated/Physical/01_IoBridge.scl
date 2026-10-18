@@ -308,16 +308,28 @@ BEGIN
         #Started := TRUE;
         #SendConnection.InterfaceId := #Config.InterfaceId;
         #SendConnection.ID := #Config.SendId;
-        #SendConnection.ConnectionType := B#16#11;
-        #SendConnection.ActiveEstablished := TRUE;
-        #SendConnection.LocalPort := 0;
-        #SendConnection.RemotePort := #Config.SendPort;
+        #SendConnection.ConnectionType := B#16#0B;
+        // The controller initiates both streams. The physical companion
+        // listens on its send and receive ports, including the input stream.
+        #SendConnection.ActiveEstablished := NOT #PhysicalRole;
+        IF #PhysicalRole THEN
+            #SendConnection.LocalPort := #Config.SendPort;
+            #SendConnection.RemotePort := 0;
+        ELSE
+            #SendConnection.LocalPort := 0;
+            #SendConnection.RemotePort := #Config.SendPort;
+        END_IF;
         #ReceiveConnection.InterfaceId := #Config.InterfaceId;
         #ReceiveConnection.ID := #Config.ReceiveId;
-        #ReceiveConnection.ConnectionType := B#16#11;
-        #ReceiveConnection.ActiveEstablished := FALSE;
-        #ReceiveConnection.LocalPort := #Config.ReceivePort;
-        #ReceiveConnection.RemotePort := 0;
+        #ReceiveConnection.ConnectionType := B#16#0B;
+        #ReceiveConnection.ActiveEstablished := NOT #PhysicalRole;
+        IF #PhysicalRole THEN
+            #ReceiveConnection.LocalPort := #Config.ReceivePort;
+            #ReceiveConnection.RemotePort := 0;
+        ELSE
+            #ReceiveConnection.LocalPort := 0;
+            #ReceiveConnection.RemotePort := #Config.ReceivePort;
+        END_IF;
         FOR #Slot := 1 TO 4 DO
             #SendConnection.RemoteAddress.ADDR[#Slot] := #Config.PeerAddress[#Slot];
             #ReceiveConnection.RemoteAddress.ADDR[#Slot] := #Config.PeerAddress[#Slot];

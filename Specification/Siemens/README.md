@@ -1,5 +1,11 @@
 # Fraktal/TIA specification working set
 
+Press bridge/topology milestone (2026-10-17): [live I/O and recovery](Evidence/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17.md)
+qualifies a separate saved FraktalBench with the physical 1214C. Generic HMI
+checks show 3 live nodes and 14 fresh inputs; 10 DQ channels remain unconfirmed
+local demands. Output gates stay FALSE. P8 PN health/forcing and physical
+output acceptance remain open.
+
 Line profile milestone (2026-10-17): [press integration and public admission](Evidence/TIA_LINE_PRESS_2026-10-17.md)
 qualifies generator 0.25 with 37 Line and 64 GRAPH checks. Complete V3
 owner/bound-mirror declarations now use normal generation; partial engine

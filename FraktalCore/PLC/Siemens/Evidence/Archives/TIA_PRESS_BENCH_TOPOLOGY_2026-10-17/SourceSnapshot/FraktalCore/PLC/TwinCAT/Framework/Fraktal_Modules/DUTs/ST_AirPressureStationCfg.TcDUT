@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AirPressureStationCfg" Id="{d90b47f2-6c15-4a83-91be-27ea08c5d364}">
+    <Declaration><![CDATA[// Core §3.8a/§3.8b — deployment data for this monitor. The qualification time
+// depends on the physical switches and the air system they sit in, not on the
+// product being made, so it is station configuration and NOT part of any model
+// recipe: it must not change at changeover, and it must survive a restart.
+// SchemaVersion stays first (§3.8b) so a retained image from another layout is
+// rejected and re-initialized instead of read by field position.
+TYPE ST_AirPressureStationCfg :
+STRUCT
+    SchemaVersion : UINT := 1;
+    ConflictTime  : TIME := T#500MS; // qualify contradictory mechanical switches
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -48,13 +48,45 @@ establish control power through the commissioned bench circuit.
 The physical project uses **192.168.0.10/24**. The matching bench simulator
 project uses **192.168.0.20/24**, reserved for a separate bench instance. Keep
 the saved `Fraktal` instance, its addresses, storage and adapter mappings.
+The bench's second CPU interface uses **169.254.212.61/16** for local engineering
+and the HMI through the PLCSIM Virtual Ethernet Adapter. Both bench addresses
+come from `io.json`; the physical bridge still exchanges frames only with
+192.168.0.20. Enable `UseWebServerForInterface` on this second interface in the
+saved bench project when commissioning its Web API.
 Before deployment, connect the bench instance to the physical Ethernet adapter
 through PLCSIM Advanced's distributed TCP/IP mode and ensure the VM/host bridge
 passes that network. Do not infer reachability from the local virtual adapter.
 
-The physical receive port is **24001**, simulator receive port **24002**;
-each side maintains one active send connection and one passive receive
-connection. Interface hardware ID 64 and connection IDs 257/258 are project
+The commissioning instance is `FraktalBench`. In Multiple Adapter mode its X1
+maps to `Ethernet1` (the enabled 192.168.0.123/24 bench adapter); X2 is local
+only. The original `Fraktal` retains all-zero physical mappings. The guarded
+[`Invoke-TiaPressBench.ps1`](../../tools/Invoke-TiaPressBench.ps1) inspects or starts
+only that reserved bench. It never changes the global network mode; changing
+that mode requires all simulated CPUs to be off. Preserve their saved storage
+and restore their previous RUN state after an authorized mode change.
+
+After preparing the mappings, the owner applies the virtual-switch binding
+from an elevated PowerShell with
+[`Enable-TiaPressBenchNetwork.ps1`](../../tools/Enable-TiaPressBenchNetwork.ps1).
+Siemens' `SetNetInterfaceBindings` requires elevation even when the Windows
+binding checkbox already appears enabled. This script checks both saved CPU
+identities and the selected adapter before applying their existing mappings.
+It changes no PLC program, address, mapping or output gate.
+
+The fieldbus page observes the same approved I/O map: fresh DI quality follows
+the validated round trip, independently of the disabled output wiring gate.
+DQ values are local demands; their quality remains FALSE because this protocol
+does not return the physical endpoint's final DQ image. The view offers no
+forcing. Neither a healthy link nor a displayed demand confirms energization.
+
+The physical companion listens on **24001** for output demands and **24002**
+for input publication. The controller initiates both TCP streams; the physical
+companion accepts both. `TSEND_C` and `TRCV_C` support either connection role.
+This avoids requiring an incoming TCP connection to the VM's simulated CPU.
+`io.json` schema 2 names these facts `physical_receive_port` and
+`physical_send_port`; the latter replaces schema 1's `simulator_receive_port`.
+The 32-byte wire schema remains version 1. Both listeners must have distinct
+ports in the physical S7-1200 range. Interface hardware ID 64 and connection IDs 257/258 are project
 configuration: verify them against the target's system constants and other
 OUC users. The small standalone bridge allocates only these two connections.
 

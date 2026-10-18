@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AxisOutImm" Id="{4335da52-1175-4a02-9b08-a908d3181489}">
+    <Declaration><![CDATA[// Cyclic live status plus the first-out diagnostic (S3.12, S6.9).
+TYPE ST_AxisOutImm :
+STRUCT
+    ActPos       : LREAL;
+    ActVelocity  : LREAL;
+    Homed        : BOOL;
+    DriveEnabled : BOOL;
+    // The stored taught position (S3.8b PERSISTENT), published beside the live
+    // ActPos so an operator can compare what is stored with where the axis is
+    // before capturing over it (S3.8c(b)).
+    TaughtPosition : LREAL;
+    Jogging      : BOOL;   // a held jog is driving the axis right now (§7.6.1)
+    // Why the last jog stopped: 0 = released normally, otherwise the §8.8 reason.
+    // Published status, deliberately NOT an alarm - a jog that stops because the
+    // operator let go is the designed behaviour, and filing it as a fault would
+    // fill the record with events that were never faults (§6.1).
+    JogStopReason : DINT;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

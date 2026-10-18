@@ -1,0 +1,18 @@
+// Program-cycle OB: the timing source, then the composition root.
+ORGANIZATION_BLOCK "Main"
+TITLE = "Main Program Sweep (Cycle)"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      Initial_Call : Bool;   // TRUE in the first cycle after a warm restart
+      Remanence : Bool;      // TRUE if retentive data are available
+   END_VAR
+
+
+BEGIN
+	IF #Initial_Call THEN
+	    "FRK_Clock".FirstScan := TRUE;
+	END_IF;
+	"FRK_ClockTick"();
+	"SpkMain"();
+END_ORGANIZATION_BLOCK

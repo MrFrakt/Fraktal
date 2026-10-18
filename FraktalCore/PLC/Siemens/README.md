@@ -1,5 +1,12 @@
 # Fraktal/TIA — Siemens TIA Portal binding (working tree)
 
+Press bridge/topology milestone (2026-10-17): the separate saved FraktalBench
+exchanges ordinary I/O with the physical 1214C. The generic HMI observes 3 live
+nodes and 14 fresh inputs; 10 DQ channels remain unconfirmed demands. Output
+gates stay FALSE. Both-family native checks and live/recovery evidence are in
+[the report](../../../Specification/Siemens/Evidence/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17.md).
+P8 native PROFINET health/forcing and physical output acceptance remain open.
+
 Line profile milestone (2026-10-17): generator 0.25 admits complete V3 Line
 declarations through the public entry point and integrates the local owner,
 calendar/targets, atomic Line sets and persistence in the wired press. The

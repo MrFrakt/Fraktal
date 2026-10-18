@@ -1,0 +1,73 @@
+﻿FUNCTION "F_PressDemoPublishFieldbus" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Healthy : Bool;
+      State : DInt;
+   END_VAR
+
+
+BEGIN
+	
+	// Core 10.5.1: live values and link health only. An input without a
+	// healthy link is not a claim, so its quality follows the link.
+	#Healthy := "GDB_PressDemoIO".StandardIoHealthy;
+	#State := 0;
+	IF #Healthy THEN
+	    #State := 4;
+	END_IF;
+	"GDB_PressDemoFieldbus".Topology.Nodes[1].LinkOk := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[1].State := #State;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].LinkOk := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].State := #State;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[1].BoolValue := "GDB_PressDemoIO".SlideInside;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[1].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[2].BoolValue := "GDB_PressDemoIO".SlideOutside;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[2].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[3].BoolValue := "GDB_PressDemoIO".DoorClosed;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[3].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[4].BoolValue := "GDB_PressDemoIO".DoorOpen;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[4].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[5].BoolValue := "GDB_PressDemoIO".RamExtended;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[5].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[6].BoolValue := "GDB_PressDemoIO".RamRetracted;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[6].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[7].BoolValue := "GDB_PressDemoIO".TwoHandRight;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[7].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[8].BoolValue := "GDB_PressDemoIO".TwoHandLeft;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[8].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[9].BoolValue := "GDB_PressDemoIO".AirLowPressure;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[9].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[10].BoolValue := "GDB_PressDemoIO".AirOperatingPressure;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[10].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[11].BoolValue := "GDB_PressDemoIO".PartPresent;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[11].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[12].BoolValue := "GDB_PressDemoIO".ControlOnFeedback;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[12].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[13].BoolValue := "GDB_PressDemoIO".EStopReleasedMirror;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[13].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[14].BoolValue := "GDB_PressDemoIO".TwoHandSafeActive;
+	"GDB_PressDemoFieldbus".Topology.Nodes[2].Channels[14].Quality := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].LinkOk := #Healthy;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].State := #State;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[1].BoolValue := "GDB_PressDemoIO".SlideExtend;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[1].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[2].BoolValue := "GDB_PressDemoIO".SlideRetract;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[2].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[3].BoolValue := "GDB_PressDemoIO".DoorClose;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[3].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[4].BoolValue := "GDB_PressDemoIO".DoorRelease;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[4].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[5].BoolValue := "GDB_PressDemoIO".RamExtend;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[5].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[6].BoolValue := "GDB_PressDemoIO".RamRetract;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[6].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[7].BoolValue := "GDB_PressDemoIO".StartLamp;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[7].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[8].BoolValue := "GDB_PressDemoIO".StartLamp;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[8].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[9].Quality := FALSE;
+	"GDB_PressDemoFieldbus".Topology.Nodes[3].Channels[10].Quality := FALSE;
+	
+END_FUNCTION
+

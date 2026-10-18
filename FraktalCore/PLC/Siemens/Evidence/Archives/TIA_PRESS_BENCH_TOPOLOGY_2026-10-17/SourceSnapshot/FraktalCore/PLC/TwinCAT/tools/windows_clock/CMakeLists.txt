@@ -1,0 +1,32 @@
+cmake_minimum_required(VERSION 3.20)
+project(FraktalWindowsClock LANGUAGES C CXX)
+if(NOT WIN32)
+  message(FATAL_ERROR "This adapter reads the target Windows Time service.")
+endif()
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+if(MSVC_VERSION GREATER_EQUAL 1950)
+  set(FRAKTAL_MINIMUM_WINDOWS_VERSION "10.0")
+  set(FRAKTAL_WINDOWS_API_LEVEL "0x0A00")
+else()
+  set(FRAKTAL_MINIMUM_WINDOWS_VERSION "6.1")
+  set(FRAKTAL_WINDOWS_API_LEVEL "0x0601")
+endif()
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/clock.platform.json"
+  "{\"minimumWindowsVersion\":\"${FRAKTAL_MINIMUM_WINDOWS_VERSION}\",\"compilerVersion\":\"${CMAKE_CXX_COMPILER_VERSION}\"}\n")
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(MIDL_ARCH x64)
+else()
+  set(MIDL_ARCH win32)
+endif()
+find_program(MIDL_EXECUTABLE midl REQUIRED)
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/w32time_c.c" "${CMAKE_CURRENT_BINARY_DIR}/w32time.h"
+  COMMAND "${MIDL_EXECUTABLE}" /nologo /env ${MIDL_ARCH} /client stub /server none
+    /out "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/w32time.idl"
+  DEPENDS w32time.idl VERBATIM)
+add_executable(FraktalWindowsClock windows_clock.cpp rpc_query.c
+  "${CMAKE_CURRENT_BINARY_DIR}/w32time_c.c")
+target_include_directories(FraktalWindowsClock PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_compile_features(FraktalWindowsClock PRIVATE cxx_std_17)
+target_compile_definitions(FraktalWindowsClock PRIVATE UNICODE _UNICODE _WIN32_WINNT=${FRAKTAL_WINDOWS_API_LEVEL})
+target_link_libraries(FraktalWindowsClock PRIVATE rpcrt4 advapi32)
+target_compile_options(FraktalWindowsClock PRIVATE /W4)

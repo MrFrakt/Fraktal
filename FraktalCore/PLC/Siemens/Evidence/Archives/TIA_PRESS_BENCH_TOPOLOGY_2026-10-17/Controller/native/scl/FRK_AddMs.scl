@@ -1,0 +1,19 @@
+﻿FUNCTION "FRK_AddMs" : UDInt
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      Value : UDInt;
+      Delta : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	IF #Delta > UDINT#4294967295 - #Value THEN
+	    #FRK_AddMs := UDINT#4294967295;
+	ELSE
+	    #FRK_AddMs := #Value + #Delta;
+	END_IF;
+	
+END_FUNCTION
+

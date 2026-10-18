@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeWeeklyLine" Id="{2a20eea4-7cc2-4768-a1ee-f7b392dc1ebf}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ProbeWeeklyLine EXTENDS FB_LineDataV3]]></Declaration>
+    <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
+    <Method Name="M_ResetFixture" Id="{f2db293a-90d3-4e7a-a6f4-0bc494d9a536}">
+      <Declaration><![CDATA[METHOD M_ResetFixture
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[    CalendarV3.SchemaVersion := 3;
+    CalendarV3.UtcOffsetMin := 0;
+    FOR i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+        CalendarV3.Rows[i].StartMin := -1;
+        CalendarV3.Rows[i].DurationMin := 1440;
+        CalendarV3.Rows[i].ActiveDays := 0;
+        CalendarV3.Rows[i].ProductionTarget := 0;
+    END_FOR
+]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

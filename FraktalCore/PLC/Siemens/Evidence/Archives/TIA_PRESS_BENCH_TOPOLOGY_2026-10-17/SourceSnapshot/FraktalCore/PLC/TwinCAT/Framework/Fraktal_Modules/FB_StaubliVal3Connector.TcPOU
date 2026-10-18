@@ -1,0 +1,621 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_StaubliVal3Connector" Id="{148d5d06-5fd6-472d-bac6-13f4e37f8a5f}" SpecialFunc="None">
+    <Declaration><![CDATA[// Annex I I.3/I.5 - Staubli VAL3 connector: one conformant implementation of
+// I_RobotConnector, speaking a line protocol to a `fraktal_server` VAL3
+// application on the robot controller.
+//
+// WHY TCP AND NOT uniVAL/EtherCAT. Both are conformant behind this interface and
+// the parent Unit is unchanged either way (I.5), but only this one can be
+// developed and regression-tested with NO ARM: the Staubli Robotics Suite
+// Emulator answers the same TCP sockets as a real CS9 controller, whereas a
+// virtual controller cannot present an EtherCAT slave. uniVAL plc over EtherCAT
+// (Beckhoff TF5130) remains the production binding where cycle determinism
+// matters; this one is what makes O6 - commissioning before hardware - true for
+// a robot cell, and what S5.7 tests run against.
+//
+// A CONNECTOR, like FB_SimRobotConnector (Core §3.15.1): it is serviced by the
+// robot CM it is composed in (§3.15.3), so swapping the two changes a declaration
+// and not the module tree (I.5). Everything connector-shaped is INHERITED from
+// FB_DeviceConnectorBase - session, heartbeat, loss confirmation after
+// LinkTimeout, bounded reconnect with no self-resume (§3.15.2) - and the ASCII
+// framing and one-outstanding-request rule are FB_AsciiLink's, shared with the
+// device CMs (§1.1 O9). This type adds only the robot protocol.
+//
+// PROTOCOL (ASCII, one line per message, terminator from ParCfg):
+//   request   <CMD>[,<arg>]...
+//   response  <CMD>,OK[,<payload>]...   accepted / completed
+//             <CMD>,ERR,<code>,<text>   refused or faulted by the controller
+// Commands are ID-ADDRESSED (I.1): a point, list, pallet, tool, frame or load is
+// named by its identifier and never by a coordinate. The single exception the
+// standard permits - a bounded offset correction for a runtime-located target
+// (I.8a) - is not implemented here yet and is not smuggled in.
+//
+// STATUS IS THE HEARTBEAT: every ParCfg.StatusPeriod the connector issues STA, so
+// MotionBusy/Referenced/ActualMode/CurrentArea/ProtectiveStop/Resumable/pose stay
+// current without the robot originating traffic, and a controller that stops
+// answering is declared lost after LinkTimeout rather than trusted forever.
+FUNCTION_BLOCK FB_StaubliVal3Connector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector
+VAR_INPUT
+    ParCfg : ST_StaubliConnParCfg;
+END_VAR
+VAR_OUTPUT
+    LinkState    : E_ByteChannelState;   // the transport, for diagnosis
+    LastResponse : STRING(255);          // the controller's last reply, verbatim
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _link        : FB_AsciiLink;
+    _busy        : BOOL;
+    _referenced  : BOOL;
+    _mode        : E_RobotOpMode;
+    _reqMode     : E_RobotOpMode;
+    _area        : DWORD;
+    _protStop    : BOOL;
+    _resumable   : BOOL;
+    _pose        : ST_RobotPose;
+    _ctrlMsg     : ST_Diagnostic;
+    _lastResult  : ST_Diagnostic;
+    _statusPend  : BOOL;   // the outstanding request is the heartbeat's STA
+    _hbReply     : BOOL;   // a well-formed reply arrived since the heartbeat asked
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+      <Method Name="SetupLink" Id="{c6f5de91-c6a9-4cc1-9bf9-e1a86e3db4d8}">
+        <Declaration><![CDATA[// Wire identity and transport. Called once from the composition root (S3.11);
+// the robot CM then services the connector every scan (§3.15.3).
+METHOD SetupLink : BOOL
+VAR_INPUT
+    Name    : STRING(80);
+    Chan    : I_ByteChannel;
+    DevHost : STRING(80);
+    DevPort : UINT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[SetupLink := FALSE;
+Setup(Name := Name);
+IF (Chan = 0) OR (DevHost = '') THEN
+    _lastResult.ReasonCode  := PL_TcpDevReasons.DEV_CFG_INVALID;
+    _lastResult.Description := 'std.error.deviceConnectionNotConfigured';
+    _lastResult.SourcePath  := Name;
+    RETURN;
+END_IF
+ParCfg.Host := DevHost;
+ParCfg.Port := DevPort;
+SetupLink := _link.M_Bind(Chan := Chan);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Cyclic" Id="{baed0918-2248-4ecf-a74e-e80249f9963d}">
+        <Declaration><![CDATA[// Run the link and parse what it delivered, then let the base run the session,
+// the heartbeat and the bounded reconnect exactly as for any connector.
+METHOD Cyclic : BOOL
+VAR
+    evt : E_AsciiLinkEvent;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_link.Terminator := ParCfg.Terminator;
+_link.RespTimeout := ParCfg.RespTimeout;
+HbPeriod := ParCfg.StatusPeriod;
+evt := _link.M_Tick();
+LinkState := _link.State;
+CASE evt OF
+    E_AsciiLinkEvent.NONE:
+        ;
+    E_AsciiLinkEvent.RESPONSE:
+        LastResponse := _link.LastResponse;
+        _M_OnResponse(Response := _link.Response);
+    E_AsciiLinkEvent.TIMEOUT:
+        IF _statusPend THEN
+            // An unanswered heartbeat is not a fault by itself: it stays PENDING,
+            // and the base declares the link lost only after LinkTimeout (§3.15.2).
+            _statusPend := FALSE;
+        ELSE
+            // A command the controller never acknowledged: its own first-out, which
+            // the robot CM adopts verbatim (§8.2).
+            _lastResult.ReasonCode  := PL_TcpDevReasons.DEV_RESP_TIMEOUT;
+            _lastResult.Description := 'std.error.deviceResponseTimeout';
+            _lastResult.SourcePath  := Name;
+            _busy := FALSE;
+        END_IF
+    E_AsciiLinkEvent.OVERFLOW:
+        _M_Lost(Reason := E_Reason.DEVICE_PROTOCOL_ERROR, Text := 'std.error.deviceResponseOverflow');
+    E_AsciiLinkEvent.CHANNEL_FAULT:
+        _M_Lost(Reason := E_Reason.LINK_TIMEOUT, Text := 'std.error.transportChannelFault');
+ELSE
+    _M_Lost(Reason := E_Reason.DEVICE_PROTOCOL_ERROR, Text := 'std.error.byteChannelStateInvalid');
+END_CASE
+// The peer closed the socket: the session is gone now, not after a timeout.
+IF _sessionUp AND (LinkState = E_ByteChannelState.CLOSED) THEN
+    _M_Lost(Reason := E_Reason.LINK_TIMEOUT, Text := 'std.error.robotLinkDown');
+END_IF
+Cyclic := SUPER^.Cyclic();
+// A lost link invalidates every cached fact. Publishing a stale pose or a stale
+// "not in protective stop" while disconnected would be worse than publishing
+// nothing, because both read as positive statements about a robot we cannot see.
+IF NOT Linked THEN
+    _busy       := FALSE;
+    _referenced := FALSE;
+    _mode       := E_RobotOpMode.UNKNOWN;
+    _area       := 0;
+    _resumable  := FALSE;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Open" Id="{4a7c2e91-5b3d-4f08-8e6a-1d9c3b7f2e45}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_Open : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_statusPend := FALSE;
+_hbReply := FALSE;
+_M_Open := _link.M_Open(Host := ParCfg.Host, Port := ParCfg.Port);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Close" Id="{b92d5f14-7e6a-4c38-a1f9-6e0c8d2b4a73}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_Close : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_link.M_Close();
+_statusPend := FALSE;
+_busy := FALSE;
+_M_Close := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_HbStart" Id="{e1f68b3c-2a95-4d7e-9c04-7b5a3e8d1f26}">
+        <Declaration><![CDATA[// The heartbeat IS the status poll. With a command reply still outstanding the
+// slot is taken, so that reply is awaited instead: any well-formed reply proves the
+// controller alive, and the one-outstanding-request rule is never broken by
+// housekeeping.
+METHOD PROTECTED _M_HbStart : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_hbReply := FALSE;
+IF _link.Pending THEN
+    _M_HbStart := TRUE;
+    RETURN;
+END_IF
+_M_HbStart := _link.M_Send(Text := 'STA');
+_statusPend := _M_HbStart;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_HbPoll" Id="{5c3a9e27-8d14-4b6f-a2e1-0f7d6c9b3a58}">
+        <Declaration><![CDATA[METHOD PROTECTED _M_HbPoll : E_HbResult]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF _hbReply THEN
+    _M_HbPoll := E_HbResult.OK;
+ELSE
+    _M_HbPoll := E_HbResult.PENDING;   // silence is judged by LinkTimeout in the base
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_OnResponse" Id="{eb7e03b9-de4a-4d32-a586-eb95e27bab48}">
+        <Declaration><![CDATA[// Parse one terminated reply. Status replies refresh the published facts; command
+// replies clear Busy or record the controller's own first-out.
+METHOD PROTECTED _M_OnResponse
+VAR_INPUT
+    Response : STRING(255);
+END_VAR
+VAR
+    _cmd  : STRING(16);
+    _stat : STRING(16);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Any well-formed reply is evidence the controller is alive (§3.15.2).
+_hbReply := TRUE;
+
+_cmd  := _M_Field(Response, 1);
+_stat := _M_Field(Response, 2);
+
+IF _stat = 'ERR' THEN
+    // The controller refused or faulted. Carry ITS message verbatim rather than a
+    // paraphrase - a service technician needs the robot's own text (S8.2). The
+    // robot CM adopts it from LastResult as its first-out.
+    _ctrlMsg := _M_MakeCtrlDiag(Code := _M_Field(Response, 3),
+                                Text := _M_Field(Response, 4));
+    _lastResult := _ctrlMsg;
+    _busy := FALSE;
+    _statusPend := FALSE;
+    RETURN;
+END_IF
+
+IF _cmd = 'STA' THEN
+    // STA,OK,<busy>,<ref>,<mode>,<area>,<prot>,<resumable>,<x>,<y>,<z>,<rx>,<ry>,<rz>
+    _busy       := (_M_Field(Response, 3) = '1');
+    _referenced := (_M_Field(Response, 4) = '1');
+    _mode       := _M_ToMode(_M_Field(Response, 5));
+    _area       := DINT_TO_DWORD(STRING_TO_DINT(_M_Field(Response, 6)));
+    _protStop   := (_M_Field(Response, 7) = '1');
+    _resumable  := (_M_Field(Response, 8) = '1');
+    _pose.X     := STRING_TO_LREAL(_M_Field(Response, 9));
+    _pose.Y     := STRING_TO_LREAL(_M_Field(Response, 10));
+    _pose.Z     := STRING_TO_LREAL(_M_Field(Response, 11));
+    _pose.RX    := STRING_TO_LREAL(_M_Field(Response, 12));
+    _pose.RY    := STRING_TO_LREAL(_M_Field(Response, 13));
+    _pose.RZ    := STRING_TO_LREAL(_M_Field(Response, 14));
+    _statusPend := FALSE;
+    RETURN;
+END_IF
+
+// A command reply. The robot has ACCEPTED it; completion is observed through the
+// status poll, so a long path does not hold the request slot for its duration.
+_statusPend := FALSE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Request" Id="{e5e3fff0-dd2d-4ce2-a901-18cf94100a4d}">
+        <Declaration><![CDATA[// Issue one ID-addressed request. FALSE = refused outright, with LastResult set,
+// which is what the CM turns into a first-out (S5.6).
+METHOD PRIVATE _M_Request : BOOL
+VAR_INPUT
+    Text : STRING(255);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_Request := FALSE;
+IF NOT Linked THEN
+    _lastResult := _M_MakeLinkDiag();
+    RETURN;
+END_IF
+IF _link.Pending THEN
+    // One outstanding request is the link's rule; refusing here keeps the caller
+    // honest instead of silently dropping the command.
+    _lastResult := _M_MakeLinkDiag();
+    RETURN;
+END_IF
+IF NOT _link.M_Send(Text := Text) THEN
+    _lastResult := _M_MakeLinkDiag();
+    RETURN;
+END_IF
+_statusPend := FALSE;
+_busy := TRUE;
+_M_Request := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Field" Id="{2419b959-478b-45c5-b8bd-e7eae777b749}">
+        <Declaration><![CDATA[// n-th comma-separated field of a response, 1-based; '' when absent. Bounded and
+// allocation-free (O10).
+METHOD PRIVATE _M_Field : STRING(64)
+VAR_INPUT
+    Text : STRING(255);
+    N    : INT;
+END_VAR
+VAR
+    i, count, start, len_ : INT;
+    ch : STRING(1);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_Field := '';
+count := 1;
+start := 1;
+len_ := LEN(Text);
+FOR i := 1 TO len_ DO
+    ch := MID(Text, 1, i);
+    IF ch = ',' THEN
+        IF count = N THEN
+            _M_Field := MID(Text, i - start, start);
+            RETURN;
+        END_IF
+        count := count + 1;
+        start := i + 1;
+    END_IF
+END_FOR
+IF count = N THEN
+    _M_Field := MID(Text, len_ - start + 1, start);
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_ToMode" Id="{29bb4005-178d-47ae-a9a5-2d09792c0ea9}">
+        <Declaration><![CDATA[// Controller mode text -> E_RobotOpMode. Anything unrecognised is UNKNOWN, never
+// a permissive mode: an unparsed reply must not read as "auto is granted".
+METHOD PRIVATE _M_ToMode : E_RobotOpMode
+VAR_INPUT
+    ModeText : STRING(64);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF ModeText = 'AUTO' THEN
+    _M_ToMode := E_RobotOpMode.AUTO_REMOTE;
+ELSIF ModeText = 'MANR' THEN
+    _M_ToMode := E_RobotOpMode.MANUAL_REDUCED;
+ELSIF ModeText = 'MANH' THEN
+    _M_ToMode := E_RobotOpMode.MANUAL_HIGH;
+ELSE
+    _M_ToMode := E_RobotOpMode.UNKNOWN;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_MakeCtrlDiag" Id="{d519db20-deb7-4591-bca1-846188b4f473}">
+        <Declaration><![CDATA[// Wrap the controller's own error into a Fraktal diagnostic without translating it.
+METHOD PRIVATE _M_MakeCtrlDiag : ST_Diagnostic
+VAR_INPUT
+    Code : STRING(64);
+    Text : STRING(64);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_MakeCtrlDiag.ReasonCode  := PL_ModuleReasons.ROBOT_CONTROLLER_FAULT;
+_M_MakeCtrlDiag.Description := CONCAT(CONCAT(Code, ' '), Text);
+_M_MakeCtrlDiag.SourcePath  := Name;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_MakeLinkDiag" Id="{6e83df8a-719c-4ade-9443-312017ac002f}">
+        <Declaration><![CDATA[// The link is the reason a request was refused; reuse the Framework band rather
+// than minting a robot code for a transport fact (Annex D).
+METHOD PRIVATE _M_MakeLinkDiag : ST_Diagnostic]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_MakeLinkDiag.ReasonCode  := E_Reason.LINK_TIMEOUT;
+_M_MakeLinkDiag.Description := 'std.error.robotLinkDown';
+_M_MakeLinkDiag.SourcePath  := Name;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="PowerOn" Id="{bbd99df2-eba9-4dfc-88ab-75ad65d57d61}">
+        <Declaration><![CDATA[METHOD PowerOn : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[PowerOn := _M_Request('PWR,1');]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="PowerOff" Id="{55270009-dace-45f8-8f1e-10268c8359a5}">
+        <Declaration><![CDATA[METHOD PowerOff : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[PowerOff := _M_Request('PWR,0');]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Home" Id="{5f449656-2352-4bf8-aba9-b50defe8f7ef}">
+        <Declaration><![CDATA[METHOD Home : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Home := _M_Request('HOME');]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="MoveToPoint" Id="{7f11d6f5-f3ca-4b5d-b5a0-eb0f3261cea3}">
+        <Declaration><![CDATA[METHOD MoveToPoint : BOOL
+VAR_INPUT
+    PointId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MoveToPoint := _M_Request(CONCAT('MOV,', DWORD_TO_STRING(PointId)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RunPath" Id="{04b0ab0c-3312-4a06-b1d8-a7965da81da9}">
+        <Declaration><![CDATA[METHOD RunPath : BOOL
+VAR_INPUT
+    ListId   : DWORD;
+    StartIdx : DINT;
+    EndIdx   : DINT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RunPath := _M_Request(CONCAT(CONCAT(CONCAT(CONCAT(CONCAT(
+    'PTH,', DWORD_TO_STRING(ListId)), ','), DINT_TO_STRING(StartIdx)), ','),
+    DINT_TO_STRING(EndIdx)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Interrupt" Id="{327c88cb-1c44-44b0-ae81-226778fe9147}">
+        <Declaration><![CDATA[METHOD Interrupt : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Interrupt := _M_Request('INT');]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Resume" Id="{59a5e84a-60c3-4452-98ad-d7b2a0090c74}">
+        <Declaration><![CDATA[METHOD Resume : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Refuse rather than execute when the arm has left the retained path (I.4b).
+IF NOT _resumable THEN
+    Resume := FALSE;
+    RETURN;
+END_IF
+Resume := _M_Request('RES');]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Abort" Id="{7a25c84d-c5d6-4caa-9b67-4021e7088ac1}">
+        <Declaration><![CDATA[METHOD Abort : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Abort := _M_Request('ABT');
+_busy := FALSE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="ResetController" Id="{0f479641-7552-4115-836c-726980761004}">
+        <Declaration><![CDATA[METHOD ResetController : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ResetController := _M_Request('RST');]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RequestMode" Id="{eea2ae8b-2d1d-4c73-b27d-2443d7f719e2}">
+        <Declaration><![CDATA[METHOD RequestMode : BOOL
+VAR_INPUT
+    Mode : E_RobotOpMode;
+END_VAR
+VAR
+    _s : STRING(8);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CASE Mode OF
+    E_RobotOpMode.AUTO_REMOTE:    _s := 'AUTO';
+    E_RobotOpMode.MANUAL_REDUCED: _s := 'MANR';
+    E_RobotOpMode.MANUAL_HIGH:    _s := 'MANH';
+ELSE
+    // Requesting UNKNOWN is meaningless and must not reach the controller.
+    RequestMode := FALSE;
+    RETURN;
+END_CASE
+// Record what we ASKED for. ActualMode stays whatever the controller reports, so
+// an ungranted request stays visibly ungranted (I.4a(a)).
+_reqMode := Mode;
+RequestMode := _M_Request(CONCAT('MOD,', _s));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetTool" Id="{129e2a2e-a7c1-4ec4-8af9-f4bd07dfc4a6}">
+        <Declaration><![CDATA[METHOD SetTool : BOOL
+VAR_INPUT
+    ToolId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[SetTool := _M_Request(CONCAT('TOO,', DWORD_TO_STRING(ToolId)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetFrame" Id="{c1c45f1f-4fbe-447a-9d6b-a8a6f0209775}">
+        <Declaration><![CDATA[METHOD SetFrame : BOOL
+VAR_INPUT
+    FrameId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[SetFrame := _M_Request(CONCAT('FRM,', DWORD_TO_STRING(FrameId)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetPayload" Id="{35ef4ac1-97ef-4267-a95d-15585babd33d}">
+        <Declaration><![CDATA[METHOD SetPayload : BOOL
+VAR_INPUT
+    LoadId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[SetPayload := _M_Request(CONCAT('PLD,', DWORD_TO_STRING(LoadId)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Jog" Id="{76bf5120-d5cf-476e-acf6-48a865a9e98c}">
+        <Declaration><![CDATA[METHOD Jog : BOOL
+VAR_INPUT
+    Mode : E_RobotJogMode;
+    Axis : INT;
+    Dir  : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// Jogging requires a manual mode on the CONTROLLER, not merely a PLC release:
+// the mode is what physically bounds the motion (I.4a(a)).
+IF (_mode <> E_RobotOpMode.MANUAL_REDUCED) AND (_mode <> E_RobotOpMode.MANUAL_HIGH) THEN
+    Jog := FALSE;
+    RETURN;
+END_IF
+Jog := _M_Request(CONCAT(CONCAT(CONCAT(CONCAT(CONCAT(
+    'JOG,', DINT_TO_STRING(Mode)), ','), INT_TO_STRING(Axis)), ','),
+    INT_TO_STRING(Dir)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RunPallet" Id="{a95bf979-7b9b-4afb-a12c-79bf849afc6a}">
+        <Declaration><![CDATA[METHOD RunPallet : BOOL
+VAR_INPUT
+    PalletId : DWORD;
+    Nest     : DINT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RunPallet := _M_Request(CONCAT(CONCAT(CONCAT(
+    'PAL,', DWORD_TO_STRING(PalletId)), ','), DINT_TO_STRING(Nest)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="MoveTemplate" Id="{b797f910-7b11-46e1-a786-6cdd195a3c4e}">
+        <Declaration><![CDATA[METHOD MoveTemplate : BOOL
+VAR_INPUT
+    FromPosId : DWORD;
+    ToPosId   : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MoveTemplate := _M_Request(CONCAT(CONCAT(CONCAT(
+    'TPL,', DWORD_TO_STRING(FromPosId)), ','), DWORD_TO_STRING(ToPosId)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="MoveFromArea" Id="{008dd993-f65f-4557-b03e-d598268a793f}">
+        <Declaration><![CDATA[METHOD MoveFromArea : BOOL
+VAR_INPUT
+    ToPosId : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[MoveFromArea := _M_Request(CONCAT('ARE,', DWORD_TO_STRING(ToPosId)));]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetSpeedScale" Id="{98f50278-213d-414d-8f96-c6d33430fcd0}">
+        <Declaration><![CDATA[METHOD SetSpeedScale : BOOL
+VAR_INPUT
+    Percent : REAL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Percent < 0.0) OR (Percent > 100.0) THEN
+    SetSpeedScale := FALSE;
+    RETURN;
+END_IF
+SetSpeedScale := _M_Request(CONCAT('SPD,', REAL_TO_STRING(Percent)));]]></ST>
+        </Implementation>
+      </Method>
+      <Property Name="MotionBusy" Id="{f0956d54-6d38-48f0-9562-e484f5918809}">
+        <Declaration><![CDATA[// The ROBOT is moving. The base already owns Busy for its own command handshake;
+// conflating the two would make "is the arm moving" unanswerable.
+PROPERTY MotionBusy : BOOL]]></Declaration>
+        <Get Name="Get" Id="{a5381892-da6c-4060-99a7-114875be5e15}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[MotionBusy := _busy;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="Referenced" Id="{f6da5bbd-9170-46fe-aab6-4ba2d163df1f}">
+        <Declaration><![CDATA[PROPERTY Referenced : BOOL]]></Declaration>
+        <Get Name="Get" Id="{e4d5b359-438b-4310-af83-4702546b2dcf}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[Referenced := _referenced;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ActualMode" Id="{89af3eb8-a92d-4ccd-98bd-6cb0964afaec}">
+        <Declaration><![CDATA[PROPERTY ActualMode : E_RobotOpMode]]></Declaration>
+        <Get Name="Get" Id="{280d8792-f34a-4c51-812b-f5e5a39ecaca}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ActualMode := _mode;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ActualPosition" Id="{3f97e406-bf94-4b90-8f90-d380f1ec8a44}">
+        <Declaration><![CDATA[PROPERTY ActualPosition : ST_RobotPose]]></Declaration>
+        <Get Name="Get" Id="{bfdc57d0-4645-4125-8e1d-5461943ae690}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ActualPosition := _pose;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ControllerMessage" Id="{db7e9172-e4a0-43b1-9b84-93f282013242}">
+        <Declaration><![CDATA[PROPERTY ControllerMessage : ST_Diagnostic]]></Declaration>
+        <Get Name="Get" Id="{ef80fc41-950d-4a20-b2c7-426cd57bc522}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ControllerMessage := _ctrlMsg;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="CurrentArea" Id="{57b20bde-713f-4c6e-a7e5-838fa857a0b4}">
+        <Declaration><![CDATA[PROPERTY CurrentArea : DWORD]]></Declaration>
+        <Get Name="Get" Id="{38bfd89e-d8e1-4126-aa32-7ec41929589c}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[CurrentArea := _area;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ProtectiveStop" Id="{60832d5a-56a5-4fcf-b9d2-86725d1e1509}">
+        <Declaration><![CDATA[PROPERTY ProtectiveStop : BOOL]]></Declaration>
+        <Get Name="Get" Id="{1dcc023c-0a2c-4c1c-9cc5-abc19da6b6bf}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ProtectiveStop := _protStop;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="Resumable" Id="{c10d40f8-2956-48c3-af3f-f5e5e71f0541}">
+        <Declaration><![CDATA[PROPERTY Resumable : BOOL]]></Declaration>
+        <Get Name="Get" Id="{dbb1a353-2dba-49ac-b0d5-54f1a8bd5884}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[Resumable := _resumable;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="LastResult" Id="{7dbf588b-8388-44db-bd78-d2b17a4d29c5}">
+        <Declaration><![CDATA[PROPERTY LastResult : ST_Diagnostic]]></Declaration>
+        <Get Name="Get" Id="{286175bc-89fc-47a8-a259-2b7d9f8d9c40}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[LastResult := _lastResult;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+  </POU>
+</TcPlcObject>

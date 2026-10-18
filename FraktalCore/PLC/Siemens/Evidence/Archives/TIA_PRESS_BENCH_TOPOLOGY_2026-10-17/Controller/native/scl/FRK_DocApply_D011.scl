@@ -1,0 +1,37 @@
+﻿FUNCTION "FRK_DocApply_D011" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      Index : Int;
+      Stored : Int;
+      Position : DInt;
+      NativeResult : Int;
+      Ok : Bool;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_DocApply_D011 := FALSE;
+	#Position := 24;
+	#NativeResult := Deserialize(SRC_ARRAY := "FRK_PersistBuffers".D011Data, DEST_VARIABLE => "FRK_PersistImages".D011, POS := #Position);
+	IF #NativeResult <> 0 OR #Position <> 24 + UDINT_TO_DINT("FRK_PersistConsumers".Rows[11].Result.Length) THEN
+	    RETURN;
+	END_IF;
+	IF "FRK_PersistImages".D011.SchemaVersion <> 1 OR "FRK_PersistImages".D011.Scope <> 'PressDemo' THEN
+	    RETURN;
+	END_IF;
+	IF NOT "FRK_LineApply"(Image := "FRK_PersistImages".D011.Image,
+	                           Restore := TRUE,
+	                           NowMs := "FRK_Clock".NowMs,
+	                           Stamp := LDT#1970-01-01-00:00:00,
+	                           TimeSynchronized := FALSE,
+	                           State := "FRK_Line".Data) THEN
+	    RETURN;
+	END_IF;
+	"FRK_Line".Data.Dirty := FALSE;
+	"FRK_Line".Data.BuiltRevision := "FRK_Line".Data.Status.Revision;
+	#FRK_DocApply_D011 := TRUE;
+	
+END_FUNCTION
+

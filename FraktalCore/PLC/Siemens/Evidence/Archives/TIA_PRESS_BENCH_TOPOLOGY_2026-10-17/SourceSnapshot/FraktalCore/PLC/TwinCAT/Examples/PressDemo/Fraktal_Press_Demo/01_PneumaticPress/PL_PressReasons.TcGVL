@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="PL_PressReasons" Id="{2a6704a3-36dd-42cd-9086-8023b0f0248d}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Core §8.8 band constants for THIS project: pneumatic press 12000-12999.
+// Project codes deliberately sit outside the shipped registry, so a message
+// raised with one keeps the severity and category the step chose.
+VAR_GLOBAL CONSTANT
+    PRESS_TWO_HAND_RELEASED : DINT := 12001;   // released mid-motion: cycle aborted, no damage
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

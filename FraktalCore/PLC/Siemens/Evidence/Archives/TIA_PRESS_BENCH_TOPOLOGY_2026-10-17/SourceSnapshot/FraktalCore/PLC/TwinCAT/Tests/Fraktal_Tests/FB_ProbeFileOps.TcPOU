@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeFileOps" Id="{c1c8e166-f78e-4f98-bef2-b2311f883fd2}" SpecialFunc="None">
+    <Declaration><![CDATA[// Test-only file operations on the isolated test runtime: delete a file, write
+// raw bytes, create or remove a directory - the damage a power cut, an operator or
+// a full disk does to retained data, staged deliberately. One operation at a time:
+// start it with an M_ call while Busy is FALSE, then call Cyclic until Busy drops.
+FUNCTION_BLOCK FB_ProbeFileOps
+VAR_OUTPUT
+    Busy    : BOOL;
+    Error   : BOOL;     // the last operation failed
+    ErrorId : UDINT;
+END_VAR
+VAR
+    _delete : Tc2_System.FB_FileDelete;
+    _mkdir  : Tc2_System.FB_CreateDir;
+    _rmdir  : Tc2_System.FB_RemoveDir;
+    _open   : Tc2_System.FB_FileOpen;
+    _write  : Tc2_System.FB_FileWrite;
+    _close  : Tc2_System.FB_FileClose;
+    _phase  : INT;
+    _path   : STRING(255);
+    _where  : Tc2_System.E_OpenPath;
+    _pData  : PVOID;
+    _size   : UDINT;
+    _handle : UINT;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="M_Delete" Id="{83efb570-ea8d-4899-aa43-ecb7ae8db9fd}">
+      <Declaration><![CDATA[METHOD M_Delete : BOOL
+VAR_INPUT
+    Path  : STRING(255);
+    Where : Tc2_System.E_OpenPath;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Delete := _M_Start(Path := Path, Where := Where, Phase := 10);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_MakeDir" Id="{a1b7e266-b68e-413c-aedb-4cb8ae8fd908}">
+      <Declaration><![CDATA[METHOD M_MakeDir : BOOL
+VAR_INPUT
+    Path  : STRING(255);
+    Where : Tc2_System.E_OpenPath;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_MakeDir := _M_Start(Path := Path, Where := Where, Phase := 20);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RemoveDir" Id="{e162cf17-6733-4e03-9843-b9ccc8a864a1}">
+      <Declaration><![CDATA[METHOD M_RemoveDir : BOOL
+VAR_INPUT
+    Path  : STRING(255);
+    Where : Tc2_System.E_OpenPath;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RemoveDir := _M_Start(Path := Path, Where := Where, Phase := 30);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Write" Id="{98541a83-f7e2-44bd-af13-99c0f0b33f0f}">
+      <Declaration><![CDATA[// Create or truncate Path and write Size bytes from pData.
+METHOD M_Write : BOOL
+VAR_INPUT
+    Path  : STRING(255);
+    Where : Tc2_System.E_OpenPath;
+    pData : PVOID;
+    Size  : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_pData := pData;
+_size := Size;
+M_Write := _M_Start(Path := Path, Where := Where, Phase := 40);]]></ST></Implementation>
+    </Method>
+    <Method Name="Cyclic" Id="{1ce4657b-37d2-423c-88ee-38e221d444a4}">
+      <Declaration><![CDATA[METHOD Cyclic : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[CASE _phase OF
+    0:
+        ;
+    10:
+        _delete(bExecute := FALSE);
+        _delete(sNetId := '', sPathName := _path, ePath := _where, bExecute := TRUE, tTimeout := T#3S);
+        _phase := 11;
+    11:
+        _delete(bExecute := FALSE);
+        IF NOT _delete.bBusy THEN
+            _M_Done(Failed := _delete.bError, Id := _delete.nErrId);
+        END_IF
+    20:
+        _mkdir(bExecute := FALSE);
+        _mkdir(sNetId := '', sPathName := _path, ePath := _where, bExecute := TRUE, tTimeout := T#3S);
+        _phase := 21;
+    21:
+        _mkdir(bExecute := FALSE);
+        IF NOT _mkdir.bBusy THEN
+            _M_Done(Failed := _mkdir.bError, Id := _mkdir.nErrId);
+        END_IF
+    30:
+        _rmdir(bExecute := FALSE);
+        _rmdir(sNetId := '', sPathName := _path, ePath := _where, bExecute := TRUE, tTimeout := T#3S);
+        _phase := 31;
+    31:
+        _rmdir(bExecute := FALSE);
+        IF NOT _rmdir.bBusy THEN
+            _M_Done(Failed := _rmdir.bError, Id := _rmdir.nErrId);
+        END_IF
+    40:
+        _open(bExecute := FALSE);
+        _open(sNetId := '', sPathName := _path,
+            nMode := Tc2_System.FOPEN_MODEWRITE OR Tc2_System.FOPEN_MODEBINARY,
+            ePath := _where, bExecute := TRUE, tTimeout := T#3S);
+        _phase := 41;
+    41:
+        _open(bExecute := FALSE);
+        IF NOT _open.bBusy THEN
+            IF _open.bError THEN
+                _M_Done(Failed := TRUE, Id := _open.nErrId);
+            ELSE
+                _handle := _open.hFile;
+                _write(bExecute := FALSE);
+                _write(sNetId := '', hFile := _handle, pWriteBuff := _pData,
+                    cbWriteLen := _size, bExecute := TRUE, tTimeout := T#3S);
+                _phase := 42;
+            END_IF
+        END_IF
+    42:
+        _write(bExecute := FALSE);
+        IF NOT _write.bBusy THEN
+            Error := _write.bError OR (_write.cbWrite <> _size);
+            ErrorId := _write.nErrId;
+            _close(bExecute := FALSE);
+            _close(sNetId := '', hFile := _handle, bExecute := TRUE, tTimeout := T#3S);
+            _phase := 43;
+        END_IF
+    43:
+        _close(bExecute := FALSE);
+        IF NOT _close.bBusy THEN
+            _M_Done(Failed := Error OR _close.bError, Id := SEL(_close.bError, ErrorId, _close.nErrId));
+        END_IF
+ELSE
+    _M_Done(Failed := TRUE, Id := 0);
+END_CASE
+Cyclic := NOT Busy;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Start" Id="{6deb0ec3-71c1-4b29-b679-f901a311014a}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Start : BOOL
+VAR_INPUT
+    Path  : STRING(255);
+    Where : Tc2_System.E_OpenPath;
+    Phase : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Start := FALSE;
+IF Busy THEN
+    RETURN;
+END_IF
+_path := Path;
+_where := Where;
+_phase := Phase;
+Busy := TRUE;
+Error := FALSE;
+ErrorId := 0;
+_M_Start := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Done" Id="{f7d05abe-e6a8-4634-bd9f-a373f826e360}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Done
+VAR_INPUT
+    Failed : BOOL;
+    Id     : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[Error := Failed;
+ErrorId := Id;
+Busy := FALSE;
+_phase := 0;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

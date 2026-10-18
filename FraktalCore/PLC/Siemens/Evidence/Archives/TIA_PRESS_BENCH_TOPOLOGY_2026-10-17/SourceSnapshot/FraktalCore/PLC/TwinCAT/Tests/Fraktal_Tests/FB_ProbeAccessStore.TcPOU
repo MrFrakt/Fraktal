@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeAccessStore" Id="{a3f55582-6a66-4661-8a4a-0a866299ac35}" SpecialFunc="None">
+    <Declaration><![CDATA[// Test double: an access provider that also retains its table, with every store
+// outcome settable, so a root's handling of a failed save or a lost table is
+// tested without staging damage on the runtime's file system.
+FUNCTION_BLOCK FB_ProbeAccessStore IMPLEMENTS I_AccessProvider, I_AccessStore
+VAR_INPUT
+    RestoreLost : BOOL;
+    SaveFailed  : BOOL;
+END_VAR
+VAR_OUTPUT
+    Serviced : UDINT;           // M_Service calls received
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    <Method Name="Authenticate" Id="{bcfeefb1-d9e9-4b1a-a15a-b0565abcda41}">
+      <Declaration><![CDATA[METHOD Authenticate : E_AccessLevel
+VAR_INPUT
+    User : STRING(32);
+    Secret : STRING(32);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[Authenticate := E_AccessLevel.NONE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Service" Id="{0a1d3b55-5c84-4a7e-9a7b-3f1c2d4e5f61}">
+      <Declaration><![CDATA[METHOD M_Service : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[Serviced := Serviced + 1;
+M_Service := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RestoreLost" Id="{1b2e4c66-6d95-4b8f-8b8c-4f2d3e5f6a72}">
+      <Declaration><![CDATA[METHOD M_RestoreLost : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_RestoreLost := RestoreLost;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_SaveFailed" Id="{2c3f5d77-7ea6-4c90-9c9d-5a3e4f6a7b83}">
+      <Declaration><![CDATA[METHOD M_SaveFailed : BOOL]]></Declaration>
+      <Implementation><ST><![CDATA[M_SaveFailed := SaveFailed;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

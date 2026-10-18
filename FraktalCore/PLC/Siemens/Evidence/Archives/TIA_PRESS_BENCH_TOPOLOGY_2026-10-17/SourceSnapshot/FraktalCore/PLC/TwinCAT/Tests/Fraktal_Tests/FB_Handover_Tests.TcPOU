@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_Handover_Tests" Id="{b334825f-131b-4225-8738-93311baa4e5d}" SpecialFunc="None">
+    <Declaration><![CDATA[// AB-to-TC3 portable behavior, exercised in the actual IEC implementation.
+FUNCTION_BLOCK FB_Handover_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _models : FB_ProbeRecipeCatalog;
+    _unit : FB_ProbeModelUnit;
+    _shift : FB_ProbeConfigUnit;
+    _line : FB_ProbeWeeklyLine;
+    _schedule : FB_ShiftSchedule;
+    _calendar : ST_ShiftCalendarV3;
+    _daily : ST_ShiftCalendar;
+    _v2 : ST_ShiftCalendarV2;
+    _loaded, _default, _a, _b : ST_ProbeModelParCfg;
+    _store : FB_LocalConfigStore;
+    _info : ST_ConfigSetInfo;
+    _record : ST_ConfigRecord;
+    _json : FB_ConfigSetJson;
+    _init : BOOL;
+    _done : ARRAY[1..18] OF BOOL;
+    _idx : INT;
+    _start, _end : DT;
+    _target : UDINT;
+    _i : INT;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF NOT _init THEN
+    _init := TRUE;
+    _models.M_ResetFixture();
+    _default.Speed := 1; _a.Speed := 10; _b.Speed := 20;
+    _models.Register(ModelCode := '', RecipeKey := 'ProbeModel', pData := ADR(_default), Size := SIZEOF(_default));
+    _models.Register(ModelCode := 'A', RecipeKey := 'ProbeModel', pData := ADR(_a), Size := SIZEOF(_a));
+    _models.Register(ModelCode := 'B', RecipeKey := 'ProbeModel', pData := ADR(_b), Size := SIZEOF(_b));
+    _unit.ParCfg := _default;
+    _unit.Setup(Name := 'Test.Handover', Provider := _models);
+    _unit();
+    _unit.SetConfigStore(Store := _store);
+    FOR _i := 1 TO PL_Fraktal.MAX_CONFIG_SETS DO
+        IF _store.M_InfoAt(Index := 1, Info := _info) THEN _store.M_Delete(SetName := _info.SetName); END_IF
+    END_FOR
+    _line.M_ResetFixture();
+    _line.Setup(Name := 'Test.WeeklyLine', LineId := 'handover', Role := E_LineRole.OWNER,
+        Source := 0, StaleAfterMs := 0);
+    _line();
+    _shift.Setup(Name := 'Test.Weekly');
+    _shift.SetLine(pLine := ADR(_line));
+END_IF
+Clone_is_inactive_and_preserves_ordinals();
+Duplicate_missing_and_oversize_models_are_atomic();
+Clone_rechecks_effective_read_and_write_access();
+Complete_model_set_creates_without_running_load();
+Current_export_is_immutable_and_uses_no_saved_slot();
+Current_export_replay_and_connection_mix_are_refused();
+Current_export_rechecks_permissions_and_logout();
+Aborted_overwrite_preserves_the_previous_saved_set();
+Daily_and_V2_migration_preserve_identity_and_disable_fifth();
+Weekly_validation_rejects_overlap_wrap_and_bad_ranges();
+Five_rows_select_their_own_weekday_boundaries();
+Whole_calendar_transaction_is_atomic();
+Off_time_production_and_empty_calendar_edits_are_preserved();
+Target_edits_wait_for_boundary_and_history_is_immutable();
+Clock_jumps_close_once_without_negative_history();
+Manual_OEE_reset_aligns_factors_with_new_count_epoch();
+Busy_creation_and_full_catalog_preserve_existing_storage();
+Weekly_owner_builds_its_complete_image();]]></ST></Implementation>
+    <Method Name="Clone_is_inactive_and_preserves_ordinals" Id="{fd42758a-ac9a-4c2a-9acd-baf21802fbf3}">
+      <Declaration><![CDATA[METHOD Clone_is_inactive_and_preserves_ordinals]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Clone_is_inactive_and_preserves_ordinals');
+IF NOT _done[1] THEN
+AssertTrue(Condition := _unit.CreateModel(ModelCode := 'C', SourceIndex := 2,
+    FromSet := FALSE, SetName := ''), Message := 'clone accepted');
+AssertEquals_INT(Expected := 3, Actual := _unit.AvailableModelCount, Message := 'appended');
+AssertEquals_STRING(Expected := 'A', Actual := _unit.AvailableModels[1].ModelCode, Message := 'ordinal A unchanged');
+AssertEquals_STRING(Expected := 'B', Actual := _unit.AvailableModels[2].ModelCode, Message := 'ordinal B unchanged');
+AssertEquals_DINT(Expected := 1, Actual := _unit.ParCfg.Speed, Message := 'live recipe unchanged');
+AssertTrue(Condition := _models.Load(ModelCode := 'C', RecipeKey := 'ProbeModel',
+    pParCfg := ADR(_loaded), Size := SIZEOF(_loaded)), Message := 'provider owns clone');
+AssertEquals_DINT(Expected := 20, Actual := _loaded.Speed, Message := 'source model copied');
+    _done[1] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Duplicate_missing_and_oversize_models_are_atomic" Id="{0868261e-4f47-4cd0-836d-e9ffe8f7d3b3}">
+      <Declaration><![CDATA[METHOD Duplicate_missing_and_oversize_models_are_atomic]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Duplicate_missing_and_oversize_models_are_atomic');
+IF NOT _done[2] THEN
+AssertFalse(Condition := _unit.CreateModel(ModelCode := 'C', SourceIndex := 0, FromSet := FALSE,
+    SetName := ''), Message := 'duplicate refused');
+AssertFalse(Condition := _unit.CreateModel(ModelCode := 'D', SourceIndex := 99, FromSet := FALSE,
+    SetName := ''), Message := 'missing source refused');
+AssertFalse(Condition := _unit.CreateModel(ModelCode := 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm',
+    SourceIndex := 0, FromSet := FALSE, SetName := ''), Message := '65-byte code refused');
+AssertEquals_INT(Expected := 3, Actual := _unit.AvailableModelCount, Message := 'no partial publication');
+    _done[2] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Clone_rechecks_effective_read_and_write_access" Id="{09aee070-6c0d-4695-8a7e-966b03d89fe4}">
+      <Declaration><![CDATA[METHOD Clone_rechecks_effective_read_and_write_access]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Clone_rechecks_effective_read_and_write_access');
+IF NOT _done[3] THEN
+_unit.M_SetConfigAccess(WriteKey := 'probe.speed', ClassId := '',
+    MinReadLevel := E_AccessLevel.ENGINEER, MinWriteLevel := E_AccessLevel.NONE);
+AssertFalse(Condition := _unit.CreateModel(ModelCode := 'DeniedRead', SourceIndex := 0,
+    FromSet := FALSE, SetName := ''), Message := 'read denied');
+_unit.M_SetConfigAccess(WriteKey := 'probe.speed', ClassId := '',
+    MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.ENGINEER);
+AssertFalse(Condition := _unit.CreateModel(ModelCode := 'DeniedWrite', SourceIndex := 0,
+    FromSet := FALSE, SetName := ''), Message := 'write denied');
+_unit.M_SetConfigAccess(WriteKey := 'probe.speed', ClassId := '',
+    MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.NONE);
+AssertEquals_INT(Expected := 3, Actual := _unit.AvailableModelCount, Message := 'denials leave catalog');
+    _done[3] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Complete_model_set_creates_without_running_load" Id="{51aab063-6491-49e9-a73d-a5ecd58e72bb}">
+      <Declaration><![CDATA[METHOD Complete_model_set_creates_without_running_load]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Complete_model_set_creates_without_running_load');
+IF NOT _done[4] THEN
+AssertTrue(Condition := _unit.SaveConfigSet(SetName := 'model-source', Kind := E_ConfigKind.PAR_CFG),
+    Message := 'model snapshot saved');
+AssertFalse(Condition := _unit.LoadConfigSet(SetName := 'model-source'), Message := 'running load still refused');
+AssertTrue(Condition := _unit.CreateModel(ModelCode := 'FromSet', SourceIndex := 0,
+    FromSet := TRUE, SetName := 'model-source'), Message := 'complete Model set creates');
+AssertEquals_DINT(Expected := 1, Actual := _unit.ParCfg.Speed, Message := 'running recipe stays');
+    _done[4] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Current_export_is_immutable_and_uses_no_saved_slot" Id="{cefbc7a0-0b68-4b22-81e9-32d5bfb77e97}">
+      <Declaration><![CDATA[METHOD Current_export_is_immutable_and_uses_no_saved_slot]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Current_export_is_immutable_and_uses_no_saved_slot');
+IF NOT _done[5] THEN
+_unit.HmiRequest.Kind := E_HmiRequestKind.EXPORT_CURRENT_CONFIG;
+_unit.HmiRequest.TextValue := 'current'; _unit.HmiRequest.NameValue := 'connection-A';
+_unit.HmiRequest.IntValue := TO_DINT(E_ConfigKind.PAR_CFG); _unit.HmiRequest.DurationMs := 2;
+_unit.HmiRequest.Sequence := _unit.HmiRequest.Sequence + 1; _unit();
+AssertTrue(Condition := _unit.HmiResponse.Accepted, Message := 'current header accepted');
+_b.Speed := 99; // simulated owner update after capture, no mailbox interleaving
+_unit.HmiRequest.Kind := E_HmiRequestKind.EXPORT_CONFIG_SET;
+_unit.HmiRequest.IntValue := 1; _unit.HmiRequest.Sequence := _unit.HmiRequest.Sequence + 1; _unit();
+AssertTrue(Condition := _unit.HmiResponse.Accepted, Message := 'continuation accepted');
+AssertTrue(Condition := _json.M_ParseRecord(Line := _unit.ConfigSetDocument, Record := _record), Message := 'complete JSON record');
+AssertEquals_STRING(Expected := '20', Actual := _record.ValueText, Message := 'captured value immutable');
+AssertEquals_INT(Expected := 1, Actual := _store.M_Count(), Message := 'no saved slot consumed');
+    _done[5] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Current_export_replay_and_connection_mix_are_refused" Id="{897a14a5-db01-4c6d-8aeb-5d6a8f5c79fc}">
+      <Declaration><![CDATA[METHOD Current_export_replay_and_connection_mix_are_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Current_export_replay_and_connection_mix_are_refused');
+IF NOT _done[6] THEN
+AssertTrue(Condition := _unit.ExportCurrentConfig(SetName := 'current', Kind := E_ConfigKind.PAR_CFG,
+    ModelIndex := 0, Token := 'connection-A'), Message := 'snapshot opened');
+_unit.HmiRequest.Kind := E_HmiRequestKind.EXPORT_CONFIG_SET;
+_unit.HmiRequest.NameValue := 'connection-B'; _unit.HmiRequest.TextValue := 'current';
+_unit.HmiRequest.IntValue := 1; _unit.HmiRequest.Sequence := _unit.HmiRequest.Sequence + 1; _unit();
+AssertFalse(Condition := _unit.HmiResponse.Accepted, Message := 'foreign connection refused');
+_unit.HmiRequest.NameValue := 'connection-A'; _unit.HmiRequest.Sequence := _unit.HmiRequest.Sequence + 1; _unit();
+AssertFalse(Condition := _unit.HmiResponse.Accepted, Message := 'interrupted cursor cannot replay');
+    _done[6] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Current_export_rechecks_permissions_and_logout" Id="{ce52b5b5-1cca-4ebf-ad99-d063310580a3}">
+      <Declaration><![CDATA[METHOD Current_export_rechecks_permissions_and_logout]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Current_export_rechecks_permissions_and_logout');
+IF NOT _done[7] THEN
+AssertTrue(Condition := _unit.ExportCurrentConfig(SetName := 'current', Kind := E_ConfigKind.PAR_CFG,
+    ModelIndex := 0, Token := 'permission'), Message := 'snapshot opened');
+_unit.M_SetConfigAccess(WriteKey := 'probe.speed', ClassId := '',
+    MinReadLevel := E_AccessLevel.ADMIN, MinWriteLevel := E_AccessLevel.NONE);
+_unit.HmiRequest.Kind := E_HmiRequestKind.EXPORT_CONFIG_SET;
+_unit.HmiRequest.NameValue := 'permission'; _unit.HmiRequest.TextValue := 'current';
+_unit.HmiRequest.IntValue := 1; _unit.HmiRequest.Sequence := _unit.HmiRequest.Sequence + 1; _unit();
+AssertFalse(Condition := _unit.HmiResponse.Accepted, Message := 'read downgrade stops continuation');
+AssertEquals_STRING(Expected := '', Actual := _unit.ConfigSetDocument, Message := 'no disclosure');
+_unit.M_SetConfigAccess(WriteKey := 'probe.speed', ClassId := '',
+    MinReadLevel := E_AccessLevel.NONE, MinWriteLevel := E_AccessLevel.NONE);
+AssertTrue(Condition := _unit.ExportCurrentConfig(SetName := 'current', Kind := E_ConfigKind.PAR_CFG,
+    ModelIndex := 0, Token := 'logout'), Message := 'second snapshot opened');
+_unit.Access.RequestLogout();
+_unit.HmiRequest.NameValue := 'logout';
+_unit.HmiRequest.Sequence := _unit.HmiRequest.Sequence + 1; _unit();
+AssertFalse(Condition := _unit.HmiResponse.Accepted, Message := 'logout invalidates snapshot session');
+AssertEquals_STRING(Expected := '', Actual := _unit.ConfigSetDocument, Message := 'pending logout discloses no line');
+    _done[7] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Aborted_overwrite_preserves_the_previous_saved_set" Id="{8b9ec677-4765-4a3b-9d29-05f233161595}">
+      <Declaration><![CDATA[METHOD Aborted_overwrite_preserves_the_previous_saved_set]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Aborted_overwrite_preserves_the_previous_saved_set');
+IF NOT _done[8] THEN
+_store.M_ReadInfo(SetName := 'model-source', Info := _info);
+_store.M_ReadRecord(SetName := 'model-source', Index := 1, Record := _record);
+AssertTrue(Condition := _store.M_SaveBegin(Info := _info), Message := 'overwrite begins');
+_record.ValueText := '123'; _store.M_SaveRecord(Record := _record);
+_store.M_SaveAbort();
+_store.M_ReadRecord(SetName := 'model-source', Index := 1, Record := _record);
+AssertEquals_STRING(Expected := '1', Actual := _record.ValueText, Message := 'old set stays byte-valid');
+    _done[8] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Daily_and_V2_migration_preserve_identity_and_disable_fifth" Id="{878faf76-6215-4027-918a-f14651ba4c6e}">
+      <Declaration><![CDATA[METHOD Daily_and_V2_migration_preserve_identity_and_disable_fifth]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Daily_and_V2_migration_preserve_identity_and_disable_fifth');
+IF NOT _done[9] THEN
+FOR _i := 1 TO PL_Fraktal.MAX_SHIFTS DO _daily.StartMin[_i] := -1; END_FOR
+_daily.UtcOffsetMin := -840; _daily.StartMin[2] := 360;
+AssertTrue(Condition := _schedule.M_MigrateV1(Source := _daily, Target := _calendar), Message := 'sole daily row migrates');
+AssertEquals_DINT(Expected := 1440, Actual := _calendar.Rows[2].DurationMin, Message := 'sole row 24 hours');
+AssertEquals_DINT(Expected := 127, Actual := _calendar.Rows[2].ActiveDays, Message := 'all weekdays');
+AssertEquals_DINT(Expected := -1, Actual := _calendar.Rows[5].StartMin, Message := 'fifth unused');
+_v2.SchemaVersion := 2; _v2.UtcOffsetMin := 0;
+_v2.Rows[4].StartMin := 480; _v2.Rows[4].DurationMin := 720; _v2.Rows[4].ActiveDays := 96;
+AssertTrue(Condition := _schedule.M_MigrateV2(Source := _v2, Target := _calendar), Message := 'weekly V2 migrates');
+AssertEquals_DINT(Expected := 480, Actual := _calendar.Rows[4].StartMin, Message := 'index four preserved');
+AssertEquals_DINT(Expected := 0, Actual := _calendar.Rows[4].ProductionTarget, Message := 'no invented target');
+    _done[9] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Weekly_validation_rejects_overlap_wrap_and_bad_ranges" Id="{a16d05da-db3b-410e-949c-4aa4eee249ab}">
+      <Declaration><![CDATA[METHOD Weekly_validation_rejects_overlap_wrap_and_bad_ranges]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Weekly_validation_rejects_overlap_wrap_and_bad_ranges');
+IF NOT _done[10] THEN
+_calendar.SchemaVersion := 3; _calendar.UtcOffsetMin := 0;
+FOR _i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    _calendar.Rows[_i].StartMin := -1; _calendar.Rows[_i].ActiveDays := 0;
+    _calendar.Rows[_i].DurationMin := 60; _calendar.Rows[_i].ProductionTarget := 0;
+END_FOR
+_calendar.Rows[1].StartMin := 1380; _calendar.Rows[1].DurationMin := 120; _calendar.Rows[1].ActiveDays := 64;
+_calendar.Rows[2].StartMin := 0; _calendar.Rows[2].DurationMin := 60; _calendar.Rows[2].ActiveDays := 1;
+AssertFalse(Condition := _schedule.M_Validate(Calendar := _calendar), Message := 'Sunday wrap overlaps Monday');
+_calendar.Rows[2].StartMin := 60;
+AssertTrue(Condition := _schedule.M_Validate(Calendar := _calendar), Message := 'half-open adjacency accepted');
+_calendar.Rows[2].DurationMin := 0;
+AssertFalse(Condition := _schedule.M_Validate(Calendar := _calendar), Message := 'zero duration refused');
+_calendar.Rows[2].DurationMin := 60; _calendar.Rows[2].ProductionTarget := -1;
+AssertFalse(Condition := _schedule.M_Validate(Calendar := _calendar), Message := 'negative target refused');
+    _done[10] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Five_rows_select_their_own_weekday_boundaries" Id="{e2d06186-855e-4ade-9ae9-457307a06ebe}">
+      <Declaration><![CDATA[METHOD Five_rows_select_their_own_weekday_boundaries]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Five_rows_select_their_own_weekday_boundaries');
+IF NOT _done[11] THEN
+_calendar.SchemaVersion := 3; _calendar.UtcOffsetMin := 0;
+FOR _i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    _calendar.Rows[_i].StartMin := (_i - 1) * 120; _calendar.Rows[_i].DurationMin := 60;
+    _calendar.Rows[_i].ActiveDays := 1; _calendar.Rows[_i].ProductionTarget := _i * 10;
+END_FOR
+AssertTrue(Condition := _schedule.M_Validate(Calendar := _calendar), Message := 'all five valid');
+FOR _i := 1 TO PL_Fraktal.MAX_WEEKLY_SHIFTS DO
+    _schedule.M_Interval(Now := UDINT_TO_DT(DT_TO_UDINT(DT#2026-10-05-00:00:00) + TO_UDINT((_i - 1) * 7200)),
+        Calendar := _calendar, ShiftIndex => _idx, StartAt => _start, EndAt => _end, Target => _target);
+    AssertEquals_INT(Expected := _i, Actual := _idx, Message := 'each slot activates at its own boundary');
+    AssertEquals_UDINT(Expected := TO_UDINT(_i * 10), Actual := _target, Message := 'own target');
+END_FOR
+    _done[11] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Whole_calendar_transaction_is_atomic" Id="{d1e0c594-1d41-4bd9-9348-dc27e7b423f3}">
+      <Declaration><![CDATA[METHOD Whole_calendar_transaction_is_atomic]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Whole_calendar_transaction_is_atomic');
+IF NOT _done[12] THEN
+AssertTrue(Condition := _line.M_BeginConfigBatch(), Message := 'calendar batch begins');
+_line.M_StageConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.1.startMin', Revision := 1,
+    TextValue := '0', RootReady := TRUE);
+_line.M_StageConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.1.activeDays', Revision := 1,
+    TextValue := '127', RootReady := TRUE);
+_line.M_StageConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.2.startMin', Revision := 1,
+    TextValue := '0', RootReady := TRUE);
+_line.M_StageConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.2.activeDays', Revision := 1,
+    TextValue := '127', RootReady := TRUE);
+AssertFalse(Condition := _line.M_CommitConfigBatch(), Message := 'overlapping whole candidate refused');
+AssertEquals_DINT(Expected := -1, Actual := _line.CalendarV3.Rows[1].StartMin, Message := 'first field stays unchanged');
+    _done[12] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Off_time_production_and_empty_calendar_edits_are_preserved" Id="{1011330c-1302-4d42-b6a4-ec9242b85ffa}">
+      <Declaration><![CDATA[METHOD Off_time_production_and_empty_calendar_edits_are_preserved]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Off_time_production_and_empty_calendar_edits_are_preserved');
+IF NOT _done[13] THEN
+_shift.M_ShiftTick(Now := DT#2026-10-05-00:00:00, Synchronized := TRUE);
+FOR _i := 1 TO 7 DO _shift.CountGood(); END_FOR
+_line.M_ApplyConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.1.productionTarget',
+    Revision := 1, TextValue := '100', RootReady := TRUE); _line();
+AssertFalse(Condition := _shift.M_ShiftTick(Now := DT#2026-10-05-00:01:00, Synchronized := TRUE),
+    Message := 'empty schedule edit does not close off production');
+AssertEquals_UDINT(Expected := 7, Actual := _shift.GoodCount, Message := 'off production remains');
+_line.M_ApplyConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.1.durationMin',
+    Revision := 1, TextValue := '60', RootReady := TRUE);
+_line.M_ApplyConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.1.startMin',
+    Revision := 1, TextValue := '0', RootReady := TRUE);
+_line.M_ApplyConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.1.activeDays',
+    Revision := 1, TextValue := '127', RootReady := TRUE); _line();
+AssertTrue(Condition := _shift.M_ShiftTick(Now := DT#2026-10-05-00:02:00, Synchronized := TRUE),
+    Message := 'starting active shift first closes off interval');
+AssertEquals_INT(Expected := 0, Actual := _shift.ShiftHistory[1].ShiftIndex, Message := 'off interval identity');
+AssertEquals_UDINT(Expected := 7, Actual := _shift.ShiftHistory[1].GoodCount, Message := 'off production archived');
+    _done[13] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Target_edits_wait_for_boundary_and_history_is_immutable" Id="{6ebf6dfc-7592-4e73-a13d-3457d1f8b444}">
+      <Declaration><![CDATA[METHOD Target_edits_wait_for_boundary_and_history_is_immutable]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Target_edits_wait_for_boundary_and_history_is_immutable');
+IF NOT _done[14] THEN
+AssertEquals_UDINT(Expected := 100, Actual := _shift.ShiftProductionTarget, Message := 'target latched at entry');
+FOR _i := 1 TO 3 DO _shift.CountGood(); END_FOR
+_line.M_ApplyConfigWrite(Scope := 'Test.WeeklyLine', WriteKey := 'line.shift.1.productionTarget',
+    Revision := 1, TextValue := '200', RootReady := TRUE); _line();
+_shift.M_ShiftTick(Now := DT#2026-10-05-00:30:00, Synchronized := TRUE);
+AssertEquals_UDINT(Expected := 100, Actual := _shift.ShiftProductionTarget, Message := 'mid-shift edit deferred');
+AssertTrue(Condition := _shift.M_ShiftTick(Now := DT#2026-10-05-01:00:00, Synchronized := TRUE), Message := 'natural end closes');
+AssertEquals_UDINT(Expected := 100, Actual := _shift.ShiftHistory[1].ProductionTarget, Message := 'old target in history');
+AssertEquals_UDINT(Expected := 0, Actual := _shift.ShiftProductionTarget, Message := 'off target unset');
+    _done[14] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Clock_jumps_close_once_without_negative_history" Id="{d98f1458-81ac-4dd3-a58e-390edd541cd6}">
+      <Declaration><![CDATA[METHOD Clock_jumps_close_once_without_negative_history]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Clock_jumps_close_once_without_negative_history');
+IF NOT _done[15] THEN
+FOR _i := 1 TO 2 DO _shift.CountGood(); END_FOR
+AssertTrue(Condition := _shift.M_ShiftTick(Now := DT#2026-10-07-00:30:00, Synchronized := TRUE), Message := 'forward jump closes once');
+AssertFalse(Condition := _shift.ShiftHistory[1].TimeSynchronized, Message := 'jump quality unverified');
+AssertEquals_INT(Expected := 3, Actual := _shift.ShiftHistoryCount, Message := 'no fabricated intervening shifts');
+AssertFalse(Condition := _shift.M_ShiftTick(Now := DT#2026-10-06-00:00:00, Synchronized := TRUE), Message := 'backward jump cannot close');
+AssertEquals_INT(Expected := 3, Actual := _shift.ShiftHistoryCount, Message := 'history unchanged');
+    _done[15] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Manual_OEE_reset_aligns_factors_with_new_count_epoch" Id="{31a0f548-c7d2-4ddc-becc-629f55fefcd2}">
+      <Declaration><![CDATA[METHOD Manual_OEE_reset_aligns_factors_with_new_count_epoch]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Manual_OEE_reset_aligns_factors_with_new_count_epoch');
+IF NOT _done[16] THEN
+FOR _i := 1 TO 10 DO _unit.CountGood(); END_FOR
+FOR _i := 1 TO 5 DO _unit.CountNok(Reason := E_Reason.TEST_FAULT); END_FOR
+AssertTrue(Condition := _unit.ResetOee(), Message := 'manual reset accepted');
+AssertFalse(Condition := _unit.Oee.QualValid, Message := 'old counts do not make new quality valid');
+AssertEquals_UDINT(Expected := 10, Actual := _unit.GoodCount, Message := 'published production count preserved');
+    _done[16] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Busy_creation_and_full_catalog_preserve_existing_storage" Id="{c028b558-0560-49a1-bdfb-6b2206d757d2}">
+      <Declaration><![CDATA[METHOD Busy_creation_and_full_catalog_preserve_existing_storage
+VAR
+    modelIndex : INT;
+    code : STRING(64);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Busy_creation_and_full_catalog_preserve_existing_storage');
+IF NOT _done[17] THEN
+AssertTrue(Condition := _unit.Start(), Message := 'probe starts its continuous command');
+_unit();
+AssertTrue(Condition := _unit.Busy, Message := 'creation fixture is actually BUSY');
+FOR modelIndex := _unit.AvailableModelCount + 1 TO _unit.ModelCapacity DO
+    code := CONCAT('Catalog', INT_TO_STRING(modelIndex));
+    AssertTrue(Condition := _unit.CreateModel(ModelCode := code, SourceIndex := 1,
+        FromSet := FALSE, SetName := ''), Message := 'inactive append permitted while BUSY');
+END_FOR
+AssertFalse(Condition := _unit.CreateModel(ModelCode := 'Overflow', SourceIndex := 1,
+    FromSet := FALSE, SetName := ''), Message := 'full catalog refuses atomically');
+AssertEquals_INT(Expected := _unit.ModelCapacity, Actual := _unit.AvailableModelCount,
+    Message := 'full publication has exact capacity');
+AssertTrue(Condition := _models.Load(ModelCode := 'A', RecipeKey := 'ProbeModel',
+    pParCfg := ADR(_loaded), Size := SIZEOF(_loaded)), Message := 'original address remains available');
+AssertEquals_DINT(Expected := 10, Actual := _loaded.Speed, Message := 'original seed bytes unchanged');
+AssertEquals_DINT(Expected := 1, Actual := _unit.ParCfg.Speed, Message := 'live recipe remains unchanged');
+AssertTrue(Condition := _unit.Busy, Message := 'creation does not stop running command');
+    _done[17] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Weekly_owner_builds_its_complete_image" Id="{52eb5601-d380-48a9-a447-06a53c303c22}">
+      <Declaration><![CDATA[METHOD Weekly_owner_builds_its_complete_image
+VAR
+    rowIndex : INT;
+    fifthPresent : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Weekly_owner_builds_its_complete_image');
+IF NOT _done[18] THEN
+_line();
+AssertEquals_INT(Expected := 21, Actual := _line.Image.Count,
+    Message := 'cyclic owner publication includes every weekly calendar capability');
+FOR rowIndex := 1 TO _line.Image.Count DO
+    IF _line.Image.Records[rowIndex].WriteKey = 'line.shift.5.productionTarget' THEN
+        fifthPresent := TRUE;
+    END_IF
+END_FOR
+AssertTrue(Condition := fifthPresent, Message := 'fifth target is in the owner image');
+    _done[18] := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

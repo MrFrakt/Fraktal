@@ -1,0 +1,114 @@
+﻿FUNCTION "FRK_ModelApply_R1" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_IN_OUT 
+      Image : "FRK_ModelImage";
+   END_VAR
+
+   VAR_TEMP 
+      Index : Int;
+      ModelSlot : Int;
+      RowIndex : Int;
+      Stored : Int;
+      Targets : Array[1..32] of Int;
+   END_VAR
+
+
+BEGIN
+	
+	#FRK_ModelApply_R1 := FALSE;
+	IF NOT "FRK_ModelValid"(RootIndex := 1, Catalog := #Image.Catalog) THEN
+	    RETURN;
+	END_IF;
+	IF #Image.RecordCount <> (#Image.Catalog.Count - 3) * 5 THEN
+	    RETURN;
+	END_IF;
+	FOR #Index := 1 TO 32 DO
+	    #Targets[#Index] := 0;
+	END_FOR;
+	FOR #ModelSlot := 4 TO #Image.Catalog.Count DO
+	    #RowIndex := (#ModelSlot - 4) * 5 + 1;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 3);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'idealCycleMs', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 22 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 2;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 4);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'baselineWorkMs', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 22 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 3;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 5);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'modeSwitchTimeout', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 22 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 4;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 6);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'transferSettleTime', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 22 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	    #RowIndex := (#ModelSlot - 4) * 5 + 5;
+	    "FRK_CfgDef_PressDemoUnit"(FieldIndex := 7);
+	    IF NOT #Image.Rows[#RowIndex].Used OR #Image.Rows[#RowIndex].SchemaVersion <> "FRK_ConfigScratch".Schema
+	        OR #Image.Rows[#RowIndex].ModelCode <> #Image.Catalog.Codes[#ModelSlot]
+	    THEN
+	        RETURN;
+	    END_IF;
+	    IF NOT "FRK_ConfigRecordValid"(Scope := 'PressDemo', Record := #Image.Rows[#RowIndex].Record) THEN
+	        RETURN;
+	    END_IF;
+	    #Stored := "FRK_ConfigReserve"(Scope := 'PressDemo', Key := 'pressSettleTime', ModelCode := #Image.Catalog.Codes[#ModelSlot], Reserved := #Targets);
+	    IF #Stored < 1 OR #Stored > 22 THEN
+	        RETURN;
+	    END_IF;
+	    #Targets[#RowIndex] := #Stored;
+	END_FOR;
+	FOR #Index := 1 TO #Image.RecordCount DO
+	    "FRK_ConfigStore".Rows[#Targets[#Index]] := #Image.Rows[#Index];
+	END_FOR;
+	"FRK_ModelStore".Rows[1] := #Image.Catalog;
+	"FRK_ConfigStore".SchemaVersion := 1;
+	#FRK_ModelApply_R1 := TRUE;
+	
+END_FUNCTION
+

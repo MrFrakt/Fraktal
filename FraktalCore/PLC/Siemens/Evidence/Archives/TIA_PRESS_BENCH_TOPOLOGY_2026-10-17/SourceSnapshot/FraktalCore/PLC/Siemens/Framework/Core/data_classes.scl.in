@@ -1,0 +1,155 @@
+// Class identity and effective thresholds are the Core contract, independent
+// of whether a login provider uses local PINs or native Siemens UMAC.
+FUNCTION "FRK_ClassCrc" : DWord
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Image : "FRK_ClassPolicyImage"; END_VAR
+VAR_TEMP Work : DWord; Index : Int; Character : Int; Size : Int; Text : String[160]; END_VAR
+BEGIN
+    #Work := "FRK_CrcNumber"(Previous := DWORD#16#FFFFFFFF, Value := UINT_TO_UDINT(#Image.SchemaVersion));
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := #Image.Generation);
+    #Text := #Image.Scope; #Size := LEN(#Text);
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+    FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+    #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Image.Count));
+    FOR #Index := 1 TO @CLASS_COUNT@ DO
+        // Include unused slots so retained corruption cannot hide there.
+        #Text := #Image.Rows[#Index].ClassId; #Size := LEN(#Text);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+        #Text := #Image.Rows[#Index].LabelKey; #Size := LEN(#Text);
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := INT_TO_UDINT(#Size));
+        FOR #Character := 1 TO #Size DO #Work := "FRK_CrcByte"(Previous := #Work, Value := CHAR_TO_BYTE(#Text[#Character])); END_FOR;
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Rows[#Index].ReadLevel));
+        #Work := "FRK_CrcNumber"(Previous := #Work, Value := DINT_TO_UDINT(#Image.Rows[#Index].WriteLevel));
+    END_FOR;
+    #FRK_ClassCrc := NOT #Work;
+END_FUNCTION
+
+FUNCTION "FRK_ClassValid" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Image : "FRK_ClassPolicyImage"; END_VAR
+VAR_TEMP Index : Int; Other : Int; END_VAR
+BEGIN
+    #FRK_ClassValid := FALSE;
+    IF #Image.SchemaVersion <> 1 OR #Image.Scope = '' OR #Image.Generation = 0
+        OR #Image.Count < 1 OR #Image.Count > @CLASS_COUNT@ THEN RETURN; END_IF;
+    FOR #Index := 1 TO #Image.Count DO
+        IF #Image.Rows[#Index].ClassId = '' OR #Image.Rows[#Index].LabelKey = ''
+            OR #Image.Rows[#Index].ReadLevel < @E_AccessLevel.NONE@ OR #Image.Rows[#Index].ReadLevel > @E_AccessLevel.ADMIN@
+            OR #Image.Rows[#Index].WriteLevel < @E_AccessLevel.NONE@ OR #Image.Rows[#Index].WriteLevel > @E_AccessLevel.ADMIN@ THEN RETURN; END_IF;
+        FOR #Other := 1 TO #Index - 1 DO
+            IF #Image.Rows[#Index].ClassId = #Image.Rows[#Other].ClassId THEN RETURN; END_IF;
+        END_FOR;
+    END_FOR;
+    #FRK_ClassValid := #Image.Checksum = "FRK_ClassCrc"(Image := #Image);
+END_FUNCTION
+
+FUNCTION "FRK_ClassSave" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; END_VAR
+VAR_IN_OUT Access : "FRK_Access"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    IF #Access.ClassSlot < 1 OR #Access.ClassSlot > @ROOT_COUNT@ OR #Scope = ''
+        OR #Access.ClassCount < 1 OR #Access.ClassCount > @CLASS_COUNT@ THEN RETURN; END_IF;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].SchemaVersion := 1;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Scope := #Scope;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Generation := "FRK_AccessNext"(Previous := "FRK_ClassPolicies".Rows[#Access.ClassSlot].Generation);
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Count := #Access.ClassCount;
+    FOR #Index := 1 TO @CLASS_COUNT@ DO
+        "FRK_ClassPolicies".Rows[#Access.ClassSlot].Rows[#Index] := "FRK_ClassScratch".Blank;
+        IF #Index <= #Access.ClassCount THEN "FRK_ClassPolicies".Rows[#Access.ClassSlot].Rows[#Index] := #Access.Classes[#Index]; END_IF;
+    END_FOR;
+    "FRK_ClassPolicies".Rows[#Access.ClassSlot].Checksum := "FRK_ClassCrc"(Image := "FRK_ClassPolicies".Rows[#Access.ClassSlot]);
+END_FUNCTION
+
+FUNCTION "FRK_ClassVirgin" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT Image : "FRK_ClassPolicyImage"; END_VAR
+VAR_TEMP Index : Int; END_VAR
+BEGIN
+    #FRK_ClassVirgin := FALSE;
+    IF #Image.Scope <> '' OR #Image.SchemaVersion <> 0 OR #Image.Generation <> 0 OR #Image.Count <> 0 OR #Image.Checksum <> DWORD#0 THEN RETURN; END_IF;
+    FOR #Index := 1 TO @CLASS_COUNT@ DO
+        IF #Image.Rows[#Index].ClassId <> '' OR #Image.Rows[#Index].LabelKey <> '' OR #Image.Rows[#Index].ReadLevel <> 0 OR #Image.Rows[#Index].WriteLevel <> 0 THEN RETURN; END_IF;
+    END_FOR;
+    #FRK_ClassVirgin := TRUE;
+END_FUNCTION
+
+FUNCTION "FRK_ClassBoot" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Startup : Bool; Root : Bool; Scope : String; END_VAR
+VAR_IN_OUT Access : "FRK_Access"; END_VAR
+VAR_TEMP Slot : Int; Index : Int; Stored : Int; Found : Bool; Changed : Bool; END_VAR
+BEGIN
+    IF NOT #Startup THEN RETURN; END_IF;
+    #Access.ClassCount := 0; #Access.ClassSlot := 0; #Access.ClassesLost := FALSE;
+    FOR #Index := 1 TO @CLASS_COUNT@ DO #Access.Classes[#Index] := "FRK_ClassScratch".Blank; END_FOR;
+    IF NOT #Root THEN RETURN; END_IF;
+@DEFAULTS@
+    #Access.ClassSlot := #Slot;
+    IF #Slot = 0 THEN RETURN; END_IF;
+    IF "FRK_ClassVirgin"(Image := "FRK_ClassPolicies".Rows[#Slot]) THEN
+        // A new optional domain cannot reset the existing action policy.
+        "FRK_ClassSave"(Access := #Access, Scope := #Scope);
+        RETURN;
+    END_IF;
+    IF "FRK_ClassPolicies".Rows[#Slot].Scope <> #Scope OR NOT "FRK_ClassValid"(Image := "FRK_ClassPolicies".Rows[#Slot]) THEN
+        #Access.ClassesLost := TRUE;
+        FOR #Index := 1 TO #Access.ClassCount DO
+            #Access.Classes[#Index].ReadLevel := @E_AccessLevel.ADMIN@;
+            #Access.Classes[#Index].WriteLevel := @E_AccessLevel.ADMIN@;
+        END_FOR;
+        RETURN;
+    END_IF;
+    #Changed := #Access.ClassCount <> "FRK_ClassPolicies".Rows[#Slot].Count;
+    FOR #Index := 1 TO #Access.ClassCount DO
+        #Found := FALSE;
+        FOR #Stored := 1 TO "FRK_ClassPolicies".Rows[#Slot].Count DO
+            IF #Access.Classes[#Index].ClassId = "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].ClassId THEN
+                #Access.Classes[#Index].ReadLevel := "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].ReadLevel;
+                #Access.Classes[#Index].WriteLevel := "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].WriteLevel;
+                #Changed := #Changed OR #Stored <> #Index OR #Access.Classes[#Index].LabelKey <> "FRK_ClassPolicies".Rows[#Slot].Rows[#Stored].LabelKey;
+                #Found := TRUE; EXIT;
+            END_IF;
+        END_FOR;
+        #Changed := #Changed OR NOT #Found;
+    END_FOR;
+    IF #Changed THEN "FRK_ClassSave"(Access := #Access, Scope := #Scope); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ClassOperation" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Unit : "FRK_Unit"; Scope : String; END_VAR
+VAR_IN_OUT Access : "FRK_Access"; Response : "ST_HmiResponse"; END_VAR
+VAR_TEMP Index : Int; Changed : Bool; END_VAR
+BEGIN
+    IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> @E_HmiRequestKind.SET_CLASS_LEVEL@ THEN RETURN; END_IF;
+    #Response.Accepted := FALSE;
+    #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    IF #Access.PolicyLost OR #Access.ClassesLost OR #Access.ClassSlot = 0
+        OR #Access.ClassCount < 1 OR #Access.ClassCount > @CLASS_COUNT@
+        OR #Access.CurrentLevel < #Access.Policy.Required[@E_GatedAction.ACCESS_POLICY@]
+        OR #Unit.Request.IntValue < @E_AccessLevel.NONE@ OR #Unit.Request.IntValue > @E_AccessLevel.ADMIN@
+        OR #Unit.Request.IntValue > #Access.CurrentLevel THEN RETURN; END_IF;
+    FOR #Index := 1 TO #Access.ClassCount DO
+        IF #Access.Classes[#Index].ClassId = #Unit.Request.NameValue THEN
+            IF #Unit.Request.BoolValue THEN
+                #Changed := #Access.Classes[#Index].WriteLevel <> #Unit.Request.IntValue;
+                #Access.Classes[#Index].WriteLevel := #Unit.Request.IntValue;
+            ELSE
+                #Changed := #Access.Classes[#Index].ReadLevel <> #Unit.Request.IntValue;
+                #Access.Classes[#Index].ReadLevel := #Unit.Request.IntValue;
+            END_IF;
+            IF #Changed THEN "FRK_ClassSave"(Access := #Access, Scope := #Scope); END_IF;
+            #Response.Accepted := TRUE; #Response.Diagnostic := WSTRING#'';
+            RETURN;
+        END_IF;
+    END_FOR;
+END_FUNCTION

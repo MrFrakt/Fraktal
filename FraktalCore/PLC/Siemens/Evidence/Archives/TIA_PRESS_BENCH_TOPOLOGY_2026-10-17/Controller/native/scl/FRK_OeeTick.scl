@@ -1,0 +1,56 @@
+﻿FUNCTION "FRK_OeeTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      NowMs : UDInt;
+      Exec : DInt;
+      Blocking : Bool;
+      Good : UDInt;
+      Nok : UDInt;
+      IdealCycleMs : UDInt;
+   END_VAR
+
+   VAR_IN_OUT 
+      Book : "FRK_Production";
+      Oee : "ST_Oee";
+      Trend : Array[1..60] of "ST_OeeSample";
+   END_VAR
+
+   VAR_TEMP 
+      DeltaMs : UDInt;
+   END_VAR
+
+
+BEGIN
+	
+	#Oee.IdealCycleMs := #IdealCycleMs;
+	#DeltaMs := 0;
+	IF #Book.HaveClock THEN
+	    #DeltaMs := "FRK_Elapsed"(OldMs := #Book.LastMs, NewMs := #NowMs);
+	END_IF;
+	#Book.LastMs := #NowMs;
+	#Book.HaveClock := TRUE;
+	IF #Exec = 3 OR #Blocking THEN
+	    #Oee.DownMs := "FRK_AddMs"(Value := #Oee.DownMs, Delta := #DeltaMs);
+	ELSIF #Exec = 1 THEN
+	    #Oee.RunMs := "FRK_AddMs"(Value := #Oee.RunMs, Delta := #DeltaMs);
+	ELSE
+	    #Oee.IdleMs := "FRK_AddMs"(Value := #Oee.IdleMs, Delta := #DeltaMs);
+	END_IF;
+	"FRK_OeeCompute"(Good := #Good,
+	                 Nok := #Nok,
+	                 Book := #Book,
+	                 Oee := #Oee);
+	#Book.SampleMs := "FRK_AddMs"(Value := #Book.SampleMs, Delta := #DeltaMs);
+	IF #Book.SampleMs >= 60000 THEN
+	    #Book.SampleMs := #Book.SampleMs MOD 60000;
+	    #Book.TrendHead := (#Book.TrendHead MOD 60) + 1;
+	    #Trend[#Book.TrendHead].Availability := #Oee.Availability;
+	    #Trend[#Book.TrendHead].Performance := #Oee.Performance;
+	    #Trend[#Book.TrendHead].Quality := #Oee.Quality;
+	    #Trend[#Book.TrendHead].Oee := #Oee.Oee;
+	    #Trend[#Book.TrendHead].OeeValid := #Oee.OeeValid;
+	END_IF;
+	
+END_FUNCTION
+

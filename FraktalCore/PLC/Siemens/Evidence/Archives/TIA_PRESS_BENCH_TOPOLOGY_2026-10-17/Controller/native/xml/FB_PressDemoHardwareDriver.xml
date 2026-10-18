@@ -1,0 +1,2082 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Document>
+  <Engineering version="V20" />
+  <DocumentInfo>
+    <Created>2026-10-17T21:54:39.9477705Z</Created>
+    <ExportSetting>WithDefaults</ExportSetting>
+    <InstalledProducts>
+      <Product>
+        <DisplayName>Totally Integrated Automation Portal</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>TIA Portal Openness</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Teamcenter Gateway</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>TIA Portal Version Control Interface</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>SINAMICS Startdrive Advanced</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G110M, G120, G120C, G120D, G120P, G115D</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <OptionPackage>
+        <DisplayName>SINAMICS Startdrive G130, G150, S120, S150, SINAMICS MV, G220, S200, S210</DisplayName>
+        <DisplayVersion>V20 SP1 Update 2</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>STEP 7 Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <OptionPackage>
+        <DisplayName>STEP 7 Safety</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </OptionPackage>
+      <Product>
+        <DisplayName>WinCC Basic/Comfort/Advanced</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Professional</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+      <Product>
+        <DisplayName>WinCC Unified</DisplayName>
+        <DisplayVersion>V20</DisplayVersion>
+      </Product>
+    </InstalledProducts>
+  </DocumentInfo>
+  <SW.Blocks.FB ID="0">
+    <AttributeList>
+      <AutoNumber>true</AutoNumber>
+      <HeaderAuthor />
+      <HeaderFamily />
+      <HeaderName />
+      <HeaderVersion>0.1</HeaderVersion>
+      <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+  <Section Name="Input">
+    <Member Name="ReadInputs" Datatype="Bool" Remanence="NonRetain" Accessibility="Public">
+      <AttributeList>
+        <BooleanAttribute Name="ExternalAccessible" SystemDefined="true">false</BooleanAttribute>
+        <BooleanAttribute Name="ExternalVisible" SystemDefined="true">false</BooleanAttribute>
+        <BooleanAttribute Name="ExternalWritable" SystemDefined="true">false</BooleanAttribute>
+      </AttributeList>
+    </Member>
+  </Section>
+  <Section Name="Output" />
+  <Section Name="InOut" />
+  <Section Name="Static" />
+  <Section Name="Temp">
+    <Member Name="DeltaMs" Datatype="DInt">
+      <Comment>
+        <MultiLanguageText Lang="en-US">Build gate (Core 7.5): TRUE animates the plant model and holds every physical output FALSE. Changing it is a regeneration plus a download.</MultiLanguageText>
+      </Comment>
+    </Member>
+  </Section>
+  <Section Name="Constant">
+    <Member Name="USE_SIMULATION" Datatype="Bool" Accessibility="Public">
+      <StartValue>FALSE</StartValue>
+    </Member>
+    <Member Name="RAM_TRAVEL_MS" Datatype="DInt" Accessibility="Public">
+      <StartValue>250</StartValue>
+    </Member>
+    <Member Name="DOOR_TRAVEL_MS" Datatype="DInt" Accessibility="Public">
+      <StartValue>200</StartValue>
+    </Member>
+    <Member Name="SLIDE_TRAVEL_MS" Datatype="DInt" Accessibility="Public">
+      <StartValue>300</StartValue>
+    </Member>
+    <Member Name="PART_SWAP_MS" Datatype="UDInt" Accessibility="Public">
+      <StartValue>1000</StartValue>
+    </Member>
+  </Section>
+</Sections></Interface>
+      <IsIECCheckEnabled>false</IsIECCheckEnabled>
+      <IsRetainMemResEnabled>false</IsRetainMemResEnabled>
+      <MemoryLayout>Optimized</MemoryLayout>
+      <MemoryReserve>100</MemoryReserve>
+      <Name>FB_PressDemoHardwareDriver</Name>
+      <Namespace />
+      <Number>23</Number>
+      <ProgrammingLanguage>SCL</ProgrammingLanguage>
+      <SetENOAutomatically>false</SetENOAutomatically>
+      <UDABlockProperties />
+      <UDAEnableTagReadback>false</UDAEnableTagReadback>
+    </AttributeList>
+    <ObjectList>
+      <MultilingualText ID="1" CompositionName="Comment">
+        <ObjectList>
+          <MultilingualTextItem ID="2" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+      <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+        <AttributeList>
+          <NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+  <NewLine Num="1" UId="21" />
+  <Token Text="IF" UId="22" />
+  <Blank Num="1" UId="23" />
+  <Access Scope="LocalVariable" UId="24">
+    <Symbol UId="25">
+      <Component Name="ReadInputs" UId="26" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="27" />
+  <Token Text="AND" UId="28" />
+  <Blank Num="1" UId="29" />
+  <Access Scope="LocalConstant" UId="30">
+    <Constant Name="USE_SIMULATION" UId="31" />
+  </Access>
+  <Blank Num="1" UId="34" />
+  <Token Text="THEN" UId="35" />
+  <NewLine Num="1" UId="36" />
+  <Blank Num="4" UId="37" />
+  <Token Text="IF" UId="38" />
+  <Blank Num="1" UId="39" />
+  <Token Text="NOT" UId="40" />
+  <Blank Num="1" UId="41" />
+  <Access Scope="GlobalVariable" UId="42">
+    <Symbol UId="43">
+      <Component Name="GDB_PressDemoSim" UId="44">
+        <BooleanAttribute Name="HasQuotes" UId="45">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="46" />
+      <Component Name="Started" UId="47" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="48" />
+  <Token Text="THEN" UId="49" />
+  <NewLine Num="1" UId="50" />
+  <Blank Num="8" UId="51" />
+  <Access Scope="GlobalVariable" UId="52">
+    <Symbol UId="53">
+      <Component Name="GDB_PressDemoSim" UId="54">
+        <BooleanAttribute Name="HasQuotes" UId="55">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="56" />
+      <Component Name="Started" UId="57" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="58" />
+  <Token Text=":=" UId="59" />
+  <Blank Num="1" UId="60" />
+  <Access Scope="LiteralConstant" UId="61">
+    <Constant UId="62">
+      <ConstantValue UId="64">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="65" />
+  <NewLine Num="1" UId="66" />
+  <Blank Num="8" UId="67" />
+  <Access Scope="GlobalVariable" UId="68">
+    <Symbol UId="69">
+      <Component Name="GDB_PressDemoSim" UId="70">
+        <BooleanAttribute Name="HasQuotes" UId="71">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="72" />
+      <Component Name="LastMs" UId="73" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="74" />
+  <Token Text=":=" UId="75" />
+  <Blank Num="1" UId="76" />
+  <Access Scope="GlobalVariable" UId="77">
+    <Symbol UId="78">
+      <Component Name="FRK_Clock" UId="79">
+        <BooleanAttribute Name="HasQuotes" UId="80">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="81" />
+      <Component Name="NowMs" UId="82" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="83" />
+  <NewLine Num="1" UId="84" />
+  <Blank Num="4" UId="85" />
+  <Token Text="END_IF" UId="86" />
+  <Token Text=";" UId="87" />
+  <NewLine Num="1" UId="88" />
+  <Blank Num="4" UId="89" />
+  <Access Scope="LocalVariable" UId="90">
+    <Symbol UId="91">
+      <Component Name="DeltaMs" UId="92" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="93" />
+  <Token Text=":=" UId="94" />
+  <Blank Num="1" UId="95" />
+  <Access Scope="Call" UId="96">
+    <Instruction Name="UDINT_TO_DINT" UId="97">
+      <Token Text="(" UId="98" />
+      <NamelessParameter UId="99">
+        <Access Scope="Call" UId="100">
+          <CallInfo UId="101" BlockType="FC">
+            <Instance Scope="GlobalVariable" UId="103">
+              <Component Name="FRK_Elapsed" UId="102" />
+            </Instance>
+            <Token Text="(" UId="104" />
+            <Parameter Name="NewMs" UId="105">
+              <Blank Num="1" UId="106" />
+              <Token Text=":=" UId="107" />
+              <Blank Num="1" UId="108" />
+              <Access Scope="GlobalVariable" UId="109">
+                <Symbol UId="110">
+                  <Component Name="FRK_Clock" UId="111">
+                    <BooleanAttribute Name="HasQuotes" UId="112">true</BooleanAttribute>
+                  </Component>
+                  <Token Text="." UId="113" />
+                  <Component Name="NowMs" UId="114" />
+                </Symbol>
+              </Access>
+            </Parameter>
+            <Token Text="," UId="115" />
+            <Blank Num="1" UId="116" />
+            <Parameter Name="OldMs" UId="117">
+              <Blank Num="1" UId="118" />
+              <Token Text=":=" UId="119" />
+              <Blank Num="1" UId="120" />
+              <Access Scope="GlobalVariable" UId="121">
+                <Symbol UId="122">
+                  <Component Name="GDB_PressDemoSim" UId="123">
+                    <BooleanAttribute Name="HasQuotes" UId="124">true</BooleanAttribute>
+                  </Component>
+                  <Token Text="." UId="125" />
+                  <Component Name="LastMs" UId="126" />
+                </Symbol>
+              </Access>
+            </Parameter>
+            <Token Text=")" UId="128" />
+          </CallInfo>
+        </Access>
+      </NamelessParameter>
+      <Token Text=")" UId="130" />
+    </Instruction>
+  </Access>
+  <Token Text=";" UId="131" />
+  <NewLine Num="1" UId="132" />
+  <Blank Num="4" UId="133" />
+  <Access Scope="GlobalVariable" UId="134">
+    <Symbol UId="135">
+      <Component Name="GDB_PressDemoSim" UId="136">
+        <BooleanAttribute Name="HasQuotes" UId="137">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="138" />
+      <Component Name="LastMs" UId="139" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="140" />
+  <Token Text=":=" UId="141" />
+  <Blank Num="1" UId="142" />
+  <Access Scope="GlobalVariable" UId="143">
+    <Symbol UId="144">
+      <Component Name="FRK_Clock" UId="145">
+        <BooleanAttribute Name="HasQuotes" UId="146">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="147" />
+      <Component Name="NowMs" UId="148" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="149" />
+  <NewLine Num="1" UId="150" />
+  <Blank Num="4" UId="151" />
+  <Access Scope="Call" UId="152">
+    <CallInfo UId="153" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="155">
+        <Component Name="F_PressDemoSimCylinder" UId="154" />
+      </Instance>
+      <Token Text="(" UId="156" />
+      <Parameter Name="TravelMs" UId="157">
+        <Blank Num="1" UId="158" />
+        <Token Text=":=" UId="159" />
+        <Blank Num="1" UId="160" />
+        <Access Scope="LocalConstant" UId="161">
+          <Constant Name="RAM_TRAVEL_MS" UId="162" />
+        </Access>
+      </Parameter>
+      <Token Text="," UId="165" />
+      <NewLine Num="1" UId="166" />
+      <Blank Num="29" UId="167" />
+      <Parameter Name="DeltaMs" UId="168">
+        <Blank Num="1" UId="169" />
+        <Token Text=":=" UId="170" />
+        <Blank Num="1" UId="171" />
+        <Access Scope="LocalVariable" UId="172">
+          <Symbol UId="173">
+            <Component Name="DeltaMs" UId="174" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="175" />
+      <NewLine Num="1" UId="176" />
+      <Blank Num="29" UId="177" />
+      <Parameter Name="PositionMs" UId="178">
+        <Blank Num="1" UId="179" />
+        <Token Text=":=" UId="180" />
+        <Blank Num="1" UId="181" />
+        <Access Scope="GlobalVariable" UId="182">
+          <Symbol UId="183">
+            <Component Name="GDB_PressDemoSim" UId="184">
+              <BooleanAttribute Name="HasQuotes" UId="185">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="186" />
+            <Component Name="RamPositionMs" UId="187" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="188" />
+      <NewLine Num="1" UId="189" />
+      <Blank Num="29" UId="190" />
+      <Parameter Name="Hal" UId="191">
+        <Blank Num="1" UId="192" />
+        <Token Text=":=" UId="193" />
+        <Blank Num="1" UId="194" />
+        <Access Scope="GlobalVariable" UId="195">
+          <Symbol UId="196">
+            <Component Name="GDB_FraktalHal" UId="197">
+              <BooleanAttribute Name="HasQuotes" UId="198">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="199" />
+            <Component Name="Data" UId="200" />
+            <Token Text="." UId="201" />
+            <Component Name="PressDemo" UId="202" />
+            <Token Text="." UId="203" />
+            <Component Name="PressRam" UId="204" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="205" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="206" />
+  <NewLine Num="1" UId="207" />
+  <Blank Num="4" UId="208" />
+  <Access Scope="Call" UId="209">
+    <CallInfo UId="210" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="212">
+        <Component Name="F_PressDemoSimCylinder" UId="211" />
+      </Instance>
+      <Token Text="(" UId="213" />
+      <Parameter Name="TravelMs" UId="214">
+        <Blank Num="1" UId="215" />
+        <Token Text=":=" UId="216" />
+        <Blank Num="1" UId="217" />
+        <Access Scope="LocalConstant" UId="218">
+          <Constant Name="DOOR_TRAVEL_MS" UId="219" />
+        </Access>
+      </Parameter>
+      <Token Text="," UId="222" />
+      <NewLine Num="1" UId="223" />
+      <Blank Num="29" UId="224" />
+      <Parameter Name="DeltaMs" UId="225">
+        <Blank Num="1" UId="226" />
+        <Token Text=":=" UId="227" />
+        <Blank Num="1" UId="228" />
+        <Access Scope="LocalVariable" UId="229">
+          <Symbol UId="230">
+            <Component Name="DeltaMs" UId="231" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="232" />
+      <NewLine Num="1" UId="233" />
+      <Blank Num="29" UId="234" />
+      <Parameter Name="PositionMs" UId="235">
+        <Blank Num="1" UId="236" />
+        <Token Text=":=" UId="237" />
+        <Blank Num="1" UId="238" />
+        <Access Scope="GlobalVariable" UId="239">
+          <Symbol UId="240">
+            <Component Name="GDB_PressDemoSim" UId="241">
+              <BooleanAttribute Name="HasQuotes" UId="242">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="243" />
+            <Component Name="DoorPositionMs" UId="244" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="245" />
+      <NewLine Num="1" UId="246" />
+      <Blank Num="29" UId="247" />
+      <Parameter Name="Hal" UId="248">
+        <Blank Num="1" UId="249" />
+        <Token Text=":=" UId="250" />
+        <Blank Num="1" UId="251" />
+        <Access Scope="GlobalVariable" UId="252">
+          <Symbol UId="253">
+            <Component Name="GDB_FraktalHal" UId="254">
+              <BooleanAttribute Name="HasQuotes" UId="255">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="256" />
+            <Component Name="Data" UId="257" />
+            <Token Text="." UId="258" />
+            <Component Name="PressDemo" UId="259" />
+            <Token Text="." UId="260" />
+            <Component Name="Door" UId="261" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="262" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="263" />
+  <NewLine Num="1" UId="264" />
+  <Blank Num="4" UId="265" />
+  <Access Scope="Call" UId="266">
+    <CallInfo UId="267" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="269">
+        <Component Name="F_PressDemoSimCylinder" UId="268" />
+      </Instance>
+      <Token Text="(" UId="270" />
+      <Parameter Name="TravelMs" UId="271">
+        <Blank Num="1" UId="272" />
+        <Token Text=":=" UId="273" />
+        <Blank Num="1" UId="274" />
+        <Access Scope="LocalConstant" UId="275">
+          <Constant Name="SLIDE_TRAVEL_MS" UId="276" />
+        </Access>
+      </Parameter>
+      <Token Text="," UId="279" />
+      <NewLine Num="1" UId="280" />
+      <Blank Num="29" UId="281" />
+      <Parameter Name="DeltaMs" UId="282">
+        <Blank Num="1" UId="283" />
+        <Token Text=":=" UId="284" />
+        <Blank Num="1" UId="285" />
+        <Access Scope="LocalVariable" UId="286">
+          <Symbol UId="287">
+            <Component Name="DeltaMs" UId="288" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="289" />
+      <NewLine Num="1" UId="290" />
+      <Blank Num="29" UId="291" />
+      <Parameter Name="PositionMs" UId="292">
+        <Blank Num="1" UId="293" />
+        <Token Text=":=" UId="294" />
+        <Blank Num="1" UId="295" />
+        <Access Scope="GlobalVariable" UId="296">
+          <Symbol UId="297">
+            <Component Name="GDB_PressDemoSim" UId="298">
+              <BooleanAttribute Name="HasQuotes" UId="299">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="300" />
+            <Component Name="SlidePositionMs" UId="301" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="302" />
+      <NewLine Num="1" UId="303" />
+      <Blank Num="29" UId="304" />
+      <Parameter Name="Hal" UId="305">
+        <Blank Num="1" UId="306" />
+        <Token Text=":=" UId="307" />
+        <Blank Num="1" UId="308" />
+        <Access Scope="GlobalVariable" UId="309">
+          <Symbol UId="310">
+            <Component Name="GDB_FraktalHal" UId="311">
+              <BooleanAttribute Name="HasQuotes" UId="312">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="313" />
+            <Component Name="Data" UId="314" />
+            <Token Text="." UId="315" />
+            <Component Name="PressDemo" UId="316" />
+            <Token Text="." UId="317" />
+            <Component Name="PartSlide" UId="318" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="319" />
+    </CallInfo>
+  </Access>
+  <Token Text=";" UId="320" />
+  <NewLine Num="1" UId="321" />
+  <Blank Num="4" UId="322" />
+  <LineComment Inserted="false" NoClosingBracket="false" UId="323">
+    <Text UId="324"> Operator part swap: the pressed part is removed and a new one placed</Text>
+  </LineComment>
+  <NewLine Num="1" UId="325" />
+  <Blank Num="4" UId="326" />
+  <LineComment Inserted="false" NoClosingBracket="false" UId="327">
+    <Text UId="328"> once the slide is back at the load position.</Text>
+  </LineComment>
+  <NewLine Num="1" UId="329" />
+  <Blank Num="4" UId="330" />
+  <Token Text="IF" UId="331" />
+  <Blank Num="1" UId="332" />
+  <Access Scope="GlobalVariable" UId="333">
+    <Symbol UId="334">
+      <Component Name="GDB_PressDemoSim" UId="335">
+        <BooleanAttribute Name="HasQuotes" UId="336">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="337" />
+      <Component Name="AutoLoad" UId="338" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="339" />
+  <Token Text="THEN" UId="340" />
+  <NewLine Num="1" UId="341" />
+  <Blank Num="8" UId="342" />
+  <Token Text="IF" UId="343" />
+  <Blank Num="1" UId="344" />
+  <Access Scope="GlobalVariable" UId="345">
+    <Symbol UId="346">
+      <Component Name="GDB_FraktalHal" UId="347">
+        <BooleanAttribute Name="HasQuotes" UId="348">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="349" />
+      <Component Name="Data" UId="350" />
+      <Token Text="." UId="351" />
+      <Component Name="PressDemo" UId="352" />
+      <Token Text="." UId="353" />
+      <Component Name="PartSlide" UId="354" />
+      <Token Text="." UId="355" />
+      <Component Name="FeedbackExtended" UId="356" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="357" />
+  <Token Text="THEN" UId="358" />
+  <NewLine Num="1" UId="359" />
+  <Blank Num="12" UId="360" />
+  <Access Scope="GlobalVariable" UId="361">
+    <Symbol UId="362">
+      <Component Name="GDB_PressDemoSim" UId="363">
+        <BooleanAttribute Name="HasQuotes" UId="364">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="365" />
+      <Component Name="SlideWasInside" UId="366" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="367" />
+  <Token Text=":=" UId="368" />
+  <Blank Num="1" UId="369" />
+  <Access Scope="LiteralConstant" UId="370">
+    <Constant UId="371">
+      <ConstantValue UId="373">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="374" />
+  <NewLine Num="1" UId="375" />
+  <Blank Num="8" UId="376" />
+  <Token Text="ELSIF" UId="377" />
+  <Blank Num="1" UId="378" />
+  <Access Scope="GlobalVariable" UId="379">
+    <Symbol UId="380">
+      <Component Name="GDB_PressDemoSim" UId="381">
+        <BooleanAttribute Name="HasQuotes" UId="382">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="383" />
+      <Component Name="SlideWasInside" UId="384" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="385" />
+  <Token Text="AND" UId="386" />
+  <Blank Num="1" UId="387" />
+  <Access Scope="GlobalVariable" UId="388">
+    <Symbol UId="389">
+      <Component Name="GDB_FraktalHal" UId="390">
+        <BooleanAttribute Name="HasQuotes" UId="391">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="392" />
+      <Component Name="Data" UId="393" />
+      <Token Text="." UId="394" />
+      <Component Name="PressDemo" UId="395" />
+      <Token Text="." UId="396" />
+      <Component Name="PartSlide" UId="397" />
+      <Token Text="." UId="398" />
+      <Component Name="FeedbackRetracted" UId="399" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="400" />
+  <Token Text="THEN" UId="401" />
+  <NewLine Num="1" UId="402" />
+  <Blank Num="12" UId="403" />
+  <Access Scope="GlobalVariable" UId="404">
+    <Symbol UId="405">
+      <Component Name="GDB_PressDemoSim" UId="406">
+        <BooleanAttribute Name="HasQuotes" UId="407">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="408" />
+      <Component Name="SlideWasInside" UId="409" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="410" />
+  <Token Text=":=" UId="411" />
+  <Blank Num="1" UId="412" />
+  <Access Scope="LiteralConstant" UId="413">
+    <Constant UId="414">
+      <ConstantValue UId="416">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="417" />
+  <NewLine Num="1" UId="418" />
+  <Blank Num="12" UId="419" />
+  <Access Scope="GlobalVariable" UId="420">
+    <Symbol UId="421">
+      <Component Name="GDB_PressDemoSim" UId="422">
+        <BooleanAttribute Name="HasQuotes" UId="423">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="424" />
+      <Component Name="Swapping" UId="425" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="426" />
+  <Token Text=":=" UId="427" />
+  <Blank Num="1" UId="428" />
+  <Access Scope="LiteralConstant" UId="429">
+    <Constant UId="430">
+      <ConstantValue UId="432">TRUE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="433" />
+  <NewLine Num="1" UId="434" />
+  <Blank Num="12" UId="435" />
+  <Access Scope="GlobalVariable" UId="436">
+    <Symbol UId="437">
+      <Component Name="GDB_PressDemoSim" UId="438">
+        <BooleanAttribute Name="HasQuotes" UId="439">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="440" />
+      <Component Name="SwapSinceMs" UId="441" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="442" />
+  <Token Text=":=" UId="443" />
+  <Blank Num="1" UId="444" />
+  <Access Scope="GlobalVariable" UId="445">
+    <Symbol UId="446">
+      <Component Name="FRK_Clock" UId="447">
+        <BooleanAttribute Name="HasQuotes" UId="448">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="449" />
+      <Component Name="NowMs" UId="450" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="451" />
+  <NewLine Num="1" UId="452" />
+  <Blank Num="8" UId="453" />
+  <Token Text="END_IF" UId="454" />
+  <Token Text=";" UId="455" />
+  <NewLine Num="1" UId="456" />
+  <Blank Num="8" UId="457" />
+  <Token Text="IF" UId="458" />
+  <Blank Num="1" UId="459" />
+  <Access Scope="GlobalVariable" UId="460">
+    <Symbol UId="461">
+      <Component Name="GDB_PressDemoSim" UId="462">
+        <BooleanAttribute Name="HasQuotes" UId="463">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="464" />
+      <Component Name="Swapping" UId="465" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="466" />
+  <Token Text="AND" UId="467" />
+  <Blank Num="1" UId="468" />
+  <Access Scope="Call" UId="469">
+    <CallInfo UId="470" BlockType="FC">
+      <Instance Scope="GlobalVariable" UId="472">
+        <Component Name="FRK_Elapsed" UId="471" />
+      </Instance>
+      <Token Text="(" UId="473" />
+      <Parameter Name="NewMs" UId="474">
+        <Blank Num="1" UId="475" />
+        <Token Text=":=" UId="476" />
+        <Blank Num="1" UId="477" />
+        <Access Scope="GlobalVariable" UId="478">
+          <Symbol UId="479">
+            <Component Name="FRK_Clock" UId="480">
+              <BooleanAttribute Name="HasQuotes" UId="481">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="482" />
+            <Component Name="NowMs" UId="483" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text="," UId="484" />
+      <NewLine Num="1" UId="485" />
+      <Blank Num="61" UId="486" />
+      <Parameter Name="OldMs" UId="487">
+        <Blank Num="1" UId="488" />
+        <Token Text=":=" UId="489" />
+        <Blank Num="1" UId="490" />
+        <Access Scope="GlobalVariable" UId="491">
+          <Symbol UId="492">
+            <Component Name="GDB_PressDemoSim" UId="493">
+              <BooleanAttribute Name="HasQuotes" UId="494">true</BooleanAttribute>
+            </Component>
+            <Token Text="." UId="495" />
+            <Component Name="SwapSinceMs" UId="496" />
+          </Symbol>
+        </Access>
+      </Parameter>
+      <Token Text=")" UId="498" />
+    </CallInfo>
+  </Access>
+  <Blank Num="1" UId="499" />
+  <Token Text="&gt;=" UId="500" />
+  <Blank Num="1" UId="501" />
+  <Access Scope="LocalConstant" UId="502">
+    <Constant Name="PART_SWAP_MS" UId="503" />
+  </Access>
+  <Blank Num="1" UId="506" />
+  <Token Text="THEN" UId="507" />
+  <NewLine Num="1" UId="508" />
+  <Blank Num="12" UId="509" />
+  <Access Scope="GlobalVariable" UId="510">
+    <Symbol UId="511">
+      <Component Name="GDB_PressDemoSim" UId="512">
+        <BooleanAttribute Name="HasQuotes" UId="513">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="514" />
+      <Component Name="Swapping" UId="515" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="516" />
+  <Token Text=":=" UId="517" />
+  <Blank Num="1" UId="518" />
+  <Access Scope="LiteralConstant" UId="519">
+    <Constant UId="520">
+      <ConstantValue UId="522">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="523" />
+  <NewLine Num="1" UId="524" />
+  <Blank Num="8" UId="525" />
+  <Token Text="END_IF" UId="526" />
+  <Token Text=";" UId="527" />
+  <NewLine Num="1" UId="528" />
+  <Blank Num="8" UId="529" />
+  <Access Scope="GlobalVariable" UId="530">
+    <Symbol UId="531">
+      <Component Name="GDB_PressDemoSim" UId="532">
+        <BooleanAttribute Name="HasQuotes" UId="533">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="534" />
+      <Component Name="PartLoaded" UId="535" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="536" />
+  <Token Text=":=" UId="537" />
+  <Blank Num="1" UId="538" />
+  <Token Text="NOT" UId="539" />
+  <Blank Num="1" UId="540" />
+  <Access Scope="GlobalVariable" UId="541">
+    <Symbol UId="542">
+      <Component Name="GDB_PressDemoSim" UId="543">
+        <BooleanAttribute Name="HasQuotes" UId="544">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="545" />
+      <Component Name="Swapping" UId="546" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="547" />
+  <NewLine Num="1" UId="548" />
+  <Blank Num="4" UId="549" />
+  <Token Text="ELSE" UId="550" />
+  <NewLine Num="1" UId="551" />
+  <Blank Num="8" UId="552" />
+  <Access Scope="GlobalVariable" UId="553">
+    <Symbol UId="554">
+      <Component Name="GDB_PressDemoSim" UId="555">
+        <BooleanAttribute Name="HasQuotes" UId="556">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="557" />
+      <Component Name="Swapping" UId="558" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="559" />
+  <Token Text=":=" UId="560" />
+  <Blank Num="1" UId="561" />
+  <Access Scope="LiteralConstant" UId="562">
+    <Constant UId="563">
+      <ConstantValue UId="565">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="566" />
+  <NewLine Num="1" UId="567" />
+  <Blank Num="8" UId="568" />
+  <Access Scope="GlobalVariable" UId="569">
+    <Symbol UId="570">
+      <Component Name="GDB_PressDemoSim" UId="571">
+        <BooleanAttribute Name="HasQuotes" UId="572">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="573" />
+      <Component Name="SlideWasInside" UId="574" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="575" />
+  <Token Text=":=" UId="576" />
+  <Blank Num="1" UId="577" />
+  <Access Scope="LiteralConstant" UId="578">
+    <Constant UId="579">
+      <ConstantValue UId="581">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="582" />
+  <NewLine Num="1" UId="583" />
+  <Blank Num="8" UId="584" />
+  <Access Scope="GlobalVariable" UId="585">
+    <Symbol UId="586">
+      <Component Name="GDB_PressDemoSim" UId="587">
+        <BooleanAttribute Name="HasQuotes" UId="588">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="589" />
+      <Component Name="PartLoaded" UId="590" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="591" />
+  <Token Text=":=" UId="592" />
+  <Blank Num="1" UId="593" />
+  <Access Scope="GlobalVariable" UId="594">
+    <Symbol UId="595">
+      <Component Name="GDB_PressDemoSim" UId="596">
+        <BooleanAttribute Name="HasQuotes" UId="597">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="598" />
+      <Component Name="PartPresent" UId="599" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="600" />
+  <NewLine Num="1" UId="601" />
+  <Blank Num="4" UId="602" />
+  <Token Text="END_IF" UId="603" />
+  <Token Text=";" UId="604" />
+  <NewLine Num="1" UId="605" />
+  <Blank Num="4" UId="606" />
+  <Access Scope="GlobalVariable" UId="607">
+    <Symbol UId="608">
+      <Component Name="GDB_FraktalHal" UId="609">
+        <BooleanAttribute Name="HasQuotes" UId="610">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="611" />
+      <Component Name="Data" UId="612" />
+      <Token Text="." UId="613" />
+      <Component Name="PressDemo" UId="614" />
+      <Token Text="." UId="615" />
+      <Component Name="PartPresentSensor" UId="616" />
+      <Token Text="." UId="617" />
+      <Component Name="Value" UId="618" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="619" />
+  <Token Text=":=" UId="620" />
+  <Blank Num="1" UId="621" />
+  <Access Scope="GlobalVariable" UId="622">
+    <Symbol UId="623">
+      <Component Name="GDB_PressDemoSim" UId="624">
+        <BooleanAttribute Name="HasQuotes" UId="625">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="626" />
+      <Component Name="PartLoaded" UId="627" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="628" />
+  <NewLine Num="1" UId="629" />
+  <Blank Num="4" UId="630" />
+  <Access Scope="GlobalVariable" UId="631">
+    <Symbol UId="632">
+      <Component Name="GDB_FraktalHal" UId="633">
+        <BooleanAttribute Name="HasQuotes" UId="634">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="635" />
+      <Component Name="Data" UId="636" />
+      <Token Text="." UId="637" />
+      <Component Name="PressDemo" UId="638" />
+      <Token Text="." UId="639" />
+      <Component Name="PartPresentSensor" UId="640" />
+      <Token Text="." UId="641" />
+      <Component Name="Quality" UId="642" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="643" />
+  <Token Text=":=" UId="644" />
+  <Blank Num="1" UId="645" />
+  <Access Scope="GlobalVariable" UId="646">
+    <Symbol UId="647">
+      <Component Name="GDB_PressDemoSim" UId="648">
+        <BooleanAttribute Name="HasQuotes" UId="649">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="650" />
+      <Component Name="FieldbusHealthy" UId="651" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="652" />
+  <NewLine Num="1" UId="653" />
+  <Blank Num="4" UId="654" />
+  <Access Scope="GlobalVariable" UId="655">
+    <Symbol UId="656">
+      <Component Name="GDB_FraktalHal" UId="657">
+        <BooleanAttribute Name="HasQuotes" UId="658">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="659" />
+      <Component Name="Data" UId="660" />
+      <Token Text="." UId="661" />
+      <Component Name="PressDemo" UId="662" />
+      <Token Text="." UId="663" />
+      <Component Name="Process" UId="664" />
+      <Token Text="." UId="665" />
+      <Component Name="PartQuality" UId="666" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="667" />
+  <Token Text=":=" UId="668" />
+  <Blank Num="1" UId="669" />
+  <Access Scope="GlobalVariable" UId="670">
+    <Symbol UId="671">
+      <Component Name="GDB_PressDemoSim" UId="672">
+        <BooleanAttribute Name="HasQuotes" UId="673">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="674" />
+      <Component Name="PartQuality" UId="675" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="676" />
+  <NewLine Num="1" UId="677" />
+  <Blank Num="4" UId="678" />
+  <Access Scope="GlobalVariable" UId="679">
+    <Symbol UId="680">
+      <Component Name="GDB_FraktalHal" UId="681">
+        <BooleanAttribute Name="HasQuotes" UId="682">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="683" />
+      <Component Name="Data" UId="684" />
+      <Token Text="." UId="685" />
+      <Component Name="PressDemo" UId="686" />
+      <Token Text="." UId="687" />
+      <Component Name="AirPressureMonitor" UId="688" />
+      <Token Text="." UId="689" />
+      <Component Name="LowPressure" UId="690" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="691" />
+  <Token Text=":=" UId="692" />
+  <Blank Num="1" UId="693" />
+  <Token Text="NOT" UId="694" />
+  <Blank Num="1" UId="695" />
+  <Access Scope="GlobalVariable" UId="696">
+    <Symbol UId="697">
+      <Component Name="GDB_PressDemoSim" UId="698">
+        <BooleanAttribute Name="HasQuotes" UId="699">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="700" />
+      <Component Name="AirPressureOk" UId="701" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="702" />
+  <NewLine Num="1" UId="703" />
+  <Blank Num="4" UId="704" />
+  <Access Scope="GlobalVariable" UId="705">
+    <Symbol UId="706">
+      <Component Name="GDB_FraktalHal" UId="707">
+        <BooleanAttribute Name="HasQuotes" UId="708">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="709" />
+      <Component Name="Data" UId="710" />
+      <Token Text="." UId="711" />
+      <Component Name="PressDemo" UId="712" />
+      <Token Text="." UId="713" />
+      <Component Name="AirPressureMonitor" UId="714" />
+      <Token Text="." UId="715" />
+      <Component Name="OperatingPressure" UId="716" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="717" />
+  <Token Text=":=" UId="718" />
+  <Blank Num="1" UId="719" />
+  <Access Scope="GlobalVariable" UId="720">
+    <Symbol UId="721">
+      <Component Name="GDB_PressDemoSim" UId="722">
+        <BooleanAttribute Name="HasQuotes" UId="723">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="724" />
+      <Component Name="AirPressureOk" UId="725" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="726" />
+  <NewLine Num="1" UId="727" />
+  <Blank Num="4" UId="728" />
+  <Access Scope="GlobalVariable" UId="729">
+    <Symbol UId="730">
+      <Component Name="GDB_FraktalHal" UId="731">
+        <BooleanAttribute Name="HasQuotes" UId="732">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="733" />
+      <Component Name="Data" UId="734" />
+      <Token Text="." UId="735" />
+      <Component Name="PressDemo" UId="736" />
+      <Token Text="." UId="737" />
+      <Component Name="AirPressureMonitor" UId="738" />
+      <Token Text="." UId="739" />
+      <Component Name="Quality" UId="740" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="741" />
+  <Token Text=":=" UId="742" />
+  <Blank Num="1" UId="743" />
+  <Access Scope="GlobalVariable" UId="744">
+    <Symbol UId="745">
+      <Component Name="GDB_PressDemoSim" UId="746">
+        <BooleanAttribute Name="HasQuotes" UId="747">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="748" />
+      <Component Name="FieldbusHealthy" UId="749" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="750" />
+  <NewLine Num="1" UId="751" />
+  <Blank Num="4" UId="752" />
+  <Access Scope="GlobalVariable" UId="753">
+    <Symbol UId="754">
+      <Component Name="GDB_FraktalHal" UId="755">
+        <BooleanAttribute Name="HasQuotes" UId="756">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="757" />
+      <Component Name="Data" UId="758" />
+      <Token Text="." UId="759" />
+      <Component Name="PressDemo" UId="760" />
+      <Token Text="." UId="761" />
+      <Component Name="TwoHand" UId="762" />
+      <Token Text="." UId="763" />
+      <Component Name="LeftPressed" UId="764" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="765" />
+  <Token Text=":=" UId="766" />
+  <Blank Num="1" UId="767" />
+  <Access Scope="GlobalVariable" UId="768">
+    <Symbol UId="769">
+      <Component Name="GDB_PressDemoSim" UId="770">
+        <BooleanAttribute Name="HasQuotes" UId="771">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="772" />
+      <Component Name="LeftButton" UId="773" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="774" />
+  <NewLine Num="1" UId="775" />
+  <Blank Num="4" UId="776" />
+  <Access Scope="GlobalVariable" UId="777">
+    <Symbol UId="778">
+      <Component Name="GDB_FraktalHal" UId="779">
+        <BooleanAttribute Name="HasQuotes" UId="780">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="781" />
+      <Component Name="Data" UId="782" />
+      <Token Text="." UId="783" />
+      <Component Name="PressDemo" UId="784" />
+      <Token Text="." UId="785" />
+      <Component Name="TwoHand" UId="786" />
+      <Token Text="." UId="787" />
+      <Component Name="RightPressed" UId="788" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="789" />
+  <Token Text=":=" UId="790" />
+  <Blank Num="1" UId="791" />
+  <Access Scope="GlobalVariable" UId="792">
+    <Symbol UId="793">
+      <Component Name="GDB_PressDemoSim" UId="794">
+        <BooleanAttribute Name="HasQuotes" UId="795">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="796" />
+      <Component Name="RightButton" UId="797" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="798" />
+  <NewLine Num="1" UId="799" />
+  <Blank Num="4" UId="800" />
+  <Access Scope="GlobalVariable" UId="801">
+    <Symbol UId="802">
+      <Component Name="GDB_FraktalHal" UId="803">
+        <BooleanAttribute Name="HasQuotes" UId="804">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="805" />
+      <Component Name="Data" UId="806" />
+      <Token Text="." UId="807" />
+      <Component Name="PressDemo" UId="808" />
+      <Token Text="." UId="809" />
+      <Component Name="TwoHand" UId="810" />
+      <Token Text="." UId="811" />
+      <Component Name="SafeActive" UId="812" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="813" />
+  <Token Text=":=" UId="814" />
+  <Blank Num="1" UId="815" />
+  <Access Scope="GlobalVariable" UId="816">
+    <Symbol UId="817">
+      <Component Name="GDB_PressDemoSim" UId="818">
+        <BooleanAttribute Name="HasQuotes" UId="819">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="820" />
+      <Component Name="LeftButton" UId="821" />
+    </Symbol>
+  </Access>
+  <NewLine Num="1" UId="822" />
+  <Blank Num="4" UId="823" />
+  <Token Text="AND" UId="824" />
+  <Blank Num="1" UId="825" />
+  <Access Scope="GlobalVariable" UId="826">
+    <Symbol UId="827">
+      <Component Name="GDB_PressDemoSim" UId="828">
+        <BooleanAttribute Name="HasQuotes" UId="829">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="830" />
+      <Component Name="RightButton" UId="831" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="832" />
+  <Token Text="AND" UId="833" />
+  <Blank Num="1" UId="834" />
+  <Access Scope="GlobalVariable" UId="835">
+    <Symbol UId="836">
+      <Component Name="GDB_PressDemoSim" UId="837">
+        <BooleanAttribute Name="HasQuotes" UId="838">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="839" />
+      <Component Name="FieldbusHealthy" UId="840" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="841" />
+  <NewLine Num="1" UId="842" />
+  <Blank Num="4" UId="843" />
+  <Access Scope="GlobalVariable" UId="844">
+    <Symbol UId="845">
+      <Component Name="GDB_FraktalHal" UId="846">
+        <BooleanAttribute Name="HasQuotes" UId="847">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="848" />
+      <Component Name="Data" UId="849" />
+      <Token Text="." UId="850" />
+      <Component Name="PressDemo" UId="851" />
+      <Token Text="." UId="852" />
+      <Component Name="TwoHand" UId="853" />
+      <Token Text="." UId="854" />
+      <Component Name="FieldbusHealthy" UId="855" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="856" />
+  <Token Text=":=" UId="857" />
+  <Blank Num="1" UId="858" />
+  <Access Scope="GlobalVariable" UId="859">
+    <Symbol UId="860">
+      <Component Name="GDB_PressDemoSim" UId="861">
+        <BooleanAttribute Name="HasQuotes" UId="862">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="863" />
+      <Component Name="FieldbusHealthy" UId="864" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="865" />
+  <NewLine Num="1" UId="866" />
+  <Token Text="ELSIF" UId="867" />
+  <Blank Num="1" UId="868" />
+  <Access Scope="LocalVariable" UId="869">
+    <Symbol UId="870">
+      <Component Name="ReadInputs" UId="871" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="872" />
+  <Token Text="THEN" UId="873" />
+  <NewLine Num="1" UId="874" />
+  <Blank Num="4" UId="875" />
+  <Access Scope="GlobalVariable" UId="876">
+    <Symbol UId="877">
+      <Component Name="GDB_FraktalHal" UId="878">
+        <BooleanAttribute Name="HasQuotes" UId="879">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="880" />
+      <Component Name="Data" UId="881" />
+      <Token Text="." UId="882" />
+      <Component Name="PressDemo" UId="883" />
+      <Token Text="." UId="884" />
+      <Component Name="PartPresentSensor" UId="885" />
+      <Token Text="." UId="886" />
+      <Component Name="Value" UId="887" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="888" />
+  <Token Text=":=" UId="889" />
+  <Blank Num="1" UId="890" />
+  <Access Scope="GlobalVariable" UId="891">
+    <Symbol UId="892">
+      <Component Name="GDB_PressDemoIO" UId="893">
+        <BooleanAttribute Name="HasQuotes" UId="894">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="895" />
+      <Component Name="PartPresent" UId="896" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="897" />
+  <NewLine Num="1" UId="898" />
+  <Blank Num="4" UId="899" />
+  <Access Scope="GlobalVariable" UId="900">
+    <Symbol UId="901">
+      <Component Name="GDB_FraktalHal" UId="902">
+        <BooleanAttribute Name="HasQuotes" UId="903">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="904" />
+      <Component Name="Data" UId="905" />
+      <Token Text="." UId="906" />
+      <Component Name="PressDemo" UId="907" />
+      <Token Text="." UId="908" />
+      <Component Name="PartPresentSensor" UId="909" />
+      <Token Text="." UId="910" />
+      <Component Name="Quality" UId="911" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="912" />
+  <Token Text=":=" UId="913" />
+  <Blank Num="1" UId="914" />
+  <Access Scope="GlobalVariable" UId="915">
+    <Symbol UId="916">
+      <Component Name="GDB_PressDemoIO" UId="917">
+        <BooleanAttribute Name="HasQuotes" UId="918">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="919" />
+      <Component Name="StandardIoHealthy" UId="920" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="921" />
+  <NewLine Num="1" UId="922" />
+  <Blank Num="4" UId="923" />
+  <Access Scope="GlobalVariable" UId="924">
+    <Symbol UId="925">
+      <Component Name="GDB_FraktalHal" UId="926">
+        <BooleanAttribute Name="HasQuotes" UId="927">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="928" />
+      <Component Name="Data" UId="929" />
+      <Token Text="." UId="930" />
+      <Component Name="PressDemo" UId="931" />
+      <Token Text="." UId="932" />
+      <Component Name="Process" UId="933" />
+      <Token Text="." UId="934" />
+      <Component Name="PartQuality" UId="935" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="936" />
+  <Token Text=":=" UId="937" />
+  <Blank Num="1" UId="938" />
+  <Access Scope="GlobalVariable" UId="939">
+    <Symbol UId="940">
+      <Component Name="GDB_PressDemoIO" UId="941">
+        <BooleanAttribute Name="HasQuotes" UId="942">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="943" />
+      <Component Name="PartQuality" UId="944" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="945" />
+  <NewLine Num="1" UId="946" />
+  <Blank Num="4" UId="947" />
+  <Access Scope="GlobalVariable" UId="948">
+    <Symbol UId="949">
+      <Component Name="GDB_FraktalHal" UId="950">
+        <BooleanAttribute Name="HasQuotes" UId="951">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="952" />
+      <Component Name="Data" UId="953" />
+      <Token Text="." UId="954" />
+      <Component Name="PressDemo" UId="955" />
+      <Token Text="." UId="956" />
+      <Component Name="AirPressureMonitor" UId="957" />
+      <Token Text="." UId="958" />
+      <Component Name="LowPressure" UId="959" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="960" />
+  <Token Text=":=" UId="961" />
+  <Blank Num="1" UId="962" />
+  <Access Scope="GlobalVariable" UId="963">
+    <Symbol UId="964">
+      <Component Name="GDB_PressDemoIO" UId="965">
+        <BooleanAttribute Name="HasQuotes" UId="966">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="967" />
+      <Component Name="AirLowPressure" UId="968" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="969" />
+  <NewLine Num="1" UId="970" />
+  <Blank Num="4" UId="971" />
+  <Access Scope="GlobalVariable" UId="972">
+    <Symbol UId="973">
+      <Component Name="GDB_FraktalHal" UId="974">
+        <BooleanAttribute Name="HasQuotes" UId="975">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="976" />
+      <Component Name="Data" UId="977" />
+      <Token Text="." UId="978" />
+      <Component Name="PressDemo" UId="979" />
+      <Token Text="." UId="980" />
+      <Component Name="AirPressureMonitor" UId="981" />
+      <Token Text="." UId="982" />
+      <Component Name="OperatingPressure" UId="983" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="984" />
+  <Token Text=":=" UId="985" />
+  <Blank Num="1" UId="986" />
+  <Access Scope="GlobalVariable" UId="987">
+    <Symbol UId="988">
+      <Component Name="GDB_PressDemoIO" UId="989">
+        <BooleanAttribute Name="HasQuotes" UId="990">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="991" />
+      <Component Name="AirOperatingPressure" UId="992" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="993" />
+  <NewLine Num="1" UId="994" />
+  <Blank Num="4" UId="995" />
+  <Access Scope="GlobalVariable" UId="996">
+    <Symbol UId="997">
+      <Component Name="GDB_FraktalHal" UId="998">
+        <BooleanAttribute Name="HasQuotes" UId="999">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1000" />
+      <Component Name="Data" UId="1001" />
+      <Token Text="." UId="1002" />
+      <Component Name="PressDemo" UId="1003" />
+      <Token Text="." UId="1004" />
+      <Component Name="AirPressureMonitor" UId="1005" />
+      <Token Text="." UId="1006" />
+      <Component Name="Quality" UId="1007" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1008" />
+  <Token Text=":=" UId="1009" />
+  <Blank Num="1" UId="1010" />
+  <Access Scope="GlobalVariable" UId="1011">
+    <Symbol UId="1012">
+      <Component Name="GDB_PressDemoIO" UId="1013">
+        <BooleanAttribute Name="HasQuotes" UId="1014">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1015" />
+      <Component Name="StandardIoHealthy" UId="1016" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1017" />
+  <NewLine Num="1" UId="1018" />
+  <Blank Num="4" UId="1019" />
+  <Access Scope="GlobalVariable" UId="1020">
+    <Symbol UId="1021">
+      <Component Name="GDB_FraktalHal" UId="1022">
+        <BooleanAttribute Name="HasQuotes" UId="1023">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1024" />
+      <Component Name="Data" UId="1025" />
+      <Token Text="." UId="1026" />
+      <Component Name="PressDemo" UId="1027" />
+      <Token Text="." UId="1028" />
+      <Component Name="TwoHand" UId="1029" />
+      <Token Text="." UId="1030" />
+      <Component Name="LeftPressed" UId="1031" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1032" />
+  <Token Text=":=" UId="1033" />
+  <Blank Num="1" UId="1034" />
+  <Access Scope="GlobalVariable" UId="1035">
+    <Symbol UId="1036">
+      <Component Name="GDB_PressDemoIO" UId="1037">
+        <BooleanAttribute Name="HasQuotes" UId="1038">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1039" />
+      <Component Name="TwoHandLeft" UId="1040" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1041" />
+  <NewLine Num="1" UId="1042" />
+  <Blank Num="4" UId="1043" />
+  <Access Scope="GlobalVariable" UId="1044">
+    <Symbol UId="1045">
+      <Component Name="GDB_FraktalHal" UId="1046">
+        <BooleanAttribute Name="HasQuotes" UId="1047">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1048" />
+      <Component Name="Data" UId="1049" />
+      <Token Text="." UId="1050" />
+      <Component Name="PressDemo" UId="1051" />
+      <Token Text="." UId="1052" />
+      <Component Name="TwoHand" UId="1053" />
+      <Token Text="." UId="1054" />
+      <Component Name="RightPressed" UId="1055" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1056" />
+  <Token Text=":=" UId="1057" />
+  <Blank Num="1" UId="1058" />
+  <Access Scope="GlobalVariable" UId="1059">
+    <Symbol UId="1060">
+      <Component Name="GDB_PressDemoIO" UId="1061">
+        <BooleanAttribute Name="HasQuotes" UId="1062">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1063" />
+      <Component Name="TwoHandRight" UId="1064" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1065" />
+  <NewLine Num="1" UId="1066" />
+  <Blank Num="4" UId="1067" />
+  <Access Scope="GlobalVariable" UId="1068">
+    <Symbol UId="1069">
+      <Component Name="GDB_FraktalHal" UId="1070">
+        <BooleanAttribute Name="HasQuotes" UId="1071">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1072" />
+      <Component Name="Data" UId="1073" />
+      <Token Text="." UId="1074" />
+      <Component Name="PressDemo" UId="1075" />
+      <Token Text="." UId="1076" />
+      <Component Name="TwoHand" UId="1077" />
+      <Token Text="." UId="1078" />
+      <Component Name="SafeActive" UId="1079" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1080" />
+  <Token Text=":=" UId="1081" />
+  <Blank Num="1" UId="1082" />
+  <Access Scope="GlobalVariable" UId="1083">
+    <Symbol UId="1084">
+      <Component Name="GDB_PressDemoIO" UId="1085">
+        <BooleanAttribute Name="HasQuotes" UId="1086">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1087" />
+      <Component Name="TwoHandSafeActive" UId="1088" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1089" />
+  <NewLine Num="1" UId="1090" />
+  <Blank Num="4" UId="1091" />
+  <Access Scope="GlobalVariable" UId="1092">
+    <Symbol UId="1093">
+      <Component Name="GDB_FraktalHal" UId="1094">
+        <BooleanAttribute Name="HasQuotes" UId="1095">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1096" />
+      <Component Name="Data" UId="1097" />
+      <Token Text="." UId="1098" />
+      <Component Name="PressDemo" UId="1099" />
+      <Token Text="." UId="1100" />
+      <Component Name="TwoHand" UId="1101" />
+      <Token Text="." UId="1102" />
+      <Component Name="FieldbusHealthy" UId="1103" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1104" />
+  <Token Text=":=" UId="1105" />
+  <Blank Num="1" UId="1106" />
+  <Access Scope="GlobalVariable" UId="1107">
+    <Symbol UId="1108">
+      <Component Name="GDB_PressDemoIO" UId="1109">
+        <BooleanAttribute Name="HasQuotes" UId="1110">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1111" />
+      <Component Name="StandardIoHealthy" UId="1112" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1113" />
+  <NewLine Num="1" UId="1114" />
+  <Blank Num="4" UId="1115" />
+  <Access Scope="GlobalVariable" UId="1116">
+    <Symbol UId="1117">
+      <Component Name="GDB_FraktalHal" UId="1118">
+        <BooleanAttribute Name="HasQuotes" UId="1119">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1120" />
+      <Component Name="Data" UId="1121" />
+      <Token Text="." UId="1122" />
+      <Component Name="PressDemo" UId="1123" />
+      <Token Text="." UId="1124" />
+      <Component Name="PressRam" UId="1125" />
+      <Token Text="." UId="1126" />
+      <Component Name="FeedbackExtended" UId="1127" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1128" />
+  <Token Text=":=" UId="1129" />
+  <Blank Num="1" UId="1130" />
+  <Access Scope="GlobalVariable" UId="1131">
+    <Symbol UId="1132">
+      <Component Name="GDB_PressDemoIO" UId="1133">
+        <BooleanAttribute Name="HasQuotes" UId="1134">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1135" />
+      <Component Name="RamExtended" UId="1136" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1137" />
+  <NewLine Num="1" UId="1138" />
+  <Blank Num="4" UId="1139" />
+  <Access Scope="GlobalVariable" UId="1140">
+    <Symbol UId="1141">
+      <Component Name="GDB_FraktalHal" UId="1142">
+        <BooleanAttribute Name="HasQuotes" UId="1143">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1144" />
+      <Component Name="Data" UId="1145" />
+      <Token Text="." UId="1146" />
+      <Component Name="PressDemo" UId="1147" />
+      <Token Text="." UId="1148" />
+      <Component Name="PressRam" UId="1149" />
+      <Token Text="." UId="1150" />
+      <Component Name="FeedbackRetracted" UId="1151" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1152" />
+  <Token Text=":=" UId="1153" />
+  <Blank Num="1" UId="1154" />
+  <Access Scope="GlobalVariable" UId="1155">
+    <Symbol UId="1156">
+      <Component Name="GDB_PressDemoIO" UId="1157">
+        <BooleanAttribute Name="HasQuotes" UId="1158">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1159" />
+      <Component Name="RamRetracted" UId="1160" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1161" />
+  <NewLine Num="1" UId="1162" />
+  <Blank Num="4" UId="1163" />
+  <Access Scope="GlobalVariable" UId="1164">
+    <Symbol UId="1165">
+      <Component Name="GDB_FraktalHal" UId="1166">
+        <BooleanAttribute Name="HasQuotes" UId="1167">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1168" />
+      <Component Name="Data" UId="1169" />
+      <Token Text="." UId="1170" />
+      <Component Name="PressDemo" UId="1171" />
+      <Token Text="." UId="1172" />
+      <Component Name="Door" UId="1173" />
+      <Token Text="." UId="1174" />
+      <Component Name="FeedbackExtended" UId="1175" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1176" />
+  <Token Text=":=" UId="1177" />
+  <Blank Num="1" UId="1178" />
+  <Access Scope="GlobalVariable" UId="1179">
+    <Symbol UId="1180">
+      <Component Name="GDB_PressDemoIO" UId="1181">
+        <BooleanAttribute Name="HasQuotes" UId="1182">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1183" />
+      <Component Name="DoorClosed" UId="1184" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1185" />
+  <NewLine Num="1" UId="1186" />
+  <Blank Num="4" UId="1187" />
+  <Access Scope="GlobalVariable" UId="1188">
+    <Symbol UId="1189">
+      <Component Name="GDB_FraktalHal" UId="1190">
+        <BooleanAttribute Name="HasQuotes" UId="1191">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1192" />
+      <Component Name="Data" UId="1193" />
+      <Token Text="." UId="1194" />
+      <Component Name="PressDemo" UId="1195" />
+      <Token Text="." UId="1196" />
+      <Component Name="Door" UId="1197" />
+      <Token Text="." UId="1198" />
+      <Component Name="FeedbackRetracted" UId="1199" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1200" />
+  <Token Text=":=" UId="1201" />
+  <Blank Num="1" UId="1202" />
+  <Access Scope="GlobalVariable" UId="1203">
+    <Symbol UId="1204">
+      <Component Name="GDB_PressDemoIO" UId="1205">
+        <BooleanAttribute Name="HasQuotes" UId="1206">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1207" />
+      <Component Name="DoorOpen" UId="1208" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1209" />
+  <NewLine Num="1" UId="1210" />
+  <Blank Num="4" UId="1211" />
+  <Access Scope="GlobalVariable" UId="1212">
+    <Symbol UId="1213">
+      <Component Name="GDB_FraktalHal" UId="1214">
+        <BooleanAttribute Name="HasQuotes" UId="1215">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1216" />
+      <Component Name="Data" UId="1217" />
+      <Token Text="." UId="1218" />
+      <Component Name="PressDemo" UId="1219" />
+      <Token Text="." UId="1220" />
+      <Component Name="PartSlide" UId="1221" />
+      <Token Text="." UId="1222" />
+      <Component Name="FeedbackExtended" UId="1223" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1224" />
+  <Token Text=":=" UId="1225" />
+  <Blank Num="1" UId="1226" />
+  <Access Scope="GlobalVariable" UId="1227">
+    <Symbol UId="1228">
+      <Component Name="GDB_PressDemoIO" UId="1229">
+        <BooleanAttribute Name="HasQuotes" UId="1230">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1231" />
+      <Component Name="SlideInside" UId="1232" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1233" />
+  <NewLine Num="1" UId="1234" />
+  <Blank Num="4" UId="1235" />
+  <Access Scope="GlobalVariable" UId="1236">
+    <Symbol UId="1237">
+      <Component Name="GDB_FraktalHal" UId="1238">
+        <BooleanAttribute Name="HasQuotes" UId="1239">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1240" />
+      <Component Name="Data" UId="1241" />
+      <Token Text="." UId="1242" />
+      <Component Name="PressDemo" UId="1243" />
+      <Token Text="." UId="1244" />
+      <Component Name="PartSlide" UId="1245" />
+      <Token Text="." UId="1246" />
+      <Component Name="FeedbackRetracted" UId="1247" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1248" />
+  <Token Text=":=" UId="1249" />
+  <Blank Num="1" UId="1250" />
+  <Access Scope="GlobalVariable" UId="1251">
+    <Symbol UId="1252">
+      <Component Name="GDB_PressDemoIO" UId="1253">
+        <BooleanAttribute Name="HasQuotes" UId="1254">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1255" />
+      <Component Name="SlideOutside" UId="1256" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1257" />
+  <NewLine Num="1" UId="1258" />
+  <Token Text="ELSIF" UId="1259" />
+  <Blank Num="1" UId="1260" />
+  <Access Scope="LocalConstant" UId="1261">
+    <Constant Name="USE_SIMULATION" UId="1262" />
+  </Access>
+  <Blank Num="1" UId="1265" />
+  <Token Text="THEN" UId="1266" />
+  <NewLine Num="1" UId="1267" />
+  <Blank Num="4" UId="1268" />
+  <LineComment Inserted="false" NoClosingBracket="false" UId="1269">
+    <Text UId="1270"> Never energize a physical output during virtual commissioning; the</Text>
+  </LineComment>
+  <NewLine Num="1" UId="1271" />
+  <Blank Num="4" UId="1272" />
+  <LineComment Inserted="false" NoClosingBracket="false" UId="1273">
+    <Text UId="1274"> plant model reads the coils from the HAL on the next input read.</Text>
+  </LineComment>
+  <NewLine Num="1" UId="1275" />
+  <Blank Num="4" UId="1276" />
+  <Access Scope="GlobalVariable" UId="1277">
+    <Symbol UId="1278">
+      <Component Name="GDB_PressDemoIO" UId="1279">
+        <BooleanAttribute Name="HasQuotes" UId="1280">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1281" />
+      <Component Name="RamExtend" UId="1282" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1283" />
+  <Token Text=":=" UId="1284" />
+  <Blank Num="1" UId="1285" />
+  <Access Scope="LiteralConstant" UId="1286">
+    <Constant UId="1287">
+      <ConstantValue UId="1289">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1290" />
+  <NewLine Num="1" UId="1291" />
+  <Blank Num="4" UId="1292" />
+  <Access Scope="GlobalVariable" UId="1293">
+    <Symbol UId="1294">
+      <Component Name="GDB_PressDemoIO" UId="1295">
+        <BooleanAttribute Name="HasQuotes" UId="1296">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1297" />
+      <Component Name="RamRetract" UId="1298" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1299" />
+  <Token Text=":=" UId="1300" />
+  <Blank Num="1" UId="1301" />
+  <Access Scope="LiteralConstant" UId="1302">
+    <Constant UId="1303">
+      <ConstantValue UId="1305">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1306" />
+  <NewLine Num="1" UId="1307" />
+  <Blank Num="4" UId="1308" />
+  <Access Scope="GlobalVariable" UId="1309">
+    <Symbol UId="1310">
+      <Component Name="GDB_PressDemoIO" UId="1311">
+        <BooleanAttribute Name="HasQuotes" UId="1312">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1313" />
+      <Component Name="DoorClose" UId="1314" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1315" />
+  <Token Text=":=" UId="1316" />
+  <Blank Num="1" UId="1317" />
+  <Access Scope="LiteralConstant" UId="1318">
+    <Constant UId="1319">
+      <ConstantValue UId="1321">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1322" />
+  <NewLine Num="1" UId="1323" />
+  <Blank Num="4" UId="1324" />
+  <Access Scope="GlobalVariable" UId="1325">
+    <Symbol UId="1326">
+      <Component Name="GDB_PressDemoIO" UId="1327">
+        <BooleanAttribute Name="HasQuotes" UId="1328">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1329" />
+      <Component Name="DoorRelease" UId="1330" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1331" />
+  <Token Text=":=" UId="1332" />
+  <Blank Num="1" UId="1333" />
+  <Access Scope="LiteralConstant" UId="1334">
+    <Constant UId="1335">
+      <ConstantValue UId="1337">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1338" />
+  <NewLine Num="1" UId="1339" />
+  <Blank Num="4" UId="1340" />
+  <Access Scope="GlobalVariable" UId="1341">
+    <Symbol UId="1342">
+      <Component Name="GDB_PressDemoIO" UId="1343">
+        <BooleanAttribute Name="HasQuotes" UId="1344">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1345" />
+      <Component Name="SlideExtend" UId="1346" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1347" />
+  <Token Text=":=" UId="1348" />
+  <Blank Num="1" UId="1349" />
+  <Access Scope="LiteralConstant" UId="1350">
+    <Constant UId="1351">
+      <ConstantValue UId="1353">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1354" />
+  <NewLine Num="1" UId="1355" />
+  <Blank Num="4" UId="1356" />
+  <Access Scope="GlobalVariable" UId="1357">
+    <Symbol UId="1358">
+      <Component Name="GDB_PressDemoIO" UId="1359">
+        <BooleanAttribute Name="HasQuotes" UId="1360">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1361" />
+      <Component Name="SlideRetract" UId="1362" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1363" />
+  <Token Text=":=" UId="1364" />
+  <Blank Num="1" UId="1365" />
+  <Access Scope="LiteralConstant" UId="1366">
+    <Constant UId="1367">
+      <ConstantValue UId="1369">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1370" />
+  <NewLine Num="1" UId="1371" />
+  <Blank Num="4" UId="1372" />
+  <Access Scope="GlobalVariable" UId="1373">
+    <Symbol UId="1374">
+      <Component Name="GDB_PressDemoIO" UId="1375">
+        <BooleanAttribute Name="HasQuotes" UId="1376">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1377" />
+      <Component Name="StartLamp" UId="1378" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1379" />
+  <Token Text=":=" UId="1380" />
+  <Blank Num="1" UId="1381" />
+  <Access Scope="LiteralConstant" UId="1382">
+    <Constant UId="1383">
+      <ConstantValue UId="1385">FALSE</ConstantValue>
+    </Constant>
+  </Access>
+  <Token Text=";" UId="1386" />
+  <NewLine Num="1" UId="1387" />
+  <Token Text="ELSE" UId="1388" />
+  <NewLine Num="1" UId="1389" />
+  <Blank Num="4" UId="1390" />
+  <Access Scope="GlobalVariable" UId="1391">
+    <Symbol UId="1392">
+      <Component Name="GDB_PressDemoIO" UId="1393">
+        <BooleanAttribute Name="HasQuotes" UId="1394">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1395" />
+      <Component Name="RamExtend" UId="1396" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1397" />
+  <Token Text=":=" UId="1398" />
+  <Blank Num="1" UId="1399" />
+  <Access Scope="GlobalVariable" UId="1400">
+    <Symbol UId="1401">
+      <Component Name="GDB_FraktalHal" UId="1402">
+        <BooleanAttribute Name="HasQuotes" UId="1403">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1404" />
+      <Component Name="Data" UId="1405" />
+      <Token Text="." UId="1406" />
+      <Component Name="PressDemo" UId="1407" />
+      <Token Text="." UId="1408" />
+      <Component Name="PressRam" UId="1409" />
+      <Token Text="." UId="1410" />
+      <Component Name="CoilExtend" UId="1411" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1412" />
+  <NewLine Num="1" UId="1413" />
+  <Blank Num="4" UId="1414" />
+  <Access Scope="GlobalVariable" UId="1415">
+    <Symbol UId="1416">
+      <Component Name="GDB_PressDemoIO" UId="1417">
+        <BooleanAttribute Name="HasQuotes" UId="1418">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1419" />
+      <Component Name="RamRetract" UId="1420" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1421" />
+  <Token Text=":=" UId="1422" />
+  <Blank Num="1" UId="1423" />
+  <Access Scope="GlobalVariable" UId="1424">
+    <Symbol UId="1425">
+      <Component Name="GDB_FraktalHal" UId="1426">
+        <BooleanAttribute Name="HasQuotes" UId="1427">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1428" />
+      <Component Name="Data" UId="1429" />
+      <Token Text="." UId="1430" />
+      <Component Name="PressDemo" UId="1431" />
+      <Token Text="." UId="1432" />
+      <Component Name="PressRam" UId="1433" />
+      <Token Text="." UId="1434" />
+      <Component Name="CoilRetract" UId="1435" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1436" />
+  <NewLine Num="1" UId="1437" />
+  <Blank Num="4" UId="1438" />
+  <Access Scope="GlobalVariable" UId="1439">
+    <Symbol UId="1440">
+      <Component Name="GDB_PressDemoIO" UId="1441">
+        <BooleanAttribute Name="HasQuotes" UId="1442">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1443" />
+      <Component Name="DoorClose" UId="1444" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1445" />
+  <Token Text=":=" UId="1446" />
+  <Blank Num="1" UId="1447" />
+  <Access Scope="GlobalVariable" UId="1448">
+    <Symbol UId="1449">
+      <Component Name="GDB_FraktalHal" UId="1450">
+        <BooleanAttribute Name="HasQuotes" UId="1451">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1452" />
+      <Component Name="Data" UId="1453" />
+      <Token Text="." UId="1454" />
+      <Component Name="PressDemo" UId="1455" />
+      <Token Text="." UId="1456" />
+      <Component Name="Door" UId="1457" />
+      <Token Text="." UId="1458" />
+      <Component Name="CoilExtend" UId="1459" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1460" />
+  <NewLine Num="1" UId="1461" />
+  <Blank Num="4" UId="1462" />
+  <Access Scope="GlobalVariable" UId="1463">
+    <Symbol UId="1464">
+      <Component Name="GDB_PressDemoIO" UId="1465">
+        <BooleanAttribute Name="HasQuotes" UId="1466">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1467" />
+      <Component Name="DoorRelease" UId="1468" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1469" />
+  <Token Text=":=" UId="1470" />
+  <Blank Num="1" UId="1471" />
+  <Access Scope="GlobalVariable" UId="1472">
+    <Symbol UId="1473">
+      <Component Name="GDB_FraktalHal" UId="1474">
+        <BooleanAttribute Name="HasQuotes" UId="1475">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1476" />
+      <Component Name="Data" UId="1477" />
+      <Token Text="." UId="1478" />
+      <Component Name="PressDemo" UId="1479" />
+      <Token Text="." UId="1480" />
+      <Component Name="Door" UId="1481" />
+      <Token Text="." UId="1482" />
+      <Component Name="CoilRetract" UId="1483" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1484" />
+  <NewLine Num="1" UId="1485" />
+  <Blank Num="4" UId="1486" />
+  <Access Scope="GlobalVariable" UId="1487">
+    <Symbol UId="1488">
+      <Component Name="GDB_PressDemoIO" UId="1489">
+        <BooleanAttribute Name="HasQuotes" UId="1490">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1491" />
+      <Component Name="SlideExtend" UId="1492" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1493" />
+  <Token Text=":=" UId="1494" />
+  <Blank Num="1" UId="1495" />
+  <Access Scope="GlobalVariable" UId="1496">
+    <Symbol UId="1497">
+      <Component Name="GDB_FraktalHal" UId="1498">
+        <BooleanAttribute Name="HasQuotes" UId="1499">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1500" />
+      <Component Name="Data" UId="1501" />
+      <Token Text="." UId="1502" />
+      <Component Name="PressDemo" UId="1503" />
+      <Token Text="." UId="1504" />
+      <Component Name="PartSlide" UId="1505" />
+      <Token Text="." UId="1506" />
+      <Component Name="CoilExtend" UId="1507" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1508" />
+  <NewLine Num="1" UId="1509" />
+  <Blank Num="4" UId="1510" />
+  <Access Scope="GlobalVariable" UId="1511">
+    <Symbol UId="1512">
+      <Component Name="GDB_PressDemoIO" UId="1513">
+        <BooleanAttribute Name="HasQuotes" UId="1514">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1515" />
+      <Component Name="SlideRetract" UId="1516" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1517" />
+  <Token Text=":=" UId="1518" />
+  <Blank Num="1" UId="1519" />
+  <Access Scope="GlobalVariable" UId="1520">
+    <Symbol UId="1521">
+      <Component Name="GDB_FraktalHal" UId="1522">
+        <BooleanAttribute Name="HasQuotes" UId="1523">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1524" />
+      <Component Name="Data" UId="1525" />
+      <Token Text="." UId="1526" />
+      <Component Name="PressDemo" UId="1527" />
+      <Token Text="." UId="1528" />
+      <Component Name="PartSlide" UId="1529" />
+      <Token Text="." UId="1530" />
+      <Component Name="CoilRetract" UId="1531" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1532" />
+  <NewLine Num="1" UId="1533" />
+  <Blank Num="4" UId="1534" />
+  <Access Scope="GlobalVariable" UId="1535">
+    <Symbol UId="1536">
+      <Component Name="GDB_PressDemoIO" UId="1537">
+        <BooleanAttribute Name="HasQuotes" UId="1538">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1539" />
+      <Component Name="StartLamp" UId="1540" />
+    </Symbol>
+  </Access>
+  <Blank Num="1" UId="1541" />
+  <Token Text=":=" UId="1542" />
+  <Blank Num="1" UId="1543" />
+  <Access Scope="GlobalVariable" UId="1544">
+    <Symbol UId="1545">
+      <Component Name="PressDemo" UId="1546">
+        <BooleanAttribute Name="HasQuotes" UId="1547">true</BooleanAttribute>
+      </Component>
+      <Token Text="." UId="1548" />
+      <Component Name="OutImm" UId="1549" />
+      <Token Text="." UId="1550" />
+      <Component Name="TwoHandStartReady" UId="1551" />
+    </Symbol>
+  </Access>
+  <Token Text=";" UId="1552" />
+  <NewLine Num="1" UId="1553" />
+  <Token Text="END_IF" UId="1554" />
+  <Token Text=";" UId="1555" />
+  <NewLine Num="1" UId="1556" />
+</StructuredText></NetworkSource>
+          <ProgrammingLanguage>SCL</ProgrammingLanguage>
+        </AttributeList>
+        <ObjectList>
+          <MultilingualText ID="4" CompositionName="Comment">
+            <ObjectList>
+              <MultilingualTextItem ID="5" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+          <MultilingualText ID="6" CompositionName="Title">
+            <ObjectList>
+              <MultilingualTextItem ID="7" CompositionName="Items">
+                <AttributeList>
+                  <Culture>en-US</Culture>
+                  <Text />
+                </AttributeList>
+              </MultilingualTextItem>
+            </ObjectList>
+          </MultilingualText>
+        </ObjectList>
+      </SW.Blocks.CompileUnit>
+      <MultilingualText ID="8" CompositionName="Title">
+        <ObjectList>
+          <MultilingualTextItem ID="9" CompositionName="Items">
+            <AttributeList>
+              <Culture>en-US</Culture>
+              <Text />
+            </AttributeList>
+          </MultilingualTextItem>
+        </ObjectList>
+      </MultilingualText>
+    </ObjectList>
+  </SW.Blocks.FB>
+</Document>

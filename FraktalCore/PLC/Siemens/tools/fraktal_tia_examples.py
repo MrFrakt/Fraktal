@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 import fraktal_tia_declaration as DECL
 import fraktal_tia_generate as GEN
 import fraktal_tia_graph as GRAPH
+import fraktal_tia_topology as TOPOLOGY
 from fraktal_tia_binding import Catalog, PRIVATE, READONLY, literal, type_source
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -503,6 +504,29 @@ def unit_policy(catalog):
       'CommandStart':'    #OutCmd.ChangeoverCompleted := FALSE;'}
 
 
+def fieldbus_spec(definition):
+    """Join the approved I/O list (one source of tags and terminal addresses)
+    with the press's signal ownership into the generic topology declaration."""
+    bus=definition['fieldbus'];io=json.loads((ROOT/bus['io_list']).read_bytes())
+    root=definition['integration']['root']
+    owner={signal:root+'.'+module for module,signals in bus['owners'].items() for signal in signals}
+    known={row['signal'] for row in io['inputs']+io['outputs']}
+    assert set(owner)<=known,'fieldbus owner names a signal missing from the I/O list: '+str(sorted(set(owner)-known))
+    def channel(row,direction,source=True):
+        return {'tag':row['tag'],'address':row['address'],'dir':direction,
+                'description_key':'project.io.'+row['tag'].lstrip('_'),
+                'source':row['signal'] if source else None,
+                'module':owner.get(row.get('signal'),root) if source else root}
+    inputs=[channel(row,'INPUT') for row in io['inputs']]
+    outputs=[channel(row,'OUTPUT') for row in io['outputs']]+[channel(row,'OUTPUT',False) for row in io['inhibited_outputs']]
+    station=dict(bus['station'],type_id='CPU 1214C DC/DC/DC '+io['cpu_order'],address=io['physical_address']+' (I/O bridge)')
+    def group(key,channels):
+        return dict(bus['groups'][key],parent=1,channels=channels,
+                    address=channels[0]['address']+'..'+channels[-1]['address'])
+    return {**{k:bus[k] for k in ('block','publisher','image','healthy')},
+            'nodes':[station,group('inputs',inputs),group('outputs',outputs)]}
+
+
 def wire_demo(sources,definition,catalog):
     name=next(n for n in sources if n.startswith('20_') and 'FB_PressDemoUnit' in n)
     text=sources.pop(name)
@@ -536,6 +560,16 @@ def wire_demo(sources,definition,catalog):
             assert count==len(re.findall(r'\bBool;',match[0]))
         sources[prefix+match[1]+'.db']=data
     for match in reversed(matches):hardware=hardware[:match.start()]+hardware[match.end():]
+    if definition.get('fieldbus'):
+        image=set(re.findall(r'^\s+(\w+)\s*\{[^}]*\}\s*:\s*Bool;',sources['38_GDB_PressDemoIO.db'],re.M))
+        spec=fieldbus_spec(definition)
+        sources.update(TOPOLOGY.sources(catalog,spec,image,definition['integration']['root'],
+            {definition['integration']['root']+'.'+name for name in definition['roles']+[s['name'] for s in definition['sensors']]}))
+        # Published after the outputs are computed, inside the routine Main
+        # already calls: a project adds no call it could forget.
+        anchor='    "GDB_PressDemoHardwareDriver"(ReadInputs := FALSE);'
+        assert hardware.count(anchor)==1
+        hardware=hardware.replace(anchor,anchor+'\n    "'+spec['publisher']+'"();')
     sources['38_PressDemoHardwareDriver.scl']=hardware
     main=sources['40_Main.scl'];anchor='    "GDB_FraktalMain"(Startup := #Initial_Call);'
     main=main.replace(anchor,'    "F_PressDemoReadInputs"();\n'+anchor+'\n    "F_PressDemoWriteOutputs"();')

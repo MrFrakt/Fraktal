@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="PL_RobotPlanner" Id="{53844412-207a-4f90-b0d3-51fd2f0cd128}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Annex I - bounds for the declarative routing model. Every structure the
+// planner touches is statically sized (Core S1.1 O10): a route that would
+// exceed MAX_ROUTE_POINTS is refused, never allocated.
+VAR_GLOBAL CONSTANT
+    MAX_HELPS           : INT := 8;    // transit / wait positions
+    MAX_NESTS           : INT := 16;   // work positions, per gripper
+    MAX_GRIPPERS        : INT := 4;    // nests are per-gripper (I.12); 1 is the trivial case
+    MAX_HELPS_PER_NEST  : INT := 4;    // serving corridors on one nest (I.10)
+    MAX_APPROACH_STEPS  : INT := 4;    // offset steps in one corridor (I.10.2)
+    MAX_ROUTE_POINTS    : INT := 32;   // generated route length
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

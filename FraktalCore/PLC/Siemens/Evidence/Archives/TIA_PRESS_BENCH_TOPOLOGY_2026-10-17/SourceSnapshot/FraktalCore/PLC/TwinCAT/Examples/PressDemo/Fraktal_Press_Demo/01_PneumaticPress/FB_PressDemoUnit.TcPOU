@@ -1,0 +1,886 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <POU Name="FB_PressDemoUnit" Id="{5f21a307-9147-4e56-a693-b78707df35d5}" SpecialFunc="None">
+    <Declaration><![CDATA[// Project-owned Unit: pneumatic press + access door + transfer slide + two-hand request.
+// Cylinder interlocks prevent the two documented collisions in AUTO and MANUAL.
+// Certified E-stop, two-hand evaluation and safe valve outputs remain external.
+FUNCTION_BLOCK FB_PressDemoUnit EXTENDS FB_UnitBase
+VAR_INPUT
+    ParCfg : ST_PneumaticPressParCfg;
+    ParCmd : ST_PneumaticPressParCmd;
+END_VAR
+VAR_OUTPUT
+    PressRam      : FB_CylinderCM;
+    Door          : FB_CylinderCM;
+    PartSlide     : FB_CylinderCM;
+    TwoHand       : FB_TwoHandStartCM;
+    PneumaticPower: FB_PowerGroupCM;
+    PartPresentSensor : FB_DigitalInputCM;
+    AirPressureMonitor : FB_AirPressureMonitorCM;
+    // Jenny Science XENAX Xvi servo (Annex G, PLCopen Motion). NOT CABINET
+    // HARDWARE - read the note on PartFeedAxis before looking for it there.
+    PartFeed      : FB_AxisCM;
+    // Project-owned, browseable condition state of the rendition that RUNS.
+    ReleaseConditions : ST_PressDemoReleaseConditions;
+    OutCmd        : ST_PneumaticPressOutCmd;
+    OutImm        : ST_PneumaticPressOutImm;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _recipe : I_RecipeProvider;
+    // The NC axis this Unit feeds parts with. Until an axis is actually linked
+    // in the System Manager, _partFeedConfigured stays FALSE and the module is
+    // never called: MC_Power against an unlinked AXIS_REF would otherwise run
+    // every scan on a bench whose eight tests are green. Absent hardware is
+    // absent, not silently pretended.
+    //
+    // WHAT THIS AXIS IS, AND IS NOT (2026-08-25). The delivered CX2030 cabinet
+    // has NO SERVO. Its approved I/O list is five Beckhoff terminals
+    // (=000+S-K010: EK1200 / EL1809 / EL2809 / EL6001 / EL9011 -- see
+    // Specification/Reports/CX2030_PRESS_IO_MAPPING.md), and the part feeder in
+    // that cabinet is PNEUMATIC: PartSlide above, driven by the digital outputs
+    // _101K301A/_101K301B. Do not go looking for this axis on the cabinet bus.
+    //
+    // The drive behind it is a Jenny Science XENAX Xvi (vendor #x557, product
+    // #x7508) on a SECOND EtherCAT device, =000+S-A620 (EtherCAT), kept in its
+    // own XTI beside the cabinet's. It is outside the press entirely and stands
+    // in for a feed axis so a real process can be simulated against real motion
+    // hardware. Anything it teaches (S3.8c) or persists (S3.8b) is BENCH data,
+    // not commissioning data for the press -- which is why =000+S-A610-A1
+    // (EtherCAT).xti, the faithful record of the delivered cabinet, does not
+    // mention it and must not be made to.
+    {attribute 'OPC.UA.DA' := '0'}
+    PartFeedAxis : AXIS_REF;
+    _partFeedConfigured : BOOL;
+    _partFeedArmed : BOOL;             // last arming attempt's result (S5.6: no discarded return)
+    // §10.5.1 - the project I/O catalog owns the approved channel identity join
+    // (§10.2.1), so it, not this Unit, resolves a force request to a physical
+    // channel. Absent = no force routing, which is the fail-closed default.
+    {attribute 'OPC.UA.DA' := '0'}
+    _ioCatalog : REFERENCE TO FB_PressIoCatalog;
+    _parCfgStaged : ST_PneumaticPressParCfg;
+    // §3.8a - the ParCfg last applied (commit or accepted edit); a difference is an
+    // edit of the active model's recipe to take effect and to write back.
+    {attribute 'OPC.UA.DA' := '0'}
+    _parCfgApplied : ST_PneumaticPressParCfg;
+    _recipePrepared : BOOL;
+    _startLatched : BOOL;
+    _powerRequestPending : BOOL;
+    _powerTargetOn : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _homeSequence : FB_PressDemoHome;       // §6.8 ST chain on FB_SequenceBase owns HOME steps
+    {attribute 'OPC.UA.DA' := '0'}
+    _changeoverSequence : FB_PressDemoChangeover;
+    // §6.8 / O2 — the SAME AUTO chain in all three permitted languages. This is a
+    // demo bench: carrying three renditions is the point (O2 says sequences and
+    // interlocks may be ST, SFC or Ladder), not something a real project would do.
+    // AUTO_SEQUENCE_LANGUAGE below picks which one the Unit binds and runs; the
+    // other two are inert. They are excluded from OPC UA for the same reason the
+    // bound one is: a chain is not a module and publishes no Status.
+    {attribute 'OPC.UA.DA' := '0'}
+    _autoSequence : FB_PressDemoAuto;
+    {attribute 'OPC.UA.DA' := '0'}
+    _sfcAutoSequence : FB_SFC_PressDemoAuto;
+    {attribute 'OPC.UA.DA' := '0'}
+    _ldAutoSequence : FB_LD_PressDemoAuto;
+    // §7.2 / O2 — the SAME release engineering in a second language. Only the
+    // rendition RELEASE_LANGUAGE selects is set up, evaluated, and allowed to
+    // write the directional permits and the release report; the other is inert.
+    // Neither rendition is published itself: the selected one fills
+    // ReleaseConditions (a VAR_OUTPUT above) every scan, so the browseable
+    // record is always the one being evaluated. Publishing the ST instance
+    // directly left it frozen at FALSE whenever LD was selected (§3.12).
+    {attribute 'OPC.UA.DA' := '0'}
+    _stReleaseConditions : FB_PressDemoRelease;
+    {attribute 'OPC.UA.DA' := '0'}
+    _ldReleaseConditions : FB_LD_PressDemoRelease;
+END_VAR
+VAR PERSISTENT
+    // §3.8b - this station's deployment data. PERSISTENT is the BACKING, not the
+    // architecture: the values are reached as (Scope, WriteKey) capabilities like
+    // every other editable value, never as an aggregate copied in and out.
+    _station : ST_PneumaticPressStationCfg;
+END_VAR
+VAR CONSTANT
+    // §3.8b - layout version of the retained image above. Bump it when a member
+    // is added, and the old image is rejected and annunciated instead of read by
+    // field position.
+    PRESS_STATIONCFG_SCHEMA : UINT := 1;
+    // §3.8 - the longest settle times a recipe may hold. ONE source for the check
+    // a changeover applies (PrepareRecipe) and the range an edit is offered
+    // (the PAR_CFG registration), so an edit can never store what a changeover
+    // would refuse.
+    RECIPE_MAX_PRESS_SETTLE_MS    : UDINT := 30000;
+    RECIPE_MAX_TRANSFER_SETTLE_MS : UDINT := 5000;
+    // The provider key of this Unit's recipe record: loaded at a changeover and
+    // edited per model through the same key (§3.8a).
+    PRESS_RECIPE_KEY : STRING(80) := 'PneumaticPressUnit';
+    // Which rendition of the AUTO chain runs. VAR CONSTANT on purpose, like the
+    // §6.0 commissioning gates in MAIN: switching language is a source edit plus a
+    // download, never an online write. The compiler folds the unselected branches.
+    //   STRUCTURED_TEXT           -> FB_PressDemoAuto
+    //   SEQUENTIAL_FUNCTION_CHART -> FB_SFC_PressDemoAuto
+    //   LADDER_DIAGRAM            -> FB_LD_PressDemoAuto
+    AUTO_SEQUENCE_LANGUAGE : E_RenditionLanguage := E_RenditionLanguage.LADDER_DIAGRAM;
+    // Which rendition of the release/interlock logic is evaluated, on the same
+    // terms and from the same type, so a value means the same language in both
+    // selections. There is no SEQUENTIAL_FUNCTION_CHART rendition here: SFC is a
+    // sequence language and has nothing to say about a permissive, so that
+    // member is simply never selected rather than being given a second meaning.
+    //   STRUCTURED_TEXT -> FB_PressDemoRelease
+    //   LADDER_DIAGRAM  -> FB_LD_PressDemoRelease
+    RELEASE_LANGUAGE : E_RenditionLanguage := E_RenditionLanguage.LADDER_DIAGRAM;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="_M_AppendInterlocks" Id="{9d306c75-af96-45fa-b6f4-fc1be7a8f3a0}">
+      <Declaration><![CDATA[// §7.8 mode-entry release owned by this Unit. The base Start method consumes the
+// same report the HMI displays, so this condition cannot become explanation-only.
+METHOD PROTECTED _M_AppendInterlocks
+VAR_IN_OUT
+    Report : ST_ReleaseReport;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF ModeActive <> E_Mode.CHANGEOVER THEN
+IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
+    _ldReleaseConditions.M_AppendStart(Report := Report);
+ELSE
+    _stReleaseConditions.M_AppendStart(Report := Report);
+END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_AppendManualInterlocks" Id="{35af721a-a6ca-4323-a3cf-ed754f60575f}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_AppendManualInterlocks
+VAR_INPUT
+    TargetPath : STRING(255);
+    Value : DINT;
+END_VAR
+VAR_IN_OUT
+    Report : ST_ReleaseReport;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
+    _ldReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
+        PressRam := PressRam, Door := Door, PartSlide := PartSlide, Report := Report);
+ELSE
+    _stReleaseConditions.M_AppendManual(TargetPath := TargetPath, Value := Value,
+        PressRam := PressRam, Door := Door, PartSlide := PartSlide, Report := Report);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ClearModeTransitionState" Id="{f103e8ba-b0dd-4270-929c-47b3482c2e72}">
+      <Declaration><![CDATA[// Clear state that must not survive init, mode entry, or either abort path. The
+// base already restarts the chains and clears their decision (§6.8); this is the
+// Unit's OWN state. OnCommandStart deliberately does not call this: a physical
+// start pulse may have been latched one scan before the Execute edge is consumed.
+METHOD PROTECTED _M_ClearModeTransitionState]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_startLatched := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{cc2817fc-d9b1-4ed1-bbfd-50983067ea35}">
+      <Declaration><![CDATA[// Thin mode router. Each supported sequence is a named method in the Unit tree.
+METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE ModeActive OF
+    E_Mode.AUTO:
+        _M_SequenceAuto();
+    E_Mode.HOME:
+        _M_SequenceHome();
+    E_Mode.CHANGEOVER:
+        _M_SequenceChangeover();
+    E_Mode.MANUAL:
+        _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'project.error.pressManualHasNoSequence');
+ELSE
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'project.error.pressModeHasNoSequence');
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="SetIoCatalog" Id="{b9a7dfe7-c1ec-40c6-a281-799efbec5326}">
+      <Declaration><![CDATA[// §10.2.1 — inject this station's I/O catalog so §10.5.1 force requests can be
+// resolved against the approved engineering-data join instead of against a
+// second copy of the channel map. Wired once by the composition root.
+METHOD SetIoCatalog
+VAR_INPUT
+    Catalog : REFERENCE TO FB_PressIoCatalog;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_ioCatalog REF= Catalog;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_RouteForceChannel" Id="{aaa1041a-686a-4de3-882b-72cec4eb8f00}">
+      <Declaration><![CDATA[// §10.5.1 — resolve an accepted force request onto a physical output channel.
+// FB_UnitBase.ForceChannel has already proved the §7.7 MANUAL access level, the
+// §7.5 OUTPUT_FORCING build gate, and that this Unit is idle in MANUAL; the
+// catalog then proves what only it knows — that the path names a channel of THIS
+// root, that it is an OUTPUT, and that the project marked it forceable.
+METHOD PROTECTED _M_RouteForceChannel : BOOL
+VAR_INPUT
+    ChannelPath : STRING(255);
+    Force       : BOOL;
+    BoolText    : STRING(255);
+    AnalogText  : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_RouteForceChannel := FALSE;
+IF NOT __ISVALIDREF(_ioCatalog) THEN
+    RETURN;
+END_IF
+// The transported value is text (the mailbox carries no variant), so a malformed
+// payload must decode to a defined value rather than to whatever the converter
+// leaves behind: anything that is not exactly 'true' is FALSE (§5.6).
+_M_RouteForceChannel := _ioCatalog.M_RouteForce(ChannelPath := ChannelPath,
+    OwnerRootPath := _name, Force := Force,
+    BoolValue := (BoolText = 'true'),
+    AnalogValue := STRING_TO_REAL(AnalogText));]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_SequenceAuto" Id="{b1aa9e5f-1282-4e96-92a6-ed37b454daaa}">
+      <Declaration><![CDATA[// Wiring-only AUTO adapter. Every production command, wait, timer, decision,
+// traceability action, and transition lives in the §6.8 chain.
+METHOD PROTECTED _M_SequenceAuto]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// An ST chain's body is a method (M_Run); an SFC or LD chain's body IS the chart,
+// so the instance itself is the call. That asymmetry is the language difference,
+// not an inconsistency to normalise away.
+IF AUTO_SEQUENCE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
+    _ldAutoSequence();
+ELSIF AUTO_SEQUENCE_LANGUAGE = E_RenditionLanguage.SEQUENTIAL_FUNCTION_CHART THEN
+    _sfcAutoSequence();
+ELSE
+    _autoSequence.M_Run();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SequenceChangeover" Id="{b1464a9c-e4ea-4d66-8478-3947059ff94c}">
+      <Declaration><![CDATA[// Wiring-only CHANGEOVER adapter. The §6.8 chain owns model validation, safe
+// positioning, the operator decision, and completion logic.
+METHOD PROTECTED _M_SequenceChangeover]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_changeoverSequence.M_Run();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SequenceHome" Id="{ed834a64-57bd-4fe5-a5c0-ce16cdd2143a}">
+      <Declaration><![CDATA[// Wiring-only HOME adapter. OnCommandStart owns the reset edge; the sequence POU
+// owns every process step and terminal action.
+METHOD PROTECTED _M_SequenceHome]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_homeSequence.M_Run();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Supports" Id="{51b90e84-71fd-47fb-a133-d29df50af97d}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Supports : BOOL
+VAR_INPUT
+    Mode : E_Mode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_Supports := (Mode = E_Mode.AUTO) OR (Mode = E_Mode.MANUAL)
+    OR (Mode = E_Mode.HOME) OR (Mode = E_Mode.CHANGEOVER);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SupportsRunStyle" Id="{3d92c7a1-64b8-4f5e-8a20-c1e57b30d846}">
+      <Declaration><![CDATA[// §3.4.2 — the press paces every motion boundary through _M_StepGate, so
+// SINGLE_STEP and HOLD_TO_RUN are supported (NON-SAFETY pacing; interlocks
+// and the certified safety layer are unaffected).
+METHOD PROTECTED _M_SupportsRunStyle : BOOL
+VAR_INPUT
+    Style : E_RunStyle;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SupportsRunStyle := (Style = E_RunStyle.CONTINUOUS)
+    OR (Style = E_RunStyle.SINGLE_STEP) OR (Style = E_RunStyle.HOLD_TO_RUN);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_WithdrawSequenceOutputs" Id="{68f19385-fb7e-4871-be65-efc68591af5f}">
+      <Declaration><![CDATA[// One safe-stop wiring point shared by normal and error-state abort transitions.
+METHOD PROTECTED _M_WithdrawSequenceOutputs]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[PressRam.WithdrawOutputs();
+Door.WithdrawOutputs();
+PartSlide.WithdrawOutputs();
+PressRam.Execute := FALSE;
+Door.Execute := FALSE;
+PartSlide.Execute := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AbortRecipe" Id="{a113eb9d-e81d-4099-a6a9-7426558bed78}">
+      <Declaration><![CDATA[METHOD AbortRecipe]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SUPER^.AbortRecipe();
+_recipePrepared := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CommitRecipe" Id="{f0ca16c3-542f-49c8-a671-1b9e899cb831}">
+      <Declaration><![CDATA[METHOD CommitRecipe]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SUPER^.CommitRecipe();
+IF _recipePrepared THEN
+    ParCfg := _parCfgStaged;
+    // §8.11 performance references follow the model: OEE Performance denominator
+    // and the WORK-time degradation baseline are per-recipe engineering data.
+    Oee.IdealCycleMs := ParCfg.IdealCycleMs;
+    Profiler.M_SetBaselineWork(WorkMs := ParCfg.BaselineWorkMs);
+    _parCfgApplied := ParCfg;
+END_IF
+_recipePrepared := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_AppendConfig" Id="{6d1b3a97-2e50-48cf-b1a4-95c07de8f312}">
+      <Declaration><![CDATA[// §3.10.2 — base walk (Unit facets + all child modules), then the project-owned
+// fieldbus topology identity, from the I/O catalog that owns it (SetIoCatalog):
+// its static members are OPC.UA.DA=0 and reach the HMI only through this manifest.
+METHOD M_AppendConfig : BOOL
+VAR_INPUT
+    Pager : REFERENCE TO FB_ConfigPager;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[M_AppendConfig := SUPER^.M_AppendConfig(Pager := Pager);
+IF __ISVALIDREF(_ioCatalog) THEN
+    _ioCatalog.M_AppendTopologyConfig(Pager := Pager);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbort" Id="{946299b7-20f3-4f8e-8bce-a4a3c6398824}">
+      <Declaration><![CDATA[METHOD PROTECTED OnAbort : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnAbort := SUPER^.OnAbort();
+_M_PartAborted();                    // §3.16.3: the part leaves without a valid result
+_M_WithdrawSequenceOutputs();
+_M_ClearModeTransitionState();
+_powerTargetOn := FALSE;
+_powerRequestPending := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbortInError" Id="{a64227ef-33d3-4cdd-8492-93149de02dd5}">
+      <Declaration><![CDATA[// Error-state Abort is a deliberate recovery action but does not clear ERROR.
+METHOD PROTECTED OnAbortInError : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnAbortInError := SUPER^.OnAbortInError();
+_M_WithdrawSequenceOutputs();
+_M_ClearModeTransitionState();
+_powerTargetOn := FALSE;
+_powerRequestPending := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCommandStart" Id="{e5e79728-ee71-460d-95c2-7d77c9c488b4}">
+      <Declaration><![CDATA[// The press's restart policy (§6.9(d)): every accepted Start gets a fresh mode
+// chain, including a repeated HOME/CHANGEOVER run that does not pass through
+// another mode change. Resuming where an error stopped is the other legitimate
+// choice; this station does not make it.
+METHOD PROTECTED OnCommandStart : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCommandStart := SUPER^.OnCommandStart();
+_M_RestartSequences();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{f9b92ad7-f0eb-4fb6-b68a-ce349991589d}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT
+VAR
+    started : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+// §3.8b/§3.12 — the step guard is DERIVED from the station value every scan, not
+// latched at Setup. An operator who edits press.stallGuardMs gets the new guard
+// on the next step, and the published StallTime can never disagree with the
+// configuration it came from.
+StallTime := UDINT_TO_TIME(_station.StallGuardMs);
+// §3.8a - an accepted edit of the ACTIVE model's recipe lands in ParCfg (the base
+// has already saved it to the model's record). The performance references follow
+// it, as they do at a changeover.
+IF MEMCMP(ADR(ParCfg), ADR(_parCfgApplied), SIZEOF(ParCfg)) <> 0 THEN
+    Oee.IdealCycleMs := ParCfg.IdealCycleMs;
+    Profiler.M_SetBaselineWork(WorkMs := ParCfg.BaselineWorkMs);
+    _parCfgApplied := ParCfg;
+END_IF
+// §7.2.1/§6.1 - a cylinder cannot move without air, so air is each cylinder's own
+// process condition. Lost mid-stroke, the cylinder HOLDS - outputs off, resumes by
+// itself when pressure returns - and the Unit rolls the hold up by name. Nothing
+// to reset: the process restores this condition, it is not a defect.
+PressRam.SetAreaSafe(Ok := AirPressureMonitor.OutImm.PressureOk,
+    DescriptionKey := 'project.interlock.pressRequiresAirPressure');
+Door.SetAreaSafe(Ok := AirPressureMonitor.OutImm.PressureOk,
+    DescriptionKey := 'project.interlock.pressRequiresAirPressure');
+PartSlide.SetAreaSafe(Ok := AirPressureMonitor.OutImm.PressureOk,
+    DescriptionKey := 'project.interlock.pressRequiresAirPressure');
+// Project release engineering is a separate visible component. It owns the
+// functional collision permits and mode-entry conditions consumed below.
+IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
+    _ldReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
+        TwoHand := TwoHand, PneumaticPower := PneumaticPower,
+        AirPressure := AirPressureMonitor);
+    _ldReleaseConditions.M_PublishTo(Conditions := ReleaseConditions);
+ELSE
+    _stReleaseConditions.M_Evaluate(PressRam := PressRam, Door := Door, PartSlide := PartSlide,
+        TwoHand := TwoHand, PneumaticPower := PneumaticPower,
+        AirPressure := AirPressureMonitor);
+    _stReleaseConditions.M_PublishTo(Conditions := ReleaseConditions);
+END_IF
+
+// S1.1 O1 - the axis ARMS ITSELF on the first scan a real NC axis is behind
+// it, rather than through a call a composition root has to remember. Forgetting
+// such a call produces a silently dead module, which is exactly the class of
+// defect the objective says to drive from a path the application already takes.
+// ConfigurePartFeedAxis is idempotent and fails closed, so calling it until it
+// succeeds costs one comparison per scan on a bench with no drive.
+IF NOT _partFeedConfigured THEN
+    // THIS^ is required: an unqualified same-FB call resolves only when its
+    // return value is discarded, and this one is not (C0009/C0035 otherwise).
+    _partFeedArmed := THIS^.ConfigurePartFeedAxis(AxisRef := PartFeedAxis);
+END_IF
+// The feed axis runs only once an NC axis has been linked (S10.6). Its
+// conditions are re-driven every scan so a manual move obeys the same rule as
+// a sequenced one (S7.2).
+//
+// The module itself is NOT called here: ConfigurePartFeedAxis registers it as a
+// child, and _M_TickChildren already ticks every registered child from
+// SUPER^.OnCyclic above. Calling it here as well would run the whole S6.1
+// lifecycle twice per scan.
+// No conditions are driven here any more. Both that used to be - the press's
+// pneumatic power and its ram guard - describe the PRESS, and the Xvi is
+// physically outside it on a separate EtherCAT device. Gating a bench servo on
+// whether a pneumatic valve zone somewhere else is energised is not an
+// interlock, it is an unrelated fact that happens to block motion, and S7.2.1
+// says a condition is defined at the module with enough semantic context to own
+// it. This Unit has none for that drive.
+
+// Latch access-gated Unit requests, then observe one full Execute-low scan before
+// starting another power-group command (PLCopen edge discipline).
+IF ControlOffRequest THEN
+    _powerTargetOn := FALSE;
+    _powerRequestPending := TRUE;
+ELSIF ControlOnRequest THEN
+    _powerTargetOn := TRUE;
+    _powerRequestPending := TRUE;
+END_IF
+IF PneumaticPower.Done OR PneumaticPower.Error OR PneumaticPower.Aborted THEN
+    PneumaticPower.Execute := FALSE;
+ELSIF _powerRequestPending AND NOT PneumaticPower.Execute
+AND (PneumaticPower.State = E_ExecState.READY) THEN
+    PneumaticPower.Abort := FALSE;
+    IF _powerTargetOn THEN
+        PneumaticPower.Command := E_PowerGroupCommand.POWER_ON;
+    ELSE
+        PneumaticPower.Command := E_PowerGroupCommand.POWER_OFF;
+    END_IF
+    PneumaticPower.Execute := TRUE;
+    _powerRequestPending := FALSE;
+END_IF
+
+// A physical two-hand edge starts AUTO from READY, or releases a running Unit's
+// two-hand wait. Start() is asked unconditionally: its release report is the whole
+// start predicate and names whatever refuses it (§7.2.1, §7.8). What IS qualified
+// is the start LATCH: a press counts only when the part and the air that the N100
+// wait also names are already there, so a press made before the part was loaded
+// can never start the stroke when the part arrives. N100 shows what it waits for.
+IF TwoHand.OutImm.StartPulse THEN
+    IF ModeActive = E_Mode.AUTO THEN
+        IF State = E_ExecState.BUSY THEN
+            started := TRUE;
+        ELSE
+            started := Start();
+        END_IF
+        _startLatched := started
+            AND PartPresentSensor.OutImm.Value AND PartPresentSensor.OutImm.Quality
+            AND AirPressureMonitor.OutImm.PressureOk;
+    ELSE
+        _startLatched := FALSE;
+    END_IF
+END_IF
+IF PneumaticPower.Error AND (State = E_ExecState.BUSY) THEN
+    _M_RollupFault();
+END_IF
+// §3.12 — ONE derivation, published under the name the operator knows and read
+// by everything that needs the fact (§1.1 O9: derived, never duplicated). It is a
+// state, not a command result: it stops being true the moment a cylinder leaves
+// the position, including in MANUAL where no sequence runs to clear anything.
+// _M_State publishes it on the generic flag table with the moment it last changed,
+// so the HMI can render it without knowing this module type.
+OutImm.Homed := _M_State(Idx := 1, Key := 'project.state.pressAtLoadPosition',
+    Ok := Door.OutImm.Retracted AND NOT Door.OutImm.Extended
+      AND PartSlide.OutImm.Retracted AND NOT PartSlide.OutImm.Extended
+      AND PressRam.OutImm.Retracted AND NOT PressRam.OutImm.Extended);
+// The pushbutton lamps' condition, derived here - where the facts live - so the
+// composition root only maps it to the output (§10.2.1).
+OutImm.TwoHandStartReady := _M_State(Idx := 2, Key := 'project.state.pressTwoHandStartReady',
+    Ok := TwoHand.OutImm.Armed AND ControlDomain.ReadyForStart
+      AND PartPresentSensor.OutImm.Value AND PartPresentSensor.OutImm.Quality
+      AND AirPressureMonitor.OutImm.PressureOk);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnInit" Id="{0246d731-6bad-4eaa-b1dc-60466cc43590}">
+      <Declaration><![CDATA[// First operational scan: initialize application-owned mode-chain state.
+METHOD PROTECTED OnInit : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnInit := SUPER^.OnInit();
+_M_ClearModeTransitionState();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnModeChanged" Id="{dd856305-e2af-4daa-b43b-cdcb22828a57}">
+      <Declaration><![CDATA[// Mode-entry wiring only. Step behavior remains in the selected sequence POU.
+METHOD PROTECTED OnModeChanged : DINT
+VAR_INPUT
+    NewMode : E_Mode;
+    OldMode : E_Mode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnModeChanged := SUPER^.OnModeChanged(
+    NewMode := NewMode, OldMode := OldMode);
+_M_ClearModeTransitionState();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnOperatorReset" Id="{8eee6488-397f-4e1f-8c40-dc9a83fe8214}">
+      <Declaration><![CDATA[// An operator reset is recovering this Unit: put the application back to the same
+// safe wiring an error-state abort establishes, so the reset the operator presses at
+// the panel needs no separate Stop/Abort first. The base then releases the run
+// command and the children's commands, so the next HOME gets a genuine command edge.
+// Unlike the abort paths this does NOT touch control power in either direction: it
+// never requests Control On (§9.8 forbids self-resume), and it must not request
+// Control Off either — powering down a healthy control circuit would make the
+// operator re-enable it before HOME could run, i.e. reintroduce the multi-action
+// recovery this reset exists to remove. Power stays where the operator put it.
+METHOD PROTECTED OnOperatorReset : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnOperatorReset := SUPER^.OnOperatorReset();
+_M_WithdrawSequenceOutputs();
+_M_RestartSequences();                // this station restarts after a reset (§6.9(d))
+_M_ClearModeTransitionState();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="PrepareRecipe" Id="{26cc04a2-9628-4f16-837b-581094bb7ca0}">
+      <Declaration><![CDATA[METHOD PrepareRecipe : BOOL
+VAR_INPUT
+    Model : ST_ModelId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF _recipe = 0 THEN
+    _parCfgStaged := ParCfg;
+    _recipePrepared := TRUE;
+ELSIF _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := PRESS_RECIPE_KEY, pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
+    IF (TIME_TO_UDINT(_parCfgStaged.PressSettleTime) > RECIPE_MAX_PRESS_SETTLE_MS)
+    OR (TIME_TO_UDINT(_parCfgStaged.TransferSettleTime) > RECIPE_MAX_TRANSFER_SETTLE_MS) THEN
+        _M_Fault(E_Reason.RECIPE_INVALID, 'project.error.pressRecipeInvalid');
+        _recipePrepared := FALSE;
+        PrepareRecipe := FALSE;
+        RETURN;
+    END_IF
+    _recipePrepared := TRUE;
+ELSE
+    _M_Fault(E_Reason.RECIPE_INVALID, 'std.error.recipeSchemaInvalid');
+    _recipePrepared := FALSE;
+    PrepareRecipe := FALSE;
+    RETURN;
+END_IF
+PrepareRecipe := SUPER^.PrepareRecipe(Model := Model);
+IF NOT PrepareRecipe THEN _recipePrepared := FALSE; END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="RequestLocalControl" Id="{97203594-7e58-492f-b019-18924525747e}">
+      <Declaration><![CDATA[// Application-only seam for ordinary hardwired Control On/Off buttons.
+// It is a method (not OPC UA data), so HMI writes still use the access-gated
+// ReqControlOn/ReqControlOff contract. The power CM rechecks safety and health.
+METHOD RequestLocalControl : BOOL
+VAR_INPUT
+    ControlOn : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_powerTargetOn := ControlOn;
+_powerRequestPending := TRUE;
+RequestLocalControl := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="Setup" Id="{c48eb9f5-2cef-457b-90cd-aa7b557e955a}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name : STRING(80);
+    PressHal : REFERENCE TO ST_CylinderHal;
+    DoorHal : REFERENCE TO ST_CylinderHal;
+    SlideHal : REFERENCE TO ST_CylinderHal;
+    TwoHandHal : REFERENCE TO ST_TwoHandHal;
+    PowerHal : REFERENCE TO ST_PowerGroupHal;
+    PartPresentHal : REFERENCE TO ST_DigitalInputHal;
+    AirPressureHal : REFERENCE TO ST_AirPressureHal;
+    Recipe : I_RecipeProvider;
+END_VAR
+VAR
+    InitialModel : ST_ModelId;
+    Ok : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+_M_SetPresentation(DisplayNameKey := 'project.module.pneumaticPress.name', DescriptionKey := 'project.module.pneumaticPress.description', TypeKey := 'project.moduleType.pneumaticPress');
+_recipe := Recipe;
+Ok := PressRam.Setup(Name := CONCAT(Name, '.PressRam'), HalRef := PressHal, Recipe := 0);
+Ok := Door.Setup(Name := CONCAT(Name, '.Door'), HalRef := DoorHal, Recipe := 0) AND Ok;
+Ok := PartSlide.Setup(Name := CONCAT(Name, '.PartSlide'), HalRef := SlideHal, Recipe := 0) AND Ok;
+Ok := TwoHand.Setup(Name := CONCAT(Name, '.TwoHand'), HalRef := TwoHandHal) AND Ok;
+Ok := PneumaticPower.Setup(Name := CONCAT(Name, '.PneumaticPower'), HalRef := PowerHal) AND Ok;
+Ok := PartPresentSensor.Setup(Name := CONCAT(Name, '.PartPresentSensor'),
+    HalRef := PartPresentHal, DisplayNameKey := 'project.module.partPresentSensor.name',
+    DescriptionKey := 'project.module.partPresentSensor.description') AND Ok;
+Ok := AirPressureMonitor.Setup(Name := CONCAT(Name, '.AirPressureMonitor'),
+    HalRef := AirPressureHal) AND Ok;
+IF RELEASE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
+    Ok := _ldReleaseConditions.Setup(UnitPath := Name) AND Ok;
+ELSE
+    Ok := _stReleaseConditions.Setup(UnitPath := Name) AND Ok;
+END_IF
+Ok := _homeSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+    PartSlide := PartSlide, OutCmd := OutCmd) AND Ok;
+Ok := _changeoverSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+    PartSlide := PartSlide, OutCmd := OutCmd, Model := Model) AND Ok;
+// Only the selected rendition is attached: M_Attach registers the chain with the
+// Unit, so attaching all three would put three chains on one step pointer.
+// §3.8b restore, BEFORE the chains are set up: they take _station by reference
+// and the first scan must already see either the commissioned values or the
+// declared defaults, never a half-initialized image. The rule itself lives in
+// FB_ModuleBase - this type supplies only what is genuinely its own, which is
+// what its defaults are.
+IF NOT M_RestoreStationCfg(pVersion := ADR(_station.SchemaVersion),
+        SchemaVersion := PRESS_STATIONCFG_SCHEMA) THEN
+    // Fail-safe defaults: two-hand REQUIRED (a lost risk-assessment policy must
+    // never come back as the permissive one), and the framework's own 30 s
+    // stall guard.
+    _station.RequireTwoHandStart := TRUE;
+    _station.StallGuardMs := 30000;
+END_IF
+IF AUTO_SEQUENCE_LANGUAGE = E_RenditionLanguage.LADDER_DIAGRAM THEN
+    Ok := _ldAutoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+        PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg,
+        StationCfg := _station, OutCmd := OutCmd,
+        StartLatched := _startLatched) AND Ok;
+ELSIF AUTO_SEQUENCE_LANGUAGE = E_RenditionLanguage.SEQUENTIAL_FUNCTION_CHART THEN
+    Ok := _sfcAutoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+        PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg,
+        StationCfg := _station, OutCmd := OutCmd,
+        StartLatched := _startLatched) AND Ok;
+ELSE
+    Ok := _autoSequence.Setup(Host := THIS^, PressRam := PressRam, Door := Door,
+        PartSlide := PartSlide, TwoHand := TwoHand, PartPresentSensor := PartPresentSensor,
+        AirPressureMonitor := AirPressureMonitor, ParCfg := ParCfg,
+        StationCfg := _station, OutCmd := OutCmd,
+        StartLatched := _startLatched) AND Ok;
+END_IF
+PneumaticPower.ParCfg.Kind := E_PowerGroupKind.VALVE_ZONE;
+PneumaticPower.ParCfg.RequiredForControl := TRUE;
+PneumaticPower.ParCfg.FieldbusLossReaction := E_FieldbusLossReaction.CONTROL_OFF;
+Ok := _M_Register(PressRam) AND Ok;
+Ok := _M_Register(Door) AND Ok;
+Ok := _M_Register(PartSlide) AND Ok;
+Ok := _M_Register(TwoHand) AND Ok;
+Ok := _M_Register(PneumaticPower) AND Ok;
+Ok := _M_Register(PartPresentSensor) AND Ok;
+Ok := _M_Register(AirPressureMonitor) AND Ok;
+// §3.8a/§3.10.2 - the two deployment values become editable CAPABILITIES. That
+// registration, not publication and not DATA_WRITE, is what makes them writable,
+// and it is also what puts them into a station parameter set: SaveConfigSet walks
+// the same registry (§3.8b), so a value registered here needs no separate line
+// anywhere to be saved, listed, exported and restored.
+Ok := M_RegisterConfigFlag(Key := 'press.requireTwoHandStart',
+    Item := 'StationCfg/RequireTwoHandStart',
+    LabelKey := 'project.config.pressRequireTwoHandStart',
+    Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(_station.RequireTwoHandStart),
+    RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigNumber(Key := 'press.stallGuardMs',
+    Item := 'StationCfg/StallGuardMs',
+    LabelKey := 'project.config.pressStallGuardMs', Unit := E_EngUnit.MILLISECOND,
+    Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_UDINT,
+    pTarget := ADR(_station.StallGuardMs), Minimum := 1000.0, Maximum := 600000.0,
+    RequiresReady := TRUE) AND Ok;
+// §3.8a - model data, PAR_CFG, over this Unit's recipe record. Registering the
+// record makes these values editable for EVERY model in the catalog, and the base
+// writes each edit back to that model's record. The ranges are the RECIPE_MAX_*
+// constants PrepareRecipe also enforces.
+IF Recipe <> 0 THEN
+    Ok := M_RegisterModelData(pData := ADR(ParCfg), Size := SIZEOF(ParCfg),
+        RecipeKey := PRESS_RECIPE_KEY, Provider := Recipe) AND Ok;
+END_IF
+Ok := M_RegisterConfigDuration(Key := 'press.recipe.pressSettle',
+    Item := 'ParCfg/PressSettleTime', LabelKey := 'project.config.pressSettleTime',
+    Kind := E_ConfigKind.PAR_CFG, pTarget := ADR(ParCfg.PressSettleTime),
+    MinimumMs := 0, MaximumMs := RECIPE_MAX_PRESS_SETTLE_MS, RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigDuration(Key := 'press.recipe.transferSettle',
+    Item := 'ParCfg/TransferSettleTime', LabelKey := 'project.config.transferSettleTime',
+    Kind := E_ConfigKind.PAR_CFG, pTarget := ADR(ParCfg.TransferSettleTime),
+    MinimumMs := 0, MaximumMs := RECIPE_MAX_TRANSFER_SETTLE_MS, RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigNumber(Key := 'press.recipe.idealCycleMs',
+    Item := 'ParCfg/IdealCycleMs', LabelKey := 'project.config.idealCycleMs',
+    Unit := E_EngUnit.MILLISECOND, Kind := E_ConfigKind.PAR_CFG,
+    Storage := E_ConfigStorage.AS_UDINT, pTarget := ADR(ParCfg.IdealCycleMs),
+    Minimum := 0.0, Maximum := 600000.0, RequiresReady := TRUE) AND Ok;
+Ok := M_RegisterConfigNumber(Key := 'press.recipe.baselineWorkMs',
+    Item := 'ParCfg/BaselineWorkMs', LabelKey := 'project.config.baselineWorkMs',
+    Unit := E_EngUnit.MILLISECOND, Kind := E_ConfigKind.PAR_CFG,
+    Storage := E_ConfigStorage.AS_UDINT, pTarget := ADR(ParCfg.BaselineWorkMs),
+    Minimum := 0.0, Maximum := 600000.0, RequiresReady := TRUE) AND Ok;
+Setup := Ok AND PrepareRecipe(Model := InitialModel);
+IF Setup THEN CommitRecipe(); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ConfigurePartFeedAxis" Id="{792558b2-7746-4345-ab3f-f30cd23c917a}">
+      <Declaration><![CDATA[// Bind the NC axis for the part-feed servo and arm the module.
+//
+// Called from OnCyclic until it succeeds, so the axis arms itself the moment an
+// NC axis is linked and stays dormant forever on a bench without one. It is
+// idempotent and fails closed on both an invalid reference and an unlinked one
+// (AxisId 0), which is what makes calling it every scan safe.
+//
+// The drive is a Jenny Science XENAX Xvi over EtherCAT/CiA402 on the DEV PC's
+// own bus - a stand-in for a feed axis, not press cabinet hardware. See the
+// note on PartFeedAxis.
+//
+// The conditions are declared HERE rather than in FB_PressDemoRelease only
+// because the axis is not yet in the AUTO chain. When it joins the chain they
+// belong beside the other project permits in the Release object, which S7.2.1
+// prefers as a single visible component, and this method should shrink to
+// binding the reference.
+//
+// ParCfg limits are deliberately NOT set here. Soft limits, velocity and
+// acceleration come from the axis configuration and the recipe (S10.3); a Unit
+// that hard-codes a stroke is wrong the first time the mechanics change.
+METHOD ConfigurePartFeedAxis : BOOL
+VAR_INPUT
+    AxisRef : REFERENCE TO AXIS_REF;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT __ISVALIDREF(AxisRef) THEN
+    ConfigurePartFeedAxis := FALSE;
+    RETURN;
+END_IF
+// An AXIS_REF the System Manager has not linked to an NC axis carries AxisId 0.
+// This is the test that keeps "absent hardware is absent" true now that arming
+// is automatic: without it, a bench with no drive would Setup the module and
+// start commanding MC_Power against nothing.
+IF AxisRef.NcToPlc.AxisId = 0 THEN
+    ConfigurePartFeedAxis := FALSE;
+    RETURN;
+END_IF
+ConfigurePartFeedAxis := PartFeed.Setup(Name := CONCAT(Name, '.PartFeed'),
+    AxisRef := AxisRef, Recipe := 0);
+IF NOT ConfigurePartFeedAxis THEN
+    RETURN;
+END_IF
+// No project conditions are declared for this axis, and the absence is the
+// point rather than an omission. The two that used to be here required the
+// press's pneumatic power and its ram guard to be satisfied before the axis
+// could move - but the Xvi sits on =000+S-A620, a separate EtherCAT device
+// outside the press, with its own power. Neither fact says anything about
+// whether that drive may move.
+//
+// Declaring a condition that does not describe the device is worse than
+// declaring none: it blocks motion for a reason the operator cannot act on, and
+// it puts a name in the release report that is simply not about this axis
+// (S7.2.1 - a condition belongs to the module with the semantic context to own
+// it). If this drive is ever mounted INTO a cell, its real conditions get
+// declared here then, from that cell's guard and power.
+//
+// The device-intrinsic gates are untouched and still apply: the axis will not
+// jog stale, will not jog while a command owns it, and will not jog without a
+// linked NC axis (FB_AxisCM._M_JogCyclic).
+// Registered only once it is REAL. A registered child is ticked every scan,
+// joins the S8.2 first-out rollup, and appears in the S3.10.2 config walk - and
+// therefore in station parameter sets (S3.8b). Registering it unconditionally at
+// Setup would put an unnamed module in the published tree and a taught position
+// in every saved set for hardware that is not there.
+ConfigurePartFeedAxis := _M_Register(PartFeed);
+IF NOT ConfigurePartFeedAxis THEN
+    RETURN;                            // no free child slot: stay dormant
+END_IF
+_partFeedConfigured := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <LineIds Name="FB_PressDemoUnit">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_AppendInterlocks">
+      <LineId Id="3" Count="3" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_AppendManualInterlocks">
+      <LineId Id="3" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_ClearModeTransitionState">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_Dispatch">
+      <LineId Id="3" Count="10" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_SequenceAuto">
+      <LineId Id="3" Count="8" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_SequenceChangeover">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_SequenceHome">
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_Supports">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_SupportsRunStyle">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit._M_WithdrawSequenceOutputs">
+      <LineId Id="3" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.AbortRecipe">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.CommitRecipe">
+      <LineId Id="3" Count="7" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.M_AppendConfig">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.OnAbort">
+      <LineId Id="3" Count="5" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.OnAbortInError">
+      <LineId Id="3" Count="4" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.OnCommandStart">
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.OnCyclic">
+      <LineId Id="3" Count="79" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.OnInit">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.OnModeChanged">
+      <LineId Id="3" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.OnOperatorReset">
+      <LineId Id="3" Count="2" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.PrepareRecipe">
+      <LineId Id="3" Count="17" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.RequestLocalControl">
+      <LineId Id="3" Count="1" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+    <LineIds Name="FB_PressDemoUnit.Setup">
+      <LineId Id="3" Count="50" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

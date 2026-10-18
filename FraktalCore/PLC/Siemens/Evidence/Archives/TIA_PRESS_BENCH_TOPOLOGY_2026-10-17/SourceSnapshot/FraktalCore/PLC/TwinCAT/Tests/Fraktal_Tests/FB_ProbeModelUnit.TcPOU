@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ProbeModelUnit" Id="{c3e8a1f7-5d24-4b96-8e0a-2f7d6c1b9e43}" SpecialFunc="None">
+    <Declaration><![CDATA[// §3.8a probe root: one model-data value in its own recipe record (registered
+// as model data) and one station value beside it, over two catalog models.
+FUNCTION_BLOCK FB_ProbeModelUnit EXTENDS FB_UnitBase
+VAR_INPUT
+    ParCfg : ST_ProbeModelParCfg;
+    StationLimit : DINT := 5;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Setup" Id="{9b1d6e42-a7c3-4f58-b0e9-4c2a8d7f1e65}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name     : STRING(80);
+    Provider : I_RecipeProvider;
+END_VAR
+VAR
+    model : ST_ModelId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetName(Name);
+StallTime := T#0S;
+Setup := M_RegisterConfigNumber(Key := 'probe.speed', Item := 'ParCfg/Speed',
+    LabelKey := 'project.test.speed', Unit := E_EngUnit.NONE,
+    Kind := E_ConfigKind.PAR_CFG, Storage := E_ConfigStorage.AS_DINT,
+    pTarget := ADR(ParCfg.Speed), Minimum := 0.0, Maximum := 1000.0,
+    RequiresReady := FALSE);
+Setup := M_RegisterConfigNumber(Key := 'probe.limit', Item := 'StationCfg/Limit',
+    LabelKey := 'project.test.limit', Unit := E_EngUnit.NONE,
+    Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_DINT,
+    pTarget := ADR(StationLimit), Minimum := 0.0, Maximum := 100.0,
+    RequiresReady := FALSE) AND Setup;
+Setup := M_RegisterModelData(pData := ADR(ParCfg), Size := SIZEOF(ParCfg),
+    RecipeKey := 'ProbeModel', Provider := Provider) AND Setup;
+model.ModelCode := 'A';
+Setup := RegisterAvailableModel(Id := model) AND Setup;
+model.ModelCode := 'B';
+Setup := RegisterAvailableModel(Id := model) AND Setup;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{2e7f4a9c-1d38-4b65-a0c7-8e5b3d9f2a16}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_SetStep(StepNo := 100, StepName := 'project.test.stepA', Awaits := 0,
+    AwaitingLabel := '', TimeClass := E_TimeClass.WORK, ExpectedTime := T#0S);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
