@@ -433,6 +433,15 @@ the first item in the system-health metrics row, before Task and Jitter.
 
 ## Connection bootstrap (fail-closed)
 
+Settings displays the active PLC/gateway endpoint to every operator when the
+connection owner provides it. This is the endpoint used to create the current
+repository, with URI user information, query and fragment removed. An ADS target
+retains its AmsNetId and runtime port; a direct CIP target retains its host and
+port. A gateway URL identifies the service and does not claim to identify the
+controller behind it. Editing setup does not relabel an existing session.
+The administrator Disconnect action closes that session through the connection
+owner; a new endpoint takes effect only after Connect.
+
 Connection ownership precedes the operator shell. On first use—or whenever settings exist but have never produced a `LIVE` repository state—the HMI **shall open a connection wizard**. Step 1 configures and proves the endpoint. After `LIVE` discovery, step 2 lists canonical root Unit repository paths and requires at least one Unit assignment for this HMI. The selected paths are saved locally and form both a display filter and a repository write boundary, including fieldbus branches through their channel-to-module paths; global connection status remains visible. `EverConnected` becomes true only after the repository is live and Unit assignment is complete; saving an endpoint alone is not proof.
 
 When settings have previously connected, startup goes directly to a full-screen **Connecting to PLC** view. The interactive HMI is not built while the repository is `CONNECTING`, `STALE`, or `DOWN`. A transition away from `LIVE` removes operator interaction immediately; commands are never queued or replayed across reconnection. After 30 seconds without `LIVE`, and not before, the view exposes **Edit connection settings**. A successful `LIVE` transition cancels that timer and opens the shell only if every saved Unit path is rediscovered; missing/renamed assignments return to step 2 fail-closed. An authenticated `ADMIN` may edit the Unit assignment later from the shell. Native settings use a local JSON file; Web uses browser local storage. Both are HMI-local connection configuration, not PLC recipe/station config.

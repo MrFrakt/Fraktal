@@ -40,6 +40,7 @@ import hashlib
 from dataclasses import dataclass
 
 import fraktal_ab_declaration as decl
+import fraktal_ab_nameplate as nameplate
 
 
 SCHEMA = "fraktal.ab.manifest"
@@ -51,6 +52,13 @@ SCHEMA = "fraktal.ab.manifest"
 # Major 4 appends ClassKey and immutable per-value minima to WriteCapabilities.
 MANIFEST_SCHEMA_MAJOR = 4
 MANIFEST_SCHEMA_MINOR = 0
+
+
+def schema_major(app):
+    """Only declarations using text nameplates opt into the additive v5 row."""
+    return 5 if nameplate.declared(app) else MANIFEST_SCHEMA_MAJOR
+
+
 MANIFEST_MAGIC = 0x4652414B  # 'FRAK'
 
 CORE_VERSION = 1
@@ -186,6 +194,10 @@ def field_paths(content: dict) -> dict[str, dict]:
             for row in content["Fields"]}
 
 
+def nameplate_columns(app):
+    return tuple((n, 'DINT') for n in nameplate.V5_COLUMNS) if nameplate.declared(app) else ()
+
+
 def tables(app: decl.Application) -> tuple[Table, ...]:
     surface = content(app)
     p = app.name
@@ -204,7 +216,8 @@ def tables(app: decl.Application) -> tuple[Table, ...]:
               (("ModuleId", "DINT"), ("ManufacturerKey", "DINT"),
                ("ProductKey", "DINT"), ("ModelKey", "DINT"), ("SerialKey", "DINT"),
                ("HardwareRevision", "DINT"), ("SoftwareRevision", "DINT"),
-               ("AssetKey", "DINT"), ("LocationKey", "DINT")), modules),
+               ("AssetKey", "DINT"), ("LocationKey", "DINT"))
+              + nameplate_columns(app), modules),
         Table("Fields", "FRK_MAX_FIELDS", f"FRK_T_{p}MfField",
               (("ModuleId", "DINT"), ("PathKey", "DINT"), ("LogicalType", "DINT"),
                ("Dimensions", "DINT"), ("ReadTier", "DINT"), ("AccessClass", "DINT"),
@@ -336,9 +349,7 @@ def content(app: decl.Application) -> dict[str, object]:
         # rather than the zero that meant "not published". A client reads a
         # non-zero MailboxId to learn the station can be commanded at all.
         "MailboxId": MAILBOX_ID,
-        # No host-event ring exists yet; zero still says "not published" there,
-        # and never "id 0".
-        "HostEventId": 0,
+        "HostEventId": 1 if app.host_event_capacity else 0,
     }]
 
     modules = [{
@@ -359,9 +370,7 @@ def content(app: decl.Application) -> dict[str, object]:
             "ContractAddress": index + 1,
         })
 
-    # Nameplates are declared per module and this application declares none, so
-    # the table is empty rather than filled with zero rows pretending to be data.
-    nameplates: list[dict[str, int]] = []
+    nameplates = nameplate.rows(app, keys, ids)
 
     fields: list[dict[str, int]] = []
 
@@ -399,7 +408,7 @@ def content(app: decl.Application) -> dict[str, object]:
 
     unit_id = ids[app.name]
     # One authoritative root field list also validates capture sources.
-    live = {"Unit", "Chart", "AlarmActive", "StateFlags"}
+    live = {"Unit", "Chart", "AlarmActive", "StateFlags", "SignalTower"}
     record_names = {r.name for r in app.records}
     for prefix, members in gen.root_field_records(app):
         add_fields(unit_id, prefix, members, TIER_LIVE if prefix in live else TIER_SLOW,
@@ -606,6 +615,13 @@ def numeric_key(app: decl.Application, portable: str) -> int:
     return 0
 
 
+def mismatched_tables(app, header, rows):
+    """A copied header hash cannot validate missing/corrupted native rows."""
+    expected = content(app)
+    return [name for name, wanted in expected.items()
+            if header.get(name + 'Count') != len(wanted) or rows.get(name) != wanted]
+
+
 def content_hash(app: decl.Application) -> str:
     """A stable hash of the published content, for a reader to compare against."""
     import json
@@ -613,6 +629,12 @@ def content_hash(app: decl.Application) -> str:
     rows = content(app)
     import fraktal_ab_mailbox_frame as frame
     identity = dict(tables=rows, nativeMailbox=frame.profile(app))
+    if app.signal_tower is not None:
+        import dataclasses
+        identity['signalTower'] = dict(schema=1, config=dataclasses.asdict(app.signal_tower), timer='TONR')
+    if app.part_carrier is not None:
+        import dataclasses
+        identity['partCarrier'] = dict(schema=1, provider=dataclasses.asdict(app.part_carrier), hostSchema=2)
     if app.model_capacity:
         # A gateway must refuse an older image lacking the native catalog.
         identity['modelCatalog'] = dict(schema=1, capacity=app.model_capacity,
@@ -720,11 +742,15 @@ def ascii_literal(text: str) -> str:
     claims to.
     """
     out = []
-    for ch in text:
+    for index, ch in enumerate(text):
         if ch == "$":
             out.append("$$")
         elif ch == "'":
             out.append("$'")
+        elif ch == '>' and text[max(0, index - 2):index] == ']]':
+            # The SDK drops an initialized array containing split XML CDATA,
+            # despite accepting the resulting project. Use native ASCII hex.
+            out.append('$3E')
         elif " " <= ch <= "~":
             out.append(ch)
         else:
@@ -744,7 +770,7 @@ def _string_member(name: str, key: str, text: str, length: int) -> str:
             f'<DataValueMember Name="LEN" DataType="DINT" Radix="Decimal" '
             f'Value="{len(text)}"/>\n'
             f'<DataValueMember Name="DATA" DataType="{key}" Radix="ASCII">\n'
-            f"<![CDATA[{ascii_literal(text)}]]>\n"
+            '<![CDATA[' + ascii_literal(text) + ']]>\n'
             f"</DataValueMember>\n</StructureMember>")
 
 
@@ -774,7 +800,7 @@ def tags(app: decl.Application, controller_identity: str) -> list[str]:
     truncated = any(len(rows[t.name]) > t.capacity for t in tables(app))
     header_values = {
         "Magic": MANIFEST_MAGIC,
-        "SchemaMajor": MANIFEST_SCHEMA_MAJOR,
+        "SchemaMajor": schema_major(app),
         "SchemaMinor": MANIFEST_SCHEMA_MINOR,
         "CoreVersion": CORE_VERSION,
         "BindingVersion": BINDING_VERSION,
@@ -827,7 +853,7 @@ def evidence(app: decl.Application) -> dict[str, object]:
     rows = content(app)
     return {
         "Schema": SCHEMA,
-        "SchemaMajor": MANIFEST_SCHEMA_MAJOR,
+        "SchemaMajor": schema_major(app),
         "SchemaMinor": MANIFEST_SCHEMA_MINOR,
         "ConfigRevision": config_revision(app),
         "ContentHash": content_hash(app),

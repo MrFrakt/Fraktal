@@ -63,6 +63,21 @@ class ConnectionSettings {
   final String endpoint;
   final bool everConnected;
 
+  /// Operator-visible target, without URI credentials or query/fragment tokens.
+  /// Simulation has no external endpoint. This is presentation only; connection
+  /// creation and credential isolation still use the original settings.
+  String get displayEndpoint {
+    if (transport == ConnectionTransport.simulation) return '';
+    final uri = Uri.tryParse(endpoint);
+    if (uri == null || !uri.hasAuthority || uri.host.isEmpty) return '';
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: uri.path,
+    ).toString();
+  }
+
   /// Stable root-Unit browse paths this HMI is allowed to display and command.
   /// An empty list is valid only while the second wizard step is incomplete.
   final List<String> selectedUnitPaths;

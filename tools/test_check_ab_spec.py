@@ -56,12 +56,13 @@ class AbSpecificationGateTests(unittest.TestCase):
         findings = self.audit(part=broken)
         self.assertTrue(any("missing=[15]" in item for item in findings), findings)
 
-    def test_readiness_promotion_requires_an_intentional_gate_change(self):
+    def test_r4_cannot_be_demoted_without_an_intentional_gate_change(self):
         broken = self.part.replace(
-            "| R4 gates | **OPEN** |",
             "| R4 gates | **PASS** |",
+            "| R4 gates | **OPEN** |",
             1,
         )
+        self.assertNotEqual(broken, self.part)
         findings = self.audit(part=broken)
         self.assertTrue(any("readiness table" in item for item in findings), findings)
 
@@ -151,16 +152,41 @@ class AbSpecificationGateTests(unittest.TestCase):
             findings,
         )
 
-    def test_s15_cannot_be_promoted_with_s4(self):
+    def test_s15_scope_cannot_be_broadened(self):
         broken = self.part.replace(
-            "| AB §5.4 | S15 | OPEN |",
+            "| AB §5.4 | S15 | **PASS**, narrowed |",
             "| AB §5.4 | S15 | **PASS** |",
             1,
         )
+        self.assertNotEqual(broken, self.part)
         findings = self.audit(part=broken)
         self.assertTrue(
-            any("must keep S15 OPEN" in item for item in findings), findings
+            any("S15 as PASS, narrowed" in item for item in findings), findings
         )
+
+    def test_r6_scope_cannot_be_broadened(self):
+        broken = self.part.replace(
+            "**PASS** for the declared read-only claim", "**PASS**", 1)
+        self.assertNotEqual(broken, self.part)
+        self.assertTrue(any("read-only claim" in item
+                            for item in self.audit(part=broken)))
+
+    def test_s16_cannot_be_demoted(self):
+        broken = self.part.replace(
+            "| Core §6.1, §6.2; AB §3.14 | S16 | **PASS** |",
+            "| Core §6.1, §6.2; AB §3.14 | S16 | OPEN |", 1)
+        self.assertNotEqual(broken, self.part)
+        self.assertTrue(any("S16 as PASS" in item
+                            for item in self.audit(part=broken)))
+
+    def test_readiness_evidence_links_cannot_be_removed(self):
+        for name in ("AB_R4_REGENERATION_GATE_EVIDENCE_2026-09-06.md",
+                     "AB_R5_REFERENCE_SUITE_EVIDENCE_2026-09-06.md",
+                     "AB_R6_SECURITY_EVIDENCE.md"):
+            with self.subTest(evidence=name):
+                broken = self.part.replace(f"(AllenBradley/Evidence/{name})", "", 1)
+                self.assertNotEqual(broken, self.part)
+                self.assertTrue(any(name in item for item in self.audit(part=broken)))
 
     def test_engineering_interface_catalog_exists(self):
         self.assertTrue(INTERFACE_CATALOG_PATH.is_file())

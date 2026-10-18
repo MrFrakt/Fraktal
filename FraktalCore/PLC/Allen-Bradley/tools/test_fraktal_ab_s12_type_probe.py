@@ -1,4 +1,5 @@
 import tempfile
+from dataclasses import replace
 import unittest
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
@@ -63,6 +64,18 @@ def profile_seed(temporary: str, controller: str, revision: str) -> Path:
 
 
 class S12TypeProbeTests(unittest.TestCase):
+    def test_multiline_use_is_serialized_as_distinct_archive_lines(self):
+        candidate = replace(CANDIDATES[0], use_statement=
+                            "FRK_S12_Probe := 1;\nFRK_S12_Probe := FRK_S12_Probe + 1;")
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "multiline.L5X"
+            generate_case(seed(temporary), output, candidate, "use")
+            lines = ElementTree.parse(output).findall(
+                "Controller/Programs/Program/Routines/Routine/STContent/Line")
+            self.assertEqual([line.get("Number") for line in lines], ["0", "1", "2"])
+            self.assertEqual([line.text for line in lines[1:]],
+                             candidate.use_statement.splitlines())
+
     def test_every_candidate_emits_both_modes(self):
         with tempfile.TemporaryDirectory() as temporary:
             results = generate_all(seed(temporary), Path(temporary) / "out")

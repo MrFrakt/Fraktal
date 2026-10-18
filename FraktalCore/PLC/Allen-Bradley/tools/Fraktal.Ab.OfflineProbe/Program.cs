@@ -6,6 +6,7 @@ using RockwellAutomation.LogixDesigner.Logging;
 const string usage =
     "Usage: Fraktal.Ab.OfflineProbe <project.ACD|L5K|L5X> [--export <new-file.ACD|L5X>]\n" +
     "       Fraktal.Ab.OfflineProbe --build <project.ACD|L5K|L5X>\n" +
+    "       Fraktal.Ab.OfflineProbe --build-readback <project.L5X> <new-export.L5X> <EchoController|PhysicalController>\n" +
     "       Fraktal.Ab.OfflineProbe --create-seed <controller> <majorRevision> <name> <seed.ACD> [--export <seed.L5X>]";
 
 // Build mode compiles the project offline (Logix Designer v37+ only, per the
@@ -13,6 +14,59 @@ const string usage =
 // opened read-only and proved unchanged by hash, and the compiler diagnostics
 // come back in the JSON evidence. This is the headless form of Studio's
 // Verify and the gate a generated project must pass before a download.
+if (args.Length == 4 && args[0] == "--build-readback")
+{
+    var sourcePath = Path.GetFullPath(args[1]);
+    var outputPath = Path.GetFullPath(args[2]);
+    if (!File.Exists(sourcePath) ||
+        !Path.GetExtension(sourcePath).Equals(".L5X", StringComparison.OrdinalIgnoreCase) ||
+        !Path.GetExtension(outputPath).Equals(".L5X", StringComparison.OrdinalIgnoreCase) ||
+        sourcePath.Equals(outputPath, StringComparison.OrdinalIgnoreCase) ||
+        File.Exists(outputPath))
+    {
+        Console.Error.WriteLine("Build/read-back needs an existing L5X and a different, new L5X output.");
+        return 2;
+    }
+    if (args[3] is not ("EchoController" or "PhysicalController"))
+    {
+        Console.Error.WriteLine("Build/read-back supports only offline EchoController or PhysicalController targets.");
+        return 2;
+    }
+
+    var sourceHash = Hash(sourcePath);
+    var target = Enum.Parse<LogixProject.RequestedBuildTarget>(args[3]);
+    string? diagnostic = null;
+    using (var project = await LogixProject.OpenLogixProjectAsync(sourcePath, new StdOutEventLogger()))
+    {
+        try
+        {
+            await project.BuildAsync(target, CancellationToken.None);
+        }
+        catch (OperationFailedException error)
+        {
+            // Preserve rejected compiler cases too. A gate must distinguish a
+            // semantic rejection from activation/service failure in the log.
+            diagnostic = error.Message;
+        }
+        await project.SaveAsAsync(outputPath, true);
+    }
+    var unchanged = sourceHash.Equals(Hash(sourcePath), StringComparison.Ordinal);
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        Schema = "fraktal.ab.offline-probe-build-readback",
+        SchemaVersion = 1,
+        Input = sourcePath,
+        InputSha256 = sourceHash,
+        InputUnchanged = unchanged,
+        BuildTarget = args[3],
+        BuildAccepted = diagnostic is null,
+        Diagnostic = diagnostic,
+        Export = outputPath,
+        ExportSha256 = Hash(outputPath),
+    }, new JsonSerializerOptions { WriteIndented = true }));
+    return unchanged && diagnostic is null ? 0 : 1;
+}
+
 if (args.Length is 2 or 3 && args[0] == "--build")
 {
     var buildPath = Path.GetFullPath(args[1]);

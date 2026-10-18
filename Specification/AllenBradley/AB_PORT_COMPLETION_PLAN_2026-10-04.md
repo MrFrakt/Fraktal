@@ -1,5 +1,101 @@
 # AB press port - completion sequence
 
+## Independent gaps closed in source (2026-10-18)
+
+The Echo declaration now derives from the physical press. The existing physical
+and Echo generated baselines were byte-identical for that refactor. Optional digital nameplates
+now use a versioned manifest-v5 text-key extension and the generic HMI.
+The optional PLC-owned host ring, coherent gateway projection and acknowledged
+per-sink delivery are implemented for mode changes, Changeover and reason-coded
+NOK. All three AUTO renditions use one append owner. The optional local
+BY_POSITION carrier now adds bounded Part/result storage, four canonical host
+events, scaled measurements, write-before-event commitment, verdict counts and
+consumer faults. It has ST/SFC/LD model and v38 compiler/read-back evidence;
+see [local carrier](Evidence/AB_LOCAL_CARRIER_2026-10-18.md). Device carrier and resource
+change producers, genealogy, live sink/restart/clock-replay acceptance and commissioned
+nameplate/browser acceptance remain open. See
+[compiler/read-back evidence](Evidence/AB_HOST_NAMEPLATE_2026-10-18.md) and the
+[configuration guide](../Guides/AB_NEW_PROJECT_GUIDE.md#host-events-and-digital-nameplates).
+These independent changes leave native alarm state/providers untouched; the
+native runtime/provider qualification below is still required.
+The subsequent [cycle/recovery acceptance](Evidence/AB_CYCLE_RECOVERY_2026-10-18.md)
+adds 21 passing live checks on local Echo `601FC87B`, seven per ST/SFC/LD:
+OK, handled NOK, HELD/resume, abort, mode change, adopted fault and one-reset
+restart. The ordinary controller-validated live-document restore completes;
+all five documents match after reopening the medium. A local durable host sink
+refuses without acknowledging, reports an actual overwritten interval, and
+reopens without repeating the acknowledged batch. This does not qualify a
+network host, gateway process restart, clock replay, power/download retention,
+device carrier or physical installation.
+
+The carrier-off shared finish no longer counts a rejected part as good. Its
+derived private verdict owner adds a versioned Unit AOI InOut parameter, with
+framework-owned reset/abort/mode/finish cleanup and no project wiring. This
+intentional output change has whole-cycle model proof in ST/SFC/LD and clean
+v38 compiler/read-back proof on both offline targets. The deployed Part image
+does not change. Empty measurement slots now retain all canonical projection
+paths, preserving discovery indices across cycles.
+The same work closes a discovery defect: a matching header hash no longer
+allows missing/corrupted native table rows to render as an empty valid station.
+Native proof retains the SDK warning/data-loss case and the corrected clean
+import with full initial-value and executable read-back.
+
+## Current continuation: native v38 review first (2026-10-18)
+
+The optional [SignalTower/LAMP_TEST implementation](Evidence/AB_SIGNAL_TOWER_2026-10-18.md)
+now reuses native ST TONR and the existing alarm/decision/state owners. The
+mailbox's previous POWER_CONTROL assignment is corrected to Core MANUAL.
+The tower is opt-in, read-only and independent of health-provider availability
+in the generic HMI. Configuration restore recognizes the exact otherwise
+identical pre-tower declaration; unknown revisions remain refused. Physical
+lamp/horn wiring and acceptance remain open; a semantic Echo fixture is not
+physical apparatus. This does not replace N1/N4 provider qualification.
+Owner-approved download and 31 live checks now pass on Echo `601FC87B`,
+manifest `EA7BCE24FDA311EB`. Configuration values survive the pre-tower revision
+upgrade through normal restore; lamp test self-clears after a full disconnected
+interval. Busy/active/MANUAL gates, rationalized fault and decision outputs,
+and the three-language Part recovery matrix pass with restored policy/inputs.
+
+The owner requests the same native-feature overlap review performed for TIA.
+The [v38 native-feature audit](AB_V38_NATIVE_FEATURE_AUDIT_2026-10-18.md) is the
+current decision record: qualify native MODULE diagnostics and task/timer
+sources, then alarm-provider feasibility, before growing custom runtime
+services. Compare embedded OPC UA on an eligible physical controller before
+expanding the direct-CIP spike. Exact family/firmware/language support matters;
+the L81E Echo target is not the v33 L24ER reference or an arbitrary v38 CPU.
+Every new service records reuse/adaptation/retention of its native counterpart.
+
+The [2026-10-18 compiler evidence](Evidence/AB_V38_NATIVE_HEALTH_COMPILE_2026-10-18.md)
+now proves the native MODULE/task/clock probe types and exact spellings on both
+v38 offline compiler targets, with negative controls and actual read-back.
+Next is isolated runtime time-source validation and external-module sampling;
+the production health publisher remains unchanged until that evidence exists.
+
+The subsequent [native runtime observation](Evidence/AB_NATIVE_TIMING_2026-10-18.md)
+now proves exact-target steady-state TASK/CST/wall-clock and healthy Local
+MODULE acquisition, through 7,500 Echo scans and two minute boundaries. The
+instrumented tower fixture passes both compiler targets and all 31 live
+regression checks, with configuration/policy/session/inputs restored. Production
+health calculations remain unchanged: task lifetime extrema are not the existing
+one-second window, task StartTime is wall-clock based, and a late-scan CST sample
+includes variable execution position. Qualify adjustment/scaling/missed-scan
+behavior before selecting a replacement; external-module acceptance needs
+physical hardware. N2 alarm-provider feasibility remains independently open.
+
+The [N2 compiler/feasibility continuation](Evidence/AB_NATIVE_ALARMS_COMPILE_2026-10-18.md)
+now accepts ALMD ST on both v38 compiler targets with real negative controls.
+Core retains lifecycle ownership because reset and native object access differ.
+Alarm metadata is now part of the shared native read-back gate, preventing
+silent condition/message/identity loss. Tag-based XML import and native runtime
+projection remain unaccepted; no second alarm authority or production feature
+is introduced by this compiler proof.
+
+The [TIA follow-up](AB_TIA_FOLLOWUP_2026-10-18.md) records the implemented
+active-endpoint display, independent AB channel sample validity and repaired
+specification gate, with their validation. Gateway/controller identity display,
+native provider qualification and the remaining stages below stay open. Older
+artifact/memory measurements below retain their historical scope.
+
 Owner request: finish the AB port, 2026-10-04. This extends the earlier Phase 6
 boundary; the September audit's original "Deliberately not planned" list remains
 historical. Control power remains deliberately excluded. This is an implementation
@@ -96,8 +192,8 @@ Refresh the TC3 handoff and AB new-project guidance at final port closure.
 | 1. Part traceability | Core 3.16; opt-in carrier declaration, bounded native Part context and framework-owned event plumbing; press chains request canonical received/started/record/processed/aborted events through their normal services | Exact ST/SFC/LD outcome parity, unique BY_POSITION identity, verdict/count consistency, abort behavior, fail-closed read/write errors; generic Part HMI projection |
 | 2. Line data and shifts | Core 3.8e/8.5.2; composition-owned line beside roots, referenced by roots, never a child/super-root; retained data, current shift and bounded history; owner-requested weekday selection and explicit limited shift duration | Owner/read-only access semantics, root sharing, complete write validation, weekly/overnight boundaries, inactive intervals, history bounds, clock quality and retention |
 | 3. Signal tower | Audit the TC3 press declaration and optional profile; reusable type derives lamp/sound requests from authoritative machine/alarm state; enable LAMP_TEST only for a real declared capability | Type tests and test timeout, no arbitrary output write, verified electrical/HAL mapping before physical claim; absent hardware stays visibly unclaimed |
-| 4. Host event projection | Existing frozen host-event contract, fed by controller event authority; gateway transport/projection owns northbound delivery | Ordering, sequence gaps/overflow, reconnect and no double counts; documented transport delivery limits; no HMI accumulation replacing PLC history |
-| 5. Description and probes | Audit Nameplate/IDTA and I/O connection-state omissions; version any frozen contract extension, reuse existing fieldbus identity and health owners | Canonical manifest/projection agreement, version refusal, named supported GSV attributes on the actual family; unsupported CPU/free-memory remains unavailable |
+| 4. Host event projection | Optional native mode/changeover/NOK ring and coherent gateway/cursor implemented; part and resource producers remain | Compiler/read-back and modeled wrap/reconnect/ack tests pass; live/restart/clock-replay and sink delivery acceptance remain; no HMI accumulation replacing PLC history |
+| 5. Description and probes | Optional full nameplate fields implemented through manifest v5 and generic HMI; native external-module connection state remains open | Version refusal and native read-back pass; actual asset/browser and named GSV attributes on physical modules still need acceptance; unsupported CPU/free-memory remains unavailable |
 | 6. Running-model set integration | Audit the shared AB/TC3 deliberate refusal; use prepare/readiness/commit recipe path, never direct live ParCfg overwrite | Complete validation before application, ordinary Changeover gates, abort rollback and no partial recipes; extend capabilities only after this route exists |
 | 7. Final closure | Current feature census, targeted security/retention regressions, browser acceptance and deployment guidance | Updated AB_ABSENT/refused-command reasons, scoped S9 rerun, packaged AB deployment acceptance, exact artifacts/hashes and remaining platform exclusions |
 

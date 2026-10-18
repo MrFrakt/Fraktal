@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Machine-check the Fraktal/AB pre-implementation specification gates.
+"""Machine-check the Fraktal/AB specification and recorded readiness gates.
 
 This is intentionally a specification/host-tooling check. It does not parse,
-generate, import, or validate production L5X and it cannot close R2-R6. It keeps
-the draft's readiness table, open/settled spike register, Phase 2 logical
-contracts, and transport-neutral HMI wording internally consistent while those
-gates remain open.
+generate, import, or validate production L5X and it cannot establish runtime
+acceptance. It checks the evidence-backed R0-R6 status, its explicit scope
+limits, the spike register, logical contracts and transport-neutral HMI wording.
 
 Usage:
     python tools/check_ab_spec.py
@@ -99,21 +98,32 @@ def audit_texts(
     findings: list[str] = []
 
     readiness = re.findall(
-        r"^\|\s*R([0-6])\s+[^|]*\|\s*\*\*(PASS|OPEN)\*\*\s*\|",
+        r"^\|\s*R([0-6])\s+[^|]*\|\s*\*\*(PASS|OPEN)\*\*[^|]*\|",
         part,
         re.MULTILINE,
     )
-    # R2 closed once S1/S2/S4/S11/S12 all recorded PASS; R3 closed when the six
-    # logical contracts were frozen and gated. R4-R6 remain open.
-    expected_readiness = [(str(index), "PASS" if index <= 3 else "OPEN")
-                          for index in range(7)]
+    # The recorded September gate results are scoped acceptance, not a new
+    # conformance claim for every deployment. R6 remains read-only below.
+    expected_readiness = [(str(index), "PASS") for index in range(7)]
     if readiness != expected_readiness:
         findings.append(
-            "readiness table must contain exactly R0-R3 PASS then R4-R6 OPEN; "
+            "readiness table must contain exactly R0-R6 PASS; "
             f"found {readiness}"
         )
 
     readiness_section = part.partition("A failed gate changes this binding")[0]
+    if not re.search(
+        r"^\| R6 security \| \*\*PASS\*\* for the declared read-only claim \|",
+        readiness_section, re.MULTILINE,
+    ):
+        findings.append("R6 PASS must retain the declared read-only claim")
+    for evidence in (
+        "AB_R4_REGENERATION_GATE_EVIDENCE_2026-09-06.md",
+        "AB_R5_REFERENCE_SUITE_EVIDENCE_2026-09-06.md",
+        "AB_R6_SECURITY_EVIDENCE.md",
+    ):
+        if f"(AllenBradley/Evidence/{evidence})" not in readiness_section:
+            findings.append(f"readiness table does not link {evidence}")
     if "AB_R1_PLATFORM_BASELINE_EVIDENCE.md" not in readiness_section:
         findings.append("R1 readiness row does not link the platform evidence")
     if not r1_evidence_exists:
@@ -163,10 +173,10 @@ def audit_texts(
     registered_spikes |= {int(value) for value in re.findall(
         r"\bS(\d+)\b", register_table
     )}
-    expected_registered_spikes = set(range(1, 16))
+    expected_registered_spikes = set(range(1, 17))
     if registered_spikes != expected_registered_spikes:
         findings.append(
-            "AB §12 must register exactly S1-S15; "
+            "AB §12 must register exactly S1-S16; "
             f"missing={sorted(expected_registered_spikes - registered_spikes)} "
             f"extra={sorted(registered_spikes - expected_registered_spikes)}"
         )
@@ -186,10 +196,12 @@ def audit_texts(
         findings.append("AB §12 must record the S4 native-SFC row as PASS")
     if "| AB §2.5 | S4 | **PASS** |" not in register:
         findings.append("AB §12 must record the general S4 round-trip row as PASS")
-    # S15 is the automated build gate and is still open; it must not be
-    # promoted just because S4's source fidelity passed.
-    if "| AB §5.4 | S15 | OPEN |" not in register:
-        findings.append("AB §12 must keep S15 OPEN")
+    # S15 passed with desktop Verify and manual deployment explicitly outside
+    # the headless claim. Do not silently broaden that accepted scope.
+    if "| AB §5.4 | S15 | **PASS**, narrowed |" not in register:
+        findings.append("AB §12 must record S15 as PASS, narrowed")
+    if "| Core §6.1, §6.2; AB §3.14 | S16 | **PASS** |" not in register:
+        findings.append("AB §12 must record S16 as PASS")
 
     for marker in LOGICAL_CONTRACT_MARKERS:
         if part.count(marker) != 1:
@@ -247,8 +259,9 @@ def audit_repo(root: Path = Path(".")) -> list[str]:
     ) if not path.is_file()]
     if missing:
         return [f"required file missing: {path}" for path in missing]
-    return audit_texts(
-        _read(part_path),
+    part = _read(part_path)
+    findings = audit_texts(
+        part,
         _read(hmi_path),
         r1_evidence_exists=evidence_path.is_file(),
         s1_evidence_exists=s1_evidence_path.is_file(),
@@ -263,6 +276,13 @@ def audit_repo(root: Path = Path(".")) -> list[str]:
         studio_verify_probe=_read(studio_verify_probe_path)
         if studio_verify_probe_path.is_file() else None,
     )
+    readiness_section = part.partition("A failed gate changes this binding")[0]
+    for link in set(re.findall(
+        r"\]\((AllenBradley/Evidence/[^)#]+\.md)\)", readiness_section,
+    )):
+        if not (part_path.parent / link).is_file():
+            findings.append(f"linked readiness evidence file is missing: {link}")
+    return findings
 
 
 def main() -> int:

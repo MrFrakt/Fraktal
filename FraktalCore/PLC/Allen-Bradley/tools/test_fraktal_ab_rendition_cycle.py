@@ -24,6 +24,7 @@ import fraktal_ab_ld_model as ld
 import fraktal_ab_library as library
 import fraktal_ab_press_demo as demo
 import fraktal_ab_st_model as st
+import fraktal_ab_counting as counting
 
 
 # The capability variant: AUTO in ST, SFC and LD. The shipped press carries
@@ -59,6 +60,8 @@ def controller():
         tags[gen.ctx_tag_for(APP, module.name)] = context
     for tag in APP.sim_inputs:
         tags[tag] = 0
+    if counting.enabled(APP):
+        tags[counting.tag(APP)] = st.structure(counting.members())
     return st.Controller(tags, routines={gen.step_mark_routine_name(APP): gen.step_mark_logic(APP)})
 
 

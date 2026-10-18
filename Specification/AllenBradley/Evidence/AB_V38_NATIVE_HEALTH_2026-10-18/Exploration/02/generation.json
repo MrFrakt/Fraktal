@@ -1,0 +1,77 @@
+{
+  "Schema": "fraktal.ab.v38-native-probe",
+  "SchemaVersion": 1,
+  "Profile": "v38-5580-native-health-exploratory",
+  "ProfileStatus": "exploratory-not-runtime-accepted",
+  "Controller": "1756-L81E",
+  "MajorRevision": "38",
+  "SourceSha256": "FA96516C9E8D7F45874A825003756363C71DE528EDEDC0BD2766C19C1711C0C7",
+  "InputUnchanged": true,
+  "RuntimeAccepted": false,
+  "ExternalModuleAccepted": false,
+  "SplitAttributes": false,
+  "Cases": [
+    {
+      "Case": "module_local",
+      "ExpectedBuild": "pass",
+      "Output": "C:\\work\\fraktal-native38-20261018-02\\native_module_local.L5X",
+      "OutputSha256": "B2E5EC10B965856FE7F04943F50A18A31BF3BA4D17E29116370EE00BD691751A",
+      "Statements": [
+        "GSV(MODULE,Local,EntryStatus,FRK_S12_Probe.EntryStatus);",
+        "GSV(MODULE,Local,FaultCode,FRK_S12_Probe.FaultCode);",
+        "GSV(MODULE,Local,FaultInfo,FRK_S12_Probe.FaultInfo);",
+        "GSV(MODULE,Local,Mode,FRK_S12_Probe.ModuleMode);",
+        "GSV(MODULE,Local,ForceStatus,FRK_S12_Probe.ForceStatus);"
+      ]
+    },
+    {
+      "Case": "task_intervals",
+      "ExpectedBuild": "pass",
+      "Output": "C:\\work\\fraktal-native38-20261018-02\\native_task_intervals.L5X",
+      "OutputSha256": "219151BE3F67087219C93809176D55026AC1BE3C0374B55484F97680859973C0",
+      "Statements": [
+        "GSV(TASK,FRK_S12Task,LastScanTime,FRK_S12_Probe.LastScanUs);",
+        "GSV(TASK,FRK_S12Task,MaxScanTime,FRK_S12_Probe.MaxScanUs);",
+        "GSV(TASK,FRK_S12Task,OverlapCount,FRK_S12_Probe.OverlapCount);",
+        "GSV(TASK,FRK_S12Task,Rate,FRK_S12_Probe.RateUs);",
+        "GSV(TASK,FRK_S12Task,MaxInterval,FRK_S12_Probe.MaxIntervalWords[0]);",
+        "GSV(TASK,FRK_S12Task,MinInterval,FRK_S12_Probe.MinIntervalWords[0]);",
+        "GSV(TASK,FRK_S12Task,MaxInterval,FRK_S12_Probe.MaxIntervalTime);",
+        "GSV(TASK,FRK_S12Task,MinInterval,FRK_S12_Probe.MinIntervalTime);",
+        "GSV(TASK,FRK_S12Task,StartTime,FRK_S12_Probe.StartWords[0]);",
+        "GSV(TASK,FRK_S12Task,StartTime,FRK_S12_Probe.StartLint);"
+      ]
+    },
+    {
+      "Case": "clock_arithmetic",
+      "ExpectedBuild": "pass",
+      "Output": "C:\\work\\fraktal-native38-20261018-02\\native_clock_arithmetic.L5X",
+      "OutputSha256": "43DBDB41594773DDCB25368E7DE4380C4733DE4765FBBE8727525D5E0215BACB",
+      "Statements": [
+        "GSV(CST,,CurrentValue,FRK_S12_Probe.CstCurrent);",
+        "GSV(CST,,CurrentValue,FRK_S12_Probe.CstWords[0]);",
+        "GSV(WallClockTime,,CurrentValue,FRK_S12_Probe.WallClockCurrent);",
+        "FRK_S12_Probe.DeltaCst := FRK_S12_Probe.CstCurrent - FRK_S12_Probe.PreviousCst;",
+        "FRK_S12_Probe.PreviousCst := FRK_S12_Probe.CstCurrent;"
+      ]
+    },
+    {
+      "Case": "invalid_attribute",
+      "ExpectedBuild": "fail",
+      "Output": "C:\\work\\fraktal-native38-20261018-02\\native_invalid_attribute.L5X",
+      "OutputSha256": "0B44288F2A0689C4332636E8FA570A6BDAC72E7F86FA8467957AD67F42110B45",
+      "Statements": [
+        "GSV(TASK,FRK_S12Task,FRK_NotAnAttribute,FRK_S12_Probe.Invalid);"
+      ]
+    },
+    {
+      "Case": "maximum_interval_spelling",
+      "ExpectedBuild": "observe",
+      "Output": "C:\\work\\fraktal-native38-20261018-02\\native_maximum_interval_spelling.L5X",
+      "OutputSha256": "DA7E3AFF7C39E52EDD2D9224BDF62C26A9D1147155A78C0CBE7192A8ED0C91BE",
+      "Statements": [
+        "GSV(TASK,FRK_S12Task,MaximumInterval,FRK_S12_Probe.Interval);"
+      ]
+    }
+  ]
+}

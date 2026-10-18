@@ -9,9 +9,10 @@ output, never hand-edited. This guide replaces superseded build-by-build advice;
 historical evidence remains unchanged.
 
 **The port is not complete apart from power.** Main press operation and Phase
-0-6 features are verified on the named press68 deployment. Part traceability,
-signal-tower/host integration and other optional profiles or probes remain
-absent/unclaimed. Line owner/weekly shifts are loaded in press75;
+0-6 features are verified on the named press68 deployment. Signal tower remains
+absent; optional local Part traceability, host events and nameplates have
+compiler/model proof and local Echo lifecycle/recovery acceptance, while device host/carrier integration and other optional
+profiles or probes remain unclaimed. Line owner/weekly shifts are loaded in press75;
 press72 failed linking at LineValidate and press73 failed with a final global
 memory error. The owner confirms press75 completed download at 0/0 and Run;
 native/browser/retention acceptance is recorded separately. Press69 added model creation/current export and scoped air Start away from
@@ -40,6 +41,31 @@ and requests commit/push, without exact-artifact download or new Capacity data.
 See [correction evidence](../AllenBradley/Evidence/AB_PRESS78_CONFIG_MEMORY_REDUCTION_2026-10-05.md).
 
 ## 1. Two questions, asked before anything else
+
+For v38 continuation, first read the
+[native-feature overlap audit](../AllenBradley/AB_V38_NATIVE_FEATURE_AUDIT_2026-10-18.md).
+Every proposed runtime service names the native counterpart and records why to
+reuse it, adapt/project it, or retain the existing contract owner. Studio version
+alone does not establish the controller family's or Echo's capabilities.
+
+The [L81E/v38 native compiler evidence](../AllenBradley/Evidence/AB_V38_NATIVE_HEALTH_COMPILE_2026-10-18.md)
+records exact attribute widths and spellings: MaxInterval/MinInterval are
+accepted; MaximumInterval is rejected; ForceStatus requires an empty instance.
+These are compiler results, not physical module or runtime clock acceptance.
+
+The shared HMI Settings shows the active PLC/gateway endpoint, including the
+native runtime port, without URI credentials. Check it when two controllers
+publish the same station name. A gateway URL identifies the gateway service;
+confirm its configured controller, route and serial independently. Disconnect
+and Connect use the connection owner and do not issue an equipment command.
+
+The gateway fieldbus view reads controller input/output process-image words.
+Good output quality establishes a valid sample, not electrical actuation or
+permission to move. Input and output validity are independent, and both require
+known fault data. An incomplete module sample keeps the node offline while
+valid channel samples remain available; failed samples withdraw quality and
+output forcing. This does not replace the still-provisional module-object
+connection-state work in Part III AB §10.
 
 Ask the project owner and record both answers in the station binding record:
 
@@ -620,7 +646,186 @@ not Active[1]. Required unavailable probes make SystemHealth unhealthy by contra
 Fieldbus/DC/fan/storage figures remain unavailable. Time-unsynchronized status
 authorizes neither a clock write nor weakened freshness. State is derived.
 
+## Host events and digital nameplates
+
+These are optional declarations; they do not grow an existing station image
+until enabled. Do not copy the disposable host demo's fictitious asset identity
+into a project. Set `Application.nameplate` (and optionally `Module.nameplate`)
+to `decl.Nameplate(manufacturer, product, serial, ...)` using the asset's actual
+identity. Product URI, year, hardware/firmware/software versions, order code and
+HTTP(S) documentation URL are supported. Text is printable ASCII, at most 240
+bytes; documentation URLs cannot contain credentials. Missing optional fields
+remain empty. Nameplates are static, outside configuration/recipe writes.
+They select manifest major 5; the current Python gateway projects the existing
+generic HMI paths. An older major-4 reader, including the limited direct-CIP
+spike, must refuse that layout.
+Identity text uses the owning Logix ASCII encoder, including hex escaping of a
+CDATA terminator. Never repair L5X text by hand. Run
+`fraktal_ab_readback.py <generated.L5X> <first_export.L5X>` after clean SDK
+import/build: it checks executable bodies and initial values as well as the
+existing construct/SFC gates. A successful build can still contain discarded
+initializer data. The gateway compares actual manifest rows with the declared
+content before rendering; a matching header hash alone is insufficient.
+
+`Application.host_event_capacity=8` enables an eight-event PLC ring (supported
+bound 1..64); default zero omits it. The framework records mode changes and
+accepted/successfully completed Changeover. Every step incrementing ScrapCount
+also declares `nok_reason`: use `'Ctx.ReportedReason'` to preserve the handled
+child's captured first-out; use a registered literal only for a cause the step
+itself owns. Missing/zero reasons never become successful anonymous NOK events.
+ST, SFC and LD call the same generated append AOI. Required-InOut changes use a
+new Unit AOI name containing capacity/version; existing signatures stay intact.
+
+The gateway reads the stream through its normal tiered projection. A host may
+also run a serial/build-guarded **read-only** acquisition into a local JSONL
+sink, selected with the station's ordinary `FRAKTAL_AB_DECLARATION`:
+
+```powershell
+python FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_host_events.py <controller> --expect-serial <serial> --cursor C:/StationData/mes.cursor.json --output C:/StationData/mes.events.jsonl
+```
+
+The station must already publish the matching ring. A dedicated cursor belongs
+to one sink/controller/build; it advances only after durable sink acceptance.
+Delivery is at least once, so deduplicate `idempotencyKey`. Failed sinks are
+retried without acknowledging missing events. Ring overwrite and publisher
+epoch change are explicit loss notices. The bounded sequence fails rather than
+reusing a key at exhaustion. Cursor files use exclusive `.lock`/`.pending`
+companions and atomic replace; after a process crash, confirm no writer remains
+before removing a stale companion. A malformed or busy cursor is never silently
+reset. No outbound network sink is started by default.
+
+Part events require the opt-in local carrier described below; tool/material change
+producers are not implemented. Clock replay, restart identity, retention,
+live gateway/sink recovery and browser acceptance are separate target gates.
+The [compiler/read-back evidence](../AllenBradley/Evidence/AB_HOST_NAMEPLATE_2026-10-18.md)
+records the disposable v38 fixture; it is not a physical v33/v38 deployment claim.
+
+### Local Part traceability
+
+The opt-in `Application.part_carrier` currently accepts only
+`fraktal_ab_part.LocalCarrier(namespace, records, result_capacity=8)`.
+The namespace is 1..30 ASCII letters/digits/underscores/hyphens and identifies
+the actual station. Register `fraktal_ab_part.REASONS` in the application reason
+catalogue, and enable `host_event_capacity`. Carrier storage and reads exist
+only when selected. The disposable `fraktal_ab_part_demo.py` shows
+the complete derived declaration with all three AUTO renditions; its identity
+is explicitly fictitious and it is not a deployment declaration.
+
+At ordinary MARK boundaries declare `part_action='receive'`, `'start'`,
+`'record'`, `'processed'` or `'aborted'`. A processed boundary supplies
+`part_verdict` (Core NONE=0/OK=1/NOK=2/REWORK=3) and `part_reason` (registered
+literal or captured `Ctx.ReportedReason`; NOK requires nonzero).
+The shared owner reads identity, checks the local provider's captured identity,
+commits the full bounded result and only then counts/emits. Do not add GoodCount
+or ScrapCount marks: that duplicates the result owner's count and is refused.
+Calling receive during handling re-entry preserves a present part; processing
+start may repeat for a new processing attempt. Final result/UID stay visible
+after Present drops, until the next successful receive clears the previous result.
+Fault/abort entry, reset and mode change close a present part automatically.
+Declare aborted at a project-owned manual-removal boundary the framework cannot
+infer. A carrier failure blocks advancement with the Core reason at the Unit.
+
+Measurements are `Measurement(name, unit, minimum, maximum, target, scale=1)`;
+stored numbers are signed DINT, and the physical value is `stored / scale`.
+This is an explicit physical encoding, not a narrowed LREAL. `part_record` is
+the one-based definition, and `part_value` names an existing scalar DINT member
+as `Cfg.PressDwellMs`, `Ctx.SomeMember` or `PressRam.OutImm_Pos`. The fixture
+records the applied dwell setting and the simulated ram position. Values are
+sampled by the PLC at that boundary. Each visit appends once; capacity 1..32
+is enforced, and overflow faults `RESULT_RECORD_REJECTED` without a partial append.
+The generic HMI consumes the existing Part/result/record paths; no station screen
+is added. Part reads are metadata-bracketed, bounded and refused on invalid data.
+Every configured result slot keeps the same canonical paths while empty;
+an empty Name suppresses its row without changing discovery indices.
+
+This selects a new host physical schema V2 with bounded ASCII UID bytes and
+new capacity/version-named UDTs/AOIs. Adding Part does not modify V1 non-part schemas;
+the logical host contract is unchanged. Provider state and service instances
+are private. Runtime data is read-only and outside recipe/configuration writes.
+The validated manifest hash covers carrier namespace and measurement definitions.
+Native AOIs/UDTs and the existing GSV clock are reused; no second SFC scheduler,
+alarm engine or device communication stack is added.
+
+Local IDs contain namespace, startup clock epoch words and an exhaustion-checked
+serial. They are local BY_POSITION identities, not a physical RFID identity or
+a uniqueness guarantee under clock replay/download. Results remain in controller
+memory and the bounded host ring; download resets, durable sink recovery, physical
+retention and browser acceptance need target evidence. RFID/DataMatrix/host
+providers, expected external identity and nonempty genealogy remain open.
+See [source/compiler/model evidence](../AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
+The [owner-authorized Echo download](../AllenBradley/Evidence/AB_ECHO_LOCAL_CARRIER_DOWNLOAD_2026-10-18.md)
+adds idle Run/scan/manifest/Part/host projection acceptance on serial `601FC87B`.
+The subsequent [cycle/recovery evidence](../AllenBradley/Evidence/AB_CYCLE_RECOVERY_2026-10-18.md)
+adds 21 passing ST/SFC/LD live checks, normal configuration restore and local
+sink refusal/reopen acceptance. Physical and power/download retention remain open. The gateway must
+select `fraktal_ab_part_demo` for that test image; direct CIP remains a major-4
+spike and refuses its major-5 manifest. This authorization does not carry into
+another session or controller-changing operation.
+
+`tools/fraktal_ab_part_execute.py` is a bounded acceptance harness for that
+exact local v38 Echo fixture. It requires current owner authorization,
+`FRAKTAL_AB_DECLARATION=fraktal_ab_part_demo`, `--execute-fixture`,
+`--expect-serial`, a local `--credential-file` and a new `--output` path.
+It refuses a different serial/product/revision/manifest before each write,
+uses the normal mailbox and declared simulation inputs, and restores stimuli,
+mode and logout in cleanup. If configuration is still restoring, it uses the
+ordinary Keeper/staged set transaction under the logged-in controller session;
+it never stamps SchemaVersion directly. The output contains no credentials.
+It also checks a dedicated local JSONL sink/cursor with refusal and reopen.
+This does not change gateway service configuration or qualify an external host.
+
+For carrier-off looping chains with the existing scrap and shared good/finish
+marks, the generator derives one private `FRK_T_CycleVerdictV1` record. The
+shared finish counts good only if that cycle was not scrapped, then clears
+the latch. The Unit owner also clears it on reset, abort and mode change.
+No project reset call is required. The new Unit InOut parameter selects the
+`_CountV1` AOI suffix; regenerate/import its consumers together. Unit context
+and published counter paths stay unchanged. This deliberately changes the
+carrier-off generated logic; carrier-enabled counting stays with the carrier.
+
 ## 7. Remaining gaps and deployment boundaries
+
+### Optional signal tower
+
+Set `Application.signal_tower` to
+`fraktal_ab_signal_tower.SignalTower(lamp_test_duration_ms=3000,
+operator_uses_white=False, horn_on_high=True)` to select Core §8.13. It is a
+startup convention, like TC3's SetSignalTowerConfig; changing it requires
+regeneration. No runtime configuration writer or electrical output address is
+added. Without the declaration, no tower storage, timer, scan call or reads
+exist, and LAMP_TEST still refuses by name.
+
+The shared generated service derives semantic Red/Amber/Green/Blue/White/Horn
+from the existing machine classifier, unshelved active alarm severity and
+pending decision. Blocking alarms still drive DOWN when shelved. Only the
+project hardware driver maps semantics to the real lamps/horn. The disposable
+`fraktal_ab_tower_demo` derives from the local Part fixture and has no physical
+I/O; it is not a commissioned asset declaration.
+
+The normal acknowledged LAMP_TEST mailbox command uses the MANUAL **access
+gate**, not a mode requirement or the power-control gate. It refuses while
+the Unit is BUSY or the test is active. Client DurationMs cannot override the
+startup convention. A private native Structured Text TONR owns the timeout;
+nonpositive duration defaults to 3 seconds, and the maximum is 30 seconds.
+The timer runs every scan and does not depend on client polls, session or
+declared scan-period accumulation. Public semantic state is read-only; timer,
+request bookkeeping and convention storage have External Access None.
+
+The existing generic HMI renders the tower with or without a health provider,
+uses its existing act-or-explain MANUAL gate, and disables test while active.
+No station screen is introduced. Adding this runtime profile recognizes the
+exact configuration-document revision of the otherwise identical declaration
+without the tower; all value/schema validation still applies. Unrelated
+revisions remain refused. The [tower evidence](../AllenBradley/Evidence/AB_SIGNAL_TOWER_2026-10-18.md)
+distinguishes source/compiler/widget proof, local Echo and physical acceptance.
+The approved local Echo image is now `fraktal_ab_tower_demo`, manifest
+`EA7BCE24FDA311EB`: select that declaration for its Python gateway. The direct-CIP
+major-4 spike still refuses this major-5 image. The named native acceptance has
+31 passing checks, including the existing ST/SFC/LD Part recovery matrix.
+`fraktal_ab_tower_execute.py --core-regressions` reuses those checks under the
+same exact-target/arm/credential-file boundary. Its policy checks use ordinary
+SET_ACCESS_LEVEL commands and restore the original policy; no private tag or
+electrical output write is used. The source fixture has no physical lamp wiring.
 
 | Capability | Current state |
 | --- | --- |
@@ -628,11 +833,13 @@ authorizes neither a clock write nor weakened freshness. State is derived.
 | Capture, station sets, users, classes, shelving, qualified S9 | named press68 verified; new targets rerun gates |
 | Model creation/current export/Changeover air scope | press70 completed-download fit; owner-created M-101 native bank/export/duplicate refusal and mode-scoped air reports pass; Chrome/physical retention remain separate |
 | Direct running-model set load | refused in AB/TC3; needs provider/atomic Changeover integration |
-| Part traceability (Core 3.16) | absent in AB; TC3 press injects a local carrier |
+| Part traceability (Core 3.16) | optional local BY_POSITION carrier, bounded scaled records, verdict counts, identity/write guards and generic projection; ST/SFC/LD model/compiler and local Echo cycle/recovery proof; device providers, genealogy and physical acceptance remain open |
 | Line data/shifts (Core 3.8e, 8.5.2) | press75 fit and 17 native calendar/weekend-end rows pass; Chrome/physical retention remain separate; mirror/shared-root composition remains unbound |
-| SignalTower/LAMP_TEST and HostEvents | absent/no bench hardware or host projection |
+| SignalTower/LAMP_TEST | optional shared mapper, native TONR, MANUAL mailbox gate and generic HMI implemented; exact target evidence linked above; electrical/HAL mapping and physical acceptance remain open |
+| HostEvents | optional PLC mode/changeover/NOK ring plus V2 local part lifecycle events, generic projection and acknowledged cursor; v38 compile/read-back and local live sink refusal/reopen tested; resource producers, gateway process restart and network sink acceptance remain open |
 | Control-power/safety profiles | power deliberately excluded; process/two-hand logic is not certified-safety conformance |
-| Nameplate/IDTA, I/O connection state in health | absent/unclaimed; schema and S3 probe work remain |
+| Nameplate/IDTA | optional complete Core nameplate fields implemented through manifest v5/generic HMI; actual asset commissioning/browser and optional IDTA companion claims remain separate |
+| I/O connection state in health | native v38 compiler probes pass; external-module/runtime qualification remains open |
 | MANUAL_HELD / Integrated Motion | no manual-held route; L24ER has no motion/S14 proof |
 | Retention | owner confirms one admin and one air-threshold edit across cycles; full values/accounts/sets/models, durability and upgrade matrix remain unverified |
 | Project-chosen retained-data medium (TC3 §3.8b, IMPLEMENTATION_NOTES §163) | declared medium and `SetStore` interface (file medium; database refused until named); live station/line/model documents restored after a download through the staged set path, offline-proved; press79 Verify/Capacity/download, power-cycle/download acceptance and Chrome view remain owner gates |

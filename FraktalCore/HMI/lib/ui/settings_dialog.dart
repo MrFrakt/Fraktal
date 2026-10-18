@@ -199,6 +199,13 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     ),
                     const Divider(height: 40),
                     _sectionLabel('std.settings.station'),
+                    if (app.connectedEndpoint?.isNotEmpty == true)
+                      ListTile(
+                        key: const Key('connected-endpoint'),
+                        leading: const Icon(Icons.link),
+                        title: const LText('std.connection.endpoint'),
+                        subtitle: SelectableText(app.connectedEndpoint!),
+                      ),
                     if (isAdmin && widget.onEditConnection != null) ...[
                       OutlinedButton.icon(
                         key: const Key('edit-connection'),

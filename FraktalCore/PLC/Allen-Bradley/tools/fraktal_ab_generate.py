@@ -39,6 +39,10 @@ import fraktal_ab_line as line
 import fraktal_ab_library as library
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
+import fraktal_ab_host_events as host
+import fraktal_ab_part as part
+import fraktal_ab_counting as counting
+import fraktal_ab_signal_tower as tower
 from fraktal_ab_st_format import format_lines
 
 
@@ -544,6 +548,14 @@ def _member_xml(member: decl.Member) -> str:
 def data_types(app: decl.Application) -> str:
     blocks: list[str] = []
     records = list(app.records)
+    if app.signal_tower is not None:
+        records += tower.records(app)
+    if counting.enabled(app):
+        records.append(decl.Record(counting.type_name(), counting.members()))
+    if app.part_carrier is not None:
+        records += part.records(app)
+    if app.host_event_capacity:
+        records.append(decl.Record(host.type_name(app), host.members(app)))
     if app.line is not None:
         import fraktal_ab_line as line
         records += line.records(app)
@@ -700,6 +712,12 @@ def root_field_records(app: decl.Application):
            ("AlarmActive", alarm_active_members()), ("AlarmRing", alarm_ring_members()),
            ("Oee", oee_members()), ("Profiler", profiler_members(app)),
            ("HealthProbe", health_probe_members())]
+    if app.signal_tower is not None:
+        out.append(('SignalTower', tower.members()))
+    if app.host_event_capacity:
+        out.append(('HostEvents', tuple(m for m in host.members(app) if m.name in host.META + host.COLUMNS)))
+    if app.part_carrier is not None:
+        out.append(('Part', part.members(app)))
     if app.system_health is not None:
         out += [("HealthCfg", health_cfg_members(app)),
                 ("SystemHealth", system_health_members())]
@@ -788,7 +806,13 @@ def module_logic(app: decl.Application, module: decl.Module) -> tuple[str, ...]:
 
 
 def unit_aoi_name(app: decl.Application) -> str:
-    return f"FRK_U_{app.name}"
+    # Required InOut additions cannot replace a released AOI signature (S2).
+    suffix = f'_Host{app.host_event_capacity}V{host.schema(app)}' if app.host_event_capacity else ''
+    if app.part_carrier is not None:
+        suffix += f'_Part{app.part_carrier.result_capacity}V1'
+    if counting.enabled(app):
+        suffix += '_CountV1'
+    return f"FRK_U_{app.name}{suffix}"
 
 
 def _parameter(name: str, data_type: str, usage: str, *, radix: str | None = None,
@@ -818,16 +842,19 @@ ENABLE_PARAMETERS = (
 
 def _aoi(name: str, note: str, parameters: tuple[str, ...],
          logic: tuple[str, ...], dependencies: tuple[str, ...],
-         software_revision: str = "v33.00") -> str:
+         software_revision: str = "v33.00", *, local_tags: str = '<LocalTags/>',
+         aoi_dependencies: tuple[str, ...] = ()) -> str:
     parameter_block = "\n".join(parameters)
     lines = st_content_lines(logic)
     deps = "\n".join(f'<Dependency Type="DataType" Name="{d}"/>' for d in dependencies)
+    if aoi_dependencies:
+        deps += '\n' + '\n'.join(f'<Dependency Type="AddOnInstructionDefinition" Name="{d}"/>' for d in aoi_dependencies)
     return f"""<AddOnInstructionDefinition Name="{name}" Revision="1.0" ExecutePrescan="false" ExecutePostscan="false" ExecuteEnableInFalse="false" CreatedDate="2026-09-07T00:00:00.000Z" CreatedBy="Fraktal" EditedDate="2026-09-07T00:00:00.000Z" EditedBy="Fraktal" SoftwareRevision="{software_revision}">
 <RevisionNote><![CDATA[{note}]]></RevisionNote>
 <Parameters>
 {parameter_block}
 </Parameters>
-<LocalTags/>
+{local_tags}
 <Routines>
 <Routine Name="Logic" Type="ST">
 <STContent>
@@ -1392,8 +1419,18 @@ def _st_marks(step: decl.Step, names: Names) -> list[str]:
     record, and that record is named differently depending on whether the
     chain is hosted inside the mode-owner AOI or in a program routine.
     """
-    return [mark.replace("Ctx.", f"{names.unit}.")
-            .replace("Cfg.", f"{names.cfg}.") + ";" for mark in step.marks]
+    result = []
+    for mark in step.marks:
+        owned = counting.st_mark(mark, names) if counting.tracks(names.app, step) else None
+        result += owned if owned is not None else [mark.replace('Ctx.', names.unit + '.')
+            .replace('Cfg.', names.cfg + '.') + ';']
+    if counting.tracks(names.app, step) and counting.FINISH in step.marks:
+        result.append(f'{counting.reference(names)}.Nok := 0;')
+    if step.part_action:
+        result.append(part.step_call(names.app, step, names) + ';')
+    if names.app.host_event_capacity and any(mark.split(':=')[0].strip() == 'Ctx.ScrapCount' for mark in step.marks):
+        result.append(host.call(names.app, 'NOK', in_aoi=names.in_aoi, reason=host.nok_reason(step, names)) + ';')
+    return result
 
 
 def _ld_marks(step: decl.Step, names: Names) -> list[str]:
@@ -1401,7 +1438,13 @@ def _ld_marks(step: decl.Step, names: Names) -> list[str]:
     else a MOV."""
     u = names.unit
     outputs = []
+    if step.part_action:
+        outputs.append(part.step_call(names.app, step, names))
     for mark in step.marks:
+        owned = counting.ld_mark(mark, names) if counting.tracks(names.app, step) else None
+        if owned is not None:
+            outputs += owned
+            continue
         target, expression = [part.strip() for part in mark.split(":=")]
         target = target.replace("Ctx.", f"{u}.")
         if "+" in expression:
@@ -1409,6 +1452,10 @@ def _ld_marks(step: decl.Step, names: Names) -> list[str]:
             outputs.append(f"ADD({base},1,{target})")
         else:
             outputs.append(f"MOV({expression.strip()},{target})")
+    if counting.tracks(names.app, step) and counting.FINISH in step.marks:
+        outputs.append(f'MOV(0,{counting.reference(names)}.Nok)')
+    if names.app.host_event_capacity and any(mark.split(':=')[0].strip() == 'Ctx.ScrapCount' for mark in step.marks):
+        outputs.append(host.call(names.app, 'NOK', reason=host.nok_reason(step, names)))
     return outputs
 
 
@@ -1759,7 +1806,7 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
         ]
 
     elif step.action == decl.MARK:
-        lines += _st_marks(step, names) + adv
+        lines += _st_marks(step, names) + ([f'IF {u}.Error = 0 THEN', *adv, 'END_IF;'] if step.part_action else adv)
 
     elif step.action == decl.COMPLETE:
         lines += [
@@ -1802,10 +1849,15 @@ def unit_logic(app: decl.Application) -> tuple[str, ...]:
         ]
     lines += [
         "",
+        *(counting.reset() if counting.enabled(app) else []),
+        *(['IF (Ctx.ModeRequest <> Ctx.Mode) OR (Ctx.ResetRequest <> 0) OR (Ctx.AbortRequest <> 0) THEN',
+           part.call(app, 'aborted', in_aoi=True) + ';', 'END_IF;'] if app.part_carrier is not None else []),
         "(* A mode change stands the chain down; it never resumes by itself *)",
         "IF Ctx.ModeRequest <> Ctx.Mode THEN",
         "Ctx.ModeSwitches := Ctx.ModeSwitches + 1;",
         "Ctx.Mode := Ctx.ModeRequest;",
+        *([host.call(app, 'MODE_CHANGED', in_aoi=True, value='Ctx.Mode') + ';']
+          if app.host_event_capacity else []),
         "Ctx.Step := 0;",
         "Ctx.PrevStep := -1;",
         "Ctx.Running := 0;",
@@ -1846,6 +1898,9 @@ def unit_logic(app: decl.Application) -> tuple[str, ...]:
         "(* was held - a reader would see a different answer every scan.      *)",
         "IF (Ctx.RunRequest <> 0) AND (Ctx.Error = 0) AND (Ctx.Aborted = 0)",
         "AND (Ctx.Complete = 0) THEN",
+        *(['IF (Ctx.Running = 0) AND (Ctx.Mode = 3) THEN',
+           host.call(app, 'CHANGEOVER_STARTED', in_aoi=True, model='Ctx.ModelRequest') + ';',
+           'END_IF;'] if app.host_event_capacity and any(c.mode_ordinal == 3 for c in app.chains) else []),
         "Ctx.Running := 1;",
         "END_IF;",
         "IF Ctx.RunRequest = 0 THEN",
@@ -2166,6 +2221,13 @@ def unit_parameters(app: decl.Application) -> tuple[str, ...]:
         params.append(_parameter(_module_ref(app, module.name),
                                  module_context_name(library.type_of(module)),
                                  "InOut"))
+    if app.host_event_capacity:
+        params.append(_parameter('HostEvents', host.type_name(app), 'InOut'))
+    if app.part_carrier is not None:
+        params += [_parameter('Part', part.type_name(app), 'InOut'),
+                   _parameter('Carrier', part.carrier_name(app), 'InOut')]
+    if counting.enabled(app):
+        params.append(_parameter('CycleVerdict', counting.type_name(), 'InOut'))
     params.append(_parameter("Scan", "DINT", "Input", radix="Decimal"))
     for tag in app.sim_inputs:
         params.append(_parameter(sim_param(app, tag), "DINT", "Input",
@@ -2370,6 +2432,7 @@ def ld_step_rung(app: decl.Application, chain: decl.Chain, step: decl.Step,
 
     elif step.action == decl.MARK:
         legs.append(_leg(*_ld_marks(step, names),
+                         *([f'EQU({u}.Error,0)'] if step.part_action else []),
                          _ld_advance(app, step, index, names, step.on_advance)))
 
     elif step.action == decl.COMPLETE:
@@ -2403,9 +2466,8 @@ def chain_ld_rungs(app: decl.Application, chain: decl.Chain) -> list[str]:
         # EQ/GT/MOVE-spelled rungs verify; series outputs and comma branch
         # legs stay legal. Applies to the L5X rung TEXT only; ST code keeps
         # its operators.
-        rename = {"EQU": "EQ", "NEQ": "NE", "GEQ": "GE", "LEQ": "LE",
-                  "GRT": "GT", "LES": "LT", "MOV": "MOVE"}
-        rungs = [re.sub(r"\b(EQU|NEQ|GEQ|LEQ|GRT|LES|MOV)\(", lambda m:
+        rename = decl.LD_V38_NAMES
+        rungs = [re.sub(r"\b(" + '|'.join(rename) + r")\(", lambda m:
                         rename[m.group(1)] + "(", rung) for rung in rungs]
     return rungs
 
@@ -2545,6 +2607,8 @@ def sfc_condition(app: decl.Application, step: decl.Step, kind: str,
     """
     u, c = names.unit, names.chart
     ctx = names.module(step.module) if step.module else ""
+    if step.part_action:
+        return f'{u}.Error = 0'
     # A commanding step reads its module only after its entry scan, as the
     # ST and LD renditions do. On the entry scan the module still holds the
     # result of whatever it last did: a door opened at N130 is still Done when
@@ -2666,8 +2730,7 @@ def sfc_action_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
             "END_IF;",
         ]
     elif step.action == decl.MARK:
-        for mark in step.marks:
-            lines.append(mark.replace("Ctx.", f"{u}.") + ";")
+        lines += _st_marks(step, names)
     elif step.action == decl.COMPLETE:
         lines += [f"{u}.Complete := 1;", f"{u}.Running := 0;",
                   f"{c}.StallReason := 0;"]
@@ -2836,13 +2899,21 @@ def unit_aoi(app: decl.Application) -> str:
         unit_logic(app),
         (unit_context_name(app), chart_name(app),
          *(module_context_name(t) for t in library.types_used(app)),
-         app.records[0].name),
+         app.records[0].name, *((host.type_name(app),) if app.host_event_capacity else ()),
+         *((part.type_name(app), part.carrier_name(app)) if app.part_carrier is not None else ()),
+         *((counting.type_name(),) if counting.enabled(app) else ())),
         software_revision=f"v{app.major_revision}.00",
+        local_tags=(f'<LocalTags><LocalTag Name="HostEmitter" DataType="{host.emitter_name(app)}"/>' +
+                    (f'<LocalTag Name="PartService" DataType="{part.service_name(app)}"/>' if app.part_carrier is not None else '') + '</LocalTags>'
+                    if app.host_event_capacity else '<LocalTags/>'),
+        aoi_dependencies=(((host.emitter_name(app),) if app.host_event_capacity else ()) +
+                          ((part.service_name(app),) if app.part_carrier is not None else ())),
     )
 
 
 def aoi_definitions(app: decl.Application) -> str:
-    blocks = module_aois(app) + [unit_aoi(app)]
+    blocks = module_aois(app) + ([host.emitter(app)] if app.host_event_capacity else []) + (
+        [part.service(app)] if app.part_carrier is not None else []) + [unit_aoi(app)]
     return "<AddOnInstructionDefinitions>\n" + "\n".join(blocks) + "\n</AddOnInstructionDefinitions>"
 
 
@@ -3086,6 +3157,10 @@ def publishable_tags(app: decl.Application) -> tuple[str, ...]:
     published.append(alarm_active_tag(app))
     published.append(alarm_ring_tag(app))
     published.append(oee_tag(app))
+    if app.signal_tower is not None:
+        published.append(tower.tag(app))
+    if app.host_event_capacity:
+        published.append(host.tag(app))
     if app.line is not None:
         import fraktal_ab_line as line
         published += [line.tag(app, n) for n in ('State', 'Shift')]
@@ -3123,6 +3198,15 @@ def evidence_tags(app: decl.Application) -> tuple[str, ...]:
 
 def controller_tags(app: decl.Application) -> str:
     tags: list[str] = []
+    if app.signal_tower is not None:
+        tags += tower.tags(app)
+    if counting.enabled(app):
+        tags.append(_structure_tag(counting.tag(app), counting.type_name(), counting.members(), external_access='None'))
+    if app.part_carrier is not None:
+        tags += part.tags(app)
+    if app.host_event_capacity:
+        tags.append(_structure_tag(host.tag(app), host.type_name(app), host.members(app)))
+        tags.append(f'<Tag Name="{host.instance_tag(app)}" TagType="Base" DataType="{host.emitter_name(app)}" Constant="false" ExternalAccess="None"/>')
     if app.line is not None:
         import fraktal_ab_line as line
         tags += line.tags(app)
@@ -4520,6 +4604,8 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
 
     if app.access_users is not None:
         add('AccessStartup', access.startup(app))
+    if app.host_event_capacity:
+        add('HostClock', host.start_scan(app))
     add(None, [
         # The mailbox runs before anything else reads a request tag, so a
         # command lands in the scan it was committed in rather than the next.
@@ -4563,6 +4649,9 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
             f"{unit_aoi_name(app)}(FRK_{n}_InstUnit,FRK_{n}_Unit,FRK_{n}_Chart,"
             + f"{app.records[0].name}Tag,"
             + "".join(f"{ctx_tag_for(app, m.name)}," for m in app.modules)
+            + (host.tag(app) + ',' if app.host_event_capacity else '')
+            + (part.tag(app) + ',' + part.carrier_tag(app) + ',' if app.part_carrier is not None else '')
+            + (counting.tag(app) + ',' if counting.enabled(app) else '')
             + f"FRK_{n}_ScanCount"
             + "".join(f",{t}" for t in app.sim_inputs)
             + ");"
@@ -4579,10 +4668,15 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
     # still holds the reason and the implicated I/O that caused it. Before
     # dispatch, the AUTO renditions' adoptions reached the log a scan late,
     # after the child had already cleared both.
-    add('Health', [*wall_clock_logic(app), *health_probe_logic(app), *system_health_logic(app)])
+    add('HostEvents', host.finish_scan(app) if app.host_event_capacity else [])
+    if app.part_carrier is not None:
+        add('Part', part.finish_scan(app))
+    add('Health', [*([] if app.host_event_capacity else wall_clock_logic(app)), *health_probe_logic(app), *system_health_logic(app)])
     add('Diagnostics', [*diagnostic_logic(app), *alarm_log_logic(app)])
     add('Statistics', [*(line.cyclic(app) if app.line is not None else []),
                        *oee_logic(app), *profiler_logic(app), *state_flags_logic(app)])
+    if app.signal_tower is not None:
+        add('SignalTower', tower.logic(app))
     # Last, so the outputs written this scan reflect the permission this scan
     # computed. Running it earlier would apply a force under the previous
     # scan's verdict.

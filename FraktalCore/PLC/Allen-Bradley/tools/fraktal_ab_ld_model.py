@@ -27,6 +27,7 @@ import re
 from typing import Any
 
 import fraktal_ab_st_model as st
+import fraktal_ab_declaration as decl
 
 COMPARE = {
     "EQU": lambda a, b: a == b,
@@ -41,8 +42,9 @@ MATH = {
     "SUB": lambda a, b: a - b,
     "MUL": lambda a, b: a * b,
 }
+COMPARE.update({new: COMPARE[old] for old, new in decl.LD_V38_NAMES.items() if old in COMPARE})
 
-_NAME = re.compile(r"[A-Z][A-Z0-9]*\(")
+_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\(")
 
 
 def _split_args(text: str) -> list[str]:
@@ -127,7 +129,7 @@ def _run(plc: st.Controller, elements: list, power: bool) -> bool:
                 a = plc._int(plc.eval(_operand(args[0])))
                 b = plc._int(plc.eval(_operand(args[1])))
                 power = COMPARE[name](a, b)
-        elif name == "MOV":
+        elif name in ("MOV", "MOVE"):
             if len(args) != 2:
                 raise st.StError("MOV takes (Source,Dest)")
             if power:
@@ -139,6 +141,9 @@ def _run(plc: st.Controller, elements: list, power: bool) -> bool:
                 a = plc._int(plc.eval(_operand(args[0])))
                 b = plc._int(plc.eval(_operand(args[1])))
                 plc.write(_destination(args[2]), st._wrap(MATH[name](a, b)))
+        elif name in plc.calls:
+            if power:
+                plc.calls[name](plc, [_operand(arg) for arg in args])
         else:
             raise st.StError(f"{name} is outside the modeled ladder subset")
     return power

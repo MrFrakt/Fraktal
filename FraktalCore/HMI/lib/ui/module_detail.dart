@@ -1275,9 +1275,9 @@ class _ModuleCardsTab extends StatelessWidget {
       case ModuleCardKind.safety:
         return n.safety == null ? null : SafetyCard(safety: n.safety!);
       case ModuleCardKind.systemHealth:
-        if (n.systemHealth == null) return null;
+        if (n.systemHealth == null && n.signalTower == null) return null;
         return SystemHealthCard(
-          health: n.systemHealth!,
+          health: n.systemHealth,
           tower: n.signalTower,
           canLampTest:
               operations && !n.running && s.permits(GatedAction.manual),

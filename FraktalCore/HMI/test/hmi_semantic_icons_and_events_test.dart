@@ -36,7 +36,8 @@ void main() {
       Directory('../PLC/TwinCAT/Framework/Fraktal_Modules'),
       Directory('../PLC/TwinCAT/Framework/Fraktal_Core/DeviceCMs'),
     ];
-    for (final file in sources.expand((dir) => dir.listSync(recursive: true))
+    for (final file in sources
+        .expand((dir) => dir.listSync(recursive: true))
         .whereType<File>()) {
       if (!file.path.endsWith('.TcPOU')) continue;
       types.addAll(RegExp(r"TypeKey\s*:=\s*'(std\.moduleType\.[^']+)'")
@@ -110,6 +111,53 @@ void main() {
       expect(find.text(attention ? 'ATTENTION' : 'HEALTHY'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('tower works without a health provider and explains denied tests',
+      (tester) async {
+    var commands = 0;
+    var explanations = 0;
+    for (final permitted in [false, true]) {
+      await tester.pumpWidget(LocalizationScope(
+          controller: LocalizationController(),
+          child: MaterialApp(
+              home: Scaffold(
+                  body: SystemHealthCard(
+                      health: null,
+                      tower: const SignalTowerFacet(green: true),
+                      canLampTest: permitted,
+                      onLampTest: () async {
+                        commands++;
+                        return true;
+                      },
+                      onExplain: () {
+                        explanations++;
+                      })))));
+      expect(find.text('HEALTHY'), findsNothing);
+      expect(find.text('TIME UNSYNCHRONIZED'), findsNothing);
+      await tester.tap(find.text('Lamp test'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    }
+    expect(commands, 1);
+    expect(explanations, 1);
+    await tester.pumpWidget(LocalizationScope(
+        controller: LocalizationController(),
+        child: MaterialApp(
+            home: Scaffold(
+                body: SystemHealthCard(
+                    health: null,
+                    tower: const SignalTowerFacet(testActive: true),
+                    canLampTest: true,
+                    onLampTest: () async {
+                      commands++;
+                      return true;
+                    },
+                    onExplain: () {
+                      explanations++;
+                    })))));
+    expect(tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed,
+        isNull);
   });
 
   testWidgets(

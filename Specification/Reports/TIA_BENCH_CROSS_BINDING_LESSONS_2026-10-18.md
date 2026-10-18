@@ -1,5 +1,11 @@
 # TIA bench lessons for TwinCAT and Allen-Bradley (draft, 2026-10-18)
 
+Follow-up: the [AB continuation](../AllenBradley/AB_TIA_FOLLOWUP_2026-10-18.md)
+records the shared active-endpoint display and AB per-direction sample-validity
+change. The [v38 native-feature audit](../AllenBradley/AB_V38_NATIVE_FEATURE_AUDIT_2026-10-18.md)
+also carries forward TIA's native-reuse review. The original review below keeps
+its proposal/acceptance boundary; these follow-ups do not close L1-L6 wholesale.
+
 This is a non-normative review and proposed follow-up list. It does not change
 Core, the bindings, released types or controller programs. The measured source
 is the [Siemens bench report](../Siemens/Evidence/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17.md)

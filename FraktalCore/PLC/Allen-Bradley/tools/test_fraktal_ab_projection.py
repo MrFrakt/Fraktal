@@ -18,6 +18,8 @@ A projection that renders half a plant is worse than one that renders none.
 """
 
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 import fraktal_ab_models as models
 from dataclasses import replace
 
@@ -360,6 +362,77 @@ class TopologyTests(unittest.TestCase):
     def test_an_application_without_io_publishes_no_fieldbus_root(self):
         bare = replace(projection.APP, io_modules=())
         self.assertEqual(projection.topology(bare, None), {})
+
+    def test_missing_output_keeps_valid_inputs_and_withdraws_output_forcing(self):
+        values = self.values(input=1, fault=0, forced=1, forcePermitted=1)
+        node = f"{self.ROOT}/Nodes[1]"
+        self.assertEqual(values[f"{node}/State"], projection.NODE_OFFLINE)
+        self.assertIs(values[f"{node}/LinkOk"], False)
+        self.assertIs(values[f"{node}/Channels[1]/BoolValue"], True)
+        self.assertIs(values[f"{node}/Channels[1]/Quality"], True)
+        for index, channel in enumerate(APP.io_modules[0].channels, 1):
+            if channel.direction == decl.DIR_OUTPUT:
+                for field in ("Quality", "Forced", "Forceable"):
+                    self.assertIs(values[f"{node}/Channels[{index}]/{field}"], False)
+
+    def test_missing_fault_word_never_claims_good_channel_quality(self):
+        values = self.values(input=1, output=1, forcePermitted=1)
+        node = f"{self.ROOT}/Nodes[1]"
+        for index in range(1, len(APP.io_modules[0].channels) + 1):
+            for field in ("Quality", "Forceable", "FaultActive"):
+                self.assertIs(values[f"{node}/Channels[{index}]/{field}"], False)
+
+    def test_a_faulted_output_retains_its_existing_forced_warning(self):
+        values = self.values(input=0, output=1, fault=1, forced=1, forcePermitted=1)
+        node = f"{self.ROOT}/Nodes[1]"
+        for index, channel in enumerate(APP.io_modules[0].channels, 1):
+            if channel.direction == decl.DIR_OUTPUT and channel.bit == 0:
+                self.assertIs(values[f"{node}/Channels[{index}]/Forced"], True)
+                self.assertIs(values[f"{node}/Channels[{index}]/Quality"], False)
+                self.assertIs(values[f"{node}/Channels[{index}]/Forceable"], False)
+
+    def test_output_sample_is_valid_independently_of_input_sample(self):
+        values = self.values(output=2, fault=0)
+        node = f"{self.ROOT}/Nodes[1]"
+        self.assertIs(values[f"{node}/Channels[1]/Quality"], False)
+        self.assertIs(values[f"{node}/Channels[14]/Quality"], True)
+        self.assertIs(values[f"{node}/Channels[14]/BoolValue"], True)
+
+    def test_outage_and_recovery_use_only_the_new_sample(self):
+        before = self.values(input=1, output=2, fault=0)
+        lost = self.values()
+        after = self.values(input=0, output=0, fault=0)
+        node = f"{self.ROOT}/Nodes[1]"
+        for sample, good, value in ((before, True, True), (lost, False, False),
+                                    (after, True, False)):
+            self.assertIs(sample[f"{node}/Channels[1]/Quality"], good)
+            self.assertIs(sample[f"{node}/Channels[1]/BoolValue"], value)
+        self.assertEqual(before.keys(), lost.keys())
+        self.assertEqual(lost.keys(), after.keys())
+
+    def test_read_io_keeps_each_valid_word_when_another_read_fails(self):
+        module = APP.io_modules[0]
+        for missing in (module.input_tag, module.output_tag, module.fault_tag):
+            for failure in ("Path segment error", "Success"):
+                with self.subTest(missing=missing, failure=failure):
+                    samples = {module.input_tag: 1, module.output_tag: 2,
+                               module.fault_tag: 0}
+
+                    def read(tag):
+                        if tag == missing:
+                            return SimpleNamespace(Status=failure, Value=None)
+                        return SimpleNamespace(Status="Success", Value=samples.get(tag, 0))
+
+                    with patch.object(projection, "APP", APP):
+                        state = projection.read_io(SimpleNamespace(Read=read))
+                    words = state[module.address]
+                    for key, tag in (("input", module.input_tag),
+                                     ("output", module.output_tag),
+                                     ("fault", module.fault_tag)):
+                        if tag == missing:
+                            self.assertNotIn(key, words)
+                        else:
+                            self.assertEqual(words[key], samples[tag])
 
 
 class IoDeclarationTests(unittest.TestCase):
@@ -839,6 +912,22 @@ class ChangeoverTests(unittest.TestCase):
 
 class RefusalTests(unittest.TestCase):
     """Every way a manifest can be untrustworthy, paired with its refusal."""
+
+    def test_a_valid_header_cannot_mask_dropped_localization_initializers(self):
+        rows = manifest.content(APP)
+        rows['Localization'] = [dict(NumericKey=0, PortableKey='') for _ in rows['Localization']]
+        with self.assertRaisesRegex(projection.ProjectionRefused, 'Localization'):
+            projection.project(good_header(), rows, unit_values(), contexts())
+
+    def test_a_valid_header_cannot_mask_missing_or_truncated_module_rows(self):
+        for bad_rows in (None, []):
+            rows = manifest.content(APP)
+            if bad_rows is None:
+                rows.pop('Modules')
+            else:
+                rows['Modules'] = bad_rows
+            with self.assertRaisesRegex(projection.ProjectionRefused, 'Modules'):
+                projection.project(good_header(), rows, unit_values(), contexts())
 
     def test_a_faithful_manifest_projects(self):
         self.assertTrue(build()["values"])

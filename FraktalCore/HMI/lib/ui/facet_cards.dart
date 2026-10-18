@@ -11,7 +11,7 @@ import 'app_theme.dart';
 import 'hmi_icons.dart';
 
 class SystemHealthCard extends StatelessWidget {
-  final SystemHealthFacet health;
+  final SystemHealthFacet? health;
   final SignalTowerFacet? tower;
   final bool canLampTest;
   final Future<bool> Function() onLampTest;
@@ -28,66 +28,81 @@ class SystemHealthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final clockOk = health.time.available && health.time.synchronized;
+    final health = this.health;
+    final healthy = health?.healthy ?? true;
+    final clockOk =
+        health != null && health.time.available && health.time.synchronized;
     return FraktalCard(
-      color: health.healthy ? null : cs.errorContainer,
+      color: healthy ? null : cs.errorContainer,
       child: onContainer(
         context,
-        health.healthy ? cs.surface : cs.errorContainer,
+        healthy ? cs.surface : cs.errorContainer,
         Padding(
           padding: const EdgeInsets.all(12),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-              const Icon(Icons.monitor_heart_outlined),
-              LText('System health',
-                  style: Theme.of(context).textTheme.titleMedium),
-              Chip(label: LText(health.healthy ? 'HEALTHY' : 'ATTENTION')),
-              if (tower != null) ...[
-                OutlinedButton.icon(
-                  onPressed: tower!.testActive
-                      ? null
-                      : () async {
-                          if (!canLampTest || !await onLampTest()) onExplain();
-                        },
-                  icon: const Icon(Icons.lightbulb_outline, size: 18),
-                  label: LText(tower!.testActive ? 'TESTING' : 'Lamp test'),
-                ),
-              ],
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Icon(health == null
+                      ? Icons.lightbulb_outline
+                      : Icons.monitor_heart_outlined),
+                  LText(health == null ? 'Signal tower' : 'System health',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  if (health != null)
+                    Chip(label: LText(healthy ? 'HEALTHY' : 'ATTENTION')),
+                  if (tower != null) ...[
+                    OutlinedButton.icon(
+                      onPressed: tower!.testActive
+                          ? null
+                          : () async {
+                              if (!canLampTest || !await onLampTest())
+                                onExplain();
+                            },
+                      icon: const Icon(Icons.lightbulb_outline, size: 18),
+                      label: LText(tower!.testActive ? 'TESTING' : 'Lamp test'),
+                    ),
+                  ],
+                ]),
             const SizedBox(height: kInlineItemGap),
-            Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              children: [
-              Tooltip(
-                message: context.tr(!health.time.available
-                    ? 'std.clock.qualityUnavailable.note'
-                    : clockOk ? 'std.clock.synchronized.note'
-                    : 'std.clock.unsynchronized.note'),
-                child: Chip(
-                  avatar: Icon(!health.time.available
-                      ? Icons.timer_off_outlined
-                      : clockOk ? Icons.more_time : Icons.sync_problem, size: 18),
-                  label: LText(!health.time.available
-                      ? 'std.clock.qualityUnavailable'
-                      : clockOk
-                      ? '${health.time.source} ${health.time.offsetUs} µs'
-                      : 'TIME UNSYNCHRONIZED')),
-              ),
-              Chip(label: LText('Task ${health.taskCycleUs} µs')),
-              Chip(label: LText('Jitter ${health.taskJitterUs} µs')),
-              if (health.controllerAvailable)
-                Chip(
-                    label:
-                        LText('CPU ${health.cpuLoadPct.toStringAsFixed(1)}%')),
-              if (health.controllerAvailable)
-                Chip(label: LText('Memory ${health.memoryAvailableMb} MB')),
-            ]),
+            if (health != null)
+              Wrap(
+                  spacing: kInlineItemGap,
+                  runSpacing: kInlineItemGap,
+                  children: [
+                    Tooltip(
+                      message: context.tr(!health.time.available
+                          ? 'std.clock.qualityUnavailable.note'
+                          : clockOk
+                              ? 'std.clock.synchronized.note'
+                              : 'std.clock.unsynchronized.note'),
+                      child: Chip(
+                          avatar: Icon(
+                              !health.time.available
+                                  ? Icons.timer_off_outlined
+                                  : clockOk
+                                      ? Icons.more_time
+                                      : Icons.sync_problem,
+                              size: 18),
+                          label: LText(!health.time.available
+                              ? 'std.clock.qualityUnavailable'
+                              : clockOk
+                                  ? '${health.time.source} ${health.time.offsetUs} µs'
+                                  : 'TIME UNSYNCHRONIZED')),
+                    ),
+                    Chip(label: LText('Task ${health.taskCycleUs} µs')),
+                    Chip(label: LText('Jitter ${health.taskJitterUs} µs')),
+                    if (health.controllerAvailable)
+                      Chip(
+                          label: LText(
+                              'CPU ${health.cpuLoadPct.toStringAsFixed(1)}%')),
+                    if (health.controllerAvailable)
+                      Chip(
+                          label:
+                              LText('Memory ${health.memoryAvailableMb} MB')),
+                  ]),
             if (tower != null) ...[
               const SizedBox(height: kInlineItemGap),
               Row(children: [
@@ -171,8 +186,11 @@ class SafetyCard extends StatelessWidget {
                       Icon(safetyDeviceIcon(d.kind),
                           color: d.ready ? okColor(context) : cs.error),
                       const SizedBox(width: 4),
-                      Icon(d.ready ? Icons.check_circle_outline
-                          : Icons.gpp_bad_outlined, size: 14,
+                      Icon(
+                          d.ready
+                              ? Icons.check_circle_outline
+                              : Icons.gpp_bad_outlined,
+                          size: 14,
                           color: d.ready ? okColor(context) : cs.error),
                     ]),
                     title: LText(d.name),
@@ -218,22 +236,22 @@ class ControlPowerCard extends StatelessWidget {
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-              const Icon(Icons.power_settings_new),
-              LText('Control power',
-                  style: Theme.of(context).textTheme.titleMedium),
-              FilledButton.tonal(
-                  onPressed:
-                      !power.controlOn ? () => _request(onControlOn) : null,
-                  child: const LText('Control On')),
-              OutlinedButton(
-                  onPressed:
-                      power.controlOn ? () => _request(onControlOff) : null,
-                  child: const LText('Control Off'))
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Icon(Icons.power_settings_new),
+                  LText('Control power',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  FilledButton.tonal(
+                      onPressed:
+                          !power.controlOn ? () => _request(onControlOn) : null,
+                      child: const LText('Control On')),
+                  OutlinedButton(
+                      onPressed:
+                          power.controlOn ? () => _request(onControlOff) : null,
+                      child: const LText('Control Off'))
+                ]),
             if (domainId.isNotEmpty)
               ListTile(
                 dense: true,
@@ -432,9 +450,7 @@ class PartCard extends StatelessWidget {
         ),
         Icon(r.inTol ? Icons.check_circle_outline : Icons.error_outline,
             size: 18,
-            color: r.inTol
-                ? okColor(ctx)
-                : Theme.of(ctx).colorScheme.error),
+            color: r.inTol ? okColor(ctx) : Theme.of(ctx).colorScheme.error),
       ]),
     );
   }
@@ -611,9 +627,12 @@ class ShiftCard extends StatelessWidget {
                   const DataColumn(label: LText('Performance'), numeric: true),
                   const DataColumn(label: LText('Quality'), numeric: true),
                   const DataColumn(label: LText('OEE'), numeric: true),
-                  const DataColumn(label: LText('std.shift.runTime'), numeric: true),
-                  const DataColumn(label: LText('std.shift.downTime'), numeric: true),
-                  const DataColumn(label: LText('std.shift.idleTime'), numeric: true),
+                  const DataColumn(
+                      label: LText('std.shift.runTime'), numeric: true),
+                  const DataColumn(
+                      label: LText('std.shift.downTime'), numeric: true),
+                  const DataColumn(
+                      label: LText('std.shift.idleTime'), numeric: true),
                   const DataColumn(label: SizedBox.shrink()),
                 ],
                 rows: [

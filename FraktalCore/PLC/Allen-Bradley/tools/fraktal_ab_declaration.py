@@ -264,6 +264,22 @@ class ModuleType:
 
 
 @dataclass(frozen=True)
+class Nameplate:
+    """Activation-static asset identity, outside recipe/configuration writes."""
+
+    manufacturer: str
+    product: str
+    serial: str
+    product_uri: str = ""
+    year: str = ""
+    hardware_version: str = ""
+    firmware_version: str = ""
+    software_version: str = ""
+    order_code: str = ""
+    documentation_url: str = ""
+
+
+@dataclass(frozen=True)
 class Module:
     """A module type: the Core §6.1 handshake over a simulated plant.
 
@@ -307,6 +323,7 @@ class Module:
     # Lost while the command runs, the module HOLDS on INTERLOCK_DROPPED and
     # names the missing permit; in AUTO and MANUAL alike.
     permits: tuple = ()
+    nameplate: Nameplate | None = None
 
 
 @dataclass(frozen=True)
@@ -489,6 +506,14 @@ class Step:
     # for SINGLE_STEP and HOLD_TO_RUN. False runs it straight through - a
     # step unsafe to pause before, or one grouped with the step before it.
     steppable: bool = True
+    # A counted NOK has a first-out reason; the counting helper publishes it.
+    nok_reason: int | str = 0  # registered literal or 'Ctx.ReportedReason'
+    # Core 3.16 helper, at a declared MARK boundary; implementation is shared.
+    part_action: str = ''  # receive | start | record | processed | aborted
+    part_verdict: int = 0
+    part_reason: int | str = 0
+    part_record: int = 0  # one-based declared measurement
+    part_value: str = ''  # exact Cfg/Ctx/module DINT member, scaled by the definition
 
 
 # Core E_TimeClass, in ordinal order (§8.11.4(f)); pinned to the TwinCAT DUT by
@@ -549,6 +574,8 @@ ST = "ST"
 SFC = "SFC"
 LD = "LD"
 RENDITIONS = (ST, SFC, LD)
+LD_V38_NAMES = {'EQU': 'EQ', 'NEQ': 'NE', 'GEQ': 'GE', 'LEQ': 'LE',
+                'GRT': 'GT', 'LES': 'LT', 'MOV': 'MOVE'}
 
 
 @dataclass(frozen=True)
@@ -858,6 +885,15 @@ class Application:
     simulation_mailbox_rw: bool = False
     # Optional composition-owned line, beside (never inside) the root forest.
     line: object | None = None
+    # Opt-in identity publishes the additive manifest-v5 Nameplates row.
+    # Older declarations keep their exact v4 layout and generated output.
+    nameplate: Nameplate | None = None
+    # Zero retains older builds. A positive bound emits a PLC-owned stream.
+    host_event_capacity: int = 0
+    # Optional, typed local BY_POSITION carrier; no carrier means no Part reads.
+    part_carrier: object | None = None
+    # Optional Core 8.13 startup convention; hardware driver owns electrical I/O.
+    signal_tower: object | None = None
 
     @property
     def program(self) -> str:
@@ -1298,7 +1334,14 @@ def _validate_type_keys(app: Application) -> list[str]:
 
 def validate(app: Application) -> list[str]:
     """Return every reason this declaration must not be emitted. Empty means go."""
-    findings: list[str] = []
+    import fraktal_ab_nameplate as nameplate
+    findings: list[str] = nameplate.validate(app)
+    import fraktal_ab_host_events as host
+    findings.extend(host.validate(app))
+    import fraktal_ab_part as part
+    findings.extend(part.validate(app))
+    import fraktal_ab_signal_tower as tower
+    findings.extend(tower.validate(app))
     line_records = [r for r in app.records if r.line_cfg]
     if app.line is not None:
         import fraktal_ab_line as line

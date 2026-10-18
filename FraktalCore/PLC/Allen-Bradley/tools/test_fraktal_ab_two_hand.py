@@ -97,7 +97,9 @@ class TheType(unittest.TestCase):
 def aoi_scope():
     """The Unit AOI's parameters, bound to fresh contexts: Ctx, Chart, Cfg,
     Ctx<Module>, Scan and In<sim>, as unit_parameters declares them."""
+    import fraktal_ab_counting as counting
     tags = {
+        'CycleVerdict': st.structure(counting.members()),
         "Ctx": st.structure(gen.unit_context_members(APP)),
         "Chart": st.structure(gen.chart_members(APP)),
         "Cfg": st.structure(APP.records[0].members),

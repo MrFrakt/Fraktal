@@ -37,6 +37,25 @@ bin\Debug\net10.0\win-x86\Fraktal.Ab.OfflineProbe.exe `
   --export C:\work\GeneratedProject.ACD
 ```
 
+For v38 native compiler probes, compile and export read-back in one SDK open:
+
+```powershell
+bin\Debug\net8.0\win-x86\Fraktal.Ab.OfflineProbe.exe `
+  --build-readback C:\work\NativeProbe.L5X C:\work\NativeProbe_readback.L5X EchoController
+```
+
+The last argument is exactly `EchoController` or `PhysicalController`, both
+offline compiler targets. The output must be a new L5X. Rejected compiler cases
+are exported too, with a nonzero exit and diagnostic; the source is hash-checked.
+Use `fraktal_ab_v38_native_gate.py` to require clean import, successful compiler
+events or a genuine negative-control rejection, and matching type/logic/task
+read-back. A process exit or exception alone is not the compiler gate. This
+mode has no controller connection, download, mode-change or tag-write operation.
+
+On the SoftIndVM v38 workstation the installed package is client **2.1.974**
+with x86 .NET 8. Build with `-p:FraktalSdkClientVersion=2.1.974`; do not silently
+substitute the package/version defaults documented for another workstation.
+
 Use only disposable copies when gathering readiness evidence. A successful
 offline open/export proves SDK availability and source conversion capability;
 it does not prove controller/project parity, online communications, S4

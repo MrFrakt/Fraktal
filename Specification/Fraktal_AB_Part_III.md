@@ -714,6 +714,19 @@ numbers copied into the gateway:
 | Localization/rationalization | stable numeric key to portable string key; reason code to priority/category/action/consequence/shelvable metadata |
 | Optional profiles | profile ID/version, capability and projection requirements |
 
+**Physical nameplate row, version 5 (opt-in).** A declaration with a root or
+module nameplate selects manifest major 5. It preserves the nine v4 Nameplates
+columns and appends `YearKey`, `HardwareVersionKey`, `FirmwareVersionKey`,
+`SoftwareVersionKey`, `OrderCodeKey`, and `DocumentationKey`, all DINT text-key
+references. `ManufacturerKey`, `ProductKey`, `SerialKey`, and `AssetKey` carry
+manufacturer, product designation, serial and product URI. Legacy numeric
+revision columns are not reinterpreted as text; they remain zero when the text
+version columns are used. Missing optional text uses key zero. These values
+are activation-static identity, included in the manifest hash, never recipe
+values or HMI writes. A v4 reader shall refuse major 5 before reading its
+enlarged rows. A declaration without nameplates retains major 4 and its exact
+row layout. No AAS/IDTA companion-profile conformance follows from these fields.
+
 This is **manifest logical schema version 1**. Its canonical header field names
 are `Magic`, `SchemaMajor`, `SchemaMinor`, `CoreVersion`, `BindingVersion`,
 `FrameworkVersion`, `ConfigRevision`, `ContentHash`, `ControllerIdentity`,
@@ -976,6 +989,16 @@ verdict, reason, synchronized timestamp, and carrier-write-before-event rule.
 Carrier failure faults with the Core reason code and is never replaced by a
 gateway-only error. The controller-resident HostEvents transport is specified in
 AB §11.6.
+
+**Implementation boundary (2026-10-18, non-normative).** An optional local
+BY_POSITION provider now implements PLC identity, scaled bounded measurements,
+verdict/count commitment, failure propagation and the four host lifecycle events.
+Its typed `(ProviderKind=1, ProviderIdx=1)` dispatch accepts the local provider
+only; the published Core CarrierKind is BY_POSITION=2. Required InOut additions
+use new versioned AOIs/UDTs, and existing carrier-off output is unchanged.
+Device providers, nonempty genealogy, external expected identity, runtime
+retention and complete §8.3 message-log parity remain unqualified. See the
+[local-carrier evidence](AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
 
 ### AB §3.17 Extension modes
 *Binds Core §3.17.*
@@ -1620,10 +1643,19 @@ the Core §8.3 audit/event ring without credentials or secret payloads.
   [link memory correction](AllenBradley/Evidence/AB_PHASE6_SHELVING_LINK_MEMORY_FIX_2026-10-03.md),
   [previous correction](AllenBradley/Evidence/AB_PHASE6_SHELVING_MEMORY_FIX_2026-10-03.md)
   and [initial build record](AllenBradley/Evidence/AB_PHASE6_SHELVING_BUILD_2026-10-03.md).
-- **§8.13 signal tower.** The Core arbitration AOI writes semantic lamp/buzzer
+- **§8.13 signal tower.** The shared generated service writes semantic lamp/buzzer
   requests to the HAL. Only the project I/O driver maps them to module outputs.
   Lamp test is a gated mailbox operation and cannot override a safety-controlled
   indication or energize an undeclared output.
+  The optional typed `Application.signal_tower` convention selects versioned
+  read-only semantic output storage and a private native `FBD_TIMER`/`TONR`.
+  LAMP_TEST uses the existing MANUAL gate (ordinal 2), refuses a BUSY Unit or
+  an already active test, and ignores client duration arguments. The service
+  runs unconditionally after alarm processing; its native timer bounds the
+  test independently of the client connection. Startup convention defaults
+  nonpositive duration to 3 seconds and clamps duration to 30 seconds. The
+  hardware driver remains the sole electrical output owner. See the scoped
+  [implementation evidence](AllenBradley/Evidence/AB_SIGNAL_TOWER_2026-10-18.md).
 
 ---
 
@@ -1664,6 +1696,13 @@ the Core §8.3 audit/event ring without credentials or secret payloads.
 - Connection health, module presence and configuration mismatch come from the
   module object and populate Core §10.5.1's topology and I/O diagnostics.
   **[PROVISIONAL S3]**
+- The gateway's channel values come from the declared input and output process
+  image words. Output quality describes that sample, not electrical actuation
+  or remote applied-output feedback. Each direction requires its own successful
+  word read and the fault word before claiming Good channel quality. A failed
+  read in the other direction does not invalidate an otherwise valid sample;
+  an incomplete module sample retains the offline node indication. Unknown
+  fault data grants neither Good quality nor an output-force affordance.
 - Core's fieldbus-loss policy (§7.8, §11) is unchanged: a lost connection queues
   nothing and resumes cleanly rather than replaying stale actions.
 - Each claimed module family has a generated/module-profile adapter that records
@@ -2149,6 +2188,32 @@ kind, or an overwritten cursor interval produces an explicit `BAD`/data-loss
 result. Physical string bounds, timestamp representation, ring capacity and CIP
 fragmentation remain S7/S12 outputs; no physical choice may drop a logical field
 or turn wrap into silent continuity.
+
+**Implemented non-part stream (2026-10-18).** The optional declaration
+`host_event_capacity` (1..64; zero omits it) emits a new capacity/version-named
+ring UDT, append AOI and Unit AOI signature. No released required-InOut
+signature is replaced. Current producers are `MODE_CHANGED`,
+`CHANGEOVER_STARTED`, `CHANGEOVER_DONE`, and `NOK`; resource
+change producers remain unclaimed. With the optional local carrier, physical
+host schema V2 adds received/started/processed/aborted events and PLC-captured
+bounded ASCII identity. V1 output stays unchanged. The owning NOK mark takes a registered
+reason or the Unit's captured `ReportedReason`, never an inferred client cause.
+All event storage is controller-owned. The v33-compatible physical carrier is
+DINT columns; station identity and model values resolve through the validated
+declaration/catalog. Inapplicable PartUid/Subject fields are empty.
+
+Publication brackets initialization and append with an odd/even DataRevision.
+Only equal, even metadata around a bounded read is accepted. Positive DINT
+sequences never wrap: exhaustion marks the stream failed. Startup
+WallClockTime.CurrentValue words scope the publisher epoch; observed native
+time quality accompanies each record. Epoch change and overwritten cursor
+intervals produce explicit loss records. Per-sink cursors advance only after
+acknowledgement, are atomically persisted and scoped to controller/build,
+station and epoch. Delivery is at least once; sinks deduplicate the supplied
+idempotency key. Clock replay, physical restart/retention and live sink recovery
+still require target acceptance. The compiler/model evidence does not grant a
+complete traceability, host-integration or v38 runtime claim. See
+[host/nameplate compiler evidence](AllenBradley/Evidence/AB_HOST_NAMEPLATE_2026-10-18.md).
 
 ### AB §11.7–§11.11 Optional OPC UA and industry projections
 *Binds Core §11.7–§11.11, Annexes F/J/K where claimed.*

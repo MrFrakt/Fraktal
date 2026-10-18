@@ -218,7 +218,7 @@ class EmittedProjectTests(unittest.TestCase):
         self.assertLess(len(types), len(demo.application().modules),
                         "the press has more instances than types; one AOI "
                         "per instance would make these equal")
-        self.assertIn("FRK_U_Press", names)
+        self.assertIn(gen.unit_aoi_name(demo.application()), names)
         self.assertIn("FRK_M_Cylinder", names)
 
     def test_every_contract_member_is_a_dint(self):
@@ -298,7 +298,7 @@ class EmittedProjectTests(unittest.TestCase):
 
     def test_the_mode_owner_self_checks_child_ordering(self):
         unit = [a for a in self.root.findall(".//AddOnInstructionDefinition")
-                if a.get("Name") == "FRK_U_Press"][0]
+                if a.get("Name") == gen.unit_aoi_name(demo.application())][0]
         body = "\n".join((l.text or "") for l in unit.findall(".//STContent/Line"))
         for module in demo.application().modules:
             self.assertIn(f"Ctx{module.name}.ModuleScan <> Scan", body)

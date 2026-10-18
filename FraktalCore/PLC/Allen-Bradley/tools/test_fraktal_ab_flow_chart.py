@@ -15,6 +15,7 @@ import dataclasses
 import unittest
 
 import fraktal_ab_generate as gen
+import fraktal_ab_counting as counting
 import fraktal_ab_press_demo as demo
 import fraktal_ab_projection as projection
 import fraktal_ab_library as library
@@ -44,6 +45,8 @@ class Press:
         for module in APP.modules:
             tags[gen.ctx_tag_for(APP, module.name)] = st.structure(
                 gen.module_members(module))
+        if counting.enabled(APP):
+            tags[counting.tag(APP)] = st.structure(counting.members())
         for tag in APP.sim_inputs:
             tags[tag] = 1
         self.tags = tags

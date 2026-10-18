@@ -297,9 +297,14 @@ def statements(candidate: Candidate, mode: str) -> tuple[str, ...]:
 
 
 def program_block(candidate: Candidate, mode: str) -> str:
+    # One archive line per source line. A native multi-statement probe exposed
+    # a clean import followed by RxSTX_E_INVALID_FUNC when embedded newlines
+    # were stored inside a single Line record instead of serialized separately.
+    source_lines = tuple(line for statement in statements(candidate, mode)
+                         for line in statement.splitlines())
     lines = "\n".join(
         f'<Line Number="{index}"><![CDATA[{statement}]]></Line>'
-        for index, statement in enumerate(statements(candidate, mode))
+        for index, statement in enumerate(source_lines)
     )
     return f"""<Programs>
 <Program Name="{PROGRAM}" TestEdits="false" MainRoutineName="{ROUTINE}" Disabled="false" UseAsFolder="false">

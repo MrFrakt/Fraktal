@@ -558,9 +558,9 @@ AB_ABSENT = {
     "CurrentStep/Class": _NOT_PROJECTED,
     "Profiler/LastCycle/Steps[*]/Class": _NOT_PROJECTED,
     "Profiler/StepStats[*]/Class": _NOT_PROJECTED,
-    "HostEvents": _NOT_PROJECTED,
-    "Nameplate": _NOT_PROJECTED,
-    "Part": _DEFERRED,
+    "HostEvents": "the reference declaration does not enable the optional host ring",
+    "Nameplate": "the reference declaration has no commissioned asset nameplate",
+    "Part": "the reference declaration does not inject the optional local carrier",
     "RunningPublished": ("the projection derives Status/State from the "
                          "context's Running rather than republishing it"),
     "Safety": _DEFERRED,

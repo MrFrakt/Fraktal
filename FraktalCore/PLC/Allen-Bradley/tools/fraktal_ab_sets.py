@@ -102,8 +102,16 @@ def revision_rejected(app, value):
     # schema. Recognize that exact prior content; all other revisions refuse.
     if app.model_capacity:
         variants += [dataclasses.replace(item, model_capacity=0) for item in variants[:]]
+    if app.signal_tower is not None:
+        # Tower convention/output fields change discovery, never the editable
+        # value schema. Accept only the exact same declaration without it.
+        variants += [dataclasses.replace(item,signal_tower=None) for item in (app,*variants)]
     revisions.update(mf.config_revision(item) for item in variants)
-    return ' AND '.join(f'({value} <> {revision})' for revision in sorted(revisions))
+    terms = [f'({value} <> {revision})' for revision in sorted(revisions)]
+    if len(terms) <= 5:
+        return ' AND '.join(terms)
+    # The v33 compiler rejects more than five chained terms at one level.
+    return ' AND '.join('('+' AND '.join(terms[i:i+5])+')' for i in range(0,len(terms),5))
 
 
 def range_rejected(member, value):

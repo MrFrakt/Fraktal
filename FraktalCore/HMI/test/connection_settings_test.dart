@@ -2,6 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/domain/connection_settings.dart';
 
 void main() {
+  test('display target retains address and runtime without URI credentials',
+      () {
+    const settings = ConnectionSettings(
+      endpoint:
+          'wss://operator:secret@cell.example:8443/fraktal?token=secret#secret',
+    );
+    expect(settings.displayEndpoint, 'wss://cell.example:8443/fraktal');
+    expect(settings.endpoint, contains('token=secret'));
+    expect(
+        const ConnectionSettings(endpoint: 'ads://192.168.0.49.1.1:852')
+            .displayEndpoint,
+        'ads://192.168.0.49.1.1:852');
+    expect(
+        const ConnectionSettings(endpoint: 'cip://192.168.100.89:44818')
+            .displayEndpoint,
+        'cip://192.168.100.89:44818');
+    expect(
+        const ConnectionSettings(transport: ConnectionTransport.simulation)
+            .displayEndpoint,
+        isEmpty);
+    expect(const ConnectionSettings(endpoint: 'not a URI').displayEndpoint,
+        isEmpty);
+  });
+
   test('current settings retain completed language setup after reload', () {
     const settings = ConnectionSettings(
       everConnected: true,

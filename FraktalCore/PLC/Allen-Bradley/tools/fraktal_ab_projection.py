@@ -38,6 +38,7 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_manifest as manifest
 import fraktal_ab_station as station
+import fraktal_ab_machine_state as machine
 
 SCHEMA = "fraktal.ab.projection"
 SCHEMA_VERSION = 1
@@ -91,10 +92,10 @@ def validate(header: dict[str, Any]) -> None:
     reasons: list[str] = []
     if header.get("Magic") != manifest.MANIFEST_MAGIC:
         reasons.append("the manifest magic is wrong; this is not a Fraktal manifest")
-    if header.get("SchemaMajor") != manifest.MANIFEST_SCHEMA_MAJOR:
+    if header.get("SchemaMajor") != manifest.schema_major(APP):
         reasons.append(
             f"manifest schema major {header.get('SchemaMajor')} is not "
-            f"{manifest.MANIFEST_SCHEMA_MAJOR}")
+            f"{manifest.schema_major(APP)}")
     if header.get("Valid") != 1:
         reasons.append("the controller reports the manifest is not valid")
     if header.get("Truncated") != 0:
@@ -479,10 +480,14 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
     channel the chassis does not have with values that look live.
 
     ``io_state`` is ``{address: {"input": word, "output": word,
-    "fault": word}}``. None means the words were not read this cycle: the
-    channels still publish their identity, with ``Quality`` FALSE so the HMI
-    renders them unavailable rather than showing a confident zero. That is the
-    same rule OPC UA Bad quality follows in `HMI_CONTRACT.md`.
+    "fault": word}}``; an unread word is absent. Channel quality requires its
+    own direction's sample and the fault word, independently of the other
+    direction. An incomplete module sample retains the offline node indication.
+    None leaves every channel unavailable, never a confident zero.
+
+    Output values are the controller's output process image, not electrical or
+    remote applied-output feedback. Good quality establishes a valid sample;
+    it does not establish output authority or permission to resume motion.
     """
     if not app.io_modules:
         return {}
@@ -499,7 +504,9 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
     for index, module in enumerate(app.io_modules, start=1):
         node = f"{root}/Nodes[{index}]"
         state = (io_state or {}).get(module.address)
-        live = state is not None
+        live = state is not None and all(
+            key in state for key in ("input", "output", "fault"))
+        fault_known = state is not None and "fault" in state
         # Every channel's fault bit set is what an INHIBITED module reports,
         # and it is the honest answer for the press today: the module is there
         # and it is carrying nothing. Distinguish it from a partial fault, so
@@ -534,8 +541,11 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
         for position, channel in enumerate(module.channels, start=1):
             leaf = f"{node}/Channels[{position}]"
             outward = channel.direction == DIR_OUTPUT
-            word = (state or {}).get("output" if outward else "input", 0)
-            faulted = bool(faults >> channel.bit & 1) if live else False
+            direction = "output" if outward else "input"
+            sampled = state is not None and direction in state
+            word = (state or {}).get(direction, 0)
+            faulted = bool(faults >> channel.bit & 1) if fault_known else False
+            valid = sampled and fault_known and not faulted
             values.update({
                 # The electrical tag, verbatim. Never localized.
                 f"{leaf}/Name": channel.name,
@@ -550,11 +560,11 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
                                        if channel.module_path else app.name),
                 f"{leaf}/Dir": channel.direction,
                 f"{leaf}/Kind": channel.kind,
-                f"{leaf}/BoolValue": bool(word >> channel.bit & 1) if live
+                f"{leaf}/BoolValue": bool(word >> channel.bit & 1) if sampled
                                      else False,
                 f"{leaf}/AnalogValue": 0,
                 f"{leaf}/Unit": channel.unit,
-                f"{leaf}/Quality": live and not faulted,
+                f"{leaf}/Quality": valid,
                 f"{leaf}/FaultActive": faulted,
                 f"{leaf}/Diagnostic": "",
                 # §10.5.1 forcing, and an OUTPUT only: forcing an input would
@@ -564,7 +574,7 @@ def topology(app, io_state: dict[str, dict[str, int]] | None) -> dict[str, Any]:
                 # controller applies the force and withdraws it.
                 f"{leaf}/Forced": bool(forced >> channel.bit & 1)
                                   if outward and live else False,
-                f"{leaf}/Forceable": outward and force_permitted,
+                f"{leaf}/Forceable": outward and valid and force_permitted,
             })
     return values
 
@@ -645,18 +655,13 @@ def wait_attribution(app, unit: dict[str, int]) -> tuple[bool, bool]:
     """§8.11.3 Starved and Blocked, as FB_UnitBase derives them: BUSY in a
     step classed as an upstream or a downstream wait. Derived every poll,
     never latched."""
-    step = current_step(app, unit)
-    time_class = step.time_class if step else "WORK"
-    busy = not unit.get("Error") and bool(unit.get("Running"))
-    return (busy and time_class == "WAIT_UPSTREAM",
-            busy and time_class == "WAIT_DOWNSTREAM")
+    return machine.waits(app, unit)
 
 
 # Core E_MachineState (§8.11.3), pinned to the TwinCAT DUT by test, and the
 # one E_Mode ordinal the classification reads.
-MACHINE_STATES = {"PRODUCING": 0, "IDLE": 1, "BLOCKED": 2, "STARVED": 3,
-                  "DOWN": 4, "CHANGEOVER": 5, "STOPPED": 6}
-MODE_CHANGEOVER = 3
+MACHINE_STATES = machine.STATES
+MODE_CHANGEOVER = machine.CHANGEOVER
 
 
 def machine_state(app, unit: dict[str, int],
@@ -675,22 +680,7 @@ def machine_state(app, unit: dict[str, int],
     and an IDLE that might have been DOWN is a figure nobody read."""
     if active is None:
         return {}
-    starved, blocked = wait_attribution(app, unit)
-    if unit["Error"] or active["Blocking"]:
-        state = "DOWN"
-    elif unit["Mode"] == MODE_CHANGEOVER:
-        state = "CHANGEOVER"
-    elif blocked:
-        state = "BLOCKED"
-    elif starved:
-        state = "STARVED"
-    elif unit["Running"]:
-        state = "PRODUCING"
-    elif unit["Aborted"]:
-        state = "STOPPED"
-    else:
-        state = "IDLE"
-    return {"MachineState": MACHINE_STATES[state]}
+    return {"MachineState": machine.classify(app, unit, active['Blocking'])}
 
 
 def sequence_slots(app) -> int:
@@ -1235,9 +1225,15 @@ def project(header: dict[str, Any], rows: dict[str, Any],
             data_policy: dict[str, Any] | None = None,
             data_levels: dict[str, Any] | None = None,
             model_codes: list[str] | None = None,
-            line_state: tuple | None = None) -> dict[str, Any]:
+            line_state: tuple | None = None,
+            host_state: dict[str, Any] | None = None,
+            part_state: dict[str, Any] | None = None,
+            tower_state: dict[str, Any] | None = None) -> dict[str, Any]:
     """The snapshot document, from a validated manifest and the live contexts."""
     validate(header)
+    mismatched = manifest.mismatched_tables(APP, header, rows)
+    if mismatched:
+        raise ProjectionRefused('manifest rows disagree with the declared content: ' + ', '.join(mismatched))
 
     values: dict[str, Any] = {}
     values[f"{APP.name}/Features/CaptureEnabled"] = any(
@@ -1252,7 +1248,28 @@ def project(header: dict[str, Any], rows: dict[str, Any],
         values[f"{base}/Status/DisplayNameKey"] = module["displayNameKey"]
         if module["typeKey"]:
             values[f"{base}/Status/TypeKey"] = module["typeKey"]
+        if manifest.schema_major(APP) >= 5:
+            import fraktal_ab_nameplate as nameplate
+            try:
+                for suffix, value in nameplate.project(rows, module['moduleId']).items():
+                    values[f'{base}/{suffix}'] = value
+            except (ValueError, KeyError) as error:
+                raise ProjectionRefused(str(error)) from error
         if module["type"] == MODULE_TYPE_UNIT:
+            if APP.part_carrier is not None:
+                import fraktal_ab_part as part
+                try:
+                    for suffix, value in part.project(APP, part_state).items():
+                        values[f'{base}/{suffix}'] = value
+                except part.PartBad as error:
+                    raise ReadFailed(str(error)) from error
+            if APP.host_event_capacity:
+                import fraktal_ab_host_events as host
+                try:
+                    for suffix, value in host.project(host_state).items():
+                        values[f'{base}/{suffix}'] = value
+                except host.HostEventsBad as error:
+                    raise ReadFailed(str(error)) from error
             for suffix, value in unit_status(unit, chart).items():
                 values[f"{base}/{suffix}"] = value
             for suffix, value in mode_policy(APP).items():
@@ -1282,7 +1299,15 @@ def project(header: dict[str, Any], rows: dict[str, Any],
                 import fraktal_ab_access as access
                 for suffix, value in access.audit_status(APP, rows, access_audit, ring_log).items():
                     values[f"{base}/{suffix}"] = value
-            for suffix, value in machine_state(APP, unit, active_log).items():
+            if APP.signal_tower is not None:
+                import fraktal_ab_signal_tower as tower
+                try:
+                    machine_values = tower.project(tower_state)
+                except ValueError as error:
+                    raise ReadFailed(str(error)) from error
+            else:
+                machine_values = machine_state(APP, unit, active_log)
+            for suffix, value in machine_values.items():
                 values[f"{base}/{suffix}"] = value
             for suffix, value in alarm_meta_status(rows).items():
                 values[f"{base}/{suffix}"] = value
@@ -1357,7 +1382,10 @@ def project(header: dict[str, Any], rows: dict[str, Any],
         "moduleCount": len(described),
         "configRevision": header["ConfigRevision"],
         "contentHash": header["ContentHash"],
-        "absent": [{"path": path, "reason": reason} for path, reason in ABSENT],
+        "absent": [{"path": path, "reason": reason} for path, reason in ABSENT
+                   if not (path == 'Nameplate/*' and manifest.schema_major(APP) >= 5)
+                   and not (path == 'Part/*' and APP.part_carrier is not None)
+                   and not (path == 'HostEvents/*' and APP.host_event_capacity)],
     }
 
 
@@ -1480,7 +1508,17 @@ def read_document(comm: Any,
                    read_system_health(comm), keep('access', read_access(comm)),
                    plan.group('accessAudit', (APP.name + '/AlarmLog/Ring[',), lambda: read_access(comm, audit=True)),
                    read_data_access(comm, policy=True), read_data_access(comm), codes,
-                   read_line(comm))
+                   read_line(comm),
+                   plan.group('hostEvents', (APP.name + '/HostEvents/',),
+                              lambda: __import__('fraktal_ab_host_events').read(comm, APP, codes))
+                   if APP.host_event_capacity else None,
+                   plan.group('part', (APP.name + '/Part/',),
+                              lambda: __import__('fraktal_ab_part').read(comm, APP))
+                   if APP.part_carrier is not None else None,
+                   plan.group('signalTower', (APP.name+'/SignalTower/', APP.name+'/MachineState'),
+                       lambda: execute.read_layout(comm, __import__('fraktal_ab_signal_tower').tag(APP),
+                                                   __import__('fraktal_ab_signal_tower').members()))
+                   if APP.signal_tower is not None else None)
     if decl.live_documents(APP):
         import fraktal_ab_live as live
         # Not sent to a client: the gateway's document keeper consumes it.
@@ -1871,9 +1909,9 @@ def read_persist(comm: Any) -> dict[str, int] | None:
 def read_io(comm: Any) -> dict[str, dict[str, int]]:
     """The declared I/O modules' live words. Read-only, and never fatal.
 
-    A module that does not answer is omitted, which publishes its channels with
-    their identity and `Quality` FALSE rather than a confident zero. An I/O
-    read has to be allowed to fail on its own: the fieldbus view is a
+    Each failed word is omitted independently, so a missing output read does
+    not discard a valid input sample. Quality also requires the fault word.
+    An I/O read has to be allowed to fail on its own: the fieldbus view is a
     diagnostic, and refusing the whole station snapshot because one chassis
     word did not come back would take the operator's process screens away to
     report a broken sensor list.
@@ -1901,11 +1939,11 @@ def read_io(comm: Any) -> dict[str, dict[str, int]]:
                          ("output", module.output_tag),
                          ("fault", module.fault_tag)):
             answer = comm.Read(tag)
-            if getattr(answer, "Status", None) != "Success":
-                break
-            words[key] = int(getattr(answer, "Value", 0) or 0) &                 ((1 << module.data_width) - 1)
-        else:
-            state[module.address] = words
+            value = getattr(answer, "Value", None)
+            if (getattr(answer, "Status", None) == "Success"
+                    and isinstance(value, int)):
+                words[key] = value & ((1 << module.data_width) - 1)
+        state[module.address] = words
     return state
 
 

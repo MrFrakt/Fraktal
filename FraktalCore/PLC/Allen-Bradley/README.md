@@ -1,8 +1,121 @@
 # Fraktal/AB
 
-This tree is reserved for the Allen-Bradley Logix binding. The authoritative
+This tree contains the Allen-Bradley Logix binding. The authoritative
 implementation specification is
 [`Specification/Fraktal_AB_Part_III.md`](../../../Specification/Fraktal_AB_Part_III.md).
+
+**Gap closure (2026-10-18):** Echo now derives from the physical press
+declaration; that refactor preserved both baseline projects. Optional
+digital nameplates publish through the versioned manifest and generic HMI.
+An optional PLC-owned host ring records mode/changeover/NOK events, with
+coherent acquisition, explicit loss and acknowledged per-sink cursor recovery.
+The disposable `fraktal_ab_host_demo.py` enables these features with fictitious
+asset identity and all three AUTO renditions; it is not a deployment declaration.
+See the [configuration guide](../../../Specification/Guides/AB_NEW_PROJECT_GUIDE.md#host-events-and-digital-nameplates)
+and [compiler/read-back evidence](../../../Specification/AllenBradley/Evidence/AB_HOST_NAMEPLATE_2026-10-18.md).
+An opt-in local BY_POSITION carrier now adds Part identity, bounded scaled
+measurements, write-before-event result commits and received/started/processed/
+aborted events. The shared helper is called by ST/SFC/LD; failure and identity
+mismatch fault the consuming Unit. See the [traceability guide](../../../Specification/Guides/AB_NEW_PROJECT_GUIDE.md#local-part-traceability)
+and [compiler/model evidence](../../../Specification/AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
+Resource producers, device carriers, genealogy and physical acceptance remain open.
+The owner-authorized [Echo download and idle-runtime check](../../../Specification/AllenBradley/Evidence/AB_ECHO_LOCAL_CARRIER_DOWNLOAD_2026-10-18.md)
+now passes on local serial `601FC87B`: Run, advancing scans, matching manifest
+and generic Part/host projection. The subsequent
+[cycle/recovery acceptance](../../../Specification/AllenBradley/Evidence/AB_CYCLE_RECOVERY_2026-10-18.md)
+passes 21 live ST/SFC/LD checks, including NOK, HELD/resume, abort, mode change,
+adopted child failure and one-reset restart. Normal live-document restore and
+local durable sink refusal/reopen checks also pass; power/download retention
+and browser acceptance remain open. This image uses `FRAKTAL_AB_DECLARATION=fraktal_ab_part_demo`;
+the direct-CIP HMI spike cannot consume its major-5 manifest.
+The SDK's split-CDATA initializer loss is now covered by native evidence:
+Logix ASCII hex encoding preserves the text, and the read-back gate compares
+actual executable bodies and authored values. The live projection also refuses
+missing/corrupted manifest rows even when their header still claims the expected
+content hash.
+
+The carrier-off press now suppresses the shared finish's good increment after
+a scrap mark. A private versioned verdict record is cleared automatically at
+finish/reset/abort/mode change; projects add no reset wiring. The Unit AOI gains
+the `_CountV1` suffix for its added InOut parameter. This intentionally changes
+carrier-off generated output; the deployed carrier-enabled image is unchanged.
+Both v38 compiler targets and whole-cycle ST/SFC/LD models pass. Part projection
+now keeps every configured measurement slot's path set stable when empty.
+
+Optional [SignalTower/LAMP_TEST](../../../Specification/AllenBradley/Evidence/AB_SIGNAL_TOWER_2026-10-18.md)
+now derives semantic outputs from the shared machine classifier, existing
+alarms and decisions. A private native TONR bounds lamp test; the mailbox uses
+Core's MANUAL gate and the generic HMI also renders a tower without health
+data. Adding the profile preserves configuration documents from the exact
+otherwise identical declaration. Electrical mapping and physical acceptance
+remain separate from the disposable Echo fixture.
+The approved tower fixture is now loaded on local Echo `601FC87B`, manifest
+`EA7BCE24FDA311EB`, with 31 passing tower/Part ST/SFC/LD live checks and restored
+policy/inputs/session. Its gateway declaration is `fraktal_ab_tower_demo`;
+the older Part download above remains historical evidence.
+
+**TIA follow-up (2026-10-18):** shared Settings now displays the connected
+PLC/gateway endpoint, with reconnect coverage for CIP, WSS, ADS and OPC UA.
+Gateway I/O reads preserve each valid direction independently; channel quality
+requires that direction's word and the fault word. Output values describe the
+controller process image, not confirmed electrical actuation. No generated PLC
+layout or program changes are needed. The AB specification gate now checks the
+recorded R0-R6 and S16 results while retaining R6's read-only and S15's narrowed
+scope. See the [current follow-up](../../../Specification/AllenBradley/AB_TIA_FOLLOWUP_2026-10-18.md)
+for validation and the remaining implementation order. Older bench measurements
+below retain their recorded scope; direct CIP remains a limited spike.
+The owner's [v38 native-feature review](../../../Specification/AllenBradley/AB_V38_NATIVE_FEATURE_AUDIT_2026-10-18.md)
+now precedes further custom runtime growth: MODULE/task timing probes first,
+then alarm-provider feasibility.
+
+The disposable `tools/fraktal_ab_v38_native_probe.py` and
+`tools/fraktal_ab_v38_native_gate.py` generate and compile L81E/v38 module,
+task-interval and clock-type cases, including a compiler negative control and
+an attribute-spelling discriminator. They reuse the S12 empty-seed generator;
+every probe tag is read-only and task output updates are disabled. The gate
+reads the actual exported types, ST and task settings back. These probes do
+not change the production generator or qualify physical I/O/runtime behavior.
+
+```powershell
+python tools/fraktal_ab_v38_native_probe.py C:/work/echo38_5580_seed.L5X C:/work/native38_new
+python tools/fraktal_ab_v38_native_gate.py C:/work/native38_new/generation.json C:/work/native38_compiled_new --case module_local --case task_intervals --case clock_arithmetic --case invalid_attribute --case maximum_interval_spelling
+```
+
+Both directories must be new. Use `--split-attributes` on the generator to
+isolate an unexpected compiler rejection before proposing a native adapter.
+The [native compiler evidence](../../../Specification/AllenBradley/Evidence/AB_V38_NATIVE_HEALTH_COMPILE_2026-10-18.md)
+records six successful positive builds across both targets, four expected or
+discriminator rejections, matching read-back and the preserved failed runs.
+The production publisher still awaits isolated runtime/provider qualification.
+
+The [native runtime observation](../../../Specification/AllenBradley/Evidence/AB_NATIVE_TIMING_2026-10-18.md)
+now adds 7,500 steady-state Echo scans, two minute boundaries and healthy Local
+MODULE acquisition, with the 31 tower/Part regression checks still passing.
+The approved instrumented tower fixture remains loaded. It preserves the
+existing manifest/declaration and adds only a consumed read-only diagnostic
+record; production health calculations remain unchanged. Native task interval
+extrema describe the task lifetime, not Fraktal's one-second window. Clock
+adjustment/scaling, missed scans and external I/O qualification remain open.
+
+To reproduce the disposable observer from an empty seed, then collect from its
+separately authorized and downloaded local fixture:
+
+```powershell
+python tools/fraktal_ab_native_observer.py C:/work/echo38_5580_seed.L5X C:/work/observer_new.L5X
+$env:FRAKTAL_AB_DECLARATION = 'fraktal_ab_tower_demo'
+python tools/fraktal_ab_native_observe.py --expect-serial 601FC87B --seconds 75 --output C:/work/observation_new.json
+```
+
+Both outputs must be new. Generation and collection perform no downloads,
+mode changes or controller writes; the normal explicit deployment gate applies.
+
+The [native alarm feasibility record](../../../Specification/AllenBradley/Evidence/AB_NATIVE_ALARMS_COMPILE_2026-10-18.md)
+adds clean ALMD ST compiler/read-back proof on both v38 targets and actual
+invalid-member rejections. The shared read-back gate now verifies native alarm
+parameters, conditions, definitions, messages and identity references. Core
+retains lifecycle ownership; the native object needs Read/Write access and its
+latched reset differs from Core. Tag-based XML trials remain refused/unaccepted.
+These are offline probes, with no production alarm-provider or controller change.
 
 Current status (2026-10-04): **R0-R6 PASS at their recorded scope; main press
 operation and Phase 0-6 features have reference-bench proof on press68.** R6's
@@ -134,9 +247,10 @@ to FALSE/TRUE without relaxing write validation. No PLC or gateway source
 changes are required. See
 [configuration-page evidence](../../../Specification/AllenBradley/Evidence/AB_PRESS75_HMI_CONFIG_PAGE_CAPACITY_2026-10-05.md).
 
-The port is **not complete apart from power**: Part traceability,
-signal-tower/host integration and optional profiles/probes remain absent or
-unclaimed. The current gap census against TwinCAT (including TC3's
+The port is **not complete apart from power**: signal tower remains absent;
+optional local Part traceability, host streams and nameplates have compiler/model
+proof, while live host/carrier integration and other optional
+profiles/probes remain unclaimed. The historical gap census against TwinCAT (including TC3's
 project-chosen retained-data medium) and the next implementation order are in
 the [missing-features handover](../../../Specification/AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md). Line owner/calendar V2 is loaded in corrective press75 after
 press72 failed linking at LineValidate and press73 failed with a final global
@@ -239,7 +353,8 @@ controller says about its own health and timing (press51; partial: module
 connection state is still owed), and TC3's §8.12 system-health publisher runs
 on that subset on the bench (press52). The `PartFeed` axis is not built,
 by TC3's own rule: it arms only on a real axis, and this controller has no
-Integrated Motion. Part traceability and any control-power domain are not;
+Integrated Motion. Part traceability remains disabled on that bench image
+(the optional local carrier has separate offline evidence); a control-power domain is absent.
 what remains, and in what order, is the plan in
 [`Specification/Reports/AB_TC3_PARITY_AUDIT_2026-09-29.md`](../../../Specification/Reports/AB_TC3_PARITY_AUDIT_2026-09-29.md).
 

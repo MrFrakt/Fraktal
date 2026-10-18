@@ -173,6 +173,7 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
       _scopedRepository = scoped;
       final app = AppState(
         scoped,
+        connectedEndpoint: candidate.displayEndpoint,
         localization: widget.localization,
         content: widget.content,
         // Panel-local access policy chosen during commissioning (appearance
@@ -542,7 +543,8 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
         _BootstrapPhase.appearanceSetup => _ConnectionMaterial(
             localization: widget.localization,
             // Live preview: render in whatever is currently selected.
-            themeIndex: _previewTheme ?? _settings?.themeIndex ?? kDefaultThemeIndex,
+            themeIndex:
+                _previewTheme ?? _settings?.themeIndex ?? kDefaultThemeIndex,
             controlScale: _previewScale ??
                 ControlScale
                     .values[(_settings?.controlScaleIndex ?? 0).clamp(0, 2)],

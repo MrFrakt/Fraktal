@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 168, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 137, in main
+    exercise(run)
+    ~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 87, in exercise
+    fault = run.wait(lambda:snapshot(comm,app) if snapshot(comm,app)['SignalTower/Horn'] else None,'fault horn')
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 106, in wait
+    raise FixtureRefused(f'{label} timed out: step={u["Step"]}, error={u["ErrorID"]}')
+fraktal_ab_part_execute.FixtureRefused: fault horn timed out: step=150, error=10101

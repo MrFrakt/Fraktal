@@ -133,12 +133,9 @@ SUPPORTED: dict[int, str] = {
 # paces its sequences (decl.Application.run_styles) - refused_for() lifts their
 # refusals then, as it does WRITE_CONFIG's for a station with editable values.
 
-# The command-mailbox handover listed STEP_REQUEST, SET_HOLD_RUN and LAMP_TEST
-# as routable. They are not, and the declaration is the authority: the press
-# demo has no step-request tag and no signal tower, and its Hold* tags are the
-# S16 per-module hold *injections* the evidence harness uses, not a sequence
-# hold-run control. Routing a command to the nearest similarly-named tag is how
-# an operator ends up holding a cylinder when they asked to hold the sequence.
+# Optional commands follow the declaration: run styles enable their pacing
+# controls and a signal tower enables LAMP_TEST. Hold* plant injections remain
+# separate from the acknowledged sequence hold-run control.
 
 # The reason is a localization key, because a Diagnostic an operator reads has to
 # survive translation. Each names the owed work rather than saying "unsupported".
@@ -864,6 +861,8 @@ def refused_for(app) -> dict[int, str]:
     if gen.pacing(app):
         for kind in (SET_RUN_STYLE, STEP_REQUEST, SET_HOLD_RUN):
             refused.pop(kind, None)
+    if app.signal_tower is not None:
+        refused.pop(LAMP_TEST, None)
     return refused
 
 
@@ -897,6 +896,9 @@ def _dispatch(app, *, use_routines=False) -> list[str]:
     if app.config_sets:
         import fraktal_ab_sets as sets
         lines.extend(sets.dispatch(app, use_routine=use_routines))
+    if app.signal_tower is not None:
+        import fraktal_ab_signal_tower as tower
+        lines.extend(tower.dispatch(app))
 
     import fraktal_ab_declaration as decl
 

@@ -66,6 +66,10 @@ class AppState extends ChangeNotifier {
   final LocalizationController localization;
   final ModuleContentController content;
 
+  /// Display target captured from the settings that created this repository.
+  /// It changes only with a new connection, never with edits in the wizard.
+  final String? connectedEndpoint;
+
   /// Persisted UI prefs change hook — the bootstrap wires this to save settings,
   /// so a theme/keyboard change survives reconnect (AppState is rebuilt/connect).
   final VoidCallback? _onUiPrefsChanged;
@@ -120,6 +124,7 @@ class AppState extends ChangeNotifier {
     ControlScale initialControlScale = ControlScale.compact,
     VoidCallback? onUiPrefsChanged,
     PanelPlatform? panel,
+    String? connectedEndpoint,
   }) {
     final resolvedLocalization = localization ?? LocalizationController();
     return AppState._(
@@ -132,6 +137,7 @@ class AppState extends ChangeNotifier {
       initialControlScale,
       onUiPrefsChanged,
       panel ?? createPanelPlatform(),
+      connectedEndpoint,
     );
   }
 
@@ -144,7 +150,8 @@ class AppState extends ChangeNotifier {
       bool initialFloatingKeyboard,
       ControlScale initialControlScale,
       this._onUiPrefsChanged,
-      this.panel)
+      this.panel,
+      this.connectedEndpoint)
       : themeIndex = initialThemeIndex,
         floatingKeyboard = initialFloatingKeyboard,
         controlScale = initialControlScale {
@@ -166,8 +173,8 @@ class AppState extends ChangeNotifier {
       }
       forest = byPath.values.toList(growable: false);
       if (forest.isNotEmpty) {
-        _moduleViews.removeWhere((path, _) =>
-            !forest.any((root) => root.find(path) != null));
+        _moduleViews.removeWhere(
+            (path, _) => !forest.any((root) => root.find(path) != null));
       }
       final selectionVisible = forest.any(
           (root) => selectedPath != null && root.find(selectedPath!) != null);

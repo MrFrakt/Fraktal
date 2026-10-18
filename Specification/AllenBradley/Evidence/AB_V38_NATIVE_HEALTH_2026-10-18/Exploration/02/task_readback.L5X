@@ -1,0 +1,137 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="38.00" TargetName="FraktalPhase0" TargetType="Controller" ContainsContext="false" Owner="SoftIndVM" ExportDate="Sun Oct 18 01:01:29 2026" ExportOptions="NoRawData L5KData DecoratedData Dependencies ForceProtectedEncoding AllProjDocTrans">
+<Controller Use="Target" Name="FraktalPhase0" ProcessorType="1756-L81E" MajorRev="38" MinorRev="11" ProjectCreationDate="Sun Oct 18 01:01:28 2026" LastModifiedDate="Sun Oct 18 01:01:28 2026" SFCExecutionControl="CurrentActive" SFCRestartPosition="MostRecent" SFCLastScan="DontScan" ProjectSN="16#0000_0000"
+ MatchProjectToController="false" CanUseRPIFromProducer="false" InhibitAutomaticFirmwareUpdate="0" PassThroughConfiguration="EnabledWithAppend" DownloadProjectDocumentationAndExtendedProperties="true" DownloadProjectCustomProperties="true" ReportMinorOverflow="false" AutoDiagsEnabled="true" WebServerEnabled="false" DataExchangeId="{3A125763-FF09-4FDA-BB62-07C36D679BDA}">
+<RedundancyInfo Enabled="false" KeepTestEditsOnSwitchOver="false"/>
+<Security Code="0" ChangesToDetect="16#ffff_ffff_ffff_ffff"/>
+<SafetyInfo/>
+<DataTypes>
+<DataType Name="FRK_T_V38NativeProbe" Family="NoFamily" Class="User">
+<Members>
+<Member Name="LastScanUs" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="MaxScanUs" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="OverlapCount" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="RateUs" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="MaxIntervalWords" DataType="DINT" Dimension="2" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="MinIntervalWords" DataType="DINT" Dimension="2" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="MaxIntervalTime" DataType="TIME" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="MinIntervalTime" DataType="TIME" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="StartWords" DataType="DINT" Dimension="2" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="StartLint" DataType="LINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+</DataType>
+</DataTypes>
+<Modules>
+<Module Name="Local" CatalogNumber="1756-L81E" Vendor="1" ProductType="14" ProductCode="164" Major="38" Minor="11" ParentModule="Local" ParentModPortId="1" Inhibited="false" MajorFault="true"
+>
+<EKey State="Disabled"/>
+<Ports>
+<Port Id="1" Address="0" Type="ICP" Upstream="false">
+<Bus Size="17"/>
+</Port>
+<Port Id="2" Type="Ethernet" Upstream="false">
+<Bus/>
+</Port>
+</Ports>
+</Module>
+</Modules>
+<AddOnInstructionDefinitions/>
+<Tags>
+<Tag Name="FRK_S12_Probe" TagType="Base" DataType="FRK_T_V38NativeProbe" Constant="false" ExternalAccess="Read Only" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[[0,0,0,0,[0,0],[0,0],0,0,[0,0],0]]]>
+</Data>
+<Data Format="Decorated">
+<Structure DataType="FRK_T_V38NativeProbe">
+<DataValueMember Name="LastScanUs" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="MaxScanUs" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="OverlapCount" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="RateUs" DataType="DINT" Radix="Decimal" Value="0"/>
+<ArrayMember Name="MaxIntervalWords" DataType="DINT" Dimensions="2" Radix="Decimal">
+<Element Index="[0]" Value="0"/>
+<Element Index="[1]" Value="0"/>
+</ArrayMember>
+<ArrayMember Name="MinIntervalWords" DataType="DINT" Dimensions="2" Radix="Decimal">
+<Element Index="[0]" Value="0"/>
+<Element Index="[1]" Value="0"/>
+</ArrayMember>
+<DataValueMember Name="MaxIntervalTime" DataType="TIME" Radix="Decimal" Value="0"/>
+<DataValueMember Name="MinIntervalTime" DataType="TIME" Radix="Decimal" Value="0"/>
+<ArrayMember Name="StartWords" DataType="DINT" Dimensions="2" Radix="Decimal">
+<Element Index="[0]" Value="0"/>
+<Element Index="[1]" Value="0"/>
+</ArrayMember>
+<DataValueMember Name="StartLint" DataType="LINT" Radix="Decimal" Value="0"/>
+</Structure>
+</Data>
+</Tag>
+<Tag Name="FRK_S12_Scan" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read Only" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="DINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+</Tags>
+<Programs>
+<Program Name="FRK_S12Program" TestEdits="false" MainRoutineName="FRK_S12Main" Disabled="false" UseAsFolder="false">
+<Tags/>
+<Routines>
+<Routine Name="FRK_S12Main" Type="ST">
+<STContent>
+<Line Number="0">
+<![CDATA[FRK_S12_Scan := FRK_S12_Scan + 1;]]>
+</Line>
+<Line Number="1">
+<![CDATA[GSV(TASK,FRK_S12Task,LastScanTime,FRK_S12_Probe.LastScanUs);]]>
+</Line>
+<Line Number="2">
+<![CDATA[GSV(TASK,FRK_S12Task,MaxScanTime,FRK_S12_Probe.MaxScanUs);]]>
+</Line>
+<Line Number="3">
+<![CDATA[GSV(TASK,FRK_S12Task,OverlapCount,FRK_S12_Probe.OverlapCount);]]>
+</Line>
+<Line Number="4">
+<![CDATA[GSV(TASK,FRK_S12Task,Rate,FRK_S12_Probe.RateUs);]]>
+</Line>
+<Line Number="5">
+<![CDATA[GSV(TASK,FRK_S12Task,MaxInterval,FRK_S12_Probe.MaxIntervalWords[0]);]]>
+</Line>
+<Line Number="6">
+<![CDATA[GSV(TASK,FRK_S12Task,MinInterval,FRK_S12_Probe.MinIntervalWords[0]);]]>
+</Line>
+<Line Number="7">
+<![CDATA[GSV(TASK,FRK_S12Task,MaxInterval,FRK_S12_Probe.MaxIntervalTime);]]>
+</Line>
+<Line Number="8">
+<![CDATA[GSV(TASK,FRK_S12Task,MinInterval,FRK_S12_Probe.MinIntervalTime);]]>
+</Line>
+<Line Number="9">
+<![CDATA[GSV(TASK,FRK_S12Task,StartTime,FRK_S12_Probe.StartWords[0]);]]>
+</Line>
+<Line Number="10">
+<![CDATA[GSV(TASK,FRK_S12Task,StartTime,FRK_S12_Probe.StartLint);]]>
+</Line>
+</STContent>
+</Routine>
+</Routines>
+</Program>
+</Programs>
+<Tasks>
+<Task Name="FRK_S12Task" Type="PERIODIC" Rate="10" Priority="10" Watchdog="500" DisableUpdateOutputs="true" InhibitTask="false" SynchronizeRedundancyDataDisabled="false">
+<ScheduledPrograms>
+<ScheduledProgram Name="FRK_S12Program"/>
+</ScheduledPrograms>
+</Task>
+</Tasks>
+<CST MasterID="0"/>
+<WallClockTime LocalTimeAdjustment="0" TimeZone="0"/>
+<Trends/>
+<TimeSynchronize Priority1="128" Priority2="128" PTPEnable="false"/>
+<EthernetPorts>
+<EthernetPort Port="1" Label="1" PortEnabled="true"/>
+</EthernetPorts>
+<OpcUaInfo EnabledPorts=""/>
+</Controller>
+</RSLogix5000Content>
