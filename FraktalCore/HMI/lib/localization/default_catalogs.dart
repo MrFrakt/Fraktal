@@ -399,6 +399,9 @@ const standardEnglish = <String, String>{
   'std.settings.fullscreenHelp':
       'Fill the whole panel. A browser only allows this from a button, so it cannot follow the window automatically.',
   'std.settings.session': 'Session',
+  'std.connection.disconnect': 'Disconnect',
+  'std.connection.disconnectHelp':
+      'Disconnect this HMI and return to connection setup to change the endpoint.',
   'std.settings.closeApp': 'Close the HMI',
   'std.settings.closeAppHelp':
       'Quit the application on this panel. The machine keeps running — only this view stops.',
@@ -1593,6 +1596,9 @@ const standardSpanish = <String, String>{
   'std.settings.fullscreenHelp':
       'Ocupa todo el panel. Un navegador solo lo permite desde un botón, por lo que no puede seguir la ventana automáticamente.',
   'std.settings.session': 'Sesión',
+  'std.connection.disconnect': 'Desconectar',
+  'std.connection.disconnectHelp':
+      'Desconectar esta HMI y volver a la configuración de conexión para cambiar el endpoint.',
   'std.settings.closeApp': 'Cerrar la HMI',
   'std.settings.closeAppHelp':
       'Cierra la aplicación en este panel. La máquina sigue funcionando; solo se detiene esta vista.',

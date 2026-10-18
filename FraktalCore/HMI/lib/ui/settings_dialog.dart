@@ -199,24 +199,25 @@ class _SettingsDialogState extends State<_SettingsDialog> {
                     ),
                     const Divider(height: 40),
                     _sectionLabel('std.settings.station'),
-                    if (isAdmin && widget.onEditConnection != null)
-                      ListTile(
+                    if (isAdmin && widget.onEditConnection != null) ...[
+                      OutlinedButton.icon(
                         key: const Key('edit-connection'),
-                        leading: const Icon(Icons.settings_ethernet),
-                        title: const LText('std.connection.edit'),
-                        subtitle: const LText('std.connection.editHelp'),
-                        trailing: const Icon(Icons.chevron_right),
+                        icon: const Icon(Icons.link_off),
+                        label: const LText('std.connection.disconnect'),
                         // Close first, then hand off. The callback rebuilds the
                         // bootstrap phase (tearing down this app and this dialog's
                         // context), so grab it before popping and invoke it after
                         // the frame the pop is processed in.
-                        onTap: () {
+                        onPressed: () {
                           final edit = widget.onEditConnection!;
                           Navigator.of(context).pop();
                           WidgetsBinding.instance
                               .addPostFrameCallback((_) => edit());
                         },
                       ),
+                      const SizedBox(height: 8),
+                      const LText('std.connection.disconnectHelp'),
+                    ],
                     if (isAdmin && widget.onEditUnitSelection != null)
                       ListTile(
                         key: const Key('edit-unit-assignment'),
