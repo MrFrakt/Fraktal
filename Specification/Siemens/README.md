@@ -1,5 +1,10 @@
 # Fraktal/TIA specification working set
 
+Bench/HMI wrap-up (2026-10-18): [final connection setup and SiemensAgent update](Reports/TIA_BENCH_WRAP_UP_2026-10-18.md).
+The offline-tree report was an HMI endpoint mismatch; the shared Settings
+Disconnect action opens endpoint setup. [Draft lessons for TC3 and AB](../Reports/TIA_BENCH_CROSS_BINDING_LESSONS_2026-10-18.md)
+identify selective follow-ups without changing either PLC binding or normative text.
+
 Press bridge/topology milestone (2026-10-17): [live I/O and recovery](Evidence/TIA_PRESS_BENCH_TOPOLOGY_2026-10-17.md)
 qualifies a separate saved FraktalBench with the physical 1214C. Generic HMI
 checks show 3 live nodes and 14 fresh inputs; 10 DQ channels remain unconfirmed
