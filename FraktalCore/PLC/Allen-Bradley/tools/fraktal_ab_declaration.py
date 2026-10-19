@@ -475,6 +475,14 @@ RUN_STYLES = (RUN_CONTINUOUS, RUN_SINGLE_STEP, RUN_HOLD_TO_RUN)
 
 
 @dataclass(frozen=True)
+class ResourceText:
+    """Captured host value: exactly one literal or declared DINT ASCII array."""
+
+    literal: str | None = None
+    source: str = ''
+
+
+@dataclass(frozen=True)
 class Step:
     """One step of one chain."""
 
@@ -517,7 +525,7 @@ class Step:
     # Core 11.6: emit only at the owning process's confirmed MARK boundary.
     resource_kind: str = ''  # TOOL_CHANGED | MATERIAL_CHANGED
     resource_subject: str = ''  # 1..63 printable ASCII bytes, captured in the ring
-    resource_value: int | str = 0  # signed DINT literal or exact Cfg/Ctx/module scalar
+    resource_value: int | str | ResourceText = 0  # DINT literal/scalar or bounded captured text
 
 
 # Core E_TimeClass, in ordinal order (§8.11.4(f)); pinned to the TwinCAT DUT by

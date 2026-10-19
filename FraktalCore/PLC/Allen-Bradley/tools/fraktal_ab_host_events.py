@@ -4,6 +4,7 @@ Native AOIs/UDTs supply bounded storage/execution; this adapter supplies the
 Core event vocabulary, ordering and loss semantics. It is not an alarm engine.
 V1 is non-part; a local carrier selects V2. Confirmed resource producers select
 V3, sharing the bounded identity bytes between PartUid and resource Subject.
+V4 adds opt-in packed text values; V1-V3 layouts and bodies stay unchanged.
 """
 from __future__ import annotations
 
@@ -59,6 +60,8 @@ def tag(app):
 
 
 def schema(app):
+    if resources.text_enabled(app):
+        return 4
     if resources.enabled(app):
         return 3
     return 2 if app.part_carrier is not None else 1
@@ -84,7 +87,50 @@ def members(app):
                         decl.scalar('EpochWords', dimension=2),) + tuple(
                             decl.scalar(n, dimension=app.host_event_capacity) for n in COLUMNS) + (
         (decl.scalar('PendingUid', dimension=64),
-         decl.scalar('Uid', dimension=64 * app.host_event_capacity)) if schema(app) >= 2 else ())
+         decl.scalar('Uid', dimension=64 * app.host_event_capacity)) if schema(app) >= 2 else ()) + (
+        (decl.scalar('PendingTextEnabled'),
+         decl.scalar('PendingText', dimension=resources.TEXT_LIMIT + 1),
+         decl.scalar('ValueFormat', dimension=app.host_event_capacity),
+         decl.scalar('ValueText', dimension=resources.TEXT_WORDS * app.host_event_capacity))
+        if schema(app) == 4 else ())
+
+
+def _text_validation():
+    """Validate capture before changing head, sequence, revision or row data."""
+    return [
+        'TextActive := 0;',
+        'IF (Kind = 7) OR (Kind = 8) THEN',
+        'IF (Ring.PendingTextEnabled <> 0) AND (Ring.PendingTextEnabled <> 1) THEN Ring.Failed := 1; END_IF;',
+        'TextActive := Ring.PendingTextEnabled;',
+        'IF TextActive = 1 THEN',
+        'IF EventValue <> 0 THEN Ring.Failed := 1; END_IF;',
+        'TextEnd := 0;',
+        f'FOR ByteIndex := 0 TO {resources.TEXT_LIMIT} DO',
+        'IF Ring.PendingText[ByteIndex] = 0 THEN',
+        'TextEnd := 1;',
+        f'ELSIF (TextEnd <> 0) OR (ByteIndex = {resources.TEXT_LIMIT}) OR '
+        '(Ring.PendingText[ByteIndex] < 32) OR (Ring.PendingText[ByteIndex] > 126) THEN',
+        'Ring.Failed := 1;', 'END_IF;', 'END_FOR;', 'END_IF;', 'END_IF;',
+    ]
+
+
+def _text_store():
+    """Four printable ASCII bytes fit one positive DINT, without overflow."""
+    return [
+        'Ring.ValueFormat[Slot] := TextActive;',
+        f'FOR ByteIndex := 0 TO {resources.TEXT_WORDS - 1} DO',
+        f'UidIndex := (Slot * {resources.TEXT_WORDS}) + ByteIndex;',
+        'Ring.ValueText[UidIndex] := 0;', 'END_FOR;',
+        'IF TextActive = 1 THEN',
+        f'FOR ByteIndex := 0 TO {resources.TEXT_WORDS - 2} DO',
+        f'UidIndex := (Slot * {resources.TEXT_WORDS}) + ByteIndex;',
+        'SourceIndex := ByteIndex * 4;',
+        'Ring.ValueText[UidIndex] := Ring.PendingText[SourceIndex] '
+        '+ (Ring.PendingText[SourceIndex + 1] * 256) '
+        '+ (Ring.PendingText[SourceIndex + 2] * 65536) '
+        '+ (Ring.PendingText[SourceIndex + 3] * 16777216);',
+        'END_FOR;', 'END_IF;',
+    ]
 
 
 def emit_logic(app):
@@ -93,7 +139,7 @@ def emit_logic(app):
                        Date='Ring.NowDate', Time='Ring.NowTime',
                        TimeSynchronized='Ring.NowSynchronized', Verdict='Verdict',
                        ReasonCode='Reason')
-    if schema(app) == 3:
+    if schema(app) >= 3:
         # One body per named reusable type, including roots without a carrier.
         # Composition controls producer availability; decoding rejects any Part
         # record from a carrier-off application rather than silently accepting it.
@@ -105,9 +151,10 @@ def emit_logic(app):
                  if schema(app) == 2 else
                  '((Kind <> 5) AND (Kind <> 6) AND (Kind <> 9) AND (Kind <> 10)) OR ')
     identity_condition = ('((Kind >= 1) AND (Kind <= 4)) OR (Kind = 7) OR (Kind = 8)'
-                          if schema(app) == 3 else '(Kind >= 1) AND (Kind <= 4)')
+                          if schema(app) >= 3 else '(Kind >= 1) AND (Kind <= 4)')
     return (
         'IF (Ring.Failed = 0) THEN',
+        *([*_text_validation(), 'IF Ring.Failed = 0 THEN'] if schema(app) == 4 else []),
         'IF (Ring.NewestSequence >= 2147483647) OR '
         '(Ring.Capacity <> ' + str(app.host_event_capacity) + ') OR ' +
         guard +
@@ -125,11 +172,13 @@ def emit_logic(app):
            'UidIndex := (Slot * 64) + ByteIndex;',
            f'IF {identity_condition} THEN Ring.Uid[UidIndex] := Ring.PendingUid[ByteIndex]; '
            'ELSE Ring.Uid[UidIndex] := 0; END_IF;', 'END_FOR;'] if schema(app) >= 2 else []),
+        *(_text_store() if schema(app) == 4 else []),
         'IF Ring.Count < Ring.Capacity THEN Ring.Count := Ring.Count + 1; '
         'ELSE Ring.Wrapped := 1; END_IF;',
         'Ring.DataRevision := Ring.DataRevision + 1;',
         'END_IF;',
         'END_IF;',
+        *(['END_IF;'] if schema(app) == 4 else []),
     )
 
 
@@ -143,7 +192,9 @@ def emitter(app):
                     software_revision=f'v{app.major_revision}.00',
                     local_tags='<LocalTags><LocalTag Name="Slot" DataType="DINT"/>' +
                     ('<LocalTag Name="ByteIndex" DataType="DINT"/><LocalTag Name="UidIndex" DataType="DINT"/>'
-                     if schema(app) >= 2 else '') + '</LocalTags>')
+                     if schema(app) >= 2 else '') +
+                    ('<LocalTag Name="TextActive" DataType="DINT"/><LocalTag Name="TextEnd" DataType="DINT"/>'
+                     '<LocalTag Name="SourceIndex" DataType="DINT"/>' if schema(app) == 4 else '') + '</LocalTags>')
 
 
 def call(app, kind, *, in_aoi=False, model='0', value='0', reason=0):
@@ -188,7 +239,7 @@ def validate_metadata(m, expected_capacity=None, expected_schema=None):
     try:
         cap, count, head, newest = (m[n] for n in ('Capacity', 'Count', 'Head', 'NewestSequence'))
         if (any(type(m[n]) is not int or not -2**31 <= m[n] <= LIMIT for n in META)
-                or m['SchemaVersion'] not in (1, 2, 3) or m['Failed'] != 0
+                or m['SchemaVersion'] not in (1, 2, 3, 4) or m['Failed'] != 0
                 or expected_schema is not None and m['SchemaVersion'] != expected_schema
                 or (expected_capacity is not None and cap != expected_capacity)
                 or not 1 <= cap <= 64 or not 0 <= count <= cap or not 0 <= newest <= LIMIT
@@ -222,12 +273,15 @@ def decode(app, raw, codes=()):
         events = []
         if schema(app) >= 2 and (not isinstance(raw['Uid'], list) or len(raw['Uid']) != cap * 64):
             raise HostEventsBad('invalid host-event identity column bounds')
+        if schema(app) == 4 and (not isinstance(raw['ValueFormat'], list) or len(raw['ValueFormat']) != cap
+                or not isinstance(raw['ValueText'], list) or len(raw['ValueText']) != cap * resources.TEXT_WORDS):
+            raise HostEventsBad('invalid host-event text column bounds')
         for offset in range(count):
             slot = (head - count + offset) % cap
             ev = {n: raw[n][slot] for n in COLUMNS}
             kind = ev['Kind']
             supported = (*SUPPORTED, *((1, 2, 3, 4) if app.part_carrier is not None else ()),
-                         *((7, 8) if schema(app) == 3 else ()))
+                         *((7, 8) if schema(app) >= 3 else ()))
             if (ev['Sequence'] != newest - count + offset + 1 or kind not in supported
                     or ev['TimeSynchronized'] not in (0, 1)
                     or (kind == 3 and ev['Verdict'] not in (0,1,2,3))
@@ -240,7 +294,7 @@ def decode(app, raw, codes=()):
             if schema(app) >= 2:
                 import fraktal_ab_part as part
                 identity = part.uid(raw['Uid'][slot*64:(slot+1)*64])
-                resource = schema(app) == 3 and kind in (7, 8)
+                resource = schema(app) >= 3 and kind in (7, 8)
                 if bool(identity) != (1 <= kind <= 4 or resource):
                     raise HostEventsBad('part-event identity missing or leaked to non-part event')
                 if resource:
@@ -262,6 +316,22 @@ def decode(app, raw, codes=()):
                     raise HostEventsBad('unknown model in host event')
                 else:
                     value = codes[index - 1]
+            if schema(app) == 4:
+                format_id = raw['ValueFormat'][slot]
+                words = raw['ValueText'][slot*resources.TEXT_WORDS:(slot+1)*resources.TEXT_WORDS]
+                if (type(format_id) is not int or format_id not in (0, 1)
+                        or any(type(word) is not int or not 0 <= word <= LIMIT for word in words)
+                        or (format_id == 1 and (kind not in (7, 8) or ev['Value'] != 0))
+                        or (format_id == 0 and any(words))):
+                    raise HostEventsBad('invalid captured resource text format/data')
+                if format_id == 1:
+                    import struct
+                    cells = struct.pack('<' + 'i' * resources.TEXT_WORDS, *words)
+                    end = cells.find(b'\0')
+                    if (not 0 <= end <= resources.TEXT_LIMIT or any(cells[end:])
+                            or any(not 32 <= byte <= 126 for byte in cells[:end])):
+                        raise HostEventsBad('invalid captured resource text ASCII/termination')
+                    value = cells[:end].decode('ascii')
             stamp = projection._controller_time(ev['Date'], ev['Time'])
             if not stamp:
                 raise HostEventsBad('host-event timestamp unavailable')

@@ -13,21 +13,22 @@ import fraktal_ab_tower_execute as tower_fixture
 
 
 class ResourceRun(part_fixture.Run):
+    def expected_resources(self, case):
+        return [(8,'Fixture.BlankLot','20261018'), (7,'Fixture.UpperDie','314')]
+
     def record(self, language, case, before, counters, **extra):
         row = super().record(language, case, before, counters, **extra)
         resources = [event for event in row['events'] if event['Kind'] in (7,8)]
         # The receive confirmation is earlier than start; abort/fault before
         # either boundary may legitimately retain only the earlier event.
-        kinds = [event['Kind'] for event in resources]
-        self.check(kinds in ([], [8], [8,7]), 'resource order or duplicate confirmation')
+        expected = self.expected_resources(case)
+        observed = [(event['Kind'],event['Subject'],event['Value']) for event in resources]
+        self.check(observed == expected[:len(observed)], 'resource order, duplicate or captured value mismatch')
         for event in resources:
-            wanted = {7:('Fixture.UpperDie','314'), 8:('Fixture.BlankLot','20261018')}[event['Kind']]
-            self.check((event['Subject'], event['Value']) == wanted,
-                       'captured resource subject/value mismatch')
             self.check(not event['PartUid'] and event['Verdict'] == event['ReasonCode'] == 0,
                        'resource event leaked part identity or fault semantics')
-        if case in ('OK','handled_NOK','HELD_resume'):
-            self.check(kinds == [8,7], 'completed cycle did not confirm both resources')
+        if case in ('OK','handled_NOK','HELD_resume','single_reset_restart'):
+            self.check(observed == expected, 'completed cycle did not confirm every resource')
         row['resourceChecksPassed'] = True
         row['resourceCount'] = len(resources)
         return row

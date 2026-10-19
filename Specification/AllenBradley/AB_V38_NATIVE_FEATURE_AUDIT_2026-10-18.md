@@ -34,7 +34,8 @@ adjustment/scaling and missed-scan qualification remain open. This measured
 native option should be reviewed before growing a second clock reconstruction.
 
 The current Echo baseline is **1756-L81E, firmware 38.011**
-(`fraktal_ab_resource_demo` derives from `fraktal_ab_press_echo38.application()`),
+(`fraktal_ab_text_resource_demo` derives through the resource fixture from
+`fraktal_ab_press_echo38.application()`),
 with no physical I/O modules. The
 accepted physical reference remains the separately qualified **1769-L24ER-QB1B,
 v33**. The S12 **5069-L310ER/v38** type exploration is another target, not proof

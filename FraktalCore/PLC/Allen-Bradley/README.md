@@ -30,15 +30,22 @@ helpers prevent resource publication; no extra chart rows, device control or
 second event engine is added. The [resource evidence](../../../Specification/AllenBradley/Evidence/AB_RESOURCE_EVENTS_2026-10-18.md)
 records both v38 compiler targets, 31 restored live tower/Part regressions with
 resource checks in ST/SFC/LD, and live SQLite delivery/reopen.
-The current local Echo image is `fraktal_ab_resource_demo`, manifest
-`EBF1887B15E96453`; select that declaration for its gateway/tools. The earlier
+Bounded text values now select optional physical host schema V4 through
+`ResourceText(literal=...)` or an exact declared DINT ASCII-array source. The
+shared append owner validates before commit and captures up to 80 characters;
+packed retained text occupies 84 bytes per slot. Existing V1-V3 output remains
+unchanged. No string editor, resource-control command or second event engine
+is introduced. See the [text-resource evidence](../../../Specification/AllenBradley/Evidence/AB_TEXT_RESOURCE_EVENTS_2026-10-18.md).
+The current local Echo image is `fraktal_ab_text_resource_demo`, manifest
+`999F73A4689D3C50`; select that declaration for its gateway/tools. The earlier
 Part/tower/private-observer image references below describe their dated evidence.
 An opt-in local BY_POSITION carrier now adds Part identity, bounded scaled
 measurements, write-before-event result commits and received/started/processed/
 aborted events. The shared helper is called by ST/SFC/LD; failure and identity
 mismatch fault the consuming Unit. See the [traceability guide](../../../Specification/Guides/AB_NEW_PROJECT_GUIDE.md#local-part-traceability)
 and [compiler/model evidence](../../../Specification/AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
-Arbitrary textual resource values, device carriers, genealogy and physical acceptance remain open.
+Device carriers, genealogy and physical acceptance remain open. Text is bounded
+printable ASCII; a native device/string-provider integration is a separate seam.
 The owner-authorized [Echo download and idle-runtime check](../../../Specification/AllenBradley/Evidence/AB_ECHO_LOCAL_CARRIER_DOWNLOAD_2026-10-18.md)
 now passes on local serial `601FC87B`: Run, advancing scans, matching manifest
 and generic Part/host projection. The subsequent
@@ -124,8 +131,9 @@ read-only observer, this private probe writes those two task-wide statistics;
 it performs four reset pairs and then stops. It changes no scheduling or clock
 attributes. A production adapter still needs explicit ownership of the shared
 statistics, per-scan diagnostic semantics and the remaining timing qualifications.
-The currently loaded resource fixture includes this completed private probe;
-its manifest and normal production health calculations remain unchanged.
+That resource fixture included the completed private probe; its manifest and
+normal production health calculations were unchanged. The later text-resource
+image replaces it and does not include that private probe.
 
 Generate a new disposable image with:
 

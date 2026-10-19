@@ -115,7 +115,7 @@ def carrier_name(app):
 
 def service_name(app):
     import fraktal_ab_host_events as host
-    suffix = '_HostV3' if host.schema(app) == 3 else ''
+    suffix = f'_HostV{host.schema(app)}' if host.schema(app) >= 3 else ''
     return f'FRK_{app.name}Part{app.part_carrier.result_capacity}V1{suffix}'
 
 

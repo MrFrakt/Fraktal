@@ -637,9 +637,10 @@ def content_hash(app: decl.Application) -> str:
         identity['partCarrier'] = dict(schema=1, provider=dataclasses.asdict(app.part_carrier), hostSchema=2)
     import fraktal_ab_resources as resources
     if resources.enabled(app):
-        identity['resourceEvents'] = dict(schema=1, hostSchema=3, producers=[
+        identity['resourceEvents'] = dict(schema=2 if resources.text_enabled(app) else 1,
+            hostSchema=4 if resources.text_enabled(app) else 3, producers=[
             dict(chain=chain.name, step=step.number, kind=step.resource_kind,
-                 subject=step.resource_subject, value=step.resource_value)
+                 subject=step.resource_subject, value=resources.value_identity(step.resource_value))
             for chain in app.chains for step in chain.steps if step.resource_kind])
     if app.model_capacity:
         # A gateway must refuse an older image lacking the native catalog.

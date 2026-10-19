@@ -2215,14 +2215,46 @@ resource publication. No remote resource command or device protocol is implied.
 V3 uses the same physical member layout as V2: its 64-cell DINT ASCII identity
 column carries PartUid for kinds 1–4 and Subject for kinds 7–8; other kinds
 carry neither. Resource Value is the captured signed DINT rendered as decimal
-text, with no later lookup against mutable process state. Arbitrary textual
-values and device-backed identifiers need a separately qualified provider.
+text, with no later lookup against mutable process state. Text-valued resource
+confirmations select the additive V4 profile below; device-backed identifiers
+still need a separately qualified provider.
 Carrier-off applications expose no Part producer and refuse Part records on
 acquisition. The named V3 emitter has one reusable body in either composition.
 The Unit and Part-service AOI names change for the V3 required-InOut type;
 existing V1/V2 projects remain unchanged. Exact configuration revision
 compatibility may recognize the same declaration with only resource annotations
 omitted; unrelated revisions and ordinary schema/value validation remain refused.
+
+**Captured text resource values (optional physical host schema V4).**
+`ResourceText(literal=...)` selects a literal of 0..80 printable ASCII characters;
+`ResourceText(source=...)` selects exactly one declared `Cfg`, Unit or module
+DINT array of 1..81 cells. Exactly one source form shall be supplied. Arbitrary
+expressions, indexing in the source name, scalar sources, non-ASCII/control
+characters and literal truncation are refused. An array supplies ASCII cells,
+zero-terminated and zero-filled after its first terminator; a shorter declared
+array is padded by the capture owner. Eighty printable cells are permitted,
+with a zero terminator at cell 80. All source cells are copied at the existing
+confirmed MARK boundary before append; the host shall never reconstruct the
+value from later live process state.
+
+V4 preserves the V3 member prefix and appends private `PendingTextEnabled`,
+`PendingText[81]`, `ValueFormat[Capacity]` and `ValueText[21*Capacity]` DINT
+storage. Per-slot format 0 retains the ordinary numeric/inapplicable value;
+format 1 is permitted only for kinds 7/8, with the legacy numeric Value zero.
+Four ASCII bytes occupy each positive DINT, least-significant byte first;
+the 21-word slot includes the terminator and zero padding. The append owner
+clears text storage for every non-text record. Consumers shall reject unknown
+formats, malformed bounds/ASCII/termination, nonzero padding and text leaked
+into a non-resource record. The logical HMI/sink Value remains a string.
+
+The single append owner validates captured text before modifying sequence,
+head, revision or retained rows. Invalid capture latches `Failed=1` with no
+partial append; acquisition is BAD rather than skipping the event. This is
+stream integrity handling, not a resource-control command or carrier protocol.
+The required-InOut Unit/Part-service and append AOIs use V4 names; existing
+V1-V3 output remains unchanged. Exact configuration compatibility may recognize
+the same declaration with only text-valued confirmations omitted, preserving
+ordinary value/schema validation and refusal of unrelated revisions.
 
 Publication brackets initialization and append with an odd/even DataRevision.
 Only equal, even metadata around a bounded read is accepted. Positive DINT

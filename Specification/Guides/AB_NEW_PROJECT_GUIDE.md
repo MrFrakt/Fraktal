@@ -720,16 +720,43 @@ uses the same seam for a numbered material lot. The subject is 1..63 printable
 ASCII characters; the captured value renders as signed decimal text. Choose the
 step that confirms the real process change, rather than a configuration edit.
 No per-scan call, second ring or new hardware driver is needed. A Part-helper
-failure on that step prevents the resource event. Arbitrary text values,
-device-carrier protocols and genealogy remain separate work.
+failure on that step prevents the resource event. Device-carrier protocols and
+genealogy remain separate work.
 The opt-in physical host schema becomes V3, sharing the bounded identity cells
 between resource Subject and PartUid. Existing V1/V2 output stays unchanged.
 `fraktal_ab_resource_demo` is a disposable Echo fixture with fictitious tool/lot
 confirmations; it is not a commissioned asset declaration.
-Clock replay, restart identity, retention,
+
+For a text value use the typed declaration, rather than quoting a scalar name:
+
+```python
+resource_value=decl.ResourceText(literal='Lot ABC-123 / tool A')
+# Or capture an existing, declared DINT ASCII array at that same boundary:
+resource_value=decl.ResourceText(source='Cfg.MaterialLabelAscii')
+```
+
+The literal may contain 0..80 printable ASCII characters. The source must be
+an exact existing array of 1..81 DINT cells; this example does not declare it.
+Supply one form only. A shorter array is padded; captured text must terminate
+and have an all-zero tail, with no control/non-ASCII values or truncation.
+The framework captures before appending; changing the source later cannot
+rewrite history. Invalid capture latches the stream's Failed flag without a
+partial event. This does not add a generic write or a device/carrier driver.
+
+Only text-consuming declarations select physical host schema V4. Its native
+ring keeps the existing all-DINT reader contract, packing four ASCII bytes per
+word, with an 84-byte retained text slot. V1-V3 output remains unchanged; Unit
+and Part-service required-InOut types get new names. The logical HostEvents
+Value is still the existing HMI/sink string. The disposable
+`fraktal_ab_text_resource_demo` adds a fictitious text confirmation to the
+numeric resource fixture at an existing MARK, with no new chart row.
+
+Clock replay, physical restart identity, retention,
 network sink delivery, gateway service recovery and browser acceptance are
 separate target gates. Local Windows collector crash recovery is covered by the
 [host recovery evidence](../AllenBradley/Evidence/AB_HOST_RECOVERY_2026-10-18.md).
+Ordinary same-manifest Echo download recovery and replay from its old cursor
+are covered by the [publisher restart evidence](../AllenBradley/Evidence/AB_NATIVE_WINDOWS_RESTART_2026-10-18.md).
 The [compiler/read-back evidence](../AllenBradley/Evidence/AB_HOST_NAMEPLATE_2026-10-18.md)
 records the disposable v38 fixture; it is not a physical v33/v38 deployment claim.
 
