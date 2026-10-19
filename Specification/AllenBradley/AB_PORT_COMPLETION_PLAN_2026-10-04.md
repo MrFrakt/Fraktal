@@ -234,19 +234,22 @@ the [retention check plan](AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md). Record
 press80's Capacity as the new memory baseline once its download completes;
 press75 remains the last measured one until then.
 
-## Remaining work after the 2026-10-18 host recovery checks
+## Remaining work after the 2026-10-18 native-window and publisher-restart checks
 
 The port is **not complete**. The optional local Part carrier, host ring,
 nameplate and SignalTower now have implementation and scoped Echo evidence;
 their older "absent" entries in the October 6 handover are historical.
+The [native-window and publisher-restart evidence](Evidence/AB_NATIVE_WINDOWS_RESTART_2026-10-18.md)
+closes the bounded native reset-method question and ordinary same-manifest Echo
+download delivery, including durable replay from the pre-download cursor.
 
 | Remaining point | Implementation or acceptance boundary |
 | --- | --- |
 | Native alarm integration | Core remains the event/reset/command-release owner. Native subscriber identity/order, delivery under load/backpressure, shelf mapping and external operator-command isolation are unqualified. The private comparison is not a production provider. |
-| Native health and elapsed time | Promote only qualified native sources into production adapters. Clock adjustment, missed scans, Echo scaling and physical MODULE disconnect/inhibit/fault/recovery remain untested; steady-state observer evidence alone does not close these. |
+| Native health and elapsed time | Four bounded native TASK windows now qualify zero/sentinel reset methods on Echo. Production promotion still needs ownership of task-wide extrema and preserved per-scan event semantics. Clock adjustment, missed scans, Echo scaling and physical MODULE disconnect/inhibit/fault/recovery remain untested. |
 | Resource and extended Part producers | Confirmed MARK producers for tool/material changes now capture bounded subjects and signed DINT values in host schema V3. Arbitrary textual resource values, device-backed carriers and genealogy remain unimplemented. The local BY_POSITION carrier and four canonical Part events are implemented. |
 | Line composition | Mirror/shared-root transport is unbound. Chrome Line controls and physical calendar/shift retention remain acceptance work. |
-| Host integration | Local Windows collector crash recovery and SQLite duplicate exclusion pass. Network sinks, gateway service recovery, publisher restart identity/clock replay and physical retention remain separate. The native alarm stream is not the HostEvents stream. |
+| Host integration | Local Windows collector crash recovery, SQLite duplicate exclusion and same-manifest Echo download/restart delivery pass, including replay from the pre-download cursor. Network sinks, gateway service recovery, publisher identity under clock replay and physical restart/retention remain separate. The native alarm stream is not the HostEvents stream. |
 | Running-model set integration | Direct running-model set load is deliberately refused in both AB and TC3. Any future route must use prepare/readiness/commit and ordinary Changeover validation; this is shared work, not an AB-only parity defect. |
 | Deployment and physical acceptance | Establish exact physical artifact fit before growth; complete values/accounts/sets/models/Line power-cycle, download and upgrade retention; packaged gateway/Web HMI, browser flows, target-specific security and real nameplate/tower wiring acceptance. Echo evidence does not transfer to a physical controller. |
 
@@ -269,7 +272,7 @@ Refresh the TC3 handoff and AB new-project guidance at final port closure.
 | 1. Part traceability | Core 3.16; opt-in carrier declaration, bounded native Part context and framework-owned event plumbing; press chains request canonical received/started/record/processed/aborted events through their normal services | Exact ST/SFC/LD outcome parity, unique BY_POSITION identity, verdict/count consistency, abort behavior, fail-closed read/write errors; generic Part HMI projection |
 | 2. Line data and shifts | Core 3.8e/8.5.2; composition-owned line beside roots, referenced by roots, never a child/super-root; retained data, current shift and bounded history; owner-requested weekday selection and explicit limited shift duration | Owner/read-only access semantics, root sharing, complete write validation, weekly/overnight boundaries, inactive intervals, history bounds, clock quality and retention |
 | 3. Signal tower | Audit the TC3 press declaration and optional profile; reusable type derives lamp/sound requests from authoritative machine/alarm state; enable LAMP_TEST only for a real declared capability | Type tests and test timeout, no arbitrary output write, verified electrical/HAL mapping before physical claim; absent hardware stays visibly unclaimed |
-| 4. Host event projection | Optional native mode/changeover/NOK, local Part and V3 confirmed DINT-valued resource events, coherent gateway/cursor and optional SQLite sink implemented | Compiler/read-back, live acquisition and local Windows collector crash recovery pass; resource target scope is recorded separately; network/gateway-service/publisher-restart/clock-replay acceptance remains; no HMI accumulation replacing PLC history |
+| 4. Host event projection | Optional native mode/changeover/NOK, local Part and V3 confirmed DINT-valued resource events, coherent gateway/cursor and optional SQLite sink implemented | Compiler/read-back, live acquisition, local Windows collector crash recovery and same-manifest Echo download/restart delivery pass; network/gateway-service/clock-replay and physical restart/retention acceptance remains; no HMI accumulation replacing PLC history |
 | 5. Description and probes | Optional full nameplate fields implemented through manifest v5 and generic HMI; native external-module connection state remains open | Version refusal and native read-back pass; actual asset/browser and named GSV attributes on physical modules still need acceptance; unsupported CPU/free-memory remains unavailable |
 | 6. Running-model set integration | Audit the shared AB/TC3 deliberate refusal; use prepare/readiness/commit recipe path, never direct live ParCfg overwrite | Complete validation before application, ordinary Changeover gates, abort rollback and no partial recipes; extend capabilities only after this route exists |
 | 7. Final closure | Current feature census, targeted security/retention regressions, browser acceptance and deployment guidance | Updated AB_ABSENT/refused-command reasons, scoped S9 rerun, packaged AB deployment acceptance, exact artifacts/hashes and remaining platform exclusions |

@@ -22,8 +22,20 @@ external-module behavior remain unqualified; production providers are unchanged.
 In particular, lifetime interval extrema cannot replace a one-second window,
 and variable execution position affects the spacing of late-scan clock reads.
 
-The current Echo declaration is **1756-L81E, firmware 38.011**
-(`fraktal_ab_press_echo38.application()`), with no physical I/O modules. The
+The [bounded native-window experiment](Evidence/AB_NATIVE_WINDOWS_RESTART_2026-10-18.md)
+now qualifies resetting native TASK MaxInterval/MinInterval on the exact Echo:
+four 100-interval windows, both zero and full-width sentinel seeds, exact reset
+read-back and no faults/overlap. This closes the reset-method uncertainty, not
+the production-provider gate. SSV takes ownership of task-wide statistics also
+visible to engineering tools; the private experiment stops after four reset
+pairs. A production adapter must settle that ownership and retain the existing
+per-scan overrun/jitter event semantics as well as the published window. Clock
+adjustment/scaling and missed-scan qualification remain open. This measured
+native option should be reviewed before growing a second clock reconstruction.
+
+The current Echo baseline is **1756-L81E, firmware 38.011**
+(`fraktal_ab_resource_demo` derives from `fraktal_ab_press_echo38.application()`),
+with no physical I/O modules. The
 accepted physical reference remains the separately qualified **1769-L24ER-QB1B,
 v33**. The S12 **5069-L310ER/v38** type exploration is another target, not proof
 for either controller. Studio application version, controller family, firmware,

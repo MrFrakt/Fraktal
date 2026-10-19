@@ -18,7 +18,10 @@ lock. Optional SQLite delivery commits before acknowledgement and deduplicates
 events and explicit loss notices; conflicting key content is refused. The
 [host recovery evidence](../../../Specification/AllenBradley/Evidence/AB_HOST_RECOVERY_2026-10-18.md)
 records forced process crashes, contention and a read-only live Echo capture.
-Network sink delivery, gateway service restart and publisher restart identity
+The [publisher restart check](../../../Specification/AllenBradley/Evidence/AB_NATIVE_WINDOWS_RESTART_2026-10-18.md)
+now proves a same-manifest Echo download: one durable epoch-change notice,
+preserved old records and duplicate-free replay from the pre-download cursor.
+Network sinks, gateway service restart, clock replay and physical restart/retention
 remain separate acceptance gates.
 Confirmed `TOOL_CHANGED` / `MATERIAL_CHANGED` producers now annotate existing
 Unit MARK boundaries. They capture a bounded subject and a signed DINT value,
@@ -108,11 +111,30 @@ The production publisher still awaits isolated runtime/provider qualification.
 The [native runtime observation](../../../Specification/AllenBradley/Evidence/AB_NATIVE_TIMING_2026-10-18.md)
 now adds 7,500 steady-state Echo scans, two minute boundaries and healthy Local
 MODULE acquisition, with the 31 tower/Part regression checks still passing.
-The approved instrumented tower fixture remains loaded. It preserves the
-existing manifest/declaration and adds only a consumed read-only diagnostic
+That run used an instrumented tower fixture. It preserved the
+existing manifest/declaration and added only a consumed read-only diagnostic
 record; production health calculations remain unchanged. Native task interval
 extrema describe the task lifetime, not Fraktal's one-second window. Clock
 adjustment/scaling, missed scans and external I/O qualification remain open.
+
+The [bounded native-window experiment](../../../Specification/AllenBradley/Evidence/AB_NATIVE_WINDOWS_RESTART_2026-10-18.md)
+now measures four 100-interval windows using native TASK MaxInterval/MinInterval.
+Both zero and full-width sentinel resets work on this Echo. Unlike the earlier
+read-only observer, this private probe writes those two task-wide statistics;
+it performs four reset pairs and then stops. It changes no scheduling or clock
+attributes. A production adapter still needs explicit ownership of the shared
+statistics, per-scan diagnostic semantics and the remaining timing qualifications.
+The currently loaded resource fixture includes this completed private probe;
+its manifest and normal production health calculations remain unchanged.
+
+Generate a new disposable image with:
+
+```powershell
+python tools/fraktal_ab_task_window_probe.py C:/work/echo38_5580_seed.L5X C:/work/windows_new.L5X
+```
+
+Generation performs no deployment. The linked evidence binds the guarded
+download, read-only collectors and restored ST/SFC/LD acceptance to exact hashes.
 
 To reproduce the disposable observer from an empty seed, then collect from its
 separately authorized and downloaded local fixture:
