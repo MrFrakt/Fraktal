@@ -2,7 +2,8 @@
 
 Native AOIs/UDTs supply bounded storage/execution; this adapter supplies the
 Core event vocabulary, ordering and loss semantics. It is not an alarm engine.
-V1 is non-part; an injected local carrier selects V2 with PLC-captured identities.
+V1 is non-part; a local carrier selects V2. Confirmed resource producers select
+V3, sharing the bounded identity bytes between PartUid and resource Subject.
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import fraktal_ab_declaration as decl
+import fraktal_ab_resources as resources
 
 KINDS = dict(PART_RECEIVED=1, PROCESSING_STARTED=2, PROCESSED=3,
              PROCESSING_ABORTED=4, CHANGEOVER_STARTED=5, CHANGEOVER_DONE=6,
@@ -57,6 +59,8 @@ def tag(app):
 
 
 def schema(app):
+    if resources.enabled(app):
+        return 3
     return 2 if app.part_carrier is not None else 1
 
 
@@ -80,7 +84,7 @@ def members(app):
                         decl.scalar('EpochWords', dimension=2),) + tuple(
                             decl.scalar(n, dimension=app.host_event_capacity) for n in COLUMNS) + (
         (decl.scalar('PendingUid', dimension=64),
-         decl.scalar('Uid', dimension=64 * app.host_event_capacity)) if schema(app) == 2 else ())
+         decl.scalar('Uid', dimension=64 * app.host_event_capacity)) if schema(app) >= 2 else ())
 
 
 def emit_logic(app):
@@ -89,14 +93,24 @@ def emit_logic(app):
                        Date='Ring.NowDate', Time='Ring.NowTime',
                        TimeSynchronized='Ring.NowSynchronized', Verdict='Verdict',
                        ReasonCode='Reason')
+    if schema(app) == 3:
+        # One body per named reusable type, including roots without a carrier.
+        # Composition controls producer availability; decoding rejects any Part
+        # record from a carrier-off application rather than silently accepting it.
+        guard = ('((Kind < 1) OR (Kind > 10)) OR '
+                 '((Kind = 3) AND ((Verdict < 0) OR (Verdict > 3) OR ((Verdict = 2) AND (Reason = 0)))) OR ')
+    else:
+        guard = ('((Kind < 1) OR ((Kind > 6) AND (Kind <> 9) AND (Kind <> 10))) OR '
+                 '((Kind = 3) AND ((Verdict < 0) OR (Verdict > 3) OR ((Verdict = 2) AND (Reason = 0)))) OR '
+                 if schema(app) == 2 else
+                 '((Kind <> 5) AND (Kind <> 6) AND (Kind <> 9) AND (Kind <> 10)) OR ')
+    identity_condition = ('((Kind >= 1) AND (Kind <= 4)) OR (Kind = 7) OR (Kind = 8)'
+                          if schema(app) == 3 else '(Kind >= 1) AND (Kind <= 4)')
     return (
         'IF (Ring.Failed = 0) THEN',
         'IF (Ring.NewestSequence >= 2147483647) OR '
         '(Ring.Capacity <> ' + str(app.host_event_capacity) + ') OR ' +
-        ('((Kind < 1) OR ((Kind > 6) AND (Kind <> 9) AND (Kind <> 10))) OR '
-         '((Kind = 3) AND ((Verdict < 0) OR (Verdict > 3) OR ((Verdict = 2) AND (Reason = 0)))) OR '
-         if schema(app) == 2 else
-         '((Kind <> 5) AND (Kind <> 6) AND (Kind <> 9) AND (Kind <> 10)) OR ') +
+        guard +
         '((Kind = 10) AND (Reason = 0)) THEN',
         'Ring.Failed := 1;',
         'ELSE',
@@ -109,8 +123,8 @@ def emit_logic(app):
         *(f'Ring.{n}[Slot] := {value};' for n, value in assignments.items()),
         *(['FOR ByteIndex := 0 TO 63 DO',
            'UidIndex := (Slot * 64) + ByteIndex;',
-           'IF (Kind >= 1) AND (Kind <= 4) THEN Ring.Uid[UidIndex] := Ring.PendingUid[ByteIndex]; '
-           'ELSE Ring.Uid[UidIndex] := 0; END_IF;', 'END_FOR;'] if schema(app) == 2 else []),
+           f'IF {identity_condition} THEN Ring.Uid[UidIndex] := Ring.PendingUid[ByteIndex]; '
+           'ELSE Ring.Uid[UidIndex] := 0; END_IF;', 'END_FOR;'] if schema(app) >= 2 else []),
         'IF Ring.Count < Ring.Capacity THEN Ring.Count := Ring.Count + 1; '
         'ELSE Ring.Wrapped := 1; END_IF;',
         'Ring.DataRevision := Ring.DataRevision + 1;',
@@ -129,10 +143,12 @@ def emitter(app):
                     software_revision=f'v{app.major_revision}.00',
                     local_tags='<LocalTags><LocalTag Name="Slot" DataType="DINT"/>' +
                     ('<LocalTag Name="ByteIndex" DataType="DINT"/><LocalTag Name="UidIndex" DataType="DINT"/>'
-                     if schema(app) == 2 else '') + '</LocalTags>')
+                     if schema(app) >= 2 else '') + '</LocalTags>')
 
 
 def call(app, kind, *, in_aoi=False, model='0', value='0', reason=0):
+    if KINDS[kind] in (1, 2, 3, 4) and app.part_carrier is None:
+        raise ValueError('Part host-event producer requires an injected carrier')
     ring, instance = ('HostEvents', 'HostEmitter') if in_aoi else (tag(app), instance_tag(app))
     verdict = 2 if kind == 'NOK' else 0
     return f'{emitter_name(app)}({instance},{ring},{KINDS[kind]},{model},{value},{verdict},{reason})'
@@ -172,7 +188,7 @@ def validate_metadata(m, expected_capacity=None, expected_schema=None):
     try:
         cap, count, head, newest = (m[n] for n in ('Capacity', 'Count', 'Head', 'NewestSequence'))
         if (any(type(m[n]) is not int or not -2**31 <= m[n] <= LIMIT for n in META)
-                or m['SchemaVersion'] not in (1, 2) or m['Failed'] != 0
+                or m['SchemaVersion'] not in (1, 2, 3) or m['Failed'] != 0
                 or expected_schema is not None and m['SchemaVersion'] != expected_schema
                 or (expected_capacity is not None and cap != expected_capacity)
                 or not 1 <= cap <= 64 or not 0 <= count <= cap or not 0 <= newest <= LIMIT
@@ -204,13 +220,14 @@ def decode(app, raw, codes=()):
         from datetime import datetime
         import fraktal_ab_projection as projection
         events = []
-        if schema(app) == 2 and (not isinstance(raw['Uid'], list) or len(raw['Uid']) != cap * 64):
+        if schema(app) >= 2 and (not isinstance(raw['Uid'], list) or len(raw['Uid']) != cap * 64):
             raise HostEventsBad('invalid host-event identity column bounds')
         for offset in range(count):
             slot = (head - count + offset) % cap
             ev = {n: raw[n][slot] for n in COLUMNS}
             kind = ev['Kind']
-            supported = (*SUPPORTED, 1, 2, 3, 4) if schema(app) == 2 else SUPPORTED
+            supported = (*SUPPORTED, *((1, 2, 3, 4) if app.part_carrier is not None else ()),
+                         *((7, 8) if schema(app) == 3 else ()))
             if (ev['Sequence'] != newest - count + offset + 1 or kind not in supported
                     or ev['TimeSynchronized'] not in (0, 1)
                     or (kind == 3 and ev['Verdict'] not in (0,1,2,3))
@@ -219,14 +236,21 @@ def decode(app, raw, codes=()):
                     or (kind == 10 and ev['ReasonCode'] == 0)
                     or (kind not in (3, 4, 10) and ev['ReasonCode'] != 0)):
                 raise HostEventsBad('invalid or discontinuous host-event record')
-            identity = ''
-            if schema(app) == 2:
+            identity, subject = '', ''
+            if schema(app) >= 2:
                 import fraktal_ab_part as part
                 identity = part.uid(raw['Uid'][slot*64:(slot+1)*64])
-                if bool(identity) != (1 <= kind <= 4):
+                resource = schema(app) == 3 and kind in (7, 8)
+                if bool(identity) != (1 <= kind <= 4 or resource):
                     raise HostEventsBad('part-event identity missing or leaked to non-part event')
+                if resource:
+                    if len(identity) > 63 or not -2**31 <= ev['Value'] <= LIMIT:
+                        raise HostEventsBad('invalid captured resource subject/value')
+                    subject, identity = identity, ''
             value = ''
-            if kind == 9:
+            if kind in (7, 8):
+                value = str(ev['Value'])
+            elif kind == 9:
                 if ev['Value'] not in decl.declared_modes(app):
                     raise HostEventsBad('unknown mode in host event')
                 value = str(ev['Value'])
@@ -243,7 +267,7 @@ def decode(app, raw, codes=()):
                 raise HostEventsBad('host-event timestamp unavailable')
             datetime.fromisoformat(stamp.replace('Z', '+00:00'))
             events.append(dict(Sequence=ev['Sequence'], Kind=kind, StationPath=app.name,
-                               PartUid=identity, Subject='', Value=value, Stamp=stamp,
+                               PartUid=identity, Subject=subject, Value=value, Stamp=stamp,
                                TimeSynchronized=bool(ev['TimeSynchronized']),
                                Verdict=ev['Verdict'], ReasonCode=ev['ReasonCode']))
         return dict(metadata=m, events=events)

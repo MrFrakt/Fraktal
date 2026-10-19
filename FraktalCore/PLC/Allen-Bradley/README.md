@@ -20,12 +20,22 @@ events and explicit loss notices; conflicting key content is refused. The
 records forced process crashes, contention and a read-only live Echo capture.
 Network sink delivery, gateway service restart and publisher restart identity
 remain separate acceptance gates.
+Confirmed `TOOL_CHANGED` / `MATERIAL_CHANGED` producers now annotate existing
+Unit MARK boundaries. They capture a bounded subject and a signed DINT value,
+sharing the existing ring's identity cells under physical schema V3. Failed Part
+helpers prevent resource publication; no extra chart rows, device control or
+second event engine is added. The [resource evidence](../../../Specification/AllenBradley/Evidence/AB_RESOURCE_EVENTS_2026-10-18.md)
+records both v38 compiler targets, 31 restored live tower/Part regressions with
+resource checks in ST/SFC/LD, and live SQLite delivery/reopen.
+The current local Echo image is `fraktal_ab_resource_demo`, manifest
+`EBF1887B15E96453`; select that declaration for its gateway/tools. The earlier
+Part/tower/private-observer image references below describe their dated evidence.
 An opt-in local BY_POSITION carrier now adds Part identity, bounded scaled
 measurements, write-before-event result commits and received/started/processed/
 aborted events. The shared helper is called by ST/SFC/LD; failure and identity
 mismatch fault the consuming Unit. See the [traceability guide](../../../Specification/Guides/AB_NEW_PROJECT_GUIDE.md#local-part-traceability)
 and [compiler/model evidence](../../../Specification/AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
-Resource producers, device carriers, genealogy and physical acceptance remain open.
+Arbitrary textual resource values, device carriers, genealogy and physical acceptance remain open.
 The owner-authorized [Echo download and idle-runtime check](../../../Specification/AllenBradley/Evidence/AB_ECHO_LOCAL_CARRIER_DOWNLOAD_2026-10-18.md)
 now passes on local serial `601FC87B`: Run, advancing scans, matching manifest
 and generic Part/host projection. The subsequent
@@ -56,7 +66,7 @@ Core's MANUAL gate and the generic HMI also renders a tower without health
 data. Adding the profile preserves configuration documents from the exact
 otherwise identical declaration. Electrical mapping and physical acceptance
 remain separate from the disposable Echo fixture.
-The approved tower fixture is now loaded on local Echo `601FC87B`, manifest
+The approved tower fixture was loaded on local Echo `601FC87B`, manifest
 `EA7BCE24FDA311EB`, with 31 passing tower/Part ST/SFC/LD live checks and restored
 policy/inputs/session. Its gateway declaration is `fraktal_ab_tower_demo`;
 the older Part download above remains historical evidence.
@@ -163,7 +173,8 @@ condition-gone before reset. Programmatic `OperShelve` takes effect on this
 target despite its documented Read-only access; both shelves expire naturally.
 Core retains fast-event history, command-release/reset, shelving and authorization.
 Native plant projection, subscriber delivery and operator isolation remain open.
-The private comparison image is loaded; production alarm policy is unchanged.
+The private comparison image is retained as dated evidence; the resource fixture
+above supersedes it on local Echo. Production alarm policy is unchanged.
 
 Current status (2026-10-04): **R0-R6 PASS at their recorded scope; main press
 operation and Phase 0-6 features have reference-bench proof on press68.** R6's

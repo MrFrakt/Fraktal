@@ -122,8 +122,16 @@ def main(argv=None):
     account=next(a for a in json.loads(args.credential_file.read_text())['users'] if a['level']==4)
     if account['user'] not in {u.name for u in app.access_users}:
         parser.error('credential file does not name a fixture account')
+    return execute_fixture(args, app, account)
+
+
+def execute_fixture(args, app, account, *, run_type=fixture.Run,
+                    schema='fraktal.ab.tower-live-fixture'):
+    """Shared exact-target deployment regressions and restoration owner."""
+    if not args.execute_fixture or args.output.exists():
+        raise fixture.FixtureRefused('explicit arm and new evidence output required')
     from pylogix import PLC
-    evidence=dict(schema='fraktal.ab.tower-live-fixture',schemaVersion=1,
+    evidence=dict(schema=schema,schemaVersion=1,
                   serial=args.expect_serial,manifestHash=manifest.content_hash(app),rows=[],restored=False)
     with PLC('127.0.0.1') as native:
         native.ProcessorSlot=0
@@ -140,7 +148,7 @@ def main(argv=None):
         original_policy=initial_access['Required'][:]
         if initial_access['CurrentLevel']!=0:
             raise fixture.FixtureRefused('another controller session is active')
-        run=fixture.Run(comm,app,account,evidence)
+        run=run_type(comm,app,account,evidence)
         try:
             exercise(run)
             if args.core_regressions:

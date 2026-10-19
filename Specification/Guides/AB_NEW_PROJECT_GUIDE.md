@@ -707,8 +707,26 @@ before upgrading; an old `.lock` sentinel is refused and requires confirming the
 old writer has stopped before removal. A malformed or busy cursor is never
 silently reset. No outbound network sink is started by default.
 
-Part events require the opt-in local carrier described below; tool/material change
-producers are not implemented. Clock replay, restart identity, retention,
+Part events require the opt-in local carrier described below. For confirmed
+tool/material changes, annotate the owning chain's existing MARK:
+
+```python
+resource_kind='TOOL_CHANGED', resource_subject='UpperDie', resource_value='Cfg.ToolNumber'
+```
+
+`Cfg.ToolNumber` must actually exist as a scalar in that declaration; exact Unit
+or module scalars and signed DINT literals are also supported. `MATERIAL_CHANGED`
+uses the same seam for a numbered material lot. The subject is 1..63 printable
+ASCII characters; the captured value renders as signed decimal text. Choose the
+step that confirms the real process change, rather than a configuration edit.
+No per-scan call, second ring or new hardware driver is needed. A Part-helper
+failure on that step prevents the resource event. Arbitrary text values,
+device-carrier protocols and genealogy remain separate work.
+The opt-in physical host schema becomes V3, sharing the bounded identity cells
+between resource Subject and PartUid. Existing V1/V2 output stays unchanged.
+`fraktal_ab_resource_demo` is a disposable Echo fixture with fictitious tool/lot
+confirmations; it is not a commissioned asset declaration.
+Clock replay, restart identity, retention,
 network sink delivery, gateway service recovery and browser acceptance are
 separate target gates. Local Windows collector crash recovery is covered by the
 [host recovery evidence](../AllenBradley/Evidence/AB_HOST_RECOVERY_2026-10-18.md).
@@ -851,7 +869,7 @@ electrical output write is used. The source fixture has no physical lamp wiring.
 | Part traceability (Core 3.16) | optional local BY_POSITION carrier, bounded scaled records, verdict counts, identity/write guards and generic projection; ST/SFC/LD model/compiler and local Echo cycle/recovery proof; device providers, genealogy and physical acceptance remain open |
 | Line data/shifts (Core 3.8e, 8.5.2) | press75 fit and 17 native calendar/weekend-end rows pass; Chrome/physical retention remain separate; mirror/shared-root composition remains unbound |
 | SignalTower/LAMP_TEST | optional shared mapper, native TONR, MANUAL mailbox gate and generic HMI implemented; exact target evidence linked above; electrical/HAL mapping and physical acceptance remain open |
-| HostEvents | optional PLC mode/changeover/NOK ring plus V2 local part lifecycle events, generic projection and acknowledged cursor; v38 compile/read-back, local Windows collector crash recovery and SQLite duplicate exclusion tested; resource producers, gateway service restart and network sink acceptance remain open |
+| HostEvents | optional PLC mode/changeover/NOK, local Part lifecycle and V3 confirmed DINT-valued tool/material producers; generic projection and acknowledged cursor; v38 compile/read-back, local Windows collector crash recovery and SQLite duplicate exclusion tested; textual resource values/device protocols, gateway service restart and network sink acceptance remain open |
 | Control-power/safety profiles | power deliberately excluded; process/two-hand logic is not certified-safety conformance |
 | Nameplate/IDTA | optional complete Core nameplate fields implemented through manifest v5/generic HMI; actual asset commissioning/browser and optional IDTA companion claims remain separate |
 | I/O connection state in health | native v38 compiler probes pass; external-module/runtime qualification remains open |

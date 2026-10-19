@@ -2192,15 +2192,37 @@ or turn wrap into silent continuity.
 **Implemented non-part stream (2026-10-18).** The optional declaration
 `host_event_capacity` (1..64; zero omits it) emits a new capacity/version-named
 ring UDT, append AOI and Unit AOI signature. No released required-InOut
-signature is replaced. Current producers are `MODE_CHANGED`,
+signature is replaced. V1 producers are `MODE_CHANGED`,
 `CHANGEOVER_STARTED`, `CHANGEOVER_DONE`, and `NOK`; resource
-change producers remain unclaimed. With the optional local carrier, physical
+producers use V3 below. With the optional local carrier, physical
 host schema V2 adds received/started/processed/aborted events and PLC-captured
 bounded ASCII identity. V1 output stays unchanged. The owning NOK mark takes a registered
 reason or the Unit's captured `ReportedReason`, never an inferred client cause.
 All event storage is controller-owned. The v33-compatible physical carrier is
 DINT columns; station identity and model values resolve through the validated
 declaration/catalog. Inapplicable PartUid/Subject fields are empty.
+
+**Confirmed resource producers (physical host schema V3).** A Unit chain may
+annotate a confirmed MARK boundary with `resource_kind` (`TOOL_CHANGED` or
+`MATERIAL_CHANGED`), `resource_subject` (1..63 printable ASCII characters) and
+`resource_value` (a signed DINT literal or exact declared scalar operand).
+The owning process shall choose the actual confirmation boundary; changing a
+configuration value alone does not prove a tool or material changed. The
+framework captures the subject and current value into the same PLC ring at
+that boundary, once per visit. A failed Part helper on that MARK prevents
+resource publication. No remote resource command or device protocol is implied.
+
+V3 uses the same physical member layout as V2: its 64-cell DINT ASCII identity
+column carries PartUid for kinds 1–4 and Subject for kinds 7–8; other kinds
+carry neither. Resource Value is the captured signed DINT rendered as decimal
+text, with no later lookup against mutable process state. Arbitrary textual
+values and device-backed identifiers need a separately qualified provider.
+Carrier-off applications expose no Part producer and refuse Part records on
+acquisition. The named V3 emitter has one reusable body in either composition.
+The Unit and Part-service AOI names change for the V3 required-InOut type;
+existing V1/V2 projects remain unchanged. Exact configuration revision
+compatibility may recognize the same declaration with only resource annotations
+omitted; unrelated revisions and ordinary schema/value validation remain refused.
 
 Publication brackets initialization and append with an odd/even DataRevision.
 Only equal, even metadata around a bounded read is accepted. Positive DINT

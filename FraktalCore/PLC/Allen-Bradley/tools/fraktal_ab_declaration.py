@@ -514,6 +514,10 @@ class Step:
     part_reason: int | str = 0
     part_record: int = 0  # one-based declared measurement
     part_value: str = ''  # exact Cfg/Ctx/module DINT member, scaled by the definition
+    # Core 11.6: emit only at the owning process's confirmed MARK boundary.
+    resource_kind: str = ''  # TOOL_CHANGED | MATERIAL_CHANGED
+    resource_subject: str = ''  # 1..63 printable ASCII bytes, captured in the ring
+    resource_value: int | str = 0  # signed DINT literal or exact Cfg/Ctx/module scalar
 
 
 # Core E_TimeClass, in ordinal order (§8.11.4(f)); pinned to the TwinCAT DUT by
@@ -1338,6 +1342,8 @@ def validate(app: Application) -> list[str]:
     findings: list[str] = nameplate.validate(app)
     import fraktal_ab_host_events as host
     findings.extend(host.validate(app))
+    import fraktal_ab_resources as resources
+    findings.extend(resources.validate(app))
     import fraktal_ab_part as part
     findings.extend(part.validate(app))
     import fraktal_ab_signal_tower as tower

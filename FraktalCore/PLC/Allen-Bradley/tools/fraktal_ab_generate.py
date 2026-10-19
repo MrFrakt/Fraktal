@@ -1428,6 +1428,11 @@ def _st_marks(step: decl.Step, names: Names) -> list[str]:
         result.append(f'{counting.reference(names)}.Nok := 0;')
     if step.part_action:
         result.append(part.step_call(names.app, step, names) + ';')
+    if step.resource_kind:
+        import fraktal_ab_resources as resources
+        outputs = resources.marks(names.app, step, names)
+        result.extend([f'IF {names.unit}.Error = 0 THEN', *outputs, 'END_IF;']
+                      if step.part_action else outputs)
     if names.app.host_event_capacity and any(mark.split(':=')[0].strip() == 'Ctx.ScrapCount' for mark in step.marks):
         result.append(host.call(names.app, 'NOK', in_aoi=names.in_aoi, reason=host.nok_reason(step, names)) + ';')
     return result
@@ -1454,6 +1459,11 @@ def _ld_marks(step: decl.Step, names: Names) -> list[str]:
             outputs.append(f"MOV({expression.strip()},{target})")
     if counting.tracks(names.app, step) and counting.FINISH in step.marks:
         outputs.append(f'MOV(0,{counting.reference(names)}.Nok)')
+    if step.resource_kind:
+        import fraktal_ab_resources as resources
+        if step.part_action:
+            outputs.append(f'EQU({u}.Error,0)')
+        outputs.extend(resources.marks(names.app, step, names, ladder=True))
     if names.app.host_event_capacity and any(mark.split(':=')[0].strip() == 'Ctx.ScrapCount' for mark in step.marks):
         outputs.append(host.call(names.app, 'NOK', reason=host.nok_reason(step, names)))
     return outputs

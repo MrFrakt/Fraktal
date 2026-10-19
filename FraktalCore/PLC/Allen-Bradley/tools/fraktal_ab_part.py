@@ -67,12 +67,8 @@ def validate(app):
                 or type(rec.scale) is not int or not 1 <= rec.scale <= 1000000
                 or rec.minimum >= rec.maximum or not rec.minimum <= rec.target <= rec.maximum):
             findings.append('Part: invalid scaled measurement definition')
-    allowed_values = {'Cfg.' + m.name for m in app.records[0].members if not m.dimension}
-    # Unit values are admitted only if declared by the existing owning context.
-    import fraktal_ab_generate as gen
-    allowed_values |= {'Ctx.' + m.name for m in gen.unit_context_members(app) if not m.dimension}
-    allowed_values |= {module.name + '.' + m.name for module in app.modules
-                       for m in gen.module_members(module) if not m.dimension}
+    from fraktal_ab_resources import scalar_operands
+    allowed_values = scalar_operands(app)
     for step in steps:
         if step.part_action:
             if step.action != decl.MARK or step.part_action not in ACTIONS:
@@ -118,7 +114,9 @@ def carrier_name(app):
 
 
 def service_name(app):
-    return f'FRK_{app.name}Part{app.part_carrier.result_capacity}V1'
+    import fraktal_ab_host_events as host
+    suffix = '_HostV3' if host.schema(app) == 3 else ''
+    return f'FRK_{app.name}Part{app.part_carrier.result_capacity}V1{suffix}'
 
 
 def instance_tag(app):

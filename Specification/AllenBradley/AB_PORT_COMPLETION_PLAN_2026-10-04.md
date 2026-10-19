@@ -11,8 +11,8 @@ NOK. All three AUTO renditions use one append owner. The optional local
 BY_POSITION carrier now adds bounded Part/result storage, four canonical host
 events, scaled measurements, write-before-event commitment, verdict counts and
 consumer faults. It has ST/SFC/LD model and v38 compiler/read-back evidence;
-see [local carrier](Evidence/AB_LOCAL_CARRIER_2026-10-18.md). Device carrier and resource
-change producers, genealogy, live sink/restart/clock-replay acceptance and commissioned
+see [local carrier](Evidence/AB_LOCAL_CARRIER_2026-10-18.md). Device carriers,
+arbitrary textual resource values, genealogy, network sink/restart/clock-replay acceptance and commissioned
 nameplate/browser acceptance remain open. See
 [compiler/read-back evidence](Evidence/AB_HOST_NAMEPLATE_2026-10-18.md) and the
 [configuration guide](../Guides/AB_NEW_PROJECT_GUIDE.md#host-events-and-digital-nameplates).
@@ -38,6 +38,19 @@ crashes. Conflicting payloads fail closed; busy/write/commit failures leave the
 record unacknowledged. Native alarm subscribers, network delivery, gateway service
 restart, clock replay and publisher retention remain open. PLC storage and
 generated code do not grow for this change.
+
+The subsequent [confirmed resource events](Evidence/AB_RESOURCE_EVENTS_2026-10-18.md)
+add TOOL_CHANGED/MATERIAL_CHANGED at declared Unit MARK boundaries, with captured
+bounded subjects and signed DINT values. Physical host schema V3 shares the
+existing identity cells, with no extra chart rows or declared-data growth versus
+the tower fixture. Both v38 compiler targets and full native read-back pass.
+The owner authorizes simulated-PLC downloads at any time; after backing up the
+current image and five configuration documents, the new resource fixture runs
+31 passing restored tower/Part checks, including ordered resource events in
+ST/SFC/LD. A final read-only capture/durable SQLite reopen passes as well. Local
+Echo now uses `fraktal_ab_resource_demo`, manifest `EBF1887B15E96453`. Arbitrary
+textual values, actual resource device protocols and physical acceptance remain
+separate; no resource command or second event engine is introduced.
 
 The carrier-off shared finish no longer counts a rejected part as good. Its
 derived private verdict owner adds a versioned Unit AOI InOut parameter, with
@@ -231,7 +244,7 @@ their older "absent" entries in the October 6 handover are historical.
 | --- | --- |
 | Native alarm integration | Core remains the event/reset/command-release owner. Native subscriber identity/order, delivery under load/backpressure, shelf mapping and external operator-command isolation are unqualified. The private comparison is not a production provider. |
 | Native health and elapsed time | Promote only qualified native sources into production adapters. Clock adjustment, missed scans, Echo scaling and physical MODULE disconnect/inhibit/fault/recovery remain untested; steady-state observer evidence alone does not close these. |
-| Resource and extended Part producers | Tool/material-change producers, device-backed carriers and genealogy remain unimplemented. The local BY_POSITION carrier and four canonical Part events are implemented. |
+| Resource and extended Part producers | Confirmed MARK producers for tool/material changes now capture bounded subjects and signed DINT values in host schema V3. Arbitrary textual resource values, device-backed carriers and genealogy remain unimplemented. The local BY_POSITION carrier and four canonical Part events are implemented. |
 | Line composition | Mirror/shared-root transport is unbound. Chrome Line controls and physical calendar/shift retention remain acceptance work. |
 | Host integration | Local Windows collector crash recovery and SQLite duplicate exclusion pass. Network sinks, gateway service recovery, publisher restart identity/clock replay and physical retention remain separate. The native alarm stream is not the HostEvents stream. |
 | Running-model set integration | Direct running-model set load is deliberately refused in both AB and TC3. Any future route must use prepare/readiness/commit and ordinary Changeover validation; this is shared work, not an AB-only parity defect. |
@@ -256,7 +269,7 @@ Refresh the TC3 handoff and AB new-project guidance at final port closure.
 | 1. Part traceability | Core 3.16; opt-in carrier declaration, bounded native Part context and framework-owned event plumbing; press chains request canonical received/started/record/processed/aborted events through their normal services | Exact ST/SFC/LD outcome parity, unique BY_POSITION identity, verdict/count consistency, abort behavior, fail-closed read/write errors; generic Part HMI projection |
 | 2. Line data and shifts | Core 3.8e/8.5.2; composition-owned line beside roots, referenced by roots, never a child/super-root; retained data, current shift and bounded history; owner-requested weekday selection and explicit limited shift duration | Owner/read-only access semantics, root sharing, complete write validation, weekly/overnight boundaries, inactive intervals, history bounds, clock quality and retention |
 | 3. Signal tower | Audit the TC3 press declaration and optional profile; reusable type derives lamp/sound requests from authoritative machine/alarm state; enable LAMP_TEST only for a real declared capability | Type tests and test timeout, no arbitrary output write, verified electrical/HAL mapping before physical claim; absent hardware stays visibly unclaimed |
-| 4. Host event projection | Optional native mode/changeover/NOK and local Part events, coherent gateway/cursor and optional SQLite sink implemented; resource producers remain | Compiler/read-back, live acquisition and local Windows collector crash recovery pass; network/gateway-service/publisher-restart/clock-replay acceptance remains; no HMI accumulation replacing PLC history |
+| 4. Host event projection | Optional native mode/changeover/NOK, local Part and V3 confirmed DINT-valued resource events, coherent gateway/cursor and optional SQLite sink implemented | Compiler/read-back, live acquisition and local Windows collector crash recovery pass; resource target scope is recorded separately; network/gateway-service/publisher-restart/clock-replay acceptance remains; no HMI accumulation replacing PLC history |
 | 5. Description and probes | Optional full nameplate fields implemented through manifest v5 and generic HMI; native external-module connection state remains open | Version refusal and native read-back pass; actual asset/browser and named GSV attributes on physical modules still need acceptance; unsupported CPU/free-memory remains unavailable |
 | 6. Running-model set integration | Audit the shared AB/TC3 deliberate refusal; use prepare/readiness/commit recipe path, never direct live ParCfg overwrite | Complete validation before application, ordinary Changeover gates, abort rollback and no partial recipes; extend capabilities only after this route exists |
 | 7. Final closure | Current feature census, targeted security/retention regressions, browser acceptance and deployment guidance | Updated AB_ABSENT/refused-command reasons, scoped S9 rerun, packaged AB deployment acceptance, exact artifacts/hashes and remaining platform exclusions |

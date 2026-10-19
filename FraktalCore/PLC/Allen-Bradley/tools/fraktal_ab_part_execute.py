@@ -247,7 +247,7 @@ class Run:
         self.set(px.FAULT['PressRam'], 0)
         self.complete(baseline)
         row = self.record(language,'handled_NOK',before,baseline)
-        kinds = [e['Kind'] for e in row['events'] if e['Kind'] != 9]
+        kinds = [e['Kind'] for e in row['events'] if e['Kind'] in (1,2,3,4,10)]
         self.check(kinds == [1,2,3,10], 'NOK lifecycle/count event order')
         self.check(row['counters']['GoodCount'] == 0 and row['counters']['ScrapCount'] == 1, 'NOK must not count good')
         self.check(row['part']['Part/Result/Verdict'] == 2 and row['part']['Part/Result/ReasonCode'] != 0, 'NOK first-out')

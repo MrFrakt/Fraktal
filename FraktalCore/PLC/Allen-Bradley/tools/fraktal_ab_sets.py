@@ -106,6 +106,9 @@ def revision_rejected(app, value):
         # Tower convention/output fields change discovery, never the editable
         # value schema. Accept only the exact same declaration without it.
         variants += [dataclasses.replace(item,signal_tower=None) for item in (app,*variants)]
+    import fraktal_ab_resources as resources
+    if resources.enabled(app):
+        variants += [resources.without(item) for item in (app,*variants)]
     revisions.update(mf.config_revision(item) for item in variants)
     terms = [f'({value} <> {revision})' for revision in sorted(revisions)]
     if len(terms) <= 5:

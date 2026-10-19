@@ -173,7 +173,8 @@ public ABI change. Do not keep two authoritative state machines after migration.
 
 Next native work is **N1/N4 runtime qualification** after the recorded clean
 v38 compiler probes, followed by **N2 alarm-provider feasibility**. The optional
-local carrier and host ring have separate offline scope and do not close those gates. OPC UA
+local carrier and host ring now have their own scoped compiler/Echo proofs and
+do not close native production health/alarm-provider gates. OPC UA
 qualification needs an eligible physical catalog; native external-module health
 needs real configured hardware. Echo outcomes never stand in for those gates.
 
@@ -181,3 +182,13 @@ The TIA endpoint/quality follow-up already implemented is recorded separately in
 [AB TIA follow-up](AB_TIA_FOLLOWUP_2026-10-18.md). This audit changes the work
 order; native replacement deployment remains unclaimed. The dated native
 compile evidence records exactly which provider/attribute probes compiled.
+
+The later [confirmed resource-event evidence](Evidence/AB_RESOURCE_EVENTS_2026-10-18.md)
+reuses native UDT/AOI storage and ST/SFC/LD execution, with the existing Core
+host emitter as the only append owner. The project annotates its confirmed MARK;
+the framework snapshots a bounded resource subject and signed DINT value.
+Physical host schema V3 shares the existing identity cells instead of creating
+another history or resource controller. Both v38 compiler targets and restored
+Echo regressions pass. Arbitrary textual values, actual device protocols and
+physical acceptance remain separate; N1/N4/N2 production-provider gates above
+are unchanged.
