@@ -609,6 +609,7 @@ class OpcUaSnapshotMapper {
                 _integer(values['$base/Part/Result/Verdict']), Verdict.none),
             reason: reasonDescriptionKey(reasonCode, ''),
             records: records,
+            parents: _stringArray(values, '$base/Part/Parents'),
           );
         }
       }
@@ -1268,6 +1269,30 @@ Duration _duration(Object? value) =>
 
 T _enumAt<T>(List<T> values, int index, T fallback) =>
     index >= 0 && index < values.length ? values[index] : fallback;
+
+// Consume the published extent, including TF6100's repeated array member.
+// No binding-specific capacity or client-side genealogy history is needed.
+List<String> _stringArray(Map<String, Object?> values, String base) {
+  final direct = values[base];
+  if (direct is List) {
+    return direct.map(_string).where((value) => value.isNotEmpty).toList();
+  }
+  final member = base.substring(base.lastIndexOf('/') + 1);
+  final pattern = RegExp('^${RegExp.escape(base)}'
+      '(?:/${RegExp.escape(member)})?(?:\\[(\\d+)\\]|/(\\d+))\$');
+  final indexed = <int, String>{};
+  for (final entry in values.entries) {
+    final match = pattern.firstMatch(entry.key);
+    if (match == null) continue;
+    indexed[int.parse(match.group(1) ?? match.group(2)!)] =
+        _string(entry.value);
+  }
+  final indices = indexed.keys.toList()..sort();
+  return [
+    for (final index in indices)
+      if (indexed[index]!.isNotEmpty) indexed[index]!
+  ];
+}
 
 Object? _arrayElement(
     Map<String, Object?> values, String base, int zeroBasedIndex,

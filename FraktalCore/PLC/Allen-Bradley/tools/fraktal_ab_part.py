@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import re
 
 import fraktal_ab_declaration as decl
+import fraktal_ab_genealogy as genealogy
 
 REASONS = dict(CARRIER_READ_FAILED=2020, CARRIER_WRITE_FAILED=2021,
                PART_ID_MISMATCH=2022, RESULT_RECORD_REJECTED=2023,
@@ -35,6 +36,7 @@ class LocalCarrier:
     namespace: str
     records: tuple[Measurement, ...] = ()
     result_capacity: int = 8
+    genealogy_capacity: int = 0
 
 
 def validate(app):
@@ -42,10 +44,11 @@ def validate(app):
     steps = [s for c in app.chains for s in c.steps]
     if carrier is None:
         return ['Part: helper requires an injected carrier'] if any(
-            s.part_action or s.part_verdict or s.part_reason or s.part_record or s.part_value for s in steps) else []
+            s.part_action or s.part_verdict or s.part_reason or s.part_record or s.part_value or s.part_parents for s in steps) else []
     findings = []
     if not isinstance(carrier, LocalCarrier):
         return ['Part: unsupported carrier provider; expected LocalCarrier']
+    findings += genealogy.validate(app)
     if not (type(carrier.namespace) is str and 1 <= len(carrier.namespace) <= 30
             and re.fullmatch(r'[A-Za-z0-9_-]+', carrier.namespace)):
         findings.append('Part: namespace must be 1..30 ASCII letters, digits, underscores or hyphens')
@@ -106,17 +109,26 @@ def carrier_tag(app):
 
 
 def type_name(app):
-    return f'FRK_T_Part{app.part_carrier.result_capacity}V1'
+    return f'FRK_T_Part{app.part_carrier.result_capacity}{version(app)}'
 
 
 def carrier_name(app):
-    return f'FRK_T_LocalCarrier{app.part_carrier.result_capacity}V1'
+    return f'FRK_T_LocalCarrier{app.part_carrier.result_capacity}{version(app)}'
+
+
+def schema(app):
+    return 2 if genealogy.enabled(app) else 1
+
+
+def version(app):
+    return f'V2G{genealogy.capacity(app)}' if genealogy.enabled(app) else 'V1'
 
 
 def service_name(app):
     import fraktal_ab_host_events as host
-    suffix = f'_HostV{host.schema(app)}' if host.schema(app) >= 3 else ''
-    return f'FRK_{app.name}Part{app.part_carrier.result_capacity}V1{suffix}'
+    suffix = (f'_Host{app.host_event_capacity}{host.profile(app)}' if genealogy.enabled(app) else
+              f'_HostV{host.schema(app)}' if host.schema(app) >= 3 else '')
+    return f'FRK_{app.name}Part{app.part_carrier.result_capacity}{version(app)}{suffix}'
 
 
 def instance_tag(app):
@@ -124,22 +136,24 @@ def instance_tag(app):
 
 
 def members(app):
-    return tuple(decl.scalar(n, initial=1 if n == 'SchemaVersion' else 2 if n == 'CarrierKind' else 0)
+    return tuple(decl.scalar(n, initial=schema(app) if n == 'SchemaVersion' else 2 if n == 'CarrierKind' else 0)
                  for n in ('SchemaVersion', 'DataRevision', 'Present', 'CarrierKind', 'Verdict',
                            'ReasonCode', 'Date', 'Time', 'TimeSynchronized', 'RecordCount')) + (
         decl.scalar('Uid', dimension=UID_SIZE),) + tuple(
         decl.scalar(n, dimension=app.part_carrier.result_capacity)
-        for n in ('RecordKind', 'RecordValue', 'RecordInTol'))
+        for n in ('RecordKind', 'RecordValue', 'RecordInTol')) + (genealogy.part_members(app) if genealogy.enabled(app) else ())
 
 
 def carrier_members(app):
-    return tuple(decl.scalar(n, initial=1 if n in ('SchemaVersion', 'ProviderKind', 'ProviderIdx') else 0)
+    return tuple(decl.scalar(n, initial=schema(app) if n == 'SchemaVersion' else
+                             1 if n in ('ProviderKind', 'ProviderIdx') else 0)
                  for n in ('SchemaVersion', 'ProviderKind', 'ProviderIdx', 'Serial', 'Writes',
                            'LastVerdict', 'LastReason', 'LastDate', 'LastTime', 'LastSynchronized',
                            'LastRecordCount')) + (decl.scalar('LastUid', dimension=UID_SIZE),
                                                  decl.scalar('ActiveUid', dimension=UID_SIZE)) + tuple(
         decl.scalar(n, dimension=app.part_carrier.result_capacity)
-        for n in ('LastRecordKind', 'LastRecordValue', 'LastRecordInTol'))
+        for n in ('LastRecordKind', 'LastRecordValue', 'LastRecordInTol')) + (
+            genealogy.carrier_members(app) if genealogy.enabled(app) else ())
 
 
 def records(app):
@@ -150,7 +164,8 @@ def call(app, action, *, in_aoi=False, verdict=0, reason=0, record=0, value=0):
     import fraktal_ab_host_events as host
     p, c, r, u, instance = ('Part', 'Carrier', 'HostEvents', 'Ctx', 'PartService') if in_aoi else (
         tag(app), carrier_tag(app), host.tag(app), f'FRK_{app.name}_Unit', instance_tag(app))
-    return f'{service_name(app)}({instance},{p},{c},{r},{u},{ACTIONS[action]},{verdict},{reason},{record},{value})'
+    operation = 6 if action == 'parents' and genealogy.enabled(app) else ACTIONS[action]
+    return f'{service_name(app)}({instance},{p},{c},{r},{u},{operation},{verdict},{reason},{record},{value})'
 
 
 def step_call(app, step, names):
@@ -173,7 +188,8 @@ def logic(app):
         return [f'IF Ctx.Error = 0 THEN Ctx.Error := 1; Ctx.ErrorID := {REASONS[reason]}; '
                 'Ctx.ErrorSource := 0; END_IF;', 'Ctx.Running := 0;']
     def emit(kind, verdict=0, reason=0):
-        return ['FOR Index := 0 TO 63 DO Ring.PendingUid[Index] := Part.Uid[Index]; END_FOR;',
+        return [*(genealogy.emit(app) if genealogy.enabled(app) else []),
+                'FOR Index := 0 TO 63 DO Ring.PendingUid[Index] := Part.Uid[Index]; END_FOR;',
                 f'{host.emitter_name(app)}(HostEmitter,Ring,{host.KINDS[kind]},0,0,{verdict},{reason});']
     # Algorithmic hex conversion avoids an unmeasured native STRING operation.
     uid = []
@@ -192,9 +208,9 @@ def logic(app):
     return (
         'Part.DataRevision := Part.DataRevision + 1;',
         'IF Part.DataRevision >= 2147483646 THEN Part.DataRevision := 1; END_IF;',
-        'IF (Operation < 1) OR (Operation > 5) THEN', *fault('RESULT_RECORD_REJECTED'),
+        f'IF (Operation < 1) OR (Operation > {6 if genealogy.enabled(app) else 5}) THEN', *fault('RESULT_RECORD_REJECTED'),
         'ELSIF (Operation = 1) AND (Part.Present = 0) AND (Ctx.Error = 0) THEN',
-        'IF (Carrier.SchemaVersion <> 1) OR (Carrier.ProviderKind <> 1) OR (Carrier.ProviderIdx <> 1) OR '
+        f'IF (Carrier.SchemaVersion <> {schema(app)}) OR (Carrier.ProviderKind <> 1) OR (Carrier.ProviderIdx <> 1) OR '
         '(Carrier.Serial < 0) OR '
         '(Carrier.Serial >= 2147483647) OR ((Ring.EpochLow = 0) AND (Ring.EpochHigh = 0)) THEN',
         *fault('CARRIER_READ_FAILED'), 'ELSE',
@@ -204,6 +220,7 @@ def logic(app):
         'Part.Present := 1;', 'Part.Verdict := 0;', 'Part.ReasonCode := 0;',
         'Part.Date := 0;', 'Part.Time := 0;', 'Part.TimeSynchronized := 0;',
         'Part.RecordCount := 0;',
+        *(genealogy.clear(app) if genealogy.enabled(app) else []),
         f'FOR Index := 0 TO {cap-1} DO Part.RecordKind[Index] := 0; '
         'Part.RecordValue[Index] := 0; Part.RecordInTol[Index] := 0; END_FOR;',
         *emit('PART_RECEIVED'), 'END_IF;',
@@ -225,10 +242,12 @@ def logic(app):
         'IF IdentityMismatch <> 0 THEN', *fault('PART_ID_MISMATCH'),
         'ELSIF (Verdict < 0) OR (Verdict > 3) OR ((Verdict = 2) AND (Reason = 0)) THEN',
         *fault('RESULT_RECORD_REJECTED'),
+        *([f'ELSIF (Part.ParentCount < 0) OR (Part.ParentCount > {genealogy.capacity(app)}) THEN',
+           *fault('RESULT_RECORD_REJECTED')] if genealogy.enabled(app) else []),
         'ELSIF ((Verdict = 1) AND (Ctx.GoodCount >= 2147483647)) OR '
         '((Verdict = 2) AND (Ctx.ScrapCount >= 2147483647)) OR '
         '((Verdict = 3) AND (Ctx.ReworkCount >= 2147483647)) THEN', *fault('RESULT_RECORD_REJECTED'),
-        'ELSIF (Carrier.SchemaVersion <> 1) OR (Carrier.ProviderKind <> 1) OR (Carrier.ProviderIdx <> 1) OR '
+        f'ELSIF (Carrier.SchemaVersion <> {schema(app)}) OR (Carrier.ProviderKind <> 1) OR (Carrier.ProviderIdx <> 1) OR '
         '(Carrier.Writes < 0) OR (Carrier.Writes >= 2147483647) THEN', *fault('CARRIER_WRITE_FAILED'),
         'ELSE',
         'Part.Verdict := Verdict;', 'Part.ReasonCode := Reason;',
@@ -240,6 +259,7 @@ def logic(app):
         'Carrier.LastDate := Part.Date;', 'Carrier.LastTime := Part.Time;',
         'Carrier.LastSynchronized := Part.TimeSynchronized;',
         'Carrier.LastRecordCount := Part.RecordCount;',
+        *(genealogy.commit(app) if genealogy.enabled(app) else []),
         f'FOR Index := 0 TO {cap-1} DO Carrier.LastRecordKind[Index] := Part.RecordKind[Index]; '
         'Carrier.LastRecordValue[Index] := Part.RecordValue[Index]; '
         'Carrier.LastRecordInTol[Index] := Part.RecordInTol[Index]; END_FOR;',
@@ -250,6 +270,7 @@ def logic(app):
         *emit('PROCESSED', 'Verdict', 'Reason'),
         *[f'IF Verdict = 2 THEN {host.emitter_name(app)}(HostEmitter,Ring,10,0,0,2,Reason); END_IF;'],
         'Part.Present := 0;', 'END_IF;',
+        *(genealogy.append_logic(app,fault) if genealogy.enabled(app) else []),
         'ELSIF (Operation = 4) AND (Part.Present <> 0) THEN',
         'Part.Verdict := 0;',
         'IF (Part.ReasonCode = 0) AND (Ctx.Error <> 0) THEN Part.ReasonCode := Ctx.ErrorID; END_IF;',
@@ -267,7 +288,8 @@ def service(app):
         gen._parameter(n, 'DINT', 'Input', radix='Decimal') for n in
         ('Operation', 'Verdict', 'Reason', 'RecordKind', 'MeasuredValue'))
     local = '<LocalTags>' + ''.join(f'<LocalTag Name="{n}" DataType="DINT"/>' for n in
-        ('Index', 'WordValue', 'Nibble', 'Digit', 'IdentityMismatch')) + f'<LocalTag Name="HostEmitter" DataType="{host.emitter_name(app)}"/></LocalTags>'
+        ('Index', 'WordValue', 'Nibble', 'Digit', 'IdentityMismatch',
+         *(genealogy.LOCALS if genealogy.enabled(app) else ()))) + f'<LocalTag Name="HostEmitter" DataType="{host.emitter_name(app)}"/></LocalTags>'
     return gen._aoi(service_name(app), 'Core 3.16 typed local carrier and result owner',
         gen.ENABLE_PARAMETERS + params, logic(app),
         (type_name(app), carrier_name(app), host.type_name(app), gen.unit_context_name(app)),
@@ -313,7 +335,7 @@ def project(app, raw):
             if (member.dimension and len(values) != member.dimension
                     or any(type(v) is not int or not -2**31 <= v < 2**31 for v in values)):
                 raise PartBad('invalid part member layout')
-        if (raw['SchemaVersion'] != 1 or raw['DataRevision'] < 0 or raw['DataRevision'] % 2 or raw['CarrierKind'] != 2
+        if (raw['SchemaVersion'] != schema(app) or raw['DataRevision'] < 0 or raw['DataRevision'] % 2 or raw['CarrierKind'] != 2
                 or raw['Present'] not in (0,1) or raw['Verdict'] not in (0,1,2,3)
                 or not 0 <= raw['RecordCount'] <= app.part_carrier.result_capacity
                 or raw['TimeSynchronized'] not in (0,1)
@@ -326,6 +348,15 @@ def project(app, raw):
                'Part/Result/Verdict': raw['Verdict'], 'Part/Result/ReasonCode': raw['ReasonCode'],
                'Part/Result/StationPath': app.name,
                'Part/Result/TimeSynchronized': bool(raw['TimeSynchronized'])}
+        if genealogy.enabled(app):
+            try:
+                parents = genealogy.uids(raw['Parents'],raw['ParentCount'],genealogy.capacity(app),identity)
+            except ValueError as error:
+                raise PartBad(str(error)) from error
+            out['Part/ParentCapacity'] = genealogy.capacity(app)
+            out['Part/ParentCount'] = len(parents)
+            out.update({f'Part/Parents[{index+1}]':parents[index] if index < len(parents) else ''
+                        for index in range(genealogy.capacity(app))})
         import fraktal_ab_projection as projection
         stamp = projection._controller_time(raw['Date'], raw['Time'])
         if raw['Verdict'] and not stamp:

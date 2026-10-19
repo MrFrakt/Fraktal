@@ -721,7 +721,7 @@ ASCII characters; the captured value renders as signed decimal text. Choose the
 step that confirms the real process change, rather than a configuration edit.
 No per-scan call, second ring or new hardware driver is needed. A Part-helper
 failure on that step prevents the resource event. Device-carrier protocols and
-genealogy remain separate work.
+device-backed parent acquisition remain separate work.
 The opt-in physical host schema becomes V3, sharing the bounded identity cells
 between resource Subject and PartUid. Existing V1/V2 output stays unchanged.
 `fraktal_ab_resource_demo` is a disposable Echo fixture with fictitious tool/lot
@@ -752,7 +752,7 @@ Value is still the existing HMI/sink string. The disposable
 numeric resource fixture at an existing MARK, with no new chart row.
 
 Clock replay, physical restart identity, retention,
-network sink delivery, gateway service recovery and browser acceptance are
+network sink delivery, installed-service and authenticated-write recovery and browser acceptance are
 separate target gates. Local Windows collector crash recovery is covered by the
 [host recovery evidence](../AllenBradley/Evidence/AB_HOST_RECOVERY_2026-10-18.md).
 Ordinary same-manifest Echo download recovery and replay from its old cursor
@@ -760,10 +760,35 @@ are covered by the [publisher restart evidence](../AllenBradley/Evidence/AB_NATI
 The [compiler/read-back evidence](../AllenBradley/Evidence/AB_HOST_NAMEPLATE_2026-10-18.md)
 records the disposable v38 fixture; it is not a physical v33/v38 deployment claim.
 
+### Confirmed component genealogy
+
+Set `genealogy_capacity=2` on the local carrier only when the station consumes
+parent UIDs. At the existing MARK that confirms consumption, declare
+`part_parents=(decl.AsciiSource(literal='COMPONENT-UID'), ...)`. Use
+`AsciiSource(source='Module.Member')` for an exact declared DINT ASCII array;
+a device adapter must supply the confirmed UID, not a mutable display label.
+The service validates the whole batch, appends unique IDs once and rejects
+invalid/self/overflow batches atomically. The bound is 1..8 parents, each
+1..64 printable ASCII bytes. No project per-scan/reset wiring is needed.
+
+The generic Part card shows current parent UIDs; canonical Part events and
+SQLite retain their captured parent list after a later receive clears the
+live context. This selects Part V2 and physical HostEvents V5, with distinct
+text/no-text type names and no genealogy allocation when disabled. The exact
+same declaration with only genealogy omitted is a recognized configuration
+predecessor. See [genealogy evidence](../AllenBradley/Evidence/AB_PART_GENEALOGY_2026-10-19.md).
+RFID/DataMatrix/host carriers and native STRING adapters still need their own
+provider implementation and device acceptance.
+
+The genealogy evidence also proves reconnect to a restarted disposable,
+read-only local gateway process, with unchanged Part/host history. This does
+not qualify the installed Windows service, authenticated write recovery or
+remote network/sink recovery.
+
 ### Local Part traceability
 
 The opt-in `Application.part_carrier` currently accepts only
-`fraktal_ab_part.LocalCarrier(namespace, records, result_capacity=8)`.
+`fraktal_ab_part.LocalCarrier(namespace, records, result_capacity=8, genealogy_capacity=0)`.
 The namespace is 1..30 ASCII letters/digits/underscores/hyphens and identifies
 the actual station. Register `fraktal_ab_part.REASONS` in the application reason
 catalogue, and enable `host_event_capacity`. Carrier storage and reads exist
@@ -811,7 +836,8 @@ serial. They are local BY_POSITION identities, not a physical RFID identity or
 a uniqueness guarantee under clock replay/download. Results remain in controller
 memory and the bounded host ring; download resets, durable sink recovery, physical
 retention and browser acceptance need target evidence. RFID/DataMatrix/host
-providers, expected external identity and nonempty genealogy remain open.
+providers and expected external identity remain open. Confirmed local genealogy
+is available through the opt-in profile above.
 See [source/compiler/model evidence](../AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
 The [owner-authorized Echo download](../AllenBradley/Evidence/AB_ECHO_LOCAL_CARRIER_DOWNLOAD_2026-10-18.md)
 adds idle Run/scan/manifest/Part/host projection acceptance on serial `601FC87B`.
@@ -893,10 +919,10 @@ electrical output write is used. The source fixture has no physical lamp wiring.
 | Capture, station sets, users, classes, shelving, qualified S9 | named press68 verified; new targets rerun gates |
 | Model creation/current export/Changeover air scope | press70 completed-download fit; owner-created M-101 native bank/export/duplicate refusal and mode-scoped air reports pass; Chrome/physical retention remain separate |
 | Direct running-model set load | refused in AB/TC3; needs provider/atomic Changeover integration |
-| Part traceability (Core 3.16) | optional local BY_POSITION carrier, bounded scaled records, verdict counts, identity/write guards and generic projection; ST/SFC/LD model/compiler and local Echo cycle/recovery proof; device providers, genealogy and physical acceptance remain open |
+| Part traceability (Core 3.16) | optional local BY_POSITION carrier, bounded scaled records, verdict counts, identity/write guards and generic projection; ST/SFC/LD model/compiler and local Echo cycle/recovery proof; confirmed component genealogy is implemented; device providers and physical acceptance remain open |
 | Line data/shifts (Core 3.8e, 8.5.2) | press75 fit and 17 native calendar/weekend-end rows pass; Chrome/physical retention remain separate; mirror/shared-root composition remains unbound |
 | SignalTower/LAMP_TEST | optional shared mapper, native TONR, MANUAL mailbox gate and generic HMI implemented; exact target evidence linked above; electrical/HAL mapping and physical acceptance remain open |
-| HostEvents | optional PLC mode/changeover/NOK, local Part lifecycle and V3 confirmed DINT-valued tool/material producers; generic projection and acknowledged cursor; v38 compile/read-back, local Windows collector crash recovery and SQLite duplicate exclusion tested; textual resource values/device protocols, gateway service restart and network sink acceptance remain open |
+| HostEvents | optional PLC mode/changeover/NOK, local Part lifecycle and V3 DINT/V4 text tool/material producers and V5 Part genealogy snapshots; generic projection and acknowledged cursor; v38 compile/read-back, local Windows collector crash recovery and SQLite duplicate exclusion tested; device protocols, installed-service and authenticated-write recovery and network sink acceptance remain open |
 | Control-power/safety profiles | power deliberately excluded; process/two-hand logic is not certified-safety conformance |
 | Nameplate/IDTA | optional complete Core nameplate fields implemented through manifest v5/generic HMI; actual asset commissioning/browser and optional IDTA companion claims remain separate |
 | I/O connection state in health | native v38 compiler probes pass; external-module/runtime qualification remains open |

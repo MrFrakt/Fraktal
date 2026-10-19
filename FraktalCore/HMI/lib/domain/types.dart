@@ -408,12 +408,14 @@ class PartFacet {
   final Verdict verdict;
   final String reason; // first NOK reason (§8.8 vocabulary)
   final List<MeasRecord> records;
+  final List<String> parents;
   const PartFacet(
       {this.uid = '',
       this.present = false,
       this.verdict = Verdict.none,
       this.reason = '',
-      this.records = const []});
+      this.records = const [],
+      this.parents = const []});
 }
 
 /// Annex F — PackML state (ISA-TR88.00.02 / OPC 30050).

@@ -37,6 +37,26 @@ def text_operands(app):
             if 1 <= member.dimension <= TEXT_LIMIT + 1}
 
 
+def ascii_valid(app, value, limit=TEXT_LIMIT, cells=TEXT_LIMIT + 1):
+    if not isinstance(value, decl.AsciiSource):
+        return False
+    literal_ok = (type(value.literal) is str and type(value.source) is str and value.source == ''
+                  and len(value.literal) <= limit
+                  and all(32 <= ord(char) <= 126 for char in value.literal))
+    source_ok = (value.literal is None and type(value.source) is str
+                 and value.source in {name for name, member in operand_members(app).items()
+                                      if 1 <= member.dimension <= cells})
+    return literal_ok or source_ok
+
+
+def ascii_cells(app, value, names, cells):
+    if value.literal is not None:
+        return list(value.literal.encode('ascii').ljust(cells, b'\0'))
+    width = operand_members(app)[value.source].dimension
+    source = operand(value.source, names, app)
+    return [f'{source}[{index}]' if index < width else 0 for index in range(cells)]
+
+
 def value_identity(value):
     from dataclasses import asdict
     return asdict(value) if isinstance(value, decl.ResourceText) else value
@@ -62,12 +82,7 @@ def validate(app):
                 operands = scalar_operands(app)
             value = step.resource_value
             if isinstance(value, decl.ResourceText):
-                literal_ok = (type(value.literal) is str and type(value.source) is str and value.source == ''
-                              and len(value.literal) <= TEXT_LIMIT
-                              and all(32 <= ord(char) <= 126 for char in value.literal))
-                source_ok = (value.literal is None and type(value.source) is str
-                             and value.source in text_operands(app))
-                if not (literal_ok or source_ok):
+                if not ascii_valid(app, value):
                     findings.append('Resource: text needs exactly one 0..80 printable ASCII literal '
                                     'or exact declared ASCII array of 1..81 DINT cells')
             elif not (type(value) is int and -2**31 <= value < 2**31
@@ -119,13 +134,7 @@ def marks(app, step, names, *, ladder=False):
     if text_enabled(app):
         result.append(assign('PendingTextEnabled', int(text is not None)))
     if text is not None:
-        if text.literal is not None:
-            cells = list(text.literal.encode('ascii').ljust(TEXT_LIMIT + 1, b'\0'))
-        else:
-            width = text_operands(app)[text.source]
-            source = operand(text.source, names, app)
-            cells = [f'{source}[{index}]' if index < width else 0
-                     for index in range(TEXT_LIMIT + 1)]
+        cells = ascii_cells(app, text, names, TEXT_LIMIT + 1)
         result += [assign(f'PendingText[{index}]', value) for index, value in enumerate(cells)]
         value = '0'
     else:

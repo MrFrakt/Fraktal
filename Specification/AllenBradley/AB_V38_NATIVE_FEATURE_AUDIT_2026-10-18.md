@@ -34,7 +34,7 @@ adjustment/scaling and missed-scan qualification remain open. This measured
 native option should be reviewed before growing a second clock reconstruction.
 
 The current Echo baseline is **1756-L81E, firmware 38.011**
-(`fraktal_ab_text_resource_demo` derives through the resource fixture from
+(`fraktal_ab_genealogy_demo` derives through the text/resource fixtures from
 `fraktal_ab_press_echo38.application()`),
 with no physical I/O modules. The
 accepted physical reference remains the separately qualified **1769-L24ER-QB1B,
@@ -52,6 +52,14 @@ on this date. A documentation match alone does not pass native acceptance.
 retain only the portable policy and projection the Core needs. Do not replace
 a contract by a similarly named vendor feature, and do not assume v33's
 restrictions apply to v38. No PLC program is changed by this audit.
+
+The [confirmed genealogy profile](Evidence/AB_PART_GENEALOGY_2026-10-19.md)
+reuses native UDTs/AOIs and the single existing Part/event owner. It adds only
+the portable consumption policy (bounded unique parent confirmation, atomic
+rejection, result ordering and historical capture). It adds no device driver,
+string service, second journal or external Part write API. Packed ASCII is the
+existing all-DINT transport encoding; this makes no claim that native STRING
+is absent or slower. A native device/string adapter remains a separate seam.
 
 ## Existing native mechanisms to retain
 

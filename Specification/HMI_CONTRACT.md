@@ -10,6 +10,18 @@ All displayed strings follow `LOCALIZATION_AND_MODULE_CONTENT.md`: PLC display f
 
 In the TwinCAT binding, externally written request/configuration data is `VAR_INPUT` and published result/status data is `VAR_OUTPUT`; implementation `VAR` is private. This IEC access classification is a transport mapping, not authorization: every write listed below is still release-gated and re-checked by the PLC.
 
+## Part genealogy (Core §3.16)
+
+The generic Part card renders `Part.Parents` as ordered, selectable component
+UIDs alongside the current Part/result. UIDs are identifiers and are displayed
+verbatim. A binding may publish an aggregate string array or indexed scalar
+`Part/Parents[i]` leaves; the client consumes the published extent, including
+native array browse layouts, without a station-specific capacity or history.
+An absent/empty parent set clears the display on the next snapshot. The PLC
+owns genealogy and its lifecycle; the HMI neither accumulates consumption nor
+reconstructs historical parent sets. Optional AB HostEvents V5 records carry a
+captured `Parents` list independent of the current Part context.
+
 ## Discovery
 Walk the canonical hierarchy returned by the Self-Description Service (§3.10).
 **A record is a module iff it declares the standard module `Status` contract.**

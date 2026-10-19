@@ -807,9 +807,9 @@ def module_logic(app: decl.Application, module: decl.Module) -> tuple[str, ...]:
 
 def unit_aoi_name(app: decl.Application) -> str:
     # Required InOut additions cannot replace a released AOI signature (S2).
-    suffix = f'_Host{app.host_event_capacity}V{host.schema(app)}' if app.host_event_capacity else ''
+    suffix = f'_Host{app.host_event_capacity}{host.profile(app)}' if app.host_event_capacity else ''
     if app.part_carrier is not None:
-        suffix += f'_Part{app.part_carrier.result_capacity}V1'
+        suffix += f'_Part{app.part_carrier.result_capacity}{part.version(app)}'
     if counting.enabled(app):
         suffix += '_CountV1'
     return f"FRK_U_{app.name}{suffix}"
@@ -1428,11 +1428,13 @@ def _st_marks(step: decl.Step, names: Names) -> list[str]:
         result.append(f'{counting.reference(names)}.Nok := 0;')
     if step.part_action:
         result.append(part.step_call(names.app, step, names) + ';')
+    if step.part_parents:
+        result.extend(part.genealogy.marks(names.app,step,names))
     if step.resource_kind:
         import fraktal_ab_resources as resources
         outputs = resources.marks(names.app, step, names)
         result.extend([f'IF {names.unit}.Error = 0 THEN', *outputs, 'END_IF;']
-                      if step.part_action else outputs)
+                      if step.part_action or step.part_parents else outputs)
     if names.app.host_event_capacity and any(mark.split(':=')[0].strip() == 'Ctx.ScrapCount' for mark in step.marks):
         result.append(host.call(names.app, 'NOK', in_aoi=names.in_aoi, reason=host.nok_reason(step, names)) + ';')
     return result
@@ -1459,9 +1461,11 @@ def _ld_marks(step: decl.Step, names: Names) -> list[str]:
             outputs.append(f"MOV({expression.strip()},{target})")
     if counting.tracks(names.app, step) and counting.FINISH in step.marks:
         outputs.append(f'MOV(0,{counting.reference(names)}.Nok)')
+    if step.part_parents:
+        outputs.extend(part.genealogy.marks(names.app,step,names,ladder=True))
     if step.resource_kind:
         import fraktal_ab_resources as resources
-        if step.part_action:
+        if step.part_action or step.part_parents:
             outputs.append(f'EQU({u}.Error,0)')
         outputs.extend(resources.marks(names.app, step, names, ladder=True))
     if names.app.host_event_capacity and any(mark.split(':=')[0].strip() == 'Ctx.ScrapCount' for mark in step.marks):
@@ -1816,7 +1820,7 @@ def step_logic(app: decl.Application, chain: decl.Chain, step: decl.Step,
         ]
 
     elif step.action == decl.MARK:
-        lines += _st_marks(step, names) + ([f'IF {u}.Error = 0 THEN', *adv, 'END_IF;'] if step.part_action else adv)
+        lines += _st_marks(step, names) + ([f'IF {u}.Error = 0 THEN', *adv, 'END_IF;'] if step.part_action or step.part_parents else adv)
 
     elif step.action == decl.COMPLETE:
         lines += [
@@ -2442,7 +2446,7 @@ def ld_step_rung(app: decl.Application, chain: decl.Chain, step: decl.Step,
 
     elif step.action == decl.MARK:
         legs.append(_leg(*_ld_marks(step, names),
-                         *([f'EQU({u}.Error,0)'] if step.part_action else []),
+                         *([f'EQU({u}.Error,0)'] if step.part_action or step.part_parents else []),
                          _ld_advance(app, step, index, names, step.on_advance)))
 
     elif step.action == decl.COMPLETE:
@@ -2617,7 +2621,7 @@ def sfc_condition(app: decl.Application, step: decl.Step, kind: str,
     """
     u, c = names.unit, names.chart
     ctx = names.module(step.module) if step.module else ""
-    if step.part_action:
+    if step.part_action or step.part_parents:
         return f'{u}.Error = 0'
     # A commanding step reads its module only after its entry scan, as the
     # ST and LD renditions do. On the entry scan the module still holds the

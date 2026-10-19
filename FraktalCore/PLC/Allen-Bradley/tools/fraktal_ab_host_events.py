@@ -18,6 +18,7 @@ from pathlib import Path
 
 import fraktal_ab_declaration as decl
 import fraktal_ab_resources as resources
+import fraktal_ab_genealogy as genealogy
 
 KINDS = dict(PART_RECEIVED=1, PROCESSING_STARTED=2, PROCESSED=3,
              PROCESSING_ABORTED=4, CHANGEOVER_STARTED=5, CHANGEOVER_DONE=6,
@@ -60,6 +61,8 @@ def tag(app):
 
 
 def schema(app):
+    if genealogy.enabled(app):
+        return 5
     if resources.text_enabled(app):
         return 4
     if resources.enabled(app):
@@ -67,12 +70,17 @@ def schema(app):
     return 2 if app.part_carrier is not None else 1
 
 
+def profile(app):
+    return (f'V5T{int(resources.text_enabled(app))}G{genealogy.capacity(app)}'
+            if genealogy.enabled(app) else f'V{schema(app)}')
+
+
 def type_name(app):
-    return f'FRK_T_HostEvents{app.host_event_capacity}V{schema(app)}'
+    return f'FRK_T_HostEvents{app.host_event_capacity}{profile(app)}'
 
 
 def emitter_name(app):
-    return f'FRK_HostEmit{app.host_event_capacity}V{schema(app)}'
+    return f'FRK_HostEmit{app.host_event_capacity}{profile(app)}'
 
 
 def instance_tag(app):
@@ -92,7 +100,7 @@ def members(app):
          decl.scalar('PendingText', dimension=resources.TEXT_LIMIT + 1),
          decl.scalar('ValueFormat', dimension=app.host_event_capacity),
          decl.scalar('ValueText', dimension=resources.TEXT_WORDS * app.host_event_capacity))
-        if schema(app) == 4 else ())
+        if resources.text_enabled(app) else ()) + (genealogy.host_members(app) if genealogy.enabled(app) else ())
 
 
 def _text_validation():
@@ -154,7 +162,9 @@ def emit_logic(app):
                           if schema(app) >= 3 else '(Kind >= 1) AND (Kind <= 4)')
     return (
         'IF (Ring.Failed = 0) THEN',
-        *([*_text_validation(), 'IF Ring.Failed = 0 THEN'] if schema(app) == 4 else []),
+        *(_text_validation() if resources.text_enabled(app) else []),
+        *(genealogy.host_validation(app) if genealogy.enabled(app) else []),
+        *(['IF Ring.Failed = 0 THEN'] if resources.text_enabled(app) or genealogy.enabled(app) else []),
         'IF (Ring.NewestSequence >= 2147483647) OR '
         '(Ring.Capacity <> ' + str(app.host_event_capacity) + ') OR ' +
         guard +
@@ -172,13 +182,14 @@ def emit_logic(app):
            'UidIndex := (Slot * 64) + ByteIndex;',
            f'IF {identity_condition} THEN Ring.Uid[UidIndex] := Ring.PendingUid[ByteIndex]; '
            'ELSE Ring.Uid[UidIndex] := 0; END_IF;', 'END_FOR;'] if schema(app) >= 2 else []),
-        *(_text_store() if schema(app) == 4 else []),
+        *(_text_store() if resources.text_enabled(app) else []),
+        *(genealogy.host_store(app) if genealogy.enabled(app) else []),
         'IF Ring.Count < Ring.Capacity THEN Ring.Count := Ring.Count + 1; '
         'ELSE Ring.Wrapped := 1; END_IF;',
         'Ring.DataRevision := Ring.DataRevision + 1;',
         'END_IF;',
         'END_IF;',
-        *(['END_IF;'] if schema(app) == 4 else []),
+        *(['END_IF;'] if resources.text_enabled(app) or genealogy.enabled(app) else []),
     )
 
 
@@ -194,7 +205,9 @@ def emitter(app):
                     ('<LocalTag Name="ByteIndex" DataType="DINT"/><LocalTag Name="UidIndex" DataType="DINT"/>'
                      if schema(app) >= 2 else '') +
                     ('<LocalTag Name="TextActive" DataType="DINT"/><LocalTag Name="TextEnd" DataType="DINT"/>'
-                     '<LocalTag Name="SourceIndex" DataType="DINT"/>' if schema(app) == 4 else '') + '</LocalTags>')
+                     if resources.text_enabled(app) else '') +
+                    ('<LocalTag Name="SourceIndex" DataType="DINT"/>'
+                     if resources.text_enabled(app) or genealogy.enabled(app) else '') + '</LocalTags>')
 
 
 def call(app, kind, *, in_aoi=False, model='0', value='0', reason=0):
@@ -239,7 +252,7 @@ def validate_metadata(m, expected_capacity=None, expected_schema=None):
     try:
         cap, count, head, newest = (m[n] for n in ('Capacity', 'Count', 'Head', 'NewestSequence'))
         if (any(type(m[n]) is not int or not -2**31 <= m[n] <= LIMIT for n in META)
-                or m['SchemaVersion'] not in (1, 2, 3, 4) or m['Failed'] != 0
+                or m['SchemaVersion'] not in (1, 2, 3, 4, 5) or m['Failed'] != 0
                 or expected_schema is not None and m['SchemaVersion'] != expected_schema
                 or (expected_capacity is not None and cap != expected_capacity)
                 or not 1 <= cap <= 64 or not 0 <= count <= cap or not 0 <= newest <= LIMIT
@@ -273,7 +286,7 @@ def decode(app, raw, codes=()):
         events = []
         if schema(app) >= 2 and (not isinstance(raw['Uid'], list) or len(raw['Uid']) != cap * 64):
             raise HostEventsBad('invalid host-event identity column bounds')
-        if schema(app) == 4 and (not isinstance(raw['ValueFormat'], list) or len(raw['ValueFormat']) != cap
+        if resources.text_enabled(app) and (not isinstance(raw['ValueFormat'], list) or len(raw['ValueFormat']) != cap
                 or not isinstance(raw['ValueText'], list) or len(raw['ValueText']) != cap * resources.TEXT_WORDS):
             raise HostEventsBad('invalid host-event text column bounds')
         for offset in range(count):
@@ -281,7 +294,7 @@ def decode(app, raw, codes=()):
             ev = {n: raw[n][slot] for n in COLUMNS}
             kind = ev['Kind']
             supported = (*SUPPORTED, *((1, 2, 3, 4) if app.part_carrier is not None else ()),
-                         *((7, 8) if schema(app) >= 3 else ()))
+                         *((7, 8) if resources.enabled(app) else ()))
             if (ev['Sequence'] != newest - count + offset + 1 or kind not in supported
                     or ev['TimeSynchronized'] not in (0, 1)
                     or (kind == 3 and ev['Verdict'] not in (0,1,2,3))
@@ -316,7 +329,7 @@ def decode(app, raw, codes=()):
                     raise HostEventsBad('unknown model in host event')
                 else:
                     value = codes[index - 1]
-            if schema(app) == 4:
+            if resources.text_enabled(app):
                 format_id = raw['ValueFormat'][slot]
                 words = raw['ValueText'][slot*resources.TEXT_WORDS:(slot+1)*resources.TEXT_WORDS]
                 if (type(format_id) is not int or format_id not in (0, 1)
@@ -336,11 +349,15 @@ def decode(app, raw, codes=()):
             if not stamp:
                 raise HostEventsBad('host-event timestamp unavailable')
             datetime.fromisoformat(stamp.replace('Z', '+00:00'))
-            events.append(dict(Sequence=ev['Sequence'], Kind=kind, StationPath=app.name,
+            event = dict(Sequence=ev['Sequence'], Kind=kind, StationPath=app.name,
                                PartUid=identity, Subject=subject, Value=value, Stamp=stamp,
                                TimeSynchronized=bool(ev['TimeSynchronized']),
-                               Verdict=ev['Verdict'], ReasonCode=ev['ReasonCode']))
-        return dict(metadata=m, events=events)
+                               Verdict=ev['Verdict'], ReasonCode=ev['ReasonCode'])
+            if genealogy.enabled(app):
+                event['Parents'] = genealogy.decode_host(app,raw,slot,kind,identity)
+            events.append(event)
+        return dict(metadata=m, events=events, **({'genealogyCapacity':genealogy.capacity(app)}
+                                                if genealogy.enabled(app) else {}))
     except (KeyError, TypeError, IndexError, ValueError) as error:
         if isinstance(error, HostEventsBad):
             raise
@@ -370,11 +387,18 @@ def project(batch):
     values = {f'HostEvents/{k}': v for k, v in m.items()}
     values['HostEvents/RingHead'] = m['Head']
     values['HostEvents/Wrapped'] = bool(m['Wrapped'])
+    if 'genealogyCapacity' in batch:
+        values['HostEvents/GenealogyCapacity'] = batch['genealogyCapacity']
     # The generic HMI walks the physical one-based slots, using Capacity.
     for offset, ev in enumerate(batch['events']):
         slot = ((m['Head'] - m['Count'] + offset) % m['Capacity']) + 1
         for field, value in ev.items():
-            values[f'HostEvents/Ring[{slot}]/{field}'] = value
+            if field == 'Parents':
+                values[f'HostEvents/Ring[{slot}]/ParentCount'] = len(value)
+                for index in range(batch['genealogyCapacity']):
+                    values[f'HostEvents/Ring[{slot}]/Parents[{index+1}]'] = value[index] if index < len(value) else ''
+            else:
+                values[f'HostEvents/Ring[{slot}]/{field}'] = value
     return values
 
 

@@ -107,6 +107,9 @@ def revision_rejected(app, value):
         # value schema. Accept only the exact same declaration without it.
         variants += [dataclasses.replace(item,signal_tower=None) for item in (app,*variants)]
     import fraktal_ab_resources as resources
+    import fraktal_ab_genealogy as genealogy
+    if genealogy.enabled(app):
+        variants += [genealogy.without(item) for item in (app,*variants)]
     if resources.text_enabled(app):
         variants += [resources.without_text(item) for item in (app,*variants)]
     if resources.enabled(app):

@@ -1,0 +1,379 @@
+# AB press port - completion sequence
+
+## Independent gaps closed in source (2026-10-18)
+
+The Echo declaration now derives from the physical press. The existing physical
+and Echo generated baselines were byte-identical for that refactor. Optional digital nameplates
+now use a versioned manifest-v5 text-key extension and the generic HMI.
+The optional PLC-owned host ring, coherent gateway projection and acknowledged
+per-sink delivery are implemented for mode changes, Changeover and reason-coded
+NOK. All three AUTO renditions use one append owner. The optional local
+BY_POSITION carrier now adds bounded Part/result storage, four canonical host
+events, scaled measurements, write-before-event commitment, verdict counts and
+consumer faults. It has ST/SFC/LD model and v38 compiler/read-back evidence;
+see [local carrier](Evidence/AB_LOCAL_CARRIER_2026-10-18.md). Device carriers,
+native device/string providers, network sink/restart/clock-replay acceptance and commissioned
+nameplate/browser acceptance remain open. See
+[compiler/read-back evidence](Evidence/AB_HOST_NAMEPLATE_2026-10-18.md) and the
+[configuration guide](../Guides/AB_NEW_PROJECT_GUIDE.md#host-events-and-digital-nameplates).
+These independent changes leave native alarm state/providers untouched; the
+native runtime/provider qualification below is still required.
+The subsequent [cycle/recovery acceptance](Evidence/AB_CYCLE_RECOVERY_2026-10-18.md)
+adds 21 passing live checks on local Echo `601FC87B`, seven per ST/SFC/LD:
+OK, handled NOK, HELD/resume, abort, mode change, adopted fault and one-reset
+restart. The ordinary controller-validated live-document restore completes;
+all five documents match after reopening the medium. A local durable host sink
+refuses without acknowledging, reports an actual overwritten interval, and
+reopens without repeating the acknowledged batch. This does not qualify a
+network host, gateway process restart, clock replay, power/download retention,
+device carrier or physical installation.
+
+The subsequent [host recovery evidence](Evidence/AB_HOST_RECOVERY_2026-10-18.md)
+closes local collector process-crash recovery on Windows: the OS releases the
+cursor guard after termination, abandoned cursor temporaries do not block a
+restart, and an optional SQLite sink commits/deduplicates event and loss keys
+before acknowledgement. A read-only capture of 16 retained Echo events and one
+overwrite notice reopens without duplicates and survives two forced local
+crashes. Conflicting payloads fail closed; busy/write/commit failures leave the
+record unacknowledged. Native alarm subscribers, network delivery, gateway service
+restart, clock replay and publisher retention remain open. PLC storage and
+generated code do not grow for this change.
+
+The subsequent [confirmed resource events](Evidence/AB_RESOURCE_EVENTS_2026-10-18.md)
+add TOOL_CHANGED/MATERIAL_CHANGED at declared Unit MARK boundaries, with captured
+bounded subjects and signed DINT values. Physical host schema V3 shares the
+existing identity cells, with no extra chart rows or declared-data growth versus
+the tower fixture. Both v38 compiler targets and full native read-back pass.
+The owner authorizes simulated-PLC downloads at any time; after backing up the
+current image and five configuration documents, the new resource fixture runs
+31 passing restored tower/Part checks, including ordered resource events in
+ST/SFC/LD. A final read-only capture/durable SQLite reopen passes as well. Local
+Echo now uses `fraktal_ab_resource_demo`, manifest `EBF1887B15E96453`. Arbitrary
+textual values, actual resource device protocols and physical acceptance remain
+separate; no resource command or second event engine is introduced.
+
+The carrier-off shared finish no longer counts a rejected part as good. Its
+derived private verdict owner adds a versioned Unit AOI InOut parameter, with
+framework-owned reset/abort/mode/finish cleanup and no project wiring. This
+intentional output change has whole-cycle model proof in ST/SFC/LD and clean
+v38 compiler/read-back proof on both offline targets. The deployed Part image
+does not change. Empty measurement slots now retain all canonical projection
+paths, preserving discovery indices across cycles.
+The same work closes a discovery defect: a matching header hash no longer
+allows missing/corrupted native table rows to render as an empty valid station.
+Native proof retains the SDK warning/data-loss case and the corrected clean
+import with full initial-value and executable read-back.
+
+## Current continuation: native v38 review first (2026-10-18)
+
+The optional [SignalTower/LAMP_TEST implementation](Evidence/AB_SIGNAL_TOWER_2026-10-18.md)
+now reuses native ST TONR and the existing alarm/decision/state owners. The
+mailbox's previous POWER_CONTROL assignment is corrected to Core MANUAL.
+The tower is opt-in, read-only and independent of health-provider availability
+in the generic HMI. Configuration restore recognizes the exact otherwise
+identical pre-tower declaration; unknown revisions remain refused. Physical
+lamp/horn wiring and acceptance remain open; a semantic Echo fixture is not
+physical apparatus. This does not replace N1/N4 provider qualification.
+Owner-approved download and 31 live checks now pass on Echo `601FC87B`,
+manifest `EA7BCE24FDA311EB`. Configuration values survive the pre-tower revision
+upgrade through normal restore; lamp test self-clears after a full disconnected
+interval. Busy/active/MANUAL gates, rationalized fault and decision outputs,
+and the three-language Part recovery matrix pass with restored policy/inputs.
+
+The owner requests the same native-feature overlap review performed for TIA.
+The [v38 native-feature audit](AB_V38_NATIVE_FEATURE_AUDIT_2026-10-18.md) is the
+current decision record: qualify native MODULE diagnostics and task/timer
+sources, then alarm-provider feasibility, before growing custom runtime
+services. Compare embedded OPC UA on an eligible physical controller before
+expanding the direct-CIP spike. Exact family/firmware/language support matters;
+the L81E Echo target is not the v33 L24ER reference or an arbitrary v38 CPU.
+Every new service records reuse/adaptation/retention of its native counterpart.
+
+The [2026-10-18 compiler evidence](Evidence/AB_V38_NATIVE_HEALTH_COMPILE_2026-10-18.md)
+now proves the native MODULE/task/clock probe types and exact spellings on both
+v38 offline compiler targets, with negative controls and actual read-back.
+Next is isolated runtime time-source validation and external-module sampling;
+the production health publisher remains unchanged until that evidence exists.
+
+The subsequent [native runtime observation](Evidence/AB_NATIVE_TIMING_2026-10-18.md)
+now proves exact-target steady-state TASK/CST/wall-clock and healthy Local
+MODULE acquisition, through 7,500 Echo scans and two minute boundaries. The
+instrumented tower fixture passes both compiler targets and all 31 live
+regression checks, with configuration/policy/session/inputs restored. Production
+health calculations remain unchanged: task lifetime extrema are not the existing
+one-second window, task StartTime is wall-clock based, and a late-scan CST sample
+includes variable execution position. Qualify adjustment/scaling/missed-scan
+behavior before selecting a replacement; external-module acceptance needs
+physical hardware. N2 alarm-provider feasibility remains independently open.
+
+The [N2 compiler/feasibility continuation](Evidence/AB_NATIVE_ALARMS_COMPILE_2026-10-18.md)
+now accepts ALMD ST on both v38 compiler targets with real negative controls.
+Core retains lifecycle ownership because reset and native object access differ.
+Alarm metadata is now part of the shared native read-back gate, preventing
+silent condition/message/identity loss. Tag-based XML import and native runtime
+projection remain unaccepted; no second alarm authority or production feature
+is introduced by this compiler proof.
+
+The [tag-based alarm continuation](Evidence/AB_TAG_ALARMS_COMPILE_2026-10-18.md)
+now closes the XML-import blocker. A native v38 L5K-to-L5X round trip reveals
+the accepted enum and attribute names; the generated tag-based positive and
+invalid-member cases pass their expected outcomes on both compiler targets,
+with full message/configuration/identity read-back. The comparison now ignores
+Studio's XML wrapping outside CDATA while retaining message whitespace inside
+it. Runtime projection, native operator-command isolation, shelving/history
+comparison and physical acceptance remain open. The current Echo image and
+production alarm owner are unchanged.
+
+The [bounded native alarm observer](Evidence/AB_NATIVE_ALARM_OBSERVER_PREPARED_2026-10-18.md)
+is now prepared and compiled for both v38 targets, with a current upload backup
+and configuration preflight. It retains 14 native phase observations over 104
+PLC seconds, adds no production provider/manifest fields and awaits a separately
+authorized download plus the existing 31 tower/Part regression checks. Its
+preparation closes the shared formatter's native `.@Alarms` operand gap and
+uses scalar intermediates required by the native compiler. N2 runtime/security
+acceptance remains open until that evidence exists.
+
+The subsequent [owner-authorized native runtime comparison](Evidence/AB_NATIVE_ALARM_RUNTIME_2026-10-18.md)
+passes 22 native checks and the 31 tower/Part regressions on local Echo, with
+configuration and original policy/session/inputs restored. Tag-based alarming
+misses the tested single-scan pulse while ALMD counts it; native latches refuse
+reset with the condition active. Programmatic `OperShelve` works at runtime
+despite the help's Read-only designation, and both native shelves expire.
+This closes the bounded native reset/ack/suppression/shelf comparison, retaining
+Core's event/recovery owner. Native delivery/backpressure, shelf mapping,
+external operator isolation, clock adjustments and physical acceptance remain open.
+
+The [TIA follow-up](AB_TIA_FOLLOWUP_2026-10-18.md) records the implemented
+active-endpoint display, independent AB channel sample validity and repaired
+specification gate, with their validation. Gateway/controller identity display,
+native provider qualification and the remaining stages below stay open. Older
+artifact/memory measurements below retain their historical scope.
+
+Owner request: finish the AB port, 2026-10-04. This extends the earlier Phase 6
+boundary; the September audit's original "Deliberately not planned" list remains
+historical. Control power remains deliberately excluded. This is an implementation
+plan, not a conformance claim or permission to change the controller.
+
+Read [AGENTS.md](../../AGENTS.md), the
+[current guide](../Guides/AB_NEW_PROJECT_GUIDE.md), the
+[parity audit](../Reports/AB_TC3_PARITY_AUDIT_2026-09-29.md) and the normative
+Core/Part III clauses before each implementation. TC3 is the behavioral oracle;
+AB keeps generated composition, DINT contracts and one authoritative declaration.
+
+## Deployment boundary first
+
+Press75 is the owner-confirmed completed-download memory baseline, at 0/0
+followed by Run. Online data/logic uses 758,568 / 786,432 bytes, with 27,864
+available and a 27,376-byte largest free block. See
+[fit evidence](Evidence/AB_LINE_V2_PRESS75_NATIVE_FIT_2026-10-04.md). Press70's historical eleven
+native regression suites pass 159 rows with independent restoration, S3 passes
+6/6, current M-101 export and the live production HMI repository read pass.
+See [native acceptance](Evidence/AB_PHASE6_PRESS70_NATIVE_ACCEPTANCE_2026-10-04.md).
+Chrome modal acceptance and physical model/credential upgrade retention remain
+separate. Press69 failed Verify; no historical evidence is broadened.
+
+Do not re-download the old press70 three-bank image over owner-created M-101.
+Any later artifact requires a fresh expanded modelCodes/all-bank capture; the
+[catalog helper](Evidence/AB_PHASE6_CATALOG_IMAGE_2026-10-04.md) preserves stable
+indices without layout growth. No disposable native model may be created:
+obtain an owner-selected code/source for any append-only creation check.
+Guard exact serial/build before every authorized native stage; owner performs
+downloads and write-enabled gateway restarts. The next implementation is line
+data and weekday/duration shifts, followed by the remaining stages below.
+
+Stage 2 is now loaded as corrective `C:/work/press75.L5X` (SHA
+82AB065C32BCD112D49DD00839B8047C1B5E957A5356FB9D61EF3C1C2F3172A5), manifest
+94E302F650BA1DB5 / 9757442. It enables a Line owner, four weekly calendar rows,
+eight controller-owned history rows and generic weekday/history UI. Fresh,
+identical serial-guarded captures preserve M-101/all four banks and current
+records. Native fit passes; boundaries/retention/browser have separate acceptance;
+mirror/shared-root composition remains unbound. See
+[correction evidence](Evidence/AB_LINE_V2_ALARM_MEMORY_FIX_2026-10-04.md).
+Press71 reported out-of-memory in LineValidate. Press72 reduces that routine
+to six unordered row-pair mask checks; its tags/layouts/manifest remain equal.
+Press72 verified/compiled but failed download linking at LineValidate. Press73
+reduces discovery reserves and shares ST/SFC step-entry bookkeeping, with
+declared data/source/statement totals below accepted press70. All three native
+renditions, chart history, four users and permissions remain. Press73 also
+fails with a final global memory error; the owner estimates 799,428 / 786,432
+data/logic bytes (12,996 over), while I/O uses 2,640 / 1,048,576. Press75 shares
+native alarm open/close code, groups rationalized priority branches and emits
+restore defaults once. It removes 240 ST terminators without layout/data growth;
+fit now passes by owner full-download confirmation and online Capacity. The
+799,428 estimate and 758,568 online use have different measurement bases;
+their difference is not claimed as measured compiled saving. Fresh complete
+manifest/configuration reads preserve the four-model catalog. Future controller
+growth is compared with press75, without broadening its acceptance scope.
+
+Press75 native acceptance now supplies 159 successful restored regression rows
+across eleven suites and 17 Line assertions. The Line vector covers whole
+13-field export/import and atomic validation, effective minimum permissions,
+a twelve-hour weekend-only shift and natural end/restoration. It preserves two
+actual history closures, restores all captured config/banks/session and passes
+S3 6/6 (max scan 8,384 us, no fault/overlap) and fresh gateway health. Three
+apparatus corrections add zero PLC growth; interrupted runs remain failures.
+See [native acceptance](Evidence/AB_LINE_V2_PRESS75_NATIVE_ACCEPTANCE_2026-10-04.md).
+Chrome controls and physical Line retention are separate owner gates, and
+mirror/shared-root transport remains unbound. This is not full port closure.
+
+## Retained data on a declared medium (added 2026-10-07)
+
+Handover items 1b and 1c run beside the stages below and are now implemented
+offline: the declaration picks the medium (`ConfigMedium`, file medium only), and
+the press keeps live station/line/model documents that the gateway re-applies
+after a download through the staged set path (Part III AB §3.8b). Press79
+(+3,132 ST source bytes over press78) ran out of controller memory while linking
+([failure](Evidence/AB_PRESS79_NATIVE_LINK_MEMORY_FAILURE_2026-10-07.md)); the
+bench now scans no program. At the owner's instruction press80 carries AUTO in
+ladder only, 37,343 ST source bytes and 558 statements below press78
+([record](Evidence/AB_PRESS80_LADDER_ONLY_AUTO_OFFLINE_2026-10-07.md)). Next: the
+owner's press80 Capacity Estimate and Verify, its seeded download (the first
+live-document image), then download and power-cycle acceptance of the restore per
+the [offline record](Evidence/AB_PRESS79_LIVE_DOCUMENTS_OFFLINE_2026-10-07.md) and
+the [retention check plan](AB_PHASE6_RETENTION_CHECK_PLAN_2026-10-04.md). Record
+press80's Capacity as the new memory baseline once its download completes;
+press75 remains the last measured one until then.
+
+## Remaining work after the 2026-10-18 text-resource checks
+
+The port is **not complete**. The optional local Part carrier, host ring,
+nameplate and SignalTower now have implementation and scoped Echo evidence;
+their older "absent" entries in the October 6 handover are historical.
+The [native-window and publisher-restart evidence](Evidence/AB_NATIVE_WINDOWS_RESTART_2026-10-18.md)
+closes the bounded native reset-method question and ordinary same-manifest Echo
+download delivery, including durable replay from the pre-download cursor.
+The [text-resource evidence](Evidence/AB_TEXT_RESOURCE_EVENTS_2026-10-18.md)
+adds bounded ASCII literals/array capture in optional host schema V4; the
+numeric V3 fixture remains byte-identical. The
+[genealogy/recovery evidence](Evidence/AB_PART_GENEALOGY_2026-10-19.md) adds
+atomic confirmed-parent batches, historical capture, shared HMI display and
+forced restart/reconnect of a disposable read-only local gateway process.
+Installed-service, authenticated-write and remote-network recovery remain open.
+
+| Remaining point | Implementation or acceptance boundary |
+| --- | --- |
+| Native alarm integration | Core remains the event/reset/command-release owner. Native subscriber identity/order, delivery under load/backpressure, shelf mapping and external operator-command isolation are unqualified. The private comparison is not a production provider. |
+| Native health and elapsed time | Four bounded native TASK windows now qualify zero/sentinel reset methods on Echo. Production promotion still needs ownership of task-wide extrema and preserved per-scan event semantics. Clock adjustment, missed scans, Echo scaling and physical MODULE disconnect/inhibit/fault/recovery remain untested. |
+| Resource and extended Part producers | Confirmed MARK producers now capture signed DINT values in V3 or bounded ASCII literals/exact declared arrays in optional V4. Confirmed component genealogy now selects Part V2/HostEvents V5, with atomic bounded batches, captured historical parents and generic HMI display; see [evidence](Evidence/AB_PART_GENEALOGY_2026-10-19.md). Device-backed carriers remain unimplemented. The local BY_POSITION carrier and four canonical Part events are implemented. Native device/string providers and non-ASCII values are separate qualified profiles. |
+| Line composition | Mirror/shared-root transport is unbound. Chrome Line controls and physical calendar/shift retention remain acceptance work. |
+| Host integration | Local Windows collector crash recovery, SQLite duplicate exclusion and same-manifest Echo download/restart delivery pass, including replay from the pre-download cursor. Read-only local gateway process crash/reconnect now preserves Part/host history. Network sinks, installed-service and authenticated-write recovery, publisher identity under clock replay and physical restart/retention remain separate. The native alarm stream is not the HostEvents stream. |
+| Running-model set integration | Direct running-model set load is deliberately refused in both AB and TC3. Any future route must use prepare/readiness/commit and ordinary Changeover validation; this is shared work, not an AB-only parity defect. |
+| Deployment and physical acceptance | Establish exact physical artifact fit before growth; complete values/accounts/sets/models/Line power-cycle, download and upgrade retention; packaged gateway/Web HMI, browser flows, target-specific security and real nameplate/tower wiring acceptance. Echo evidence does not transfer to a physical controller. |
+
+Native SFC timing, v38 timer/storage providers, FactoryTalk identity, native
+persistence and embedded OPC UA on an eligible physical controller remain
+review/qualification opportunities from the [native overlap audit](AB_V38_NATIVE_FEATURE_AUDIT_2026-10-18.md),
+not permission to build duplicate services. The current Echo/L81E target does
+not provide embedded OPC UA. Control power/certified safety, L24ER Integrated
+Motion and unavailable CPU/free-memory metrics remain declared exclusions;
+MANUAL_HELD needs a real held-command target before it is a requirement.
+
+## Implementation order after acceptance
+
+The owner now prioritizes missing line data. Implement stage 2 before Part
+traceability once the current fit/native acceptance boundary is established.
+Refresh the TC3 handoff and AB new-project guidance at final port closure.
+
+| Stage | Work and owning level | Acceptance needed |
+| --- | --- | --- |
+| 1. Part traceability | Core 3.16; opt-in carrier declaration, bounded native Part context and framework-owned event plumbing; press chains request canonical received/started/record/processed/aborted events through their normal services | Exact ST/SFC/LD outcome parity, unique BY_POSITION identity, verdict/count consistency, abort behavior, fail-closed read/write errors; generic Part HMI projection |
+| 2. Line data and shifts | Core 3.8e/8.5.2; composition-owned line beside roots, referenced by roots, never a child/super-root; retained data, current shift and bounded history; owner-requested weekday selection and explicit limited shift duration | Owner/read-only access semantics, root sharing, complete write validation, weekly/overnight boundaries, inactive intervals, history bounds, clock quality and retention |
+| 3. Signal tower | Audit the TC3 press declaration and optional profile; reusable type derives lamp/sound requests from authoritative machine/alarm state; enable LAMP_TEST only for a real declared capability | Type tests and test timeout, no arbitrary output write, verified electrical/HAL mapping before physical claim; absent hardware stays visibly unclaimed |
+| 4. Host event projection | Optional native mode/changeover/NOK, local Part, V3 DINT and V4 bounded text resource events, coherent gateway/cursor and optional SQLite sink implemented | Compiler/read-back, live acquisition, local Windows collector crash recovery and same-manifest Echo download/restart delivery pass; text literal/array qualification scope is recorded separately; network/gateway-service/clock-replay and physical restart/retention acceptance remains; no HMI accumulation replacing PLC history |
+| 5. Description and probes | Optional full nameplate fields implemented through manifest v5 and generic HMI; native external-module connection state remains open | Version refusal and native read-back pass; actual asset/browser and named GSV attributes on physical modules still need acceptance; unsupported CPU/free-memory remains unavailable |
+| 6. Running-model set integration | Audit the shared AB/TC3 deliberate refusal; use prepare/readiness/commit recipe path, never direct live ParCfg overwrite | Complete validation before application, ordinary Changeover gates, abort rollback and no partial recipes; extend capabilities only after this route exists |
+| 7. Final closure | Current feature census, targeted security/retention regressions, browser acceptance and deployment guidance | Updated AB_ABSENT/refused-command reasons, scoped S9 rerun, packaged AB deployment acceptance, exact artifacts/hashes and remaining platform exclusions |
+
+Each native stage follows the established loop: one offline implementation,
+meaningful tests and mutations, generated artifact with size comparison, commit,
+owner Verify/completed download, guarded hardware evidence and browser acceptance.
+Gateway-only stages still prove live activation and freshness; they need no PLC
+download when emitted PLC bytes are unchanged. Generic HMI features are shared,
+never AB-specific screens. Extend the new-station template where applicable.
+
+## Added shift-calendar requirement
+
+The owner additionally requests per-shift active weekdays, including a special
+12-hour shift only on weekends. This is implemented offline in stage 2; press70
+does not add line data or this editor. The released TC3 ST_ShiftCalendar is daily,
+start-only and gapless: every used shift ends at the next used start. Merely
+hiding weekday labels cannot implement a 12-hour interval followed by off time.
+
+Core 8.5.2(a) now defines the additive V2 contract before its binding. The
+versioned representation gives each shift Monday-Sunday selection plus start and
+duration; seven-bit day selection and bounded duration are PLC-validated data.
+All days selected preserves the daily scheduling use case. Migration from the
+old start-only calendar preserves its next-start end semantics; never silently
+convert it into a different duration. Preserve the existing UTC offset policy.
+The final type/version/migration belongs to the shared contract, not an AB-only
+screen. Do not mutate a released structure without the required schema/version.
+
+Scheduling/editor acceptance includes:
+
+- Seven weekday checkboxes for each shift, persisted as line configuration and
+  mirrored whole to every referencing root. Use the existing interaction preset
+  sizing/spacing; explain the selected days and end time in the generic editor.
+- Example: Saturday and Sunday, 08:00 start, 12 hours duration ends at 20:00 on
+  each selected day. Weekday and 20:00-08:00 intervals are unscheduled; they
+  must not be counted as a continuation of the preceding scheduled shift.
+- Overnight selection applies to the shift's starting day. Sunday 20:00 for
+  12 hours can end Monday 08:00 even when Monday is unchecked. Prove week wrap,
+  adjacent boundaries, duplicate starts on different days and weekly overlap
+  rejection with half-open intervals; validate the complete calendar before commit.
+- Represent unscheduled time explicitly in current statistics/accounting instead
+  of inventing an active shift or discarding production totals. Finalize its
+  record/reset policy in Core 8.5.2 alongside the extension.
+- Calendar edits take effect at the defined next boundary; closed history remains
+  immutable. Unsynchronized boundaries still carry the existing time-quality
+  warning; do not stop accounting, invent a valid clock or set the clock.
+- Test retained edits, full-week/default migration, no selected days, invalid
+  masks/durations, shift history truncation and per-root counter/OEE attribution.
+
+This supersedes the old daily-only assumption for the requested implementation;
+it does not claim native AB acceptance or a compiled TC3 V2 implementation.
+
+## Memory and evidence rules
+
+Keep the four-user ceiling and proportional manifest reserves. Reuse private
+scratch, bounded native loops and optional declarations. Record declared data,
+per-routine ST source/statements/lines and RLL deltas against the last completed
+download. These are trends, not compiled memory. If an item exhausts memory,
+optimize its owning implementation before growing another feature; do not weaken
+permissions, freshness, input validation or condition reports to obtain fit.
+Record Studio Capacity Estimate for both I/O and data/logic areas after Verify
+of the exact artifact, before another download. Track estimated remaining
+headroom against the native completed-download baseline; code/source counts
+cannot predict compiled saving. Press73 exceeds data/logic by 12,996 bytes.
+Do not grow Part/storage features until this deficit and native fit are resolved.
+
+Native snapshots, audit/alarm events, visited steps and verdict records remain
+controller-owned. Fast events cannot be reconstructed by gateway/HMI polling.
+Publish only consumed profiles; omit absent capabilities rather than rendering
+successful-looking placeholders. Keep released layouts additive/versioned.
+
+Evidence is append-only. Distinguish offline checks, Studio Verify, completed
+download, native command results, owner browser acceptance and physical retention.
+Keep exact failed runs and restoration results. Never edit old PASS records to
+broaden scope. No transient seed, alias or private credential may become a write
+surface. Capture commissioned configuration before generating a replacement;
+configuration seeding does not prove credential/download migration.
+
+## Platform exclusions and completion criteria
+
+The L24ER has no Integrated Motion: an axis/PartFeed claim requires another
+supported controller and S14 proof. The TC3 press itself leaves PartFeed unbound;
+do not simulate successful axis support. MANUAL_HELD needs an actual hold-to-run
+target contract; finite pneumatic manual commands do not establish it.
+Control-power and certified safety remain excluded/unclaimed; ordinary process
+two-hand/air permits do not acquire a safety certification through this port.
+
+The S1 clock probe, full persistence/durability/upgrade matrix and other
+family/firmware acceptance are separate gates. Time synchronization is observed
+read-only until the owner authorizes a clock operation. Packaging/signing/source
+distribution follows the deployment guide and [LICENSING.md](../../LICENSING.md).
+
+The press port is complete only when the requested applicable stages have native
+and browser evidence, with a current gap census and explicit hardware/profile
+exclusions. Passing a source suite or the first corrective download is not that
+completion claim. Next gate: restored native Line/browser/retention acceptance
+on loaded press75; then continue the remaining stages.

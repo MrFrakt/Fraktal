@@ -28,6 +28,7 @@ def emitter_callback(plc, args):
 def service_callback(plc, args, emit=emitter_callback):
     model = st.Controller(dict(**{n: plc.read(v) for n,v in zip(
         ('Part', 'Carrier', 'Ring', 'Ctx'), args[1:5])}, Index=0, WordValue=0, Nibble=0, Digit=0, IdentityMismatch=0,
+        **{name:0 for name in part.genealogy.LOCALS if part.genealogy.enabled(APP)},
         **{n: plc.eval(v) for n,v in zip(
             ('Operation', 'Verdict', 'Reason', 'RecordKind', 'MeasuredValue'), args[5:])}),
         calls={host.emitter_name(APP): emit})

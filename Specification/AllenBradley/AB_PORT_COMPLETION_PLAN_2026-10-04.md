@@ -12,7 +12,7 @@ BY_POSITION carrier now adds bounded Part/result storage, four canonical host
 events, scaled measurements, write-before-event commitment, verdict counts and
 consumer faults. It has ST/SFC/LD model and v38 compiler/read-back evidence;
 see [local carrier](Evidence/AB_LOCAL_CARRIER_2026-10-18.md). Device carriers,
-arbitrary textual resource values, genealogy, network sink/restart/clock-replay acceptance and commissioned
+native device/string providers, network sink/restart/clock-replay acceptance and commissioned
 nameplate/browser acceptance remain open. See
 [compiler/read-back evidence](Evidence/AB_HOST_NAMEPLATE_2026-10-18.md) and the
 [configuration guide](../Guides/AB_NEW_PROJECT_GUIDE.md#host-events-and-digital-nameplates).
@@ -244,15 +244,19 @@ closes the bounded native reset-method question and ordinary same-manifest Echo
 download delivery, including durable replay from the pre-download cursor.
 The [text-resource evidence](Evidence/AB_TEXT_RESOURCE_EVENTS_2026-10-18.md)
 adds bounded ASCII literals/array capture in optional host schema V4; the
-numeric V3 fixture remains byte-identical.
+numeric V3 fixture remains byte-identical. The
+[genealogy/recovery evidence](Evidence/AB_PART_GENEALOGY_2026-10-19.md) adds
+atomic confirmed-parent batches, historical capture, shared HMI display and
+forced restart/reconnect of a disposable read-only local gateway process.
+Installed-service, authenticated-write and remote-network recovery remain open.
 
 | Remaining point | Implementation or acceptance boundary |
 | --- | --- |
 | Native alarm integration | Core remains the event/reset/command-release owner. Native subscriber identity/order, delivery under load/backpressure, shelf mapping and external operator-command isolation are unqualified. The private comparison is not a production provider. |
 | Native health and elapsed time | Four bounded native TASK windows now qualify zero/sentinel reset methods on Echo. Production promotion still needs ownership of task-wide extrema and preserved per-scan event semantics. Clock adjustment, missed scans, Echo scaling and physical MODULE disconnect/inhibit/fault/recovery remain untested. |
-| Resource and extended Part producers | Confirmed MARK producers now capture signed DINT values in V3 or bounded ASCII literals/exact declared arrays in optional V4. Device-backed carriers and genealogy remain unimplemented. The local BY_POSITION carrier and four canonical Part events are implemented. Native device/string providers and non-ASCII values are separate qualified profiles. |
+| Resource and extended Part producers | Confirmed MARK producers now capture signed DINT values in V3 or bounded ASCII literals/exact declared arrays in optional V4. Confirmed component genealogy now selects Part V2/HostEvents V5, with atomic bounded batches, captured historical parents and generic HMI display; see [evidence](Evidence/AB_PART_GENEALOGY_2026-10-19.md). Device-backed carriers remain unimplemented. The local BY_POSITION carrier and four canonical Part events are implemented. Native device/string providers and non-ASCII values are separate qualified profiles. |
 | Line composition | Mirror/shared-root transport is unbound. Chrome Line controls and physical calendar/shift retention remain acceptance work. |
-| Host integration | Local Windows collector crash recovery, SQLite duplicate exclusion and same-manifest Echo download/restart delivery pass, including replay from the pre-download cursor. Network sinks, gateway service recovery, publisher identity under clock replay and physical restart/retention remain separate. The native alarm stream is not the HostEvents stream. |
+| Host integration | Local Windows collector crash recovery, SQLite duplicate exclusion and same-manifest Echo download/restart delivery pass, including replay from the pre-download cursor. Read-only local gateway process crash/reconnect now preserves Part/host history. Network sinks, installed-service and authenticated-write recovery, publisher identity under clock replay and physical restart/retention remain separate. The native alarm stream is not the HostEvents stream. |
 | Running-model set integration | Direct running-model set load is deliberately refused in both AB and TC3. Any future route must use prepare/readiness/commit and ordinary Changeover validation; this is shared work, not an AB-only parity defect. |
 | Deployment and physical acceptance | Establish exact physical artifact fit before growth; complete values/accounts/sets/models/Line power-cycle, download and upgrade retention; packaged gateway/Web HMI, browser flows, target-specific security and real nameplate/tower wiring acceptance. Echo evidence does not transfer to a physical controller. |
 

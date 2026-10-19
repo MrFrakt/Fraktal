@@ -415,6 +415,15 @@ class PartCard extends StatelessWidget {
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ),
           const SizedBox(height: 6),
+          for (final parent in part.parents)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(children: [
+                const Icon(Icons.account_tree_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: SelectableText(parent)),
+              ]),
+            ),
           for (final r in part.records) _measRow(context, r),
         ]),
       ),

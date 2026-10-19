@@ -475,11 +475,15 @@ RUN_STYLES = (RUN_CONTINUOUS, RUN_SINGLE_STEP, RUN_HOLD_TO_RUN)
 
 
 @dataclass(frozen=True)
-class ResourceText:
-    """Captured host value: exactly one literal or declared DINT ASCII array."""
+class AsciiSource:
+    """Captured ASCII: one literal or declared DINT array; the consumer owns bounds."""
 
     literal: str | None = None
     source: str = ''
+
+
+# Released resource declarations retain their existing constructor.
+ResourceText = AsciiSource
 
 
 @dataclass(frozen=True)
@@ -522,6 +526,7 @@ class Step:
     part_reason: int | str = 0
     part_record: int = 0  # one-based declared measurement
     part_value: str = ''  # exact Cfg/Ctx/module DINT member, scaled by the definition
+    part_parents: tuple[AsciiSource, ...] = ()  # consumed component UIDs at this MARK
     # Core 11.6: emit only at the owning process's confirmed MARK boundary.
     resource_kind: str = ''  # TOOL_CHANGED | MATERIAL_CHANGED
     resource_subject: str = ''  # 1..63 printable ASCII bytes, captured in the ring

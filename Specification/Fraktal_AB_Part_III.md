@@ -996,9 +996,32 @@ verdict/count commitment, failure propagation and the four host lifecycle events
 Its typed `(ProviderKind=1, ProviderIdx=1)` dispatch accepts the local provider
 only; the published Core CarrierKind is BY_POSITION=2. Required InOut additions
 use new versioned AOIs/UDTs, and existing carrier-off output is unchanged.
-Device providers, nonempty genealogy, external expected identity, runtime
-retention and complete §8.3 message-log parity remain unqualified. See the
+Confirmed-component genealogy is an opt-in local-provider profile, specified
+below. Device providers, external expected identity, runtime retention and
+complete §8.3 message-log parity remain unqualified. See the
 [local-carrier evidence](AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
+
+**Confirmed-component genealogy (optional Part schema V2).** A local carrier
+may declare `genealogy_capacity` in 1..8 (Core §3.16.1); zero omits genealogy
+storage and preserves earlier output. A nonzero capacity requires a consumer.
+`Step.part_parents` is a tuple of `AsciiSource` confirmations on an existing
+non-terminal MARK. Each source is a literal of 1..64 printable ASCII bytes or
+an exact declared DINT array of 1..64 cells. Short arrays are zero-padded;
+shorter UIDs shall have an entirely zero tail. A full 64-byte UID is permitted.
+Empty, control/non-ASCII, self-referencing and over-capacity batches are refused
+with `RESULT_RECORD_REJECTED`. The service shall validate the complete batch
+before changing the Part context. Repeated UIDs are idempotent confirmations,
+retained once in first-confirmation order; only distinct additions consume space.
+This is a confirmed consumption boundary, not a new canonical Part event.
+
+Part V2 publishes `ParentCount` and stable `Parents[i]` scalar UID paths with
+`ParentCapacity`; its byte storage is private to the binding. A new receive
+clears the live genealogy. Result write-back copies parents before verdict
+counters and PROCESSED publication. Aborts retain the confirmed context in the
+ABORTED snapshot without committing a successful result. Provider scratch and
+last-result storage stay private. Unit, Part-service, Part and provider types
+receive new version/capacity names; a project shall not change a released V1
+layout in place. Device acquisition remains a separate provider qualification.
 
 ### AB §3.17 Extension modes
 *Binds Core §3.17.*
@@ -2255,6 +2278,26 @@ The required-InOut Unit/Part-service and append AOIs use V4 names; existing
 V1-V3 output remains unchanged. Exact configuration compatibility may recognize
 the same declaration with only text-valued confirmations omitted, preserving
 ordinary value/schema validation and refusal of unrelated revisions.
+
+**Genealogy event snapshots (optional physical host schema V5).** A declared
+Part genealogy capacity selects V5. Part events (kinds 1..4) capture that
+boundary's parent set in the same revision-bracketed append as identity and
+result; the gateway shall never join a historical event to later live parents.
+Other event kinds carry an empty parent set. The physical ring adds a private
+pending count/buffer, per-slot `ParentCount` and `ParentWords` with sixteen
+packed DINT words per configured parent per retained slot. Four printable
+ASCII bytes occupy each positive DINT, low byte first. Every append clears the
+slot before filling the applicable captured parents. Acquisition shall refuse
+invalid bounds/bytes/padding, duplicate/self UIDs, nonempty inactive slots or
+parents on non-Part records. Logical events expose `Parents` as a string list;
+the generic HMI projection also exposes scalar `Parents[i]` slots.
+
+V5 type/AOI names encode text presence and genealogy capacity (`V5T0G<n>` /
+`V5T1G<n>`), so a genealogy-only declaration carries no unused text buffers.
+`AsciiSource` is the common descriptor; `ResourceText` remains its compatible
+alias. Earlier genealogy-free V1-V4 output is unchanged. Configuration restore
+may recognize only the exact predecessor declaration with genealogy capacity
+zero and parent confirmations omitted, with ordinary schema/value validation.
 
 Publication brackets initialization and append with an odd/even DataRevision.
 Only equal, even metadata around a bounded read is accepted. Positive DINT

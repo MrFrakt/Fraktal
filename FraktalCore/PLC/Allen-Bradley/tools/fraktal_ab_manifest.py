@@ -634,7 +634,16 @@ def content_hash(app: decl.Application) -> str:
         identity['signalTower'] = dict(schema=1, config=dataclasses.asdict(app.signal_tower), timer='TONR')
     if app.part_carrier is not None:
         import dataclasses
-        identity['partCarrier'] = dict(schema=1, provider=dataclasses.asdict(app.part_carrier), hostSchema=2)
+        import fraktal_ab_genealogy as genealogy
+        provider = dataclasses.asdict(app.part_carrier)
+        if not genealogy.enabled(app):
+            provider.pop('genealogy_capacity',None)
+        identity['partCarrier'] = dict(schema=2 if genealogy.enabled(app) else 1,
+            provider=provider, hostSchema=5 if genealogy.enabled(app) else 2)
+        if genealogy.enabled(app):
+            identity['partGenealogy'] = dict(schema=1, producers=[
+                dict(chain=chain.name,step=step.number,parents=[dataclasses.asdict(value) for value in step.part_parents])
+                for chain in app.chains for step in chain.steps if step.part_parents])
     import fraktal_ab_resources as resources
     if resources.enabled(app):
         identity['resourceEvents'] = dict(schema=2 if resources.text_enabled(app) else 1,

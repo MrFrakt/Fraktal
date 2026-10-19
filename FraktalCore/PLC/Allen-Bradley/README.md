@@ -21,7 +21,7 @@ records forced process crashes, contention and a read-only live Echo capture.
 The [publisher restart check](../../../Specification/AllenBradley/Evidence/AB_NATIVE_WINDOWS_RESTART_2026-10-18.md)
 now proves a same-manifest Echo download: one durable epoch-change notice,
 preserved old records and duplicate-free replay from the pre-download cursor.
-Network sinks, gateway service restart, clock replay and physical restart/retention
+Network sinks, installed-service and authenticated-write recovery, clock replay and physical restart/retention
 remain separate acceptance gates.
 Confirmed `TOOL_CHANGED` / `MATERIAL_CHANGED` producers now annotate existing
 Unit MARK boundaries. They capture a bounded subject and a signed DINT value,
@@ -36,15 +36,24 @@ shared append owner validates before commit and captures up to 80 characters;
 packed retained text occupies 84 bytes per slot. Existing V1-V3 output remains
 unchanged. No string editor, resource-control command or second event engine
 is introduced. See the [text-resource evidence](../../../Specification/AllenBradley/Evidence/AB_TEXT_RESOURCE_EVENTS_2026-10-18.md).
-The current local Echo image is `fraktal_ab_text_resource_demo`, manifest
-`999F73A4689D3C50`; select that declaration for its gateway/tools. The earlier
+Confirmed component UIDs now opt into Part V2 and HostEvents V5. A bounded
+MARK batch is validated atomically, duplicate confirmations are idempotent,
+and result write-back precedes the captured lifecycle event. The generic HMI
+shows parents; the durable sink retains historical lists after live reset.
+Genealogy-free declarations preserve their earlier output. See the
+[genealogy evidence](../../../Specification/AllenBradley/Evidence/AB_PART_GENEALOGY_2026-10-19.md).
+The same run proves forced restart/reconnect of a disposable read-only local
+gateway, preserving 260 Part/host-history values. Installed-service, write and
+remote-network recovery remain separate acceptance gates.
+The current local Echo image is `fraktal_ab_genealogy_demo`, manifest
+`6DEC4C1DC2F7F78A`; select that declaration for its gateway/tools. The earlier
 Part/tower/private-observer image references below describe their dated evidence.
 An opt-in local BY_POSITION carrier now adds Part identity, bounded scaled
 measurements, write-before-event result commits and received/started/processed/
 aborted events. The shared helper is called by ST/SFC/LD; failure and identity
 mismatch fault the consuming Unit. See the [traceability guide](../../../Specification/Guides/AB_NEW_PROJECT_GUIDE.md#local-part-traceability)
 and [compiler/model evidence](../../../Specification/AllenBradley/Evidence/AB_LOCAL_CARRIER_2026-10-18.md).
-Device carriers, genealogy and physical acceptance remain open. Text is bounded
+Device carriers and physical acceptance remain open. Text is bounded
 printable ASCII; a native device/string-provider integration is a separate seam.
 The owner-authorized [Echo download and idle-runtime check](../../../Specification/AllenBradley/Evidence/AB_ECHO_LOCAL_CARRIER_DOWNLOAD_2026-10-18.md)
 now passes on local serial `601FC87B`: Run, advancing scans, matching manifest
