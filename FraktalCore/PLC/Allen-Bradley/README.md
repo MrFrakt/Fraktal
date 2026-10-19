@@ -133,6 +133,31 @@ python tools/fraktal_ab_native_alarm_gate.py C:/work/alarms_new/generation.json 
 Both directories must be new. Optional repeatable `--case` and `--target`
 arguments select a bounded subset through the same guarded compiler gate.
 
+The [prepared native alarm observer](../../../Specification/AllenBradley/Evidence/AB_NATIVE_ALARM_OBSERVER_PREPARED_2026-10-18.md)
+adds a private 104-second comparison to the current timing/tower fixture,
+covering fast pulses, acknowledgement/latching/reset, suppression and native
+shelving/expiry. Both v38 compiler targets and full read-back pass; deployment
+requires current explicit approval. It leaves the production alarm owner and
+manifest unchanged. Native `.@Alarms` operands now pass through the shared ST
+formatter, and scalar intermediates respect native expression restrictions.
+
+```powershell
+python tools/fraktal_ab_alarm_observer.py C:/work/echo38_5580_seed.L5X C:/work/alarm_observer_new.L5X
+# Read-only collection after a separately authorized download:
+$env:FRAKTAL_AB_DECLARATION = 'fraktal_ab_tower_demo'
+python tools/fraktal_ab_alarm_observe.py --expect-serial 601FC87B --timeout 150 --output C:/work/alarm_observation_new.json
+```
+
+The owner's [authorized native alarm comparison](../../../Specification/AllenBradley/Evidence/AB_NATIVE_ALARM_RUNTIME_2026-10-18.md)
+now passes 22 native checks and all 31 tower/Part regressions on Echo `601FC87B`,
+with configuration/policy/session/inputs restored. The single-scan pulse was
+missed by the tag-based alarm and counted by ALMD; both native latches require
+condition-gone before reset. Programmatic `OperShelve` takes effect on this
+target despite its documented Read-only access; both shelves expire naturally.
+Core retains fast-event history, command-release/reset, shelving and authorization.
+Native plant projection, subscriber delivery and operator isolation remain open.
+The private comparison image is loaded; production alarm policy is unchanged.
+
 Current status (2026-10-04): **R0-R6 PASS at their recorded scope; main press
 operation and Phase 0-6 features have reference-bench proof on press68.** R6's
 original claim remains read-only. The later write-enabled S9 result is qualified

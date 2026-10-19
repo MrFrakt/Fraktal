@@ -97,6 +97,14 @@ END_CASE;'''
             with self.subTest(text=text), self.assertRaises(FormatError):
                 format_lines(text)
 
+    def test_native_alarm_extended_properties_keep_exact_operand_tokens(self):
+        source = 'Input.@Alarms.Projected.ProgReset:=CommandBits.0; IF Input.@Alarms.Projected.InAlarm THEN Flags:=Flags OR 1; END_IF;'
+        formatted = format_lines(source, width=55)
+        self.assertEqual(tokens(source),tokens('\n'.join(formatted)))
+        self.assertEqual(formatted,format_lines(formatted,width=55))
+        self.assertIn('Input.@Alarms.Projected.ProgReset := CommandBits.0;',formatted)
+        self.assertIn(('name','@Alarms'),tokens(source))
+
 
 class EmittedServices(unittest.TestCase):
     @classmethod

@@ -127,6 +127,17 @@ despite its documented programmatic Read-only designation. This remains an
 observational discriminator; runtime effect and operator isolation are unproved.
 Compiler acceptance cannot establish an authorization boundary.
 
+The [authorized Echo runtime comparison](Evidence/AB_NATIVE_ALARM_RUNTIME_2026-10-18.md)
+now resolves runtime effect on the exact local L81E/v38 image: programmatic
+`OperShelve` shelves the tag-based alarm, and both native alarm shelves expire
+naturally. The 22 native base checks and 31 restored tower/Part regressions
+pass. Tag-based alarming misses the tested one-scan pulse that ALMD counts;
+both native latches require condition-gone for reset, and acknowledgement
+retains the latch. Retain the Core fast-event ring, reset/command-release and
+authorization owner. Native subscriber identity/delivery/backpressure, Core
+shelf mapping and external operator isolation still need qualification before
+deploying a plant projection; this fixture is not a second production provider.
+
 The optional Core §8.13 tower uses the native ST `TONR(FBD_TIMER)` for its
 bounded test, rather than accumulating declared scan periods. Rockwell lists
 [TONR as a Structured Text instruction](https://www.rockwellautomation.com/en-us/docs/studio-5000-logix-designer/38-03/contents-ditamap/instruction-set/timer-and-counter-instructions/timer-on-delay-with-reset--tonr-.html);

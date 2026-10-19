@@ -9,14 +9,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import re
 import struct
 import tempfile
-import xml.etree.ElementTree as ET
 
 import fraktal_ab_generate as gen
-from fraktal_ab_phase0_fixture import replace_once, sha256
-import fraktal_ab_readback as readback
+from fraktal_ab_phase0_fixture import sha256
+import fraktal_ab_observer_fixture as fixture
 import fraktal_ab_tower_demo as tower
 
 TAG = 'FRK_NativeObserver'
@@ -93,21 +91,6 @@ def logic(app):
 
 def augment(text, app):
     """Change only the expected generated fixture and assert preservation."""
-    original = ET.fromstring(text)
-    controller = original.find('Controller')
-    if (controller.get('ProcessorType') != '1756-L81E'
-            or controller.get('MajorRev') != '38' or app.io_modules):
-        raise ValueError('observer requires the memory-only L81E/v38 fixture')
-    if any(element.get('Name') in (TAG, TYPE, ROUTINE) for element in original.iter()):
-        raise ValueError('observer already present')
-    tasks = controller.findall('Tasks/Task')
-    if (len(tasks) != 1 or tasks[0].get('Name') != app.task_name
-            or tasks[0].get('Type') != 'PERIODIC' or tasks[0].get('Rate') != '10'
-            or tasks[0].get('InhibitTask') != 'false'
-            or tasks[0].get('DisableUpdateOutputs') != 'true'):
-        raise ValueError('observer requires the unchanged output-disabled 10 ms task')
-    if [m.get('Name') for m in controller.findall('Modules/Module')] != ['Local']:
-        raise ValueError('observer refuses configured external modules')
     members = ''
     for names, datatype in ((DINTS, 'DINT'), (LINTS, 'LINT'), (INTS, 'INT')):
         for name in names:
@@ -119,31 +102,9 @@ def augment(text, app):
             members += (f'<Member Name="{name}" DataType="{datatype}" Dimension="{dimension}" '
                         'Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>')
     record = f'<DataType Name="{TYPE}" Family="NoFamily" Class="User"><Members>{members}</Members></DataType>'
-    text = replace_once(text, '</DataTypes>', record + '\n</DataTypes>')
-    # Insert in the controller's tag container; program-local Tags occur later.
-    index = text.index('</Tags>', text.index('</AddOnInstructionDefinitions>'))
-    text = text[:index] + (f'<Tag Name="{TAG}" TagType="Base" DataType="{TYPE}" '
-                         'Constant="false" ExternalAccess="Read Only"/>\n') + text[index:]
-    program = controller.find('Programs/Program')
-    main = program.get('MainRoutineName')
-    pattern = re.compile(rf'(<Routine Name="{re.escape(main)}" Type="ST">\s*<STContent>)(.*?)(</STContent>)', re.S)
-    def append(match):
-        lines = ET.fromstring('<STContent>' + match[2] + '</STContent>').findall('Line')
-        return match[1] + match[2] + f'<Line Number="{len(lines)}"><![CDATA[JSR({ROUTINE},0);]]></Line>\n' + match[3]
-    text, hits = pattern.subn(append, text)
-    if hits != 1:
-        raise ValueError('expected exactly one ST main routine')
-    # There is exactly one Program in this fixture; avoid touching AOI routines.
-    index = text.index('</Routines>', text.index('<Programs>'))
-    text = text[:index] + gen.st_program_routine(ROUTINE, logic(app)) + '\n' + text[index:]
-    updated = ET.fromstring(text)
-    first, second = readback.executable(original), readback.executable(updated)
-    key = (program.get('Name'), main)
-    assert second.pop((program.get('Name'), ROUTINE)) == readback.normalized('\n'.join(logic(app)))
-    assert second[key] == first[key] + readback.normalized(f'JSR({ROUTINE},0);')
-    second[key] = first[key]
-    assert second == first and readback.initials(original) == readback.initials(updated)
-    return text
+    tag = (f'<Tag Name="{TAG}" TagType="Base" DataType="{TYPE}" '
+           'Constant="false" ExternalAccess="Read Only"/>')
+    return fixture.augment(text, app, record=record, tags=[tag], routine=ROUTINE, body=logic(app))
 
 
 def generate(seed: Path, output: Path):
@@ -182,21 +143,7 @@ def decode(raw):
 
 def sample(comm, attempts=20):
     """Three reads bracket a whole UDT; no torn or odd revision is accepted."""
-    for _ in range(attempts):
-        before = comm.Read(TAG + '.Revision')
-        payload = comm.Read(TAG)
-        after = comm.Read(TAG + '.Revision')
-        if any(reply.Status != 'Success' for reply in (before, payload, after)):
-            raise ValueError('native observer acquisition failed')
-        try:
-            record = decode(payload.Value)
-        except ValueError as exc:
-            if str(exc) != 'observer publication incomplete':
-                raise
-            continue
-        if before.Value == record['Revision'] == after.Value:
-            return record
-    raise ValueError('native observer coherent snapshot unavailable')
+    return fixture.sample(comm, TAG, decode, attempts)
 
 
 def assess(first, last, host_seconds):

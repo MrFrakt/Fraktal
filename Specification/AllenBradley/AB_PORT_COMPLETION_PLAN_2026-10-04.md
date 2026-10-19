@@ -100,6 +100,25 @@ it. Runtime projection, native operator-command isolation, shelving/history
 comparison and physical acceptance remain open. The current Echo image and
 production alarm owner are unchanged.
 
+The [bounded native alarm observer](Evidence/AB_NATIVE_ALARM_OBSERVER_PREPARED_2026-10-18.md)
+is now prepared and compiled for both v38 targets, with a current upload backup
+and configuration preflight. It retains 14 native phase observations over 104
+PLC seconds, adds no production provider/manifest fields and awaits a separately
+authorized download plus the existing 31 tower/Part regression checks. Its
+preparation closes the shared formatter's native `.@Alarms` operand gap and
+uses scalar intermediates required by the native compiler. N2 runtime/security
+acceptance remains open until that evidence exists.
+
+The subsequent [owner-authorized native runtime comparison](Evidence/AB_NATIVE_ALARM_RUNTIME_2026-10-18.md)
+passes 22 native checks and the 31 tower/Part regressions on local Echo, with
+configuration and original policy/session/inputs restored. Tag-based alarming
+misses the tested single-scan pulse while ALMD counts it; native latches refuse
+reset with the condition active. Programmatic `OperShelve` works at runtime
+despite the help's Read-only designation, and both native shelves expire.
+This closes the bounded native reset/ack/suppression/shelf comparison, retaining
+Core's event/recovery owner. Native delivery/backpressure, shelf mapping,
+external operator isolation, clock adjustments and physical acceptance remain open.
+
 The [TIA follow-up](AB_TIA_FOLLOWUP_2026-10-18.md) records the implemented
 active-endpoint display, independent AB channel sample validity and repaired
 specification gate, with their validation. Gateway/controller identity display,
