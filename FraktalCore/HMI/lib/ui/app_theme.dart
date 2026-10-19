@@ -761,8 +761,21 @@ List<int> get kThemeDisplayOrder {
 /// Localised display keys for the picker (kept for any legacy consumer).
 List<String> get kThemeNames => [for (final t in kThemes) t.nameKey];
 
-ThemeData themeAt(int i, [ControlScale scale = ControlScale.compact]) =>
-    kThemes[i.clamp(0, kThemes.length - 1)].toThemeData(scale);
+/// The theme for a selection, built once and then reused.
+///
+/// The app rebuilds `MaterialApp` on every PLC snapshot, and a freshly built
+/// [ThemeData] never compares equal to the last one (its extensions are not
+/// value types). Every `AnimatedTheme` in the tree - the app's own and the
+/// ones inside each tooltip and button - then restarted its 200 ms tween on
+/// every snapshot, nested tweens cascading, so a panel at the field's 2 Hz
+/// snapshot rate repainted continuously while nothing visible had changed.
+ThemeData themeAt(int i, [ControlScale scale = ControlScale.compact]) {
+  final index = i.clamp(0, kThemes.length - 1);
+  return _themeCache.putIfAbsent(
+      (index, scale), () => kThemes[index].toThemeData(scale));
+}
+
+final _themeCache = <(int, ControlScale), ThemeData>{};
 
 /// Fixed severity colours — theme-aware only for HIGH (uses error). MEDIUM/LOW
 /// are the [warningColor]/[infoColor] semantics, brightness-adapted so an amber
@@ -877,6 +890,15 @@ Color foregroundOn(BuildContext context, Color fill) {
     _ => _betterOf(Colors.black, Colors.white, fill),
   };
 }
+
+/// [preferred] where it reads at [minimum] on [fill], else the better of black
+/// and white. For a status hue drawn on a TINT of itself - a severity-tinted
+/// tree row - where the hue that carries the meaning can land at 3:1: the tint
+/// and the row's border still say which severity, and the label stays legible.
+Color legibleOn(Color preferred, Color fill, {double minimum = 4.5}) =>
+    _contrastRatio(preferred, fill) >= minimum
+        ? preferred
+        : _betterOf(Colors.black, Colors.white, fill);
 
 /// Whichever of [a]/[b] contrasts more strongly with [on].
 Color _betterOf(Color a, Color b, Color on) =>

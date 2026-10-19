@@ -64,6 +64,11 @@ Color _backgroundOf(Element leaf, Color pageSurface) {
       c = w.color;
     } else if (w is ColoredBox) {
       c = w.color;
+    } else if (w is RawChip) {
+      // A chip paints its own fill (the alarm banner's "+N" count is filled
+      // with the severity colour); without it the label is measured against
+      // whatever lies behind the chip.
+      c = w.backgroundColor;
     }
     if (c != null && c.a > 0) fills.add(c);
     return true;

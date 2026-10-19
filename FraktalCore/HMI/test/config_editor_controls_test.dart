@@ -106,7 +106,10 @@ void main() {
     final station = find.byKey(const ValueKey('cfg-card-stationCfg'));
     expect(station, findsOneWidget, reason: 'station config is its own card');
     expect(find.byKey(const ValueKey('cfg-card-parCfg')), findsOneWidget);
-    expect(find.byKey(const ValueKey('cfg-card-lineCfg')), findsNothing,
+    expect(find.byKey(const ValueKey('cfg-card-lineCfg')), findsOneWidget,
+        reason: 'Station A owns the line, so it presents the line config');
+    final packer = app.forest.firstWhere((root) => root.path == 'PackerC');
+    expect(ConfigEditor.shows(packer, CfgKind.lineCfg), isFalse,
         reason: 'a kind the module does not publish has no card');
     expect(find.text('Station config'), findsOneWidget);
 

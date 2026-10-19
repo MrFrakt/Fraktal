@@ -145,4 +145,69 @@ void main() {
         reason:
             'the Rate tag is missing: the slot says so, it keeps its column');
   });
+
+  testWidgets('the largest profile fits the narrowest authored cell',
+      (tester) async {
+    // Three metrics and two badges under every built-in chip and a message:
+    // the most a tile may carry, in the narrowest cell the grid lays out.
+    const full = ModuleTileProfile(metrics: [
+      _rate,
+      ModuleControlDefinition(
+          id: 'cycle',
+          kind: ModuleControlKind.value,
+          label: 'Cycle',
+          unit: 's',
+          bindings: ['OutImm/Cycle']),
+      ModuleControlDefinition(
+          id: 'press',
+          kind: ModuleControlKind.value,
+          label: 'Clamp',
+          unit: 'bar',
+          bindings: ['OutImm/Press']),
+    ], badges: [
+      _air,
+      ModuleControlDefinition(
+          id: 'door',
+          kind: ModuleControlKind.shape,
+          label: 'Guard',
+          bindings: ['OutImm/Door']),
+    ]);
+    await tester.pumpWidget(LocalizationScope(
+      controller:
+          LocalizationController(enabledLanguages: {'en'}, activeLanguage: 'en'),
+      child: MaterialApp(
+        theme: themeAt(0),
+        home: const Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 340,
+              height: 340 / kAuthoredTileAspect,
+              child: StationCard(
+                node: ModuleNode(
+                  path: 'PressA',
+                  name: 'PressA',
+                  type: ModuleType.unit,
+                  modelCode: 'A100',
+                  modeActive: UnitMode.auto,
+                  goodCount: 842,
+                  nokCount: 9,
+                  message: 'Producing.',
+                  publishedValues: {
+                    'OutImm/Rate': 351,
+                    'OutImm/Cycle': 10.3,
+                    'OutImm/Press': 5.6,
+                    'OutImm/AirOk': true,
+                    'OutImm/Door': true,
+                  },
+                ),
+                tile: full,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+    expect(tester.takeException(), isNull, reason: 'no overflow in the cell');
+  });
 }

@@ -229,8 +229,17 @@ class _StepRow extends StatelessWidget {
                     child: Text(
                       // U+2225 — the IEC symbol for a simultaneous divergence.
                       '∥${step.branch}',
+                      // The UI faces (Segoe UI, Roboto) lack U+2225; name the
+                      // symbol faces that carry it rather than rely on a
+                      // platform fallback that a minimal Linux panel lacks.
                       style: TextStyle(
-                          color: fg, fontSize: 11 * metrics.textScale),
+                          color: fg,
+                          fontSize: 11 * metrics.textScale,
+                          fontFamilyFallback: const [
+                            'Segoe UI Symbol',
+                            'Noto Sans Math',
+                            'DejaVu Sans',
+                          ]),
                     ),
                   ),
                 ],

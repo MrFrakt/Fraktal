@@ -270,8 +270,11 @@ class CommandTimingView extends StatelessWidget {
           Row(children: [
             const Icon(Icons.av_timer),
             const SizedBox(width: 8),
-            LText('Command timing — $moduleName',
-                style: theme.textTheme.titleMedium),
+            Expanded(
+              child: LText('Command timing — $moduleName',
+                  style: theme.textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis),
+            ),
           ]),
           const SizedBox(height: 8),
           Row(children: [

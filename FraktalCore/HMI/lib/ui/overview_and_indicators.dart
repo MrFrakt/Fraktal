@@ -31,13 +31,16 @@ class CurrentStepCard extends StatelessWidget {
           Row(children: [
             const Icon(Icons.directions_run),
             const SizedBox(width: 8),
-            LText('std.step.current',
-                args: {
-                  'number': step.stepNo,
-                  'name': context.tr(step.stepName),
-                },
-                style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
+            // A step title is whatever the chain named it, so it wraps rather
+            // than pushing the STARVED/BLOCKED chips off a narrow card.
+            Expanded(
+              child: LText('std.step.current',
+                  args: {
+                    'number': step.stepNo,
+                    'name': context.tr(step.stepName),
+                  },
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
             // Fixed pastels need an explicit paired label: the themed one is
             // resolved for the default surfaces and goes white on a dark theme.
             if (step.starved)
@@ -143,9 +146,12 @@ class StepParetoView extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
+        // The label is a catalog key (the step's `M_Step` title); translate it
+        // before prefixing the number, or the concatenation is no key at all
+        // and the raw `project.step.*` text reaches the operator.
         SizedBox(
             width: 130,
-            child: LText('${s.stepNo} ${s.label}',
+            child: Text('${s.stepNo} ${ctx.tr(s.label)}',
                 overflow: TextOverflow.ellipsis)),
         Expanded(
           child: LayoutBuilder(builder: (_, box) {
@@ -222,7 +228,10 @@ class EngineeringModeBanner extends StatelessWidget {
             border: Border(left: BorderSide(width: 4, color: c))),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(Icons.construction, color: c),
+          // The sentence shade, like the text beside it: the glyph shade
+          // (amber-800) is 4.2:1 on white and less on this tint.
+          Icon(Icons.construction,
+              color: severityTextColor(context, Severity.medium)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -367,7 +376,8 @@ class GlobalAlarmBanner extends StatelessWidget {
                 Severity.medium => Icons.warning_amber,
                 Severity.low => Icons.info_outline
               },
-              color: fill == null ? c : foreground,
+              // Same ink as the sentence: the icon lands on the same tint.
+              color: foreground,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -447,6 +457,9 @@ class ConnectionChip extends StatelessWidget {
   }
 }
 
+/// The overview cell's width/height once tiles carry authored slots.
+const double kAuthoredTileAspect = 1.35;
+
 /// Plant overview dashboard — the at-a-glance landing screen: one card per root
 /// with state, model, mode, counters, and worst active severity. Tap to drill in.
 class PlantOverview extends StatelessWidget {
@@ -458,17 +471,26 @@ class PlantOverview extends StatelessWidget {
       // Wider cells keep enlarged labels/chip rows inside the fixed tile
       // geometry, including while the landing screen is first connecting.
       final cols = box.maxWidth ~/ (340 * ControlScaleScope.of(context).textScale);
+      final tiles = [
+        for (final r in app.forest)
+          (r, app.content.tileFor(r.path, typeKey: r.typeKey)),
+      ];
+      // One geometry for every tile (LOCALIZATION §7.5), tall enough for the
+      // largest profile a tile may carry - three metrics and two badges under
+      // the built-in chips - once any station has authored slots. At 1.7 a
+      // full profile overflowed a minimum-width cell.
+      final authored = tiles.any((t) => t.$2 != null && !t.$2!.isEmpty);
       return GridView.count(
         padding: const EdgeInsets.all(16),
         crossAxisCount: cols.clamp(1, 4),
-        childAspectRatio: 1.7,
+        childAspectRatio: authored ? kAuthoredTileAspect : 1.7,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         children: [
-          for (final r in app.forest)
+          for (final (r, tile) in tiles)
             StationCard(
               node: r,
-              tile: app.content.tileFor(r.path, typeKey: r.typeKey),
+              tile: tile,
               onTap: () => app.select(r.path),
             ),
         ],

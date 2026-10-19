@@ -7,6 +7,7 @@ import '../localization/localized_text.dart';
 import 'package:flutter/material.dart';
 import 'theme_surfaces.dart';
 import '../domain/types.dart';
+import '../state/hmi_clock.dart';
 import 'app_theme.dart';
 import 'hmi_icons.dart';
 
@@ -300,7 +301,7 @@ class LinkCard extends StatelessWidget {
 
   String _ago(DateTime? t) {
     if (t == null) return '—';
-    final s = DateTime.now().difference(t).inSeconds;
+    final s = hmiNow().difference(t).inSeconds;
     return s <= 1 ? 'just now' : '${s}s ago';
   }
 }
@@ -580,13 +581,13 @@ class ShiftCard extends StatelessWidget {
               shift.startedAt != null &&
               shift.endsAt != null)
             LText('std.shift.elapsedRemaining', args: {
-              'elapsed': DateTime.now()
+              'elapsed': hmiNow()
                   .toUtc()
                   .difference(shift.startedAt!)
                   .inMinutes
                   .clamp(0, 2147483647),
               'remaining': shift.endsAt!
-                  .difference(DateTime.now().toUtc())
+                  .difference(hmiNow().toUtc())
                   .inMinutes
                   .clamp(0, 2147483647),
             }),

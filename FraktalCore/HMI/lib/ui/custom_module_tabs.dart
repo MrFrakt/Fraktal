@@ -14,6 +14,7 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import '../state/hmi_clock.dart';
 import 'app_theme.dart';
 import 'facet_cards.dart';
 import 'touch_text_field.dart';
@@ -188,7 +189,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
   }
 
   void _sampleCharts() {
-    final now = DateTime.now();
+    final now = hmiNow();
     final chartSeriesKeys = <String>{};
     for (final control in widget.tab.controls) {
       if (control.kind != ModuleControlKind.chart) continue;

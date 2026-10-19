@@ -12,6 +12,7 @@ import 'theme_surfaces.dart';
 import '../domain/module_node.dart';
 import '../domain/types.dart';
 import '../state/app_state.dart';
+import '../state/hmi_clock.dart';
 import '../data/opcua_field_tier.dart';
 import '../content/module_content_controller.dart';
 import '../localization/localized_text.dart';
@@ -1889,7 +1890,7 @@ class _ModuleCardsTab extends StatelessWidget {
 /// that these are named facts with a value and a moment, never what the module is.
 Widget _stateFlags(BuildContext context, List<StateFlag> flags) {
   final scheme = Theme.of(context).colorScheme;
-  final now = DateTime.now();
+  final now = hmiNow();
   return Padding(
     padding: const EdgeInsets.only(top: kInlineItemGap),
     child: Wrap(
@@ -1911,19 +1912,21 @@ Widget _stateFlags(BuildContext context, List<StateFlag> flags) {
                 ? scheme.onSurfaceVariant
                 : (f.value ? scheme.primary : scheme.onSurfaceVariant),
           ),
-          label: LText(_flagLabel(f, now)),
+          label: Text(_flagLabel(context.tr(f.key), f, now)),
         ),
     ]),
   );
 }
 
-String _flagLabel(StateFlag f, DateTime now) {
-  if (f.stale || f.since == null) return f.key;
+/// [name] is the flag's key already translated: the key is a catalog key
+/// (`project.state.*`), and a key with a duration appended is no key at all.
+String _flagLabel(String name, StateFlag f, DateTime now) {
+  if (f.stale || f.since == null) return name;
   final held = now.difference(f.since!);
-  if (held.isNegative || held.inSeconds < 1) return f.key;
-  if (held.inMinutes < 1) return '${f.key} · ${held.inSeconds}s';
-  if (held.inHours < 1) return '${f.key} · ${held.inMinutes}m';
-  return '${f.key} · ${held.inHours}h';
+  if (held.isNegative || held.inSeconds < 1) return name;
+  if (held.inMinutes < 1) return '$name · ${held.inSeconds}s';
+  if (held.inHours < 1) return '$name · ${held.inMinutes}m';
+  return '$name · ${held.inHours}h';
 }
 
 /// §7.6.1a refresh cadence for hold-to-run: 300 ms against the PLC's 750 ms

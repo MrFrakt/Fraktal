@@ -110,6 +110,15 @@ class TreeMenu extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final chrome = FraktalChromeTheme.of(context);
     final tintColor = sev == null ? null : severityColor(context, sev);
+    // The row as painted: the severity tint over the tree's own surface. Every
+    // glyph on a tinted row is paired with THIS, not with the bare tint - a
+    // light hue at 28% over a dark surface is a mid-tone the hue itself only
+    // reaches at ~3:1 against.
+    final rowFill = tintColor == null
+        ? null
+        : Color.alphaBlend(
+            tintColor.withValues(alpha: own != null ? 0.28 : 0.10),
+            cs.surfaceContainerLow);
     final tiles = <Widget>[
       InkWell(
         onTap: () => app.select(n.path),
@@ -156,13 +165,16 @@ class TreeMenu extends StatelessWidget {
                     // 1.77:1 dark).
                     color: (selected && sev == null)
                         ? cs.onSecondaryContainer
-                        : null,
+                        : rowFill == null
+                            ? null
+                            : legibleOn(cs.onSurfaceVariant, rowFill),
                     icon: Icon(open ? Icons.expand_more : Icons.chevron_right),
                     onPressed: () => app.toggleExpand(n.path),
                   )
                 else if (!compact)
                   const SizedBox(width: 28),
-                _typeIcon(context, n, tintColor,
+                _typeIcon(context, n,
+                    rowFill == null ? null : legibleOn(tintColor!, rowFill),
                     selected: selected && sev == null),
                 if (!compact) ...[
                   const SizedBox(width: 6),
@@ -180,7 +192,9 @@ class TreeMenu extends StatelessWidget {
                         // work on the normal themes but collapses to 1.8:1 on
                         // the high-contrast ones — where that fill is dark.
                         color: own != null
-                            ? (chrome == null ? tintColor : cs.onSurface)
+                            ? (chrome == null
+                                ? legibleOn(tintColor!, rowFill!)
+                                : cs.onSurface)
                             : (selected && sev == null
                                 ? cs.onSecondaryContainer
                                 : null),

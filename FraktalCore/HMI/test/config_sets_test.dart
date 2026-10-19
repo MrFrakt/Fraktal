@@ -38,9 +38,13 @@ void main() {
     });
 
     test('an empty set and a fifth name are refused', () async {
-      // The simulator has no line data, so a line set would carry nothing.
-      expect(await repo.saveConfigSet('StationA', 'nothing', CfgKind.lineCfg),
+      // Packer C is on no line, so a line set of it would carry nothing.
+      expect(await repo.saveConfigSet('PackerC', 'nothing', CfgKind.lineCfg),
           isFalse);
+      expect(await repo.saveConfigSet('StationA', 'calendar', CfgKind.lineCfg),
+          isTrue,
+          reason: 'Station A owns the line, so it saves the line calendar');
+      expect(await repo.deleteConfigSet('StationA', 'calendar'), isTrue);
       for (final name in ['a', 'b', 'c', 'd']) {
         expect(await repo.saveConfigSet('StationA', name, CfgKind.stationCfg),
             isTrue);

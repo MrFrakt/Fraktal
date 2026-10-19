@@ -108,19 +108,61 @@ through TCP preflight, native repository creation or Web-gateway handshake,
 Fraktal discovery, and live-state publication instead of waiting indefinitely.
 
 ## What's demonstrated (SimRepository)
-- **Forest** (§3.1a): two roots (`StationA` running MODEL-A, `ConveyorB` running MODEL-B); scope selector = whole forest or one station.
-- **Shrinkable tree** (left): expand/collapse per node, collapsible to an icon rail.
-- **Event path highlighting** (§3.13): CylB error tints `StationA → ClampStation → CylB` red (source strongest); a conveyor warning tints its path amber; a robot message tints blue. Severity = subtree max (error > warning > info).
-- **§8.3 lifecycle**: blocked banner (MANUAL_RESET), Operator reset (first click = condition gone → *awaiting reset*; second = closes into history **with duration**), history list gated by `ALARM_HISTORY`.
-- **§7.7 access**: fully-open default; login (`op1/1111`, `tech1/4711`, `eng1/9999`, `admin1/2468`); controls grey below threshold; ADMIN can edit the local Unit assignment; theme changing is level-gated HMI config (`HmiConfig.themeMinLevel`, default open).
+
+Choosing **Simulation** in the connection wizard runs the integrated demo: a
+simulated controller whose plant exercises every surface the HMI renders.
+[`tool/screenshots`](tool/screenshots/README.md) renders a screenshot catalog of
+each one from this demo into `doc/screenshots/` — generated output, not committed.
+
+- **Forest** (§3.1a): three roots — `StationA` (clamp and inspect), `ConveyorB`
+  (transfer) and `PackerC` (case packer) — with a Unit inside a Unit
+  (`PackerC.Labeler`, §3.1). Every module type carries a §7.1 type key.
+- **Sequences** (§3.13, §6.5, §6.9, §6.12): every chain runs on one engine
+  (`lib/data/sim_sequence.dart`), so the flow chart, the current step, the cycle
+  Gantt, trend and Pareto all come from the steps actually taken. Station A's
+  AUTO chain forks into two parallel legs, marks a handled code-reader retry as a
+  §6.9(e) warning, stalls (pending) before it faults, and HOME and CHANGEOVER
+  have chains of their own; CHANGEOVER waits for the operator, which opens the
+  authored guidance.
+- **A scripted plant** (`SimTour`, a 150 s loop): light-curtain muting, an
+  air-pressure dip that starves the station, a tool-wear decision (§6.11), a lost
+  conveyor heartbeat (Annex D, a stale §3.12 flag), and a cylinder jam with a
+  guard opened and closed while it is freed. The jam latches until an operator
+  reset — which clears the latch, never the condition — and the station then
+  waits for Control On (§9.8) and Start; it never resumes on its own.
+- **Alarms** (§8.2–§8.10): event-path tinting, first-out with electrical I/O
+  tags, MANUAL_RESET vs AUTO_RESET, §8.9 rationalization on every reason,
+  shelving of shelvable reasons, a history ring with durations and audit entries.
+- **Performance** (§8.5, §8.11): counters with rework, OEE with trend, shifts
+  from a weekly line calendar with targets and closed-shift history, command
+  timings per module.
+- **Hardware** (§9.8, §8.12, §8.13, §10.5.1): certified safety mirrored
+  read-only (muting, demand, reset required), a control domain shared by two
+  roots with power groups that trip and need re-arming, controller and clock
+  health (one controller deliberately unsynchronized), the signal tower and its
+  lamp test, nameplates, and an EtherCAT tree whose channels are named by
+  electrical tag, with a terminal identity mismatch.
+- **Device modules**: robot (motion, part record, hold-to-run jog), vision
+  camera, code reader and RFID reader, recognised from what they publish.
+- **Configuration** (§3.8): model data per model, station data with §3.8d data
+  classes, line data owned by Station A and mirrored by Conveyor B, parameter
+  sets, model creation, durability (`restoreLost`/`persistFailed`).
+- **Commissioning build** (§7.5): the demo declares its simulation and
+  output-forcing gates, which is what makes fieldbus outputs forceable at all;
+  `SimRepository(commissioning: false)` is a production-like build.
+- **§7.7 access**: fully-open PLC policy by default, editable from the panel;
+  login (`op1/1111`, `tech1/4711`, `eng1/9999`, `admin1/2468`); controls grey
+  below threshold; ADMIN can edit the local Unit assignment; theme changing is
+  level-gated HMI config (`HmiConfig.themeMinLevel`, default open).
 
 ## Honest status
 Verified against Flutter 3.47.5 (2026-09-28 — the pinned SDK; `pubspec.lock` cannot
-resolve on an older one): `flutter analyze` clean, **413 tests passing** with 6
+resolve on an older one): `flutter analyze` clean, **591 tests passing** with 12
 intentional live-environment skips (`flutter test`),
 and `flutter build web` succeeds. The suite is offline by design — SimRepository and
 fakes, no PLC, no ADS, no network; anything needing hardware lives in `tool/probe_*.dart`
-and is deliberately not run. Enum **ordinals in `lib/domain/types.dart` are the PLC
+and is deliberately not run. `tool/screenshots/*_test.dart` render the demo to
+PNG and are also not part of the suite (run them by path). Enum **ordinals in `lib/domain/types.dart` are the PLC
 contract** (must match the Core DUTs); `plc_lint` rule E1 checks that parity on every
 commit, and they remain the first thing to verify against a real server.
 
