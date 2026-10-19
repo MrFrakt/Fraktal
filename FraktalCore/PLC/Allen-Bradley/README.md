@@ -13,6 +13,13 @@ The disposable `fraktal_ab_host_demo.py` enables these features with fictitious
 asset identity and all three AUTO renditions; it is not a deployment declaration.
 See the [configuration guide](../../../Specification/Guides/AB_NEW_PROJECT_GUIDE.md#host-events-and-digital-nameplates)
 and [compiler/read-back evidence](../../../Specification/AllenBradley/Evidence/AB_HOST_NAMEPLATE_2026-10-18.md).
+The local collector now recovers from process termination using an OS-held cursor
+lock. Optional SQLite delivery commits before acknowledgement and deduplicates
+events and explicit loss notices; conflicting key content is refused. The
+[host recovery evidence](../../../Specification/AllenBradley/Evidence/AB_HOST_RECOVERY_2026-10-18.md)
+records forced process crashes, contention and a read-only live Echo capture.
+Network sink delivery, gateway service restart and publisher restart identity
+remain separate acceptance gates.
 An opt-in local BY_POSITION carrier now adds Part identity, bounded scaled
 measurements, write-before-event result commits and received/started/processed/
 aborted events. The shared helper is called by ST/SFC/LD; failure and identity

@@ -677,26 +677,41 @@ ST, SFC and LD call the same generated append AOI. Required-InOut changes use a
 new Unit AOI name containing capacity/version; existing signatures stay intact.
 
 The gateway reads the stream through its normal tiered projection. A host may
-also run a serial/build-guarded **read-only** acquisition into a local JSONL
+also run a serial/build-guarded **read-only** acquisition into a local SQLite
 sink, selected with the station's ordinary `FRAKTAL_AB_DECLARATION`:
 
 ```powershell
-python FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_host_events.py <controller> --expect-serial <serial> --cursor C:/StationData/mes.cursor.json --output C:/StationData/mes.events.jsonl
+python FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_host_events.py <controller> --expect-serial <serial> --cursor C:/StationData/mes.cursor.json --sqlite-output C:/StationData/mes.events.sqlite
 ```
 
 The station must already publish the matching ring. A dedicated cursor belongs
 to one sink/controller/build; it advances only after durable sink acceptance.
-Delivery is at least once, so deduplicate `idempotencyKey`. Failed sinks are
+Delivery is at least once, so deduplicate `idempotencyKey`. SQLite commits before
+acknowledgement, stores each event/loss key once, and refuses the same key with
+different content. Its metadata binds the database to that station/controller/build.
+Use a dedicated local database and cursor together; do not point an acknowledged
+cursor at a new empty sink. Query `Events` ordered by `Id`; `Record` contains the
+complete JSON envelope. SQLite supplies transactions and duplicate exclusion;
+no additional Python package or second PLC history is introduced.
+The existing `--output <file.jsonl>` option appends JSONL with flush/fsync;
+it may append duplicates across a crash and downstream readers must deduplicate.
+Failed sinks are
 retried without acknowledging missing events. Ring overwrite and publisher
 epoch change are explicit loss notices. The bounded sequence fails rather than
-reusing a key at exhaustion. Cursor files use exclusive `.lock`/`.pending`
-companions and atomic replace; after a process crash, confirm no writer remains
-before removing a stale companion. A malformed or busy cursor is never silently
-reset. No outbound network sink is started by default.
+reusing a key at exhaustion. Event and loss envelopes both carry stable keys.
+Cursor files use an OS-held, nonblocking `.guard` lock and atomic replace from
+uniquely named `.pending` files. Process termination releases the lock; orphaned
+pending files are ignored and never treated as acknowledgements. Keep the
+persistent `.guard` file in place, including when idle. Stop older collectors
+before upgrading; an old `.lock` sentinel is refused and requires confirming the
+old writer has stopped before removal. A malformed or busy cursor is never
+silently reset. No outbound network sink is started by default.
 
 Part events require the opt-in local carrier described below; tool/material change
 producers are not implemented. Clock replay, restart identity, retention,
-live gateway/sink recovery and browser acceptance are separate target gates.
+network sink delivery, gateway service recovery and browser acceptance are
+separate target gates. Local Windows collector crash recovery is covered by the
+[host recovery evidence](../AllenBradley/Evidence/AB_HOST_RECOVERY_2026-10-18.md).
 The [compiler/read-back evidence](../AllenBradley/Evidence/AB_HOST_NAMEPLATE_2026-10-18.md)
 records the disposable v38 fixture; it is not a physical v33/v38 deployment claim.
 
@@ -836,13 +851,13 @@ electrical output write is used. The source fixture has no physical lamp wiring.
 | Part traceability (Core 3.16) | optional local BY_POSITION carrier, bounded scaled records, verdict counts, identity/write guards and generic projection; ST/SFC/LD model/compiler and local Echo cycle/recovery proof; device providers, genealogy and physical acceptance remain open |
 | Line data/shifts (Core 3.8e, 8.5.2) | press75 fit and 17 native calendar/weekend-end rows pass; Chrome/physical retention remain separate; mirror/shared-root composition remains unbound |
 | SignalTower/LAMP_TEST | optional shared mapper, native TONR, MANUAL mailbox gate and generic HMI implemented; exact target evidence linked above; electrical/HAL mapping and physical acceptance remain open |
-| HostEvents | optional PLC mode/changeover/NOK ring plus V2 local part lifecycle events, generic projection and acknowledged cursor; v38 compile/read-back and local live sink refusal/reopen tested; resource producers, gateway process restart and network sink acceptance remain open |
+| HostEvents | optional PLC mode/changeover/NOK ring plus V2 local part lifecycle events, generic projection and acknowledged cursor; v38 compile/read-back, local Windows collector crash recovery and SQLite duplicate exclusion tested; resource producers, gateway service restart and network sink acceptance remain open |
 | Control-power/safety profiles | power deliberately excluded; process/two-hand logic is not certified-safety conformance |
 | Nameplate/IDTA | optional complete Core nameplate fields implemented through manifest v5/generic HMI; actual asset commissioning/browser and optional IDTA companion claims remain separate |
 | I/O connection state in health | native v38 compiler probes pass; external-module/runtime qualification remains open |
 | MANUAL_HELD / Integrated Motion | no manual-held route; L24ER has no motion/S14 proof |
 | Retention | owner confirms one admin and one air-threshold edit across cycles; full values/accounts/sets/models, durability and upgrade matrix remain unverified |
-| Project-chosen retained-data medium (TC3 §3.8b, IMPLEMENTATION_NOTES §163) | declared medium and `SetStore` interface (file medium; database refused until named); live station/line/model documents restored after a download through the staged set path, offline-proved; press79 Verify/Capacity/download, power-cycle/download acceptance and Chrome view remain owner gates |
+| Project-chosen retained-data medium (TC3 §3.8b, IMPLEMENTATION_NOTES §163) | declared medium and `SetStore` interface (file medium; configuration database medium refused until named); staged station/line/model restore and reopened documents match on local Echo; physical fit, full power-cycle/download/upgrade retention and Chrome view remain separate gates. The optional SQLite HostEvents sink is independent of the configuration medium. |
 | S1 clock probe, other targets and packaged AB installer | separate acceptance; not implied by press68 S9 |
 
 The owner requested completion beyond the earlier Phase 6 boundary. Follow the
@@ -851,8 +866,10 @@ continuing with Chrome/physical Line checks after
 [press75 native acceptance](../AllenBradley/Evidence/AB_LINE_V2_PRESS75_NATIVE_ACCEPTANCE_2026-10-04.md), preserving
 [press70 native acceptance](../AllenBradley/Evidence/AB_PHASE6_PRESS70_NATIVE_ACCEPTANCE_2026-10-04.md).
 
-The current gap census and the next implementation order are in the
-[missing-features handover](../AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md).
+The current gap census is in the completion plan's
+[remaining-work section](../AllenBradley/AB_PORT_COMPLETION_PLAN_2026-10-04.md#remaining-work-after-the-2026-10-18-host-recovery-checks).
+The [October 6 handover](../AllenBradley/AB_MISSING_FEATURES_HANDOVER_2026-10-06.md)
+retains its historical scope.
 The [parity audit](../Reports/AB_TC3_PARITY_AUDIT_2026-09-29.md) preserves history.
 No earlier PASS is broadened by this guide. The
 [TC3 prompt](../AllenBradley/AB_TO_TC3_HANDOVER_PROMPT_2026-10-04.md) separates

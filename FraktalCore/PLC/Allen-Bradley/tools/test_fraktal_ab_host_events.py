@@ -403,6 +403,24 @@ class CommandGuards(unittest.TestCase):
             self.assertEqual(failure.exception.code, 2)
             self.assertEqual(path.read_text(), 'kept')
 
+    def test_cursor_companions_and_sqlite_sidecars_cannot_overlap(self):
+        import fraktal_ab_station as station
+        with tempfile.TemporaryDirectory() as folder, patch.object(station, 'application', return_value=APP):
+            path = Path(folder)/'events'
+            cases = [('--output', path, Path(str(path) + '.guard')),
+                     ('--output', path, Path(str(path) + '.lock')),
+                     ('--sqlite-output', path, path),
+                     ('--sqlite-output', Path(str(path) + '-journal'), path),
+                     ('--sqlite-output', Path(str(path) + '-wal'), path),
+                     ('--sqlite-output', Path(str(path) + '-shm'), path)]
+            for option, cursor, output in cases:
+                with self.subTest(option=option, cursor=cursor), redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as failure:
+                        host.main(['127.0.0.1', '--expect-serial', '1234', '--cursor', str(cursor),
+                                   option, str(output)])
+                    self.assertEqual(failure.exception.code, 2)
+            self.assertEqual(list(Path(folder).iterdir()), [])
+
 
 if __name__ == '__main__':
     unittest.main()

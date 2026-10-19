@@ -7,8 +7,11 @@ V1 is non-part; an injected local carrier selects V2 with PLC-captured identitie
 from __future__ import annotations
 
 import copy
+import errno
 import json
 import os
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 import fraktal_ab_declaration as decl
@@ -281,6 +284,40 @@ def project(batch):
     return values
 
 
+@contextmanager
+def _cursor_lock(path):
+    """Hold an OS lock until close, including release after process termination.
+
+    The persistent guard must never be unlinked: replacing its inode could let
+    two writers lock different files. Refuse legacy sentinel locks; an older
+    collector must be stopped before upgrading, never guessed dead from a PID.
+    """
+    legacy = path.with_name(path.name + '.lock')
+    with path.with_name(path.name + '.guard').open('a+b') as guard:
+        guard.seek(0)
+        try:
+            if os.name == 'nt':
+                import msvcrt
+                msvcrt.locking(guard.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(guard.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            if exc.errno in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                raise BlockingIOError('host-event cursor has an active writer') from exc
+            raise
+        try:
+            if legacy.exists():
+                raise FileExistsError('legacy cursor lock requires a stopped-collector upgrade: ' + str(legacy))
+            yield
+        finally:
+            guard.seek(0)
+            if os.name == 'nt':
+                msvcrt.locking(guard.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(guard.fileno(), fcntl.LOCK_UN)
+
+
 class Cursor:
     """Per-sink acknowledged cursor. Persist only after the sink accepts.
 
@@ -305,32 +342,29 @@ class Cursor:
     def _commit(self, epoch, sequence):
         state = dict(schema=1, station=self.station, source=self.source, epoch=epoch, sequence=sequence)
         if self.path is not None:
-            # Exclusive creation keeps concurrent writers from sharing a cursor.
-            temporary = self.path.with_name(self.path.name + '.pending')
+            # A crash may leave an incomplete temporary. Unique names prevent
+            # that orphan from blocking recovery or becoming an acknowledgement.
+            fd, name = tempfile.mkstemp(prefix=self.path.name + '.', suffix='.pending',
+                                        dir=self.path.parent)
+            temporary = Path(name)
             try:
-                with temporary.open('x', encoding='utf-8') as out:
+                with os.fdopen(fd, 'w', encoding='utf-8') as out:
                     json.dump(state, out, sort_keys=True)
                     out.flush()
                     os.fsync(out.fileno())
                 os.replace(temporary, self.path)
             finally:
-                # Only remove a temporary file this invocation created.
-                if 'out' in locals() and temporary.exists():
+                if temporary.exists():
                     temporary.unlink()
         self.state = state
 
     def deliver(self, batch, sink):
         if self.path is not None:
-            lock = self.path.with_name(self.path.name + '.lock')
-            with lock.open('x'):
-                pass
-            try:
+            with _cursor_lock(self.path):
                 # A second Cursor instance may have advanced while idle.
                 if self.path.exists():
                     self.state = Cursor(self.station, self.path, source=self.source).state
                 return self._deliver(batch, sink)
-            finally:
-                lock.unlink()
         return self._deliver(batch, sink)
 
     def _deliver(self, batch, sink):
@@ -346,7 +380,9 @@ class Cursor:
         epoch, seen = [m['EpochLow'], m['EpochHigh']], self.state['sequence']
         if self.state['epoch'] is not None and self.state['epoch'] != epoch:
             record = dict(kind='dataLoss', reason='publisherEpochChanged',
-                          previous=self.state.copy(), epoch=epoch)
+                          previous=self.state.copy(), epoch=epoch,
+                          idempotencyKey=[self.source, self.station, *epoch,
+                              'publisherEpochChanged', *self.state['epoch'], seen])
             if sink(copy.deepcopy(record)) is not True:
                 return False
             seen = 0
@@ -356,7 +392,9 @@ class Cursor:
         oldest = m['NewestSequence'] - m['Count'] + 1
         if seen + 1 < oldest:
             record = dict(kind='dataLoss', reason='ringOverwritten',
-                          firstMissing=seen + 1, lastMissing=oldest - 1, epoch=epoch)
+                          firstMissing=seen + 1, lastMissing=oldest - 1, epoch=epoch,
+                          idempotencyKey=[self.source, self.station, *epoch,
+                              'ringOverwritten', seen + 1, oldest - 1])
             if sink(copy.deepcopy(record)) is not True:
                 return False
             seen = oldest - 1
@@ -376,7 +414,7 @@ class Cursor:
 
 
 def main(argv=None):
-    """One serial/build-guarded read, acknowledged into a local JSONL sink."""
+    """One serial/build-guarded read into a local JSONL or SQLite sink."""
     import argparse
     import fraktal_ab_station as station
     import fraktal_ab_projection as projection
@@ -388,13 +426,22 @@ def main(argv=None):
     parser.add_argument('--expect-serial', required=True)
     parser.add_argument('--slot', type=int, default=0)
     parser.add_argument('--cursor', type=Path, required=True, help='dedicated per-sink cursor file')
-    parser.add_argument('--output', type=Path, required=True, help='append-only local JSONL sink')
+    outputs = parser.add_mutually_exclusive_group(required=True)
+    outputs.add_argument('--output', type=Path, help='append-only local JSONL sink (at least once)')
+    outputs.add_argument('--sqlite-output', type=Path, help='local SQLite sink with duplicate exclusion')
     args = parser.parse_args(argv)
     app = station.application()
     if not app.host_event_capacity:
         parser.error('the selected declaration does not enable HostEvents')
-    if args.cursor.resolve() == args.output.resolve():
-        parser.error('cursor and output must be different files')
+    output = args.sqlite_output or args.output
+    cursor_files = {args.cursor.resolve(), *(args.cursor.with_name(args.cursor.name + suffix).resolve()
+                    for suffix in ('.lock', '.guard', '.pending'))}
+    sink_files = {output.resolve()}
+    if args.sqlite_output:
+        sink_files.update(output.with_name(output.name + suffix).resolve()
+                          for suffix in ('-journal', '-wal', '-shm'))
+    if cursor_files & sink_files:
+        parser.error('cursor, its companions and sink files must be different')
     # Check declaration bounds before opening any controller connection.
     decl.require_valid(app)
     from pylogix import PLC
@@ -411,7 +458,12 @@ def main(argv=None):
         after, _, _ = reader._read_raw(comm, manifest.header_tag(app))
         if after != before:
             raise HostEventsBad('manifest changed during host-event acquisition')
-    cursor = Cursor(app.name, args.cursor, source=f'{serial}:{manifest.content_hash(app)}')
+    source = f'{serial}:{manifest.content_hash(app)}'
+    cursor = Cursor(app.name, args.cursor, source=source)
+    if args.sqlite_output:
+        from fraktal_ab_host_sink import SqliteSink
+        with SqliteSink(output, app.name, source=source) as sink:
+            return 0 if cursor.deliver(batch, sink) else 1
     with args.output.open('a', encoding='utf-8') as out:
         def sink(record):
             out.write(json.dumps(record, sort_keys=True) + '\n')
