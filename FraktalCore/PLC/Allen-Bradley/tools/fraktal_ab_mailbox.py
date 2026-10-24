@@ -631,7 +631,7 @@ def string_type_name(app, length: int) -> str:
 def request_type_name(app) -> str:
     # Additive native frame; legacy members retain their layout as private
     # decoded arguments. Web/OPC UA browse paths and ordinals are unchanged.
-    return f"FRK_T_{app.name}HmiRequestV3"
+    return f"FRK_T_{app.name}HmiRequestV4" if app.canonical_publication_stage>=8 else f"FRK_T_{app.name}HmiRequestV3"
 
 
 def response_type_name(app) -> str:
@@ -704,6 +704,10 @@ def data_types(app) -> list[str]:
             _member_xml('ConfigSet', sets.request_name(), 'Core 3.8b staged transaction; Sequence commits last', 'Read/Write') + '\n</Members>')
     blocks[-1] = blocks[-1].replace('</Members>',
         _member_xml('Frame', frame.type_name(app), 'S9 bounded operation and arguments', 'Read/Write') + '\n</Members>')
+    if app.canonical_publication_stage>=8:
+        import fraktal_ab_config_provider as provider
+        blocks[-1]=blocks[-1].replace('</Members>',
+            _member_xml('ConfigProvider',provider.INPUT,'Versioned validated store response','Read/Write')+'\n</Members>')
     blocks.append(_record_xml(
         app, response_type_name(app), RESPONSE_MEMBERS, "Read Only",
         "Core 3.10/14 command answer: AckSequence set last"))
@@ -744,6 +748,12 @@ def _structure_tag(app, tag_name: str, type_name: str, members,
         end = nested.index('</Structure>', start) + len('</Structure>')
         payload = nested[start:end].replace('<Structure ', '<StructureMember Name="Frame" ', 1)
         parts.append(payload.replace('</Structure>', '</StructureMember>'))
+    if app.canonical_publication_stage>=8 and type_name==request_type_name(app):
+        import fraktal_ab_config_provider as provider
+        import fraktal_ab_generate as gen
+        nested=gen._structure_tag('unused',provider.INPUT,provider.native_members())
+        start=nested.index('<Structure DataType=');end=nested.index('</Structure>',start)+len('</Structure>')
+        parts.append(nested[start:end].replace('<Structure ','<StructureMember Name="ConfigProvider" ',1).replace('</Structure>','</StructureMember>'))
     return (f'<Tag Name="{tag_name}" TagType="Base" DataType="{type_name}" '
             f'Constant="false" ExternalAccess="{access}">\n'
             f'<Data Format="Decorated">\n'
@@ -1059,7 +1069,15 @@ def _dispatch(app, *, use_routines=False) -> list[str]:
         # v33 assigns no string literal in ST, so every name an operator reads
         # is interned at emission and referenced by number. Paging would be
         # copying static rows the client can already read.
-        lines.extend(_accept(app))
+        if app.canonical_publication_stage>=8:
+            import fraktal_ab_canonical_config as publication_config
+            import fraktal_ab_models as model_catalog
+            req=request_tag_name(app)
+            upper=f'{model_catalog.tag(app)}.Count' if app.model_capacity else str(len(app.models))
+            lines += [f'IF ({req}.IntValue > 32767) OR ({req}.DurationMs < 0) OR ({req}.DurationMs > {upper}) THEN',
+                      *_refuse(app,CONFIG_OUT_OF_RANGE_KEY),'ELSE',*publication_config.query(app),*_accept(app),'END_IF;']
+        else:
+            lines.extend(_accept(app))
 
     by_key: dict[str, list[int]] = {}
     for kind, portable in sorted(refused_for(app).items()):

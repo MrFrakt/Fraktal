@@ -1,0 +1,89 @@
+// Separately authorized restart of an unavailable virtual controller only.
+// No project download, keyswitch/mode command, network edit or fault clear.
+using System.Text.Json;
+using System.Diagnostics;
+using System.Net.NetworkInformation;
+using RockwellAutomation.FactoryTalkLogixEcho.Api.Client;
+using RockwellAutomation.FactoryTalkLogixEcho.Api.Interfaces;
+
+const string work="C:/work/fraktal-ab-s3h-20261023/runtime_b1730f6ce242464a817b4d8eb4d38abb";
+bool Authorized(JsonElement p) =>
+    p.GetProperty("CurrentOwnerApproved").GetBoolean() &&
+    p.GetProperty("RestartClosedExternallyAuthorized").GetBoolean() &&
+    p.GetProperty("Serial").GetString()=="601FC87B" &&
+    !p.GetProperty("FaultClearAuthorized").GetBoolean() &&
+    !p.GetProperty("ClockSetAuthorized").GetBoolean() &&
+    !string.IsNullOrWhiteSpace(p.GetProperty("ApprovalQuestion").GetString());
+if(args.Length==1 && args[0]=="self-test") {
+    var cases=new[]{
+        (true,true,"601FC87B",false,false,true),
+        (false,true,"601FC87B",false,false,false),
+        (true,false,"601FC87B",false,false,false),
+        (true,true,"00000000",false,false,false),
+        (true,true,"601FC87B",true,false,false),
+        (true,true,"601FC87B",false,true,false)};
+    foreach(var row in cases) {
+        using var doc=JsonDocument.Parse(JsonSerializer.Serialize(new {CurrentOwnerApproved=row.Item1,
+            RestartClosedExternallyAuthorized=row.Item2,Serial=row.Item3,FaultClearAuthorized=row.Item4,
+            ClockSetAuthorized=row.Item5,ApprovalQuestion="offline authorization test"}));
+        if(Authorized(doc.RootElement)!=row.Item6)throw new Exception("Authorization self-test failed");
+    }
+    Console.WriteLine(JsonSerializer.Serialize(new {Passed=true,AuthorizationCases=cases.Length,ControllerChanges=0}));
+    return 0;
+}
+if(args.Length!=1 || args[0]!="restart-authorized")throw new ArgumentException("self-test or restart-authorized required");
+using var authorization=JsonDocument.Parse(File.ReadAllText(Path.Combine(work,"restart_authorization.json")));
+if(!Authorized(authorization.RootElement))throw new Exception("Current separate virtual-controller restart approval required");
+var attempt=Path.Combine(work,"restart_attempt.json");
+if(File.Exists(attempt))throw new Exception("One-shot restart already attempted; inspect before further action");
+var client=ClientFactory.GetServiceApiClientV2("Fraktal authorized ClosedExternally recovery");
+void Verify(ControllerData c,bool closed=false) {
+    if(c.SerialNumber!=0x601FC87Bu || c.ControllerGuid!=Guid.Parse("91dec7d6-8ac3-45c9-ab2e-0d039c7006fd") ||
+       c.Slot!=0 || c.IPConfigurationData.Address.ToString()!="127.0.0.1" ||
+       c.FirmwarePackageVersion.Major!=38 || c.FirmwarePackageVersion.Minor!=11 ||
+       c.KeySwitchPosition!=KeySwitchPosition.Remote || c.IsFaulted)
+        throw new Exception("Exact identity/firmware/slot/Remote/not-faulted guard refused");
+    if(closed && (!c.IsEnabled || c.ErrorCode.ToString()!="ClosedExternally" || c.ControllerMode!=ControllerMode.RemoteProgram))
+        throw new Exception("Controller no longer has the reviewed ClosedExternally/RemoteProgram state");
+    if(closed && (IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(p=>p.Port==44818) ||
+                  Process.GetProcessesByName("EmulateControlLogix5580").Length!=0))
+        throw new Exception("Emulator/listener has appeared; refusing to restart a recovering controller");
+}
+void Record(string stage,ControllerData c) => Console.WriteLine(JsonSerializer.Serialize(new {
+    Stage=stage,c.ControllerGuid,c.SerialNumber,c.IsEnabled,ErrorCode=c.ErrorCode.ToString(),
+    Mode=c.ControllerMode.ToString(),KeySwitch=c.KeySwitchPosition.ToString(),c.IsFaulted,c.LoadedProjectName,c.ProjectPath}));
+async Task<ControllerData> WaitEnabled(bool enabled) {
+    for(var i=0;i<50;i++) {
+        var c=await client.ReadController(0x601FC87Bu);Verify(c);
+        if(c.IsEnabled==enabled)return c;
+        await Task.Delay(200);
+    }
+    throw new Exception("Enabled-state transition did not complete within 10 seconds");
+}
+var before=await client.ReadController(0x601FC87Bu);Verify(before,true);Record("before",before);
+using(var file=new FileStream(attempt,FileMode.CreateNew,FileAccess.Write))
+    JsonSerializer.Serialize(file,new {Serial="601FC87B",ApprovedQuestion=authorization.RootElement.GetProperty("ApprovalQuestion").GetString(),
+        StartedUtc=DateTimeOffset.UtcNow,Action="IsEnabled false then true only"});
+bool disableRequested=false,enableRequested=false;
+try {
+    var c=await client.ReadController(0x601FC87Bu);Verify(c,true);
+    var update=c.ToControllerUpdate();update.IsEnabled=false;disableRequested=true;
+    await client.UpdateController(update);
+    c=await WaitEnabled(false);Record("disabled",c);
+    c=await client.ReadController(0x601FC87Bu);Verify(c);
+    if(c.IsEnabled)throw new Exception("Controller enabled unexpectedly before authorized enable");
+    update=c.ToControllerUpdate();update.IsEnabled=true;enableRequested=true;
+    await client.UpdateController(update);
+    c=await WaitEnabled(true);Record("enabled",c);
+} finally {
+    // Complete the approved enable if disable returned an error after taking effect.
+    // This never issues another disable or retries an already requested enable.
+    if(disableRequested && !enableRequested) {
+        var c=await client.ReadController(0x601FC87Bu);Verify(c);
+        if(!c.IsEnabled) {
+            var update=c.ToControllerUpdate();update.IsEnabled=true;enableRequested=true;
+            await client.UpdateController(update);Record("enabled_after_disable_error",await WaitEnabled(true));
+        }
+    }
+}
+return 0;

@@ -1,0 +1,181 @@
+{
+  "schema": "fraktal.ab.frozen-contracts",
+  "schemaVersion": 2,
+  "status": "owner-approved-target",
+  "active": false,
+  "note": "Owner-approved target contract for canonical publication. Part III and V1 remain authoritative for the shipping implementation until the staged implementation gates pass. Approval does not assert that the generator or any runtime client implements V2.",
+  "evidence": "Evidence/AB_S0_CANONICAL_TYPES_2026-10-20.md",
+  "baseline": {
+    "referenceFamilies": [
+      "CIP Security-capable CompactLogix 5380",
+      "CIP Security-capable ControlLogix 5580"
+    ],
+    "minimumFirmwareMajor": 37,
+    "developmentBench": {
+      "controller": "1756-L81E",
+      "runtime": "FactoryTalk Logix Echo",
+      "firmware": "38.011",
+      "serial": "601FC87B",
+      "simulation": true,
+      "cipSecurityAvailable": false
+    },
+    "retiredReferenceController": "1769-L24ER-QB1B / v33",
+    "evidenceTransfer": "A different family or revision requires its own applicable type, compiler, transport and runtime gates. Echo acceptance is not physical acceptance."
+  },
+  "logicalTypes": {
+    "unchangedFromV1": {
+      "source": "AB_FROZEN_CONTRACTS_V1.json",
+      "types": [
+        "int8",
+        "int16",
+        "int32",
+        "float32",
+        "bitstring32",
+        "enum",
+        "composite",
+        "declared"
+      ]
+    },
+    "bool": {
+      "logix": "BOOL",
+      "available": true,
+      "decoding": "Use the template's byte offset and bit information. Do not assume packed or byte-per-member storage.",
+      "arrays": "Template DWORD storage is expanded to logical Boolean elements only with the manifest's logical type, lower bound and element count."
+    },
+    "int64": {
+      "logix": "LINT",
+      "available": true,
+      "arithmetic": true,
+      "transportType": "Int64",
+      "jsonEncoding": "exact decimal string; never a floating-point intermediate"
+    },
+    "float64": {
+      "logix": "LREAL",
+      "available": true,
+      "transportType": "Double",
+      "literalRule": "Use an L-suffixed ST literal or typed Decorated LREAL initial data; never widen an untyped REAL-rounded literal as a full-precision initializer.",
+      "qualifiedInitializerEvidence": "Evidence/AB_S0_SUPPLEMENTARY_RUNTIME_2026-10-21.md: pi and 1.0000000000000002 exact on Echo v38."
+    },
+    "duration_ms": {
+      "decision": "D6",
+      "logix": "DINT",
+      "available": true,
+      "manifestLogicalType": "DURATION",
+      "wireOrdinal": 3,
+      "transportType": "Int32",
+      "unit": "millisecond",
+      "rangeChecked": true,
+      "reason": "Matches Core's width and units directly. Native TIME32 is microseconds with insufficient range; native TIME is 64-bit microseconds and requires normalization and wider published storage.",
+      "rule": "No client may infer duration from a DINT member name; the PLC manifest supplies its logical type."
+    },
+    "string": {
+      "logix": "StringFamily with LEN DINT and DATA SINT[n]",
+      "available": true,
+      "widthSource": "the owning Core or application declaration; no binding-wide narrowing",
+      "encoding": "UTF-8",
+      "lengthUnit": "bytes",
+      "recognition": "template shape, not a type-name prefix",
+      "validation": "Reject invalid LEN or UTF-8. Reject generated literals exceeding the declared byte capacity."
+    },
+    "timestamp": {
+      "decision": "D7",
+      "logix": "LDT",
+      "available": true,
+      "nativeTypeCode": "0xCC",
+      "storage": "64-bit Unix nanoseconds",
+      "transportType": "DateTime",
+      "transportEncoding": "ISO UTC with three to nine fractional digits, preserving exact nanoseconds and the existing millisecond spelling; numeric zero for unset",
+      "zeroMeansUnset": true,
+      "rule": "Convert a microsecond wall-clock source to nanoseconds once in its owning provider. LINT-to-LDT assignment consumes a nanosecond value. Never assign a microsecond LINT directly as a timestamp."
+    }
+  },
+  "publication": {
+    "root": "One controller-scope tag per deployed root, named exactly as its local browse name.",
+    "module": "A record declaring the standard Status contract; children are members named as their local schematic/instance names.",
+    "discovery": "Symbol object 0x6B, Template object 0x6C, and a validated PLC-resident manifest. No runtime station declaration or client-owned projection.",
+    "templateReferences": "Honor the structure bit and complete 12-bit template handle even when its low byte matches an atomic code.",
+    "manifestMajor": 6,
+    "manifestAnnotations": [
+      "logical value type",
+      "logical array lower bound",
+      "logical array element count",
+      "logical array selections and live count references in V6.1",
+      "effective member access where native Template metadata cannot express it"
+    ],
+    "annotationRule": "The generator derives annotations from the same declarations as the UDTs. Physical storage extent is not a logical BOOL-array extent.",
+    "readAccess": "Effective access to published values is Read Only.",
+    "writeAccess": "Only HmiRequest is effectively Read/Write.",
+    "privateAccess": "None",
+    "physicalAccessEncoding": "Read/Write on every ancestor of HmiRequest; other public branches Read Only. No None member inside a record read whole. Private working storage stays outside those records. Effective member access is published in the manifest because the measured Template metadata does not distinguish it.",
+    "physicalManifestLayout": "S2 implemented in fraktal_ab_canonical_manifest.py; see AB_CANONICAL_PUBLICATION_S2_WIRE_DRAFT_2026-10-21.md and Evidence/AB_S2_CANONICAL_RUNTIME_2026-10-21.md. Separate V6 canonical header/Fields coexist with V5 only for the migration oracle. S2 runtime/Capacity/scan gates pass at the explicit 46-path Echo scope. The owner selected logical array views for S3a; additive V6.1 is documented in AB_CANONICAL_PUBLICATION_S3A_WIRE_DRAFT_2026-10-21.md. S3a runtime passes at 94 paths. S3b prepares 304 paths with native builds/read-backs and automatic Studio Capacity; S3b runtime and shipping activation remain open."
+  },
+  "arrayBounds": {
+    "rule": "canonical index = physical element index + declared Core lower bound; packed BOOL arrays expand logical bits before applying that bound",
+    "correctionsFromV1": [
+      {
+        "path": "<Unit>/ActiveSteps",
+        "oldLowerBound": 1,
+        "lowerBound": 0,
+        "extentSource": "Core FB_UnitBase.ActiveSteps"
+      },
+      {
+        "path": "<Unit>/ModePolicy",
+        "oldLowerBound": 1,
+        "lowerBound": 0,
+        "extentSource": "Core FB_UnitBase.ModePolicy"
+      },
+      {
+        "path": "<Unit>/SupportedModesPublished",
+        "oldLowerBound": 1,
+        "lowerBound": 0,
+        "extentSource": "Core FB_UnitBase.SupportedModesPublished"
+      },
+      {
+        "path": "<Unit>/SupportedRunStylesPublished",
+        "oldLowerBound": 1,
+        "lowerBound": 0,
+        "extentSource": "Core FB_UnitBase.SupportedRunStylesPublished"
+      },
+      {
+        "path": "<Unit>/Access/Policy/Required",
+        "oldLowerBound": 1,
+        "lowerBound": 0,
+        "extentSource": "Core ST_AccessPolicy.Required"
+      }
+    ],
+    "otherArrays": "Retain their declared Core bounds. These five corrections are the complete equivalence allow-list."
+  },
+  "transport": {
+    "snapshot": "fraktal.opcua.snapshot.v1",
+    "sourceTime": "CIP provides no sample source timestamp; record receipt time without claiming clock synchronization.",
+    "desktop": "Generic CipSessionClient selected by cip://; read-only until a commissioned CIP Security session is proved.",
+    "web": "The same session client behind the Dart gateway; write-enabled deployments require recorded owner choice, authenticated principals, TLS and existing write-root/mailbox gates.",
+    "mailbox": "Serialize transactions; confirm all argument writes before a separate Sequence commit; require exact acknowledgement; never replay after timeout or reconnect."
+  },
+  "unchangedLogicalContracts": {
+    "source": "AB_FROZEN_CONTRACTS_V1.json",
+    "contracts": [
+      "registry",
+      "valueEnvelope",
+      "mailbox",
+      "repositoryNegotiation",
+      "hostEvents"
+    ],
+    "scope": "Logical semantics only. No legacy generated context or physical row layout becomes part of the canonical client contract by this reference."
+  },
+  "openGates": [
+    "Capacity Estimate and native scan-time evidence for each canonical surface",
+    "S2-S6 implementation and path/type/value equivalence",
+    "Physical controller and commissioned CIP Security acceptance at S7"
+  ],
+  "approval": {
+    "date": "2026-10-20",
+    "answer": "Approve drafts and proceed to S1",
+    "scope": "V2 target contract and Part III amendment; S1 implementation. No additional controller-changing operation authorized."
+  },
+  "supplementaryQualification": {
+    "date": "2026-10-21",
+    "evidence": "Evidence/AB_S0_SUPPLEMENTARY_RUNTIME_2026-10-21.md",
+    "scope": "Local Echo 601FC87B v38; 2 MiB fragmented reads, browse-name root, effective access and full-precision LREAL. No physical/CIP Security acceptance."
+  }
+}

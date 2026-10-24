@@ -857,6 +857,15 @@ this repository at all, and two suite failures were attributed to a version delt
 two days because of it — see
 [`AB_HMI_TEST_TOOLCHAIN_2026-09-23.md`](Specification/AllenBradley/Evidence/AB_HMI_TEST_TOOLCHAIN_2026-09-23.md).
 
+**Seeing the HMI without a display (agents: prefer this to browser or
+computer-use tools).** `flutter test tool/screenshots/capture_test.dart` renders
+the screenshot catalog from the integrated demo into `doc/screenshots/`
+(PNG + the screen as text + `manifest.json`); `FRAKTAL_HMI_SCRIPT=<json> flutter
+test tool/screenshots/script_test.dart` drives any state you describe — wait for
+the plant, navigate, act through the gated write surface, capture, describe.
+Neither runs in the normal suite. Vocabulary and the demo's 150 s plant tour:
+`FraktalCore/HMI/tool/screenshots/README.md`.
+
 `flutter run -d windows` additionally needs Visual Studio's *Desktop development with
 C++* workload. The desktop build uses the native FFI OPC UA adapter, so it reaches a
 TwinCAT target; the supported AB path is the gateway over WebSocket, which is the

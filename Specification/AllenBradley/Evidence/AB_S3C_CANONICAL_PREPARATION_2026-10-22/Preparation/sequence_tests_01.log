@@ -1,0 +1,43 @@
+...F.FF....................
+======================================================================
+FAIL: test_mode_reset_clears_every_published_row_and_invalidates_metadata (test_fraktal_ab_canonical_sequence.SequenceTests.test_mode_reset_clears_every_published_row_and_invalidates_metadata)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 99, in test_mode_reset_clears_every_published_row_and_invalidates_metadata
+    self.run_scan();self.assert_oracle()
+                    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 65, in assert_oracle
+    self.assertEqual(self.flattened(),wanted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Seq[53 chars]uenceAnnotationCount': 0, 'SequenceSteps[1]/Vi[11570 chars]: ''} != {'Seq[53 chars]uenceSteps[1]/StepNo': 0, 'SequenceSteps[1]/Br[11543 chars]alse}
+Diff is 12678 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_reused_step_numbers_in_another_mode_keep_distinct_definitions (test_fraktal_ab_canonical_sequence.SequenceTests.test_reused_step_numbers_in_another_mode_keep_distinct_definitions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 125, in test_reused_step_numbers_in_another_mode_keep_distinct_definitions
+    self.assertEqual(self.flattened()['SequenceSteps[1]/StepName'],'project.step.OtherModeEntry')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'project.step.homeInitialize' != 'project.step.OtherModeEntry'
+- project.step.homeInitialize
++ project.step.OtherModeEntry
+
+
+======================================================================
+FAIL: test_warning_marks_and_sparse_text_come_from_plc_history (test_fraktal_ab_canonical_sequence.SequenceTests.test_warning_marks_and_sparse_text_come_from_plc_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 114, in test_warning_marks_and_sparse_text_come_from_plc_history
+    self.run_scan();self.assert_oracle()
+                    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 65, in assert_oracle
+    self.assertEqual(self.flattened(),wanted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Seq[53 chars]uenceAnnotationCount': 1, 'SequenceSteps[1]/Vi[11625 chars]: ''} != {'Seq[53 chars]uenceSteps[1]/StepNo': 105, 'SequenceSteps[1]/[11616 chars]alse}
+Diff is 12803 characters long. Set self.maxDiff to None to see it.
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.387s
+
+FAILED (failures=3)

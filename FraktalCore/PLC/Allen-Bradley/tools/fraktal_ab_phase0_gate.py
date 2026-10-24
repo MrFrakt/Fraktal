@@ -76,7 +76,16 @@ def default_probe() -> Path:
     """
     found = sorted(PROBE_ROOT.glob(f"*/win-x86/{PROBE_EXE}"))
     return found[-1] if found else PROBE_ROOT / "win-x86" / PROBE_EXE
-DEFAULT_VERIFY = TOOLS / "fraktal_ab_studio_verify.ps1"
+VERIFY_PS1 = TOOLS / "fraktal_ab_studio_verify.ps1"
+VERIFY_DRIVER = TOOLS / "fraktal_ab_studio_driver.py"
+# The driver posts menu command ids read from LogixACENU.dll; those ids are
+# qualified for v37/v38 only, so older bench revisions keep the keystroke
+# probe until their menus are dumped and pinned the same way.
+DRIVER_QUALIFIED_REVISIONS = {37, 38}
+
+
+def default_verify() -> Path:
+    return VERIFY_DRIVER if REVISION in DRIVER_QUALIFIED_REVISIONS else VERIFY_PS1
 
 
 @dataclass
@@ -198,13 +207,22 @@ def string_readback(source: Path, first: Path) -> Stage:
 
 
 def studio_verify(verify_script: Path, acd: Path, timeout: int) -> Stage:
-    completed = subprocess.run(
-        [
+    if verify_script.suffix.lower() == ".ps1":
+        command = [
             "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
             "-File", str(verify_script), "-Revision", str(REVISION),
             "-Project", str(acd), "-ExpectedErrors", "0",
             "-ExpectedWarnings", "0", "-TimeoutSeconds", str(timeout),
-        ],
+        ]
+    else:
+        # The hidden WM_COMMAND driver; no focused desktop, no keystrokes.
+        command = [
+            sys.executable, str(verify_script), "verify",
+            "--acd", str(acd), "--revision", str(REVISION),
+            "--timeout", str(timeout),
+        ]
+    completed = subprocess.run(
+        command,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -304,7 +322,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--probe", type=Path, default=None)
     parser.add_argument(
         "--verify", action="store_true",
-        help="also run Studio Verify Controller; needs a logged-in desktop session",
+        help="also run Studio Verify Controller on each imported ACD",
+    )
+    parser.add_argument(
+        "--verify-script", type=Path, default=None,
+        help="verify tool override; defaults to the hidden driver for "
+        "revisions it is qualified for, else the SendKeys probe",
     )
     parser.add_argument("--verify-timeout", type=int, default=240)
     args = parser.parse_args(argv)
@@ -317,7 +340,7 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    verify_script = DEFAULT_VERIFY if args.verify else None
+    verify_script = (args.verify_script or default_verify()) if args.verify else None
     if verify_script is not None and not verify_script.is_file():
         print(
             f"ERROR [phase0-gate] verify script missing: {verify_script}",

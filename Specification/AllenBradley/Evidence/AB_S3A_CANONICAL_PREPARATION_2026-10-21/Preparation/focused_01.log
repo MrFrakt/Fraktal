@@ -1,0 +1,33 @@
+...............................F..E....
+======================================================================
+ERROR: test_unknown_types_cycles_missing_references_and_overruns (test_fraktal_ab_canonical_reader.ReaderTests.test_unknown_types_cycles_missing_references_and_overruns) (code=36863)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_reader.py", line 125, in test_unknown_types_cycles_missing_references_and_overruns
+    reader.snapshot(capture)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_reader.py", line 182, in snapshot
+    schema_walk(root, symbols[root]['handle'])
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_reader.py", line 178, in schema_walk
+    if row['struct'] and is_string(member_table(objects[row['handle']])) is None:
+                                                ~~~~~~~^^^^^^^^^^^^^^^
+KeyError: 4095
+
+======================================================================
+FAIL: test_no_status_no_discovery_and_root_identity_must_match (test_fraktal_ab_canonical_reader.ReaderTests.test_no_status_no_discovery_and_root_identity_must_match)
+----------------------------------------------------------------------
+ValueError: manifest contains annotations for paths absent from acquired roots
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_reader.py", line 80, in test_no_status_no_discovery_and_root_identity_must_match
+    with self.assertRaisesRegex(ValueError, "browse name"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "browse name" does not match "manifest contains annotations for paths absent from acquired roots"
+
+----------------------------------------------------------------------
+Ran 39 tests in 0.813s
+
+FAILED (failures=1, errors=1)

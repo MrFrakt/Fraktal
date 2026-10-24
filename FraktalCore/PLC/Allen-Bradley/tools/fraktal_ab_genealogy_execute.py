@@ -24,7 +24,7 @@ class GenealogyRun(text.TextResourceRun):
         return row
 
 
-def main(argv=None):
+def main(argv=None, *, run_type_factory=None, schema='fraktal.ab.genealogy-live-fixture'):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--execute-fixture',action='store_true')
     parser.add_argument('--expect-serial',required=True)
@@ -41,8 +41,8 @@ def main(argv=None):
     if account['user'] not in {user.name for user in app.access_users}:
         parser.error('credential file does not name a fixture account')
     args.core_regressions = True
-    return tower.execute_fixture(args,app,account,run_type=GenealogyRun,
-                                  schema='fraktal.ab.genealogy-live-fixture')
+    run_type=run_type_factory(args.output) if run_type_factory else GenealogyRun
+    return tower.execute_fixture(args,app,account,run_type=run_type,schema=schema)
 
 
 if __name__=='__main__': raise SystemExit(main())

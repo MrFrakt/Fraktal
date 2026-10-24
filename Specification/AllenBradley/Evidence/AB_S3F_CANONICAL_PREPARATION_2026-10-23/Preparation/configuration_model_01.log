@@ -1,0 +1,185 @@
+EEEEEE.....
+======================================================================
+ERROR: test_bounded_pages_equal_all_independent_oracle_entries_once (test_fraktal_ab_canonical_config.ConfigurationTests.test_bounded_pages_equal_all_independent_oracle_entries_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 95, in test_bounded_pages_equal_all_independent_oracle_entries_once
+    self.query(index);page=self.root['HmiResponse']['ConfigPage']
+    ~~~~~~~~~~^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 68, in query
+    self.scan()
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 64, in scan
+    def scan(self):self.execute(config.cyclic(self.app))
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 62, in execute
+    self.controller.run('\n'.join(lines))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 435, in eval
+    a, b = self._int(left), self._int(right)
+                            ~~~~~~~~~^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got True
+
+======================================================================
+ERROR: test_hidden_values_have_levels_metadata_and_no_value_text (test_fraktal_ab_canonical_config.ConfigurationTests.test_hidden_values_have_levels_metadata_and_no_value_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 109, in test_hidden_values_have_levels_metadata_and_no_value_text
+    self.query();self.assertEqual(self.entries(),self.expected()[:16])
+    ~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 68, in query
+    self.scan()
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 64, in scan
+    def scan(self):self.execute(config.cyclic(self.app))
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 62, in execute
+    self.controller.run('\n'.join(lines))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 435, in eval
+    a, b = self._int(left), self._int(right)
+                            ~~~~~~~~~^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got True
+
+======================================================================
+ERROR: test_invalid_model_and_empty_tail_do_not_expose_stale_rows (test_fraktal_ab_canonical_config.ConfigurationTests.test_invalid_model_and_empty_tail_do_not_expose_stale_rows)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 129, in test_invalid_model_and_empty_tail_do_not_expose_stale_rows
+    self.query(0,0);self.assertEqual(len(self.entries()),16)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 68, in query
+    self.scan()
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 64, in scan
+    def scan(self):self.execute(config.cyclic(self.app))
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 62, in execute
+    self.controller.run('\n'.join(lines))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 435, in eval
+    a, b = self._int(left), self._int(right)
+                            ~~~~~~~~~^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got True
+
+======================================================================
+ERROR: test_model_bank_and_live_values_do_not_get_mixed (test_fraktal_ab_canonical_config.ConfigurationTests.test_model_bank_and_live_values_do_not_get_mixed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 103, in test_model_bank_and_live_values_do_not_get_mixed
+    bank[1]['PressDwellMs']=913;self.query(0,2)
+                                ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 68, in query
+    self.scan()
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 64, in scan
+    def scan(self):self.execute(config.cyclic(self.app))
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 62, in execute
+    self.controller.run('\n'.join(lines))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 435, in eval
+    a, b = self._int(left), self._int(right)
+                            ~~~~~~~~~^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got True
+
+======================================================================
+ERROR: test_pending_timestamp_uses_date_and_preserves_ms (test_fraktal_ab_canonical_config.ConfigurationTests.test_pending_timestamp_uses_date_and_preserves_ms)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 123, in test_pending_timestamp_uses_date_and_preserves_ms
+    self.work.update(PendingDate=20261021,PendingClock=123456789);self.scan();first=self.root['ConfigPersist']['PendingSince']
+                                                                  ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 64, in scan
+    def scan(self):self.execute(config.cyclic(self.app))
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 62, in execute
+    self.controller.run('\n'.join(lines))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 435, in eval
+    a, b = self._int(left), self._int(right)
+                            ~~~~~~~~~^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got True
+
+======================================================================
+ERROR: test_revision_changes_on_values_bank_access_model_and_restart (test_fraktal_ab_canonical_config.ConfigurationTests.test_revision_changes_on_values_bank_access_model_and_restart)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 113, in test_revision_changes_on_values_bank_access_model_and_restart
+    self.scan();old=self.work['Revision'];self.scan();self.assertEqual(self.work['Revision'],old)
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 64, in scan
+    def scan(self):self.execute(config.cyclic(self.app))
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_config.py", line 62, in execute
+    self.controller.run('\n'.join(lines))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 435, in eval
+    a, b = self._int(left), self._int(right)
+                            ~~~~~~~~~^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got True
+
+----------------------------------------------------------------------
+Ran 11 tests in 3.537s
+
+FAILED (errors=6)

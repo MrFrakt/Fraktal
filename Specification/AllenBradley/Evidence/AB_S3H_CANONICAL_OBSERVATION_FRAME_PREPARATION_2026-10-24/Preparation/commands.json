@@ -1,0 +1,122 @@
+{
+  "schema": "fraktal.ab.command-record",
+  "schemaVersion": 1,
+  "note": "Run in the work folder or repository root; every listed exit code was observed as 0. _01 root gates precede the document edits, _02 follow them.",
+  "commands": [
+    {
+      "name": "disabled_check",
+      "exitCode": 0,
+      "command": "PYTHONPATH=<scratch decl> python fraktal_ab_generate.py C:/work/echo38_5580_seed.L5X s3h_frame_disabled_check.L5X --declaration s3h_frame_disabled_check"
+    },
+    {
+      "name": "generation_01",
+      "exitCode": 0,
+      "command": "python fraktal_ab_generate.py C:/work/echo38_5580_seed.L5X s3h_frame_candidate_01.L5X --declaration fraktal_ab_genealogy_s3h_demo"
+    },
+    {
+      "name": "native_echo_01",
+      "exitCode": 0,
+      "command": "Fraktal.Ab.OfflineProbe.exe --build-readback s3h_frame_candidate_01.L5X native_echo_01.L5X EchoController"
+    },
+    {
+      "name": "native_physical_01",
+      "exitCode": 0,
+      "command": "Fraktal.Ab.OfflineProbe.exe --build-readback s3h_frame_candidate_01.L5X native_physical_01.L5X PhysicalController"
+    },
+    {
+      "name": "echo_readback_01",
+      "exitCode": 0,
+      "command": "python fraktal_ab_readback.py s3h_frame_candidate_01.L5X native_echo_01.L5X"
+    },
+    {
+      "name": "physical_readback_01",
+      "exitCode": 0,
+      "command": "python fraktal_ab_readback.py s3h_frame_candidate_01.L5X native_physical_01.L5X"
+    },
+    {
+      "name": "echo_access_01",
+      "exitCode": 0,
+      "command": "python audit_access.py native_echo_01.L5X echo_access_01.json"
+    },
+    {
+      "name": "physical_access_01",
+      "exitCode": 0,
+      "command": "python audit_access.py native_physical_01.L5X physical_access_01.json"
+    },
+    {
+      "name": "helper_build_01",
+      "exitCode": 0,
+      "command": "dotnet build -c Debug (prepare/FramePrepare.csproj)"
+    },
+    {
+      "name": "prepare_acd_01",
+      "exitCode": 0,
+      "command": "prepare/bin/Debug/net8.0/win-x86/FramePrepare.exe"
+    },
+    {
+      "name": "prepared_readback_01",
+      "exitCode": 0,
+      "command": "python fraktal_ab_readback.py s3h_frame_candidate_01.L5X frame_prepared_readback.L5X"
+    },
+    {
+      "name": "prepared_access_01",
+      "exitCode": 0,
+      "command": "python audit_access.py frame_prepared_readback.L5X prepared_access_01.json (console output only)"
+    },
+    {
+      "name": "prepared_access_02",
+      "exitCode": 0,
+      "command": "python audit_access.py frame_prepared_readback.L5X prepared_access_02.json"
+    },
+    {
+      "name": "capacity_auto_01",
+      "exitCode": 0,
+      "command": "python fraktal_ab_studio_capacity.py --acd capacity_review.ACD --expect-sha256 E07C419651A2C6A785D150CAA0BB1894A57CB4453036A0CC2EF2FA8413649745 --output capacity_auto_01.json --capture-output capacity_capture_01.json"
+    },
+    {
+      "name": "compatibility_01",
+      "exitCode": 0,
+      "command": "python verify_compatibility.py"
+    },
+    {
+      "name": "ab_suite_01",
+      "exitCode": 0,
+      "command": "python -m unittest discover -s FraktalCore/PLC/Allen-Bradley/tools -t FraktalCore/PLC/Allen-Bradley/tools"
+    },
+    {
+      "name": "focused_01",
+      "exitCode": 0,
+      "command": "python -m unittest -v test_fraktal_ab_canonical_observation"
+    },
+    {
+      "name": "read_set_01",
+      "exitCode": 0,
+      "command": "python -I verify_read_set.py FraktalCore/PLC/Allen-Bradley/tools Specification/AllenBradley/Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_RUNTIME_2026-10-24/Diagnostic"
+    },
+    {
+      "name": "root_tests_01/02",
+      "exitCode": 0,
+      "command": "python -m unittest tools.test_check_consistency tools.test_check_ab_spec tools.test_check_ab_contracts"
+    },
+    {
+      "name": "ab_spec_01/02",
+      "exitCode": 0,
+      "command": "python tools/check_ab_spec.py"
+    },
+    {
+      "name": "ab_contracts_01/02",
+      "exitCode": 0,
+      "command": "python tools/check_ab_contracts.py"
+    },
+    {
+      "name": "consistency_01/02",
+      "exitCode": 0,
+      "command": "python tools/check_consistency.py --strict"
+    },
+    {
+      "name": "whitespace_01",
+      "exitCode": 0,
+      "command": "git -c core.whitespace=cr-at-eol diff --check"
+    }
+  ]
+}

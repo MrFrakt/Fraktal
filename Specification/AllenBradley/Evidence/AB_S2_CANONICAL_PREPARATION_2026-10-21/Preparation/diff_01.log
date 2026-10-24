@@ -1,0 +1,46 @@
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:624: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:625: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:626: trailing whitespace.
++        blocks.extend(canonical.data_types(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3363: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3364: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3365: trailing whitespace.
++        tags.extend(canonical.tags(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4625: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4626: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4627: trailing whitespace.
++        add('CanonicalBegin', canonical.begin_scan(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4709: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4710: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4711: trailing whitespace.
++        add('Canonical', canonical.cyclic(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4870: trailing whitespace.
++    # V1 keeps its measured S12 exclusions. Native V2 types are admitted only
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4871: trailing whitespace.
++    # in the explicit canonical publisher's generated definitions, never by
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4872: trailing whitespace.
++    # relaxing the legacy working-context contract.
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4873: trailing whitespace.
++    legacy_types = types_xml
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4874: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4875: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4876: trailing whitespace.
++        for definition in canonical.data_types(app):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4877: trailing whitespace.
++            legacy_types = replace_once(legacy_types, definition, '')
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4878: trailing whitespace.
++    if re.search(r'DataType="BOOL"', legacy_types):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4881: trailing whitespace.
++        if re.search(rf'DataType="{forbidden}"', legacy_types):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4975: trailing whitespace.
++        "BoolMembersInPublicUdt": len(emitted.findall('./Controller/DataTypes/DataType/Members/Member[@DataType="BOOL"]')),

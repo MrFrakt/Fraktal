@@ -366,6 +366,14 @@ def dispatch_logic(app):
                   f'{s}.Audit{dest}Bytes[({slot}) * {width} + {b}] := {source}[{b}];',
                   'ELSE', f'{s}.Audit{dest}Bytes[({slot}) * {width} + {b}] := 0;',
                   'END_IF;', 'END_FOR;']
+    if app.canonical_publication_stage>=8:
+        import fraktal_ab_canonical_config as publication_config
+        needle=f'{p}.PendingSince := FRK_{app.name}_NowTime;'
+        result=[]
+        for line in lines:
+            result.append(line)
+            if line==needle:result.extend(publication_config.pending_stamp(app))
+        lines=result
     return lines
 
 

@@ -1,0 +1,23 @@
+{
+  "capturedUtc": "2026-10-24T16:50:26.145540+00:00",
+  "readOnly": true,
+  "controllerChanges": 0,
+  "reportPath": "C:\\Users\\SoftIndVM\\Documents\\ReverseEngineerAgent\\notes\\studio5000\\echo_crash_re_2026-10-24.md",
+  "reportSha256": "fc656498f4053b619de3069ac23d6e28797c83fa5bfb398cf45605f0014a3ccf",
+  "ghidraLogSha256": "56162e852fd6c09a29caf82e518a1f4a271b7910bef787cd06e89bb4c3083a54",
+  "installedLibCommsSha256": "3bbef14d20e182ddffb0a1a8e2c72ca7dadffd5df5f6667528812b64efaefb9b",
+  "reportedFaultRva": "0x50C2A4",
+  "faultInstructionAndLoggingCallCorroborated": true,
+  "mechanism": "Unchecked trace-context pointer on the expected-length I/O error-logging path, per decompiled code and matching native exception/frames.",
+  "triggerAttribution": "The external report attributes the triggering short restore read to power-down state corrupted after the earlier forced service shutdown. This session did not reproduce that corruption.",
+  "operationalRules": [
+    "No hard-kill of emulator/service on controller fault; allow orderly shutdown.",
+    "Inspect controller dump folders after a controller fault and before any later reboot.",
+    "Retain new diagnostic artifacts; any movement/removal of vendor state or dump files is outside this download session."
+  ],
+  "externalColdBootScriptExecutedByThisSession": false,
+  "vendorBinariesModified": false,
+  "nativeDumpArchived": false,
+  "observedAfterExternalRecovery": "Exact controller was reachable and not faulted, but two raw Symbol reads returned empty lists; the genealogy baseline was therefore restored before original S3h guards.",
+  "currentDumpFilesMetadataOnly": []
+}

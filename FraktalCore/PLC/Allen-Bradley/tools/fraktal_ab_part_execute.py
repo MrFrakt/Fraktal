@@ -156,11 +156,24 @@ class Run:
         self.set(px.AIR_OK, 1)
         self.set(px.PART_PRESENT, 1)
         self.command(mb.SET_MODE, IntValue=px.MODE_HOME)
+        self.wait_ready_mode(px.MODE_HOME)
         self.command(mb.START)
         self.wait(lambda: self.unit()['Complete'], 'HOME')
         self.command(mb.STOP)
         self.command(mb.OPERATOR_RESET)
         self.command(mb.SET_MODE, IntValue=px.MODE_AUTO)
+        # Mode application is the boundary here. The next START consumes the
+        # controller's release report; a retained HOME result is not its gate.
+        self.wait(lambda: self.unit()['Mode'] == px.MODE_AUTO, 'AUTO mode applied')
+
+    def wait_ready_mode(self, mode):
+        # The mailbox acknowledges the request before the Unit consumes its
+        # mode change. START must see that completed transition and its reset.
+        def settled():
+            unit = self.unit()
+            return unit if unit['Mode'] == mode and not any(
+                unit[k] for k in ('Running', 'Complete', 'Error', 'Aborted')) else None
+        self.wait(settled, 'ready mode '+str(mode))
 
     def begin(self):
         # The real helper owns two-hand arming and START ordering.

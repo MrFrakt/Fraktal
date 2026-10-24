@@ -84,19 +84,23 @@ def ascii_payload(value):
     return bytes(result)
 
 
-def initials(root):
+def initials(root, *, fallback_tags=frozenset()):
     result = {}
-    def walk(node, path):
+    def walk(node, path, kind=None):
+        kind=node.get('DataType') or kind
         suffix = node.get('Name') or node.get('Index')
         if suffix:
             path += '/' + suffix
         if 'Value' in node.attrib:
-            result[path] = ascii_payload(node.get('Value')) if node.get('Radix') == 'ASCII' else node.get('Value')
+            if node.get('Radix')=='ASCII':result[path]=ascii_payload(node.get('Value'))
+            else:
+                from fraktal_ab_l5k_values import native_value
+                result[path]=native_value(kind,node.get('Value'))
         elif node.tag in ('DataValueMember', 'DataValue') and node.get('Radix') == 'ASCII':
             value = ''.join(node.itertext()).strip()
             result[path] = ascii_payload(value)
         for child in node:
-            walk(child, path)
+            walk(child, path, kind)
     for owner in [root.find('Controller'), *root.findall('.//Controller/Programs/Program')]:
         if owner is None:
             continue
@@ -104,6 +108,11 @@ def initials(root):
             data = tag.find("Data[@Format='Decorated']")
             if data is not None:
                 walk(data, owner.get('Name', '') + '/' + tag.get('Name', ''))
+            else:
+                path=owner.get('Name','')+'/'+tag.get('Name','')
+                if path in fallback_tags:
+                    from fraktal_ab_l5k_values import decode
+                    result.update(decode(root,tag,path,ascii_payload))
     return result
 
 
@@ -185,7 +194,8 @@ def compare(source: Path, exported: Path):
     shape, graph = inventory.compare(source, exported), sfc.compare(source, exported)
     first, second = ET.parse(source).getroot(), ET.parse(exported).getroot()
     code_a, code_b = executable(first), executable(second)
-    data_a, data_b = initials(first), initials(second)
+    data_a=initials(first)
+    data_b=initials(second,fallback_tags={'/'.join(path.split('/')[:2]) for path in data_a})
     code_diff = ['/'.join(k) for k in sorted(set(code_a) | set(code_b)) if code_a.get(k) != code_b.get(k)]
     data_diff = [k for k in sorted(data_a) if data_a[k] != data_b.get(k)]
     alarm_count, alarm_diff = alarm_differences(

@@ -1,0 +1,28 @@
+"""Audit the complete S3g bench, including its one read-only result tag."""
+import sys,json,xml.etree.ElementTree as ET
+from pathlib import Path
+ROOT=Path('C:/Users/SoftIndVM/Fraktal');sys.path.insert(0,str(ROOT/'FraktalCore/PLC/Allen-Bradley/tools'))
+import fraktal_ab_access_audit as access
+import fraktal_ab_canonical_publication as pub
+import fraktal_ab_config_provider as provider
+import fraktal_ab_config_provider_wire as wire
+import fraktal_ab_genealogy_s3g_demo as demo
+import fraktal_ab_s3g_native_checks as native
+project,output=map(Path,sys.argv[1:])
+assert not output.exists()
+app=demo.application()
+prior=json.loads((ROOT/'Specification/AllenBradley/Evidence/AB_S2_CANONICAL_RUNTIME_2026-10-21/Runtime/candidate_access_01.json').read_text())['topLevel']
+public=set(prior['Public'])|{b['SourceSymbol'] for b in pub.publication_bindings(app)}|{s['ResponseSymbol'] for s in provider.services(app)}|{native.tag(app)}
+report=access.audit(access.controller_tags(project),set(prior['Mailbox']),public,set(prior['Plant']))
+types={n.get('Name'):n for n in ET.parse(project).getroot().findall('./Controller/DataTypes/DataType')}
+expected={ET.fromstring(s).get('Name') for s in pub.data_types(app)}|{native.BENCH,native.VECTOR}
+findings=[]
+for name in expected:
+    if name not in types:findings.append('missing '+name);continue
+    level='Read/Write' if name==wire.INPUT else 'Read Only'
+    for m in types[name].findall('Members/Member'):
+        if m.get('ExternalAccess')!=level:findings.append(name+'.'+m.get('Name'))
+result=dict(passed=report['Conforms'] and not findings,topLevel=report,canonicalAndBenchTypes=len(expected),memberAccessFindings=findings)
+with output.open('x') as f:json.dump(result,f,indent=2)
+print(json.dumps(dict(passed=result['passed'],types=len(expected),findings=findings)))
+raise SystemExit(0 if result['passed'] else 1)

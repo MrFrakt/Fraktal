@@ -144,7 +144,7 @@ def restore_command(comm, app, writes, write_base, document, store_result=0):
     return wait_response(comm, app, sequence)
 
 
-def process(comm, app, store, session, writes, write_base):
+def process(comm, app, store, session, writes, write_base, *, expect_serial=None):
     arguments = {p.rsplit('/', 1)[-1]: v for p, _t, v in writes}
     kind, sequence = arguments['Kind'], arguments['Sequence']
     text = arguments.get('TextValue', '')
@@ -232,6 +232,8 @@ def process(comm, app, store, session, writes, write_base):
             values[persist + 'LastRejectKey'] = name
         # Transport succeeded; HmiResponse is the refusal. Preserve the
         # sequence bookkeeping so the next HMI command uses the next number.
+        if app.canonical_publication_stage>=8:
+            _publish_response(comm,app,session,sequence,kind,expect_serial)
         return True
     durable = kind in (mb.SAVE_CONFIG_SET, mb.DELETE_CONFIG_SET) or (
         kind == mb.IMPORT_CONFIG_SET and bool(arguments.get('BoolValue', False)))
@@ -276,4 +278,18 @@ def process(comm, app, store, session, writes, write_base):
             time.sleep(.02)
         else:
             raise sets.SetRejected('controller store receipt timed out')
+    if app.canonical_publication_stage>=8:
+        _publish_response(comm,app,session,sequence,kind,expect_serial,
+                          headers=headers if kind==mb.LIST_CONFIG_SETS else None)
     return True
+
+
+def _publish_response(comm,app,session,sequence,kind,expect_serial,*,headers=None):
+    if not expect_serial:raise sets.SetRejected('store-response transport requires the exact deployment serial pin')
+    from fraktal_ab_config_provider_client import publish
+    values=session.values;root=app.name
+    exporting=kind in (mb.EXPORT_CONFIG_SET,mb.EXPORT_CURRENT_CONFIG,mb.LIST_CONFIG_SETS)
+    return publish(comm,expect_serial=expect_serial,root=root,request_sequence=sequence,operation=kind,
+        headers=headers,document=values.get(root+'/ConfigSetDocument','') if exporting else None,
+        document_line=values.get(root+'/ConfigSetDocumentLine',0),document_lines=values.get(root+'/ConfigSetDocumentLines',0),
+        reject_scope=values.get(root+'/ConfigPersist/LastRejectScope',''),reject_key=values.get(root+'/ConfigPersist/LastRejectKey',''))

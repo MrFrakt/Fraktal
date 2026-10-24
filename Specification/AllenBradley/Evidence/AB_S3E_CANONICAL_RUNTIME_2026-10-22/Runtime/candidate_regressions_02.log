@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 107, in <module>
+    if __name__=='__main__':raise SystemExit(main())
+                                             ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 106, in main
+    def main(argv=None):return genealogy.main(argv,run_type_factory=paired_run,schema='fraktal.ab.s3e-genealogy-fixture')
+                               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_genealogy_execute.py", line 45, in main
+    return tower.execute_fixture(args,app,account,run_type=run_type,schema=schema)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 153, in execute_fixture
+    exercise(run)
+    ~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 54, in exercise
+    run.command(mb.SET_ACCESS_LEVEL,IntValue=2,TextValue='1')
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 48, in command
+    self.check(report['pair']['canonical']['values'][self.app.name+'/Access/Policy/Required[1]']==int(arguments['TextValue']),
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               'existing manual policy change must be observed at its commit')
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 224, in check
+    raise FixtureRefused(message)
+fraktal_ab_part_execute.FixtureRefused: existing manual policy change must be observed at its commit

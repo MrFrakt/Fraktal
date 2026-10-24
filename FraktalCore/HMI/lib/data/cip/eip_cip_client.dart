@@ -197,11 +197,7 @@ class EipCipClient {
     data.add(pathAndBody);
     final packet = _packet(
         0x0070, _sendUnitData(data.toBytes()), sessionHandle: _session);
-    // ignore: avoid_print
-    print('DEBUG connected tx ${packet.length}: ${packet.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
     final reply = await _exchange(packet);
-    // ignore: avoid_print
-    print('DEBUG connected rx ${reply.length}: ${reply.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
 
     // Reply: 24-byte header, then interface handle(4), timeout(2), item
     // count(2), address item (type 0xA1, len 4, T->O connection id), data

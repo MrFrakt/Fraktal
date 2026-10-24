@@ -59,6 +59,20 @@ class FixtureWriteBoundary(unittest.TestCase):
             live.main(['--expect-serial','601FC87B','--credential-file','absent.json',
                        '--output','absent-output.json'])
 
+    def test_home_waits_for_mode_application_and_terminal_reset_before_start(self):
+        run=object.__new__(live.Run)
+        state=lambda mode,complete:dict(Mode=mode,Complete=complete,Running=0,Error=0,Aborted=0)
+        run.unit=Mock(side_effect=[state(live.px.MODE_AUTO,1),state(live.px.MODE_HOME,0),
+            state(live.px.MODE_HOME,1),state(live.px.MODE_HOME,0),state(live.px.MODE_AUTO,1)])
+        run.idle=Mock();run.set=Mock();commands=[]
+        def command(kind,**args):
+            commands.append(kind)
+            if kind==mb.START:self.assertEqual(run.unit.call_count,2)
+        run.command=command
+        with patch.object(live.time,'sleep'):run.home()
+        self.assertEqual(run.unit.call_count,5)
+        self.assertEqual(commands,[mb.SET_MODE,mb.START,mb.STOP,mb.OPERATOR_RESET,mb.SET_MODE])
+
 
 if __name__ == '__main__':
     unittest.main()

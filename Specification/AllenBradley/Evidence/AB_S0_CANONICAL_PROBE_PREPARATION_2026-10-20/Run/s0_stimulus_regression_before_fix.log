@@ -1,0 +1,103 @@
+test_every_family_is_one_split_case_and_combines (test_fraktal_ab_s0_canonical_probe.Generation.test_every_family_is_one_split_case_and_combines) ... ok
+test_expected_timestamps_are_the_declared_instant (test_fraktal_ab_s0_canonical_probe.Generation.test_expected_timestamps_are_the_declared_instant) ... ok
+test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) ... 
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=0) ... ERROR
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=2147483647) ... ERROR
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=2147483648) ... FAIL
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=4294967295) ... FAIL
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=1792413296123456) ... FAIL
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=1792413296123456789) ... ERROR
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=-1) ... FAIL
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=-9223372036854775808) ... ERROR
+  test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=9223372036854775807) ... FAIL
+test_string_widths_cover_every_core_width_class (test_fraktal_ab_s0_canonical_probe.Generation.test_string_widths_cover_every_core_width_class) ... ok
+test_the_probe_is_read_only (test_fraktal_ab_s0_canonical_probe.Generation.test_the_probe_is_read_only) ... ok
+test_a_non_string_structure_decodes_recursively (test_fraktal_ab_s0_canonical_probe.GenericDecoder.test_a_non_string_structure_decodes_recursively) ... ok
+test_atomics_bools_arrays_and_unknown_types (test_fraktal_ab_s0_canonical_probe.GenericDecoder.test_atomics_bools_arrays_and_unknown_types) ... ok
+test_string_family_is_recognised_by_shape (test_fraktal_ab_s0_canonical_probe.GenericDecoder.test_string_family_is_recognised_by_shape) ... ok
+
+======================================================================
+ERROR: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 56, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(family.expected["StampRaw"], expected)
+                     ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'StampRaw'
+
+======================================================================
+ERROR: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=2147483647)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 56, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(family.expected["StampRaw"], expected)
+                     ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'StampRaw'
+
+======================================================================
+ERROR: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=1792413296123456789)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 56, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(family.expected["StampRaw"], expected)
+                     ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'StampRaw'
+
+======================================================================
+ERROR: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=-9223372036854775808)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 56, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(family.expected["StampRaw"], expected)
+                     ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'StampRaw'
+
+======================================================================
+FAIL: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=2147483648)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 55, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(value, expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: -2147483648 != 2147483648
+
+======================================================================
+FAIL: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=4294967295)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 55, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(value, expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: -1 != 4294967295
+
+======================================================================
+FAIL: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=1792413296123456)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 55, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(value, expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: 1792409001156160 != 1792413296123456
+
+======================================================================
+FAIL: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 55, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(value, expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: -4294967297 != -1
+
+======================================================================
+FAIL: test_lint_stimulus_preserves_signed_64_bit_values (test_fraktal_ab_s0_canonical_probe.Generation.test_lint_stimulus_preserves_signed_64_bit_values) (expected=9223372036854775807)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s0_canonical_probe.py", line 55, in test_lint_stimulus_preserves_signed_64_bit_values
+    self.assertEqual(value, expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: 9223372032559808511 != 9223372036854775807
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.005s
+
+FAILED (failures=5, errors=4)

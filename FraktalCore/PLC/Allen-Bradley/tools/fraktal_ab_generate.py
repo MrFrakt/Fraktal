@@ -621,6 +621,9 @@ def data_types(app: decl.Application) -> str:
         blocks.append(f'<DataType Name="{models.type_name()}" Family="NoFamily" Class="User"><Members>{members}</Members></DataType>')
     blocks.extend(mailbox.data_types(app))
     blocks.extend(manifest.data_types(app))
+    if app.canonical_publication_stage:
+        import fraktal_ab_canonical_publication as canonical
+        blocks.extend(canonical.data_types(app))
     return "<DataTypes>\n" + "\n".join(blocks) + "\n</DataTypes>"
 
 
@@ -3357,6 +3360,9 @@ def controller_tags(app: decl.Application) -> str:
     # appeared only once something wrote to it could not be discovered.
     tags.extend(mailbox.tags(app))
     tags.extend(manifest.tags(app, app.controller_identity or CONTROLLER_IDENTITY))
+    if app.canonical_publication_stage:
+        import fraktal_ab_canonical_publication as canonical
+        tags.extend(canonical.tags(app))
     return "<Tags>\n" + "\n".join(tags) + "\n</Tags>"
 
 
@@ -4616,6 +4622,9 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
             name = f'FRK_{n}_Scan{suffix}' if suffix else None
             sections.append((name, tuple(body)))
 
+    if app.canonical_publication_stage:
+        import fraktal_ab_canonical_publication as canonical
+        add('CanonicalBegin', canonical.begin_scan(app))
     if app.access_users is not None:
         add('AccessStartup', access.startup(app))
     if app.host_event_capacity:
@@ -4697,6 +4706,9 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
     forcing = force_logic(app)
     if forcing:
         add('Forcing', forcing)
+    if app.canonical_publication_stage:
+        import fraktal_ab_canonical_publication as canonical
+        add('Canonical', canonical.cyclic(app))
     return sections
 
 
@@ -4715,6 +4727,31 @@ def program_tags(app: decl.Application) -> str:
     return "<Tags>\n" + "\n".join(tags) + "\n</Tags>" if tags else "<Tags/>"
 
 
+def canonical_routines(app):
+    if app.canonical_publication_stage < 4:
+        return []
+    import fraktal_ab_canonical_status as status
+    result = [(status.routine_name(app), status.resolver(app))]
+    if app.canonical_publication_stage >= 6:
+        result.append((status.timestamp_routine_name(app), status.epoch_logic(app, stamped=False)))
+    if app.canonical_publication_stage >= 7:
+        import fraktal_ab_canonical_access as access
+        result += access.routines(app)
+    if app.canonical_publication_stage>=8:
+        import fraktal_ab_canonical_config as config_publication
+        import fraktal_ab_config_provider as provider
+        result += config_publication.routines(app)
+        result.append((provider.validate_text_routine(app),provider.validate_text_logic(app)))
+        result.append((provider.routine_name(app),provider.logic(app)))
+    if app.canonical_publication_stage>=9:
+        import fraktal_ab_canonical_metrics as metrics
+        result += metrics.routines(app)
+    if app.canonical_publication_stage>=10:
+        import fraktal_ab_canonical_traceability as trace
+        result += trace.routines(app)
+    return result
+
+
 def programs(app: decl.Application) -> str:
     import fraktal_ab_access as access
     import fraktal_ab_data_access as data
@@ -4731,6 +4768,7 @@ def programs(app: decl.Application) -> str:
            if editable_values(app) else [])
         + ([st_program_routine(sets.routine_name(app), sets.dispatch_logic(app))]
            if app.config_sets else [])
+        + ([st_program_routine(name, body) for name, body in canonical_routines(app)])
         + chain_routines(app)
         + [st_program_routine(name, body) for name, body in alarm_service_routines(app)]
         + ([st_program_routine(step_mark_routine_name(app), step_mark_logic(app))]
@@ -4855,10 +4893,18 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
         raise AssertionError("generated logic references a physical I/O operand")
 
     types_xml = data_types(app)
-    if re.search(r'DataType="BOOL"', types_xml):
+    # V1 keeps its measured S12 exclusions. Native V2 types are admitted only
+    # in the explicit canonical publisher's generated definitions, never by
+    # relaxing the legacy working-context contract.
+    legacy_types = types_xml
+    if app.canonical_publication_stage:
+        import fraktal_ab_canonical_publication as canonical
+        for definition in canonical.data_types(app):
+            legacy_types = replace_once(legacy_types, definition, '')
+    if re.search(r'DataType="BOOL"', legacy_types):
         raise AssertionError("a public contract UDT carries a BOOL member (S12 hole)")
     for forbidden in decl.EXCLUDED_TYPES + decl.TRANSPORT_ONLY_TYPES:
-        if re.search(rf'DataType="{forbidden}"', types_xml):
+        if re.search(rf'DataType="{forbidden}"', legacy_types):
             raise AssertionError(f"contract uses a type S12 excluded: {forbidden}")
 
     tasks_xml = tasks(app)
@@ -4952,7 +4998,7 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
         "EmbeddedIoInhibited": (not app.io_modules) if embedded_io_in_seed else None,
         "TaskOutputUpdatesDisabled": not app.io_modules,
         "ForceableOutputs": bin(force_output_mask(app)).count("1"),
-        "BoolMembersInPublicUdt": 0,
+        "BoolMembersInPublicUdt": len(emitted.findall('./Controller/DataTypes/DataType/Members/Member[@DataType="BOOL"]')),
         "ContractRecords": [r.name for r in app.records],
         # Distinct TYPES: one AOI each, however many instances call it.
         "ModuleTypes": [type_aoi_name(t) for t in library.types_used(app)],

@@ -1,0 +1,462 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="38.00" TargetName="FraktalPhase0" TargetType="Controller" ContainsContext="false" Owner="SoftIndVM" ExportDate="Tue Oct 20 22:00:40 2026" ExportOptions="NoRawData L5KData DecoratedData Dependencies ForceProtectedEncoding AllProjDocTrans">
+<Controller Use="Target" Name="FraktalPhase0" ProcessorType="1756-L81E" MajorRev="38" MinorRev="11" ProjectCreationDate="Tue Oct 20 22:00:37 2026" LastModifiedDate="Tue Oct 20 22:00:38 2026" SFCExecutionControl="CurrentActive" SFCRestartPosition="MostRecent" SFCLastScan="DontScan" ProjectSN="16#0000_0000"
+ MatchProjectToController="false" CanUseRPIFromProducer="false" InhibitAutomaticFirmwareUpdate="0" PassThroughConfiguration="EnabledWithAppend" DownloadProjectDocumentationAndExtendedProperties="true" DownloadProjectCustomProperties="true" ReportMinorOverflow="false" AutoDiagsEnabled="true" WebServerEnabled="false" DataExchangeId="{3A125763-FF09-4FDA-BB62-07C36D679BDA}">
+<RedundancyInfo Enabled="false" KeepTestEditsOnSwitchOver="false"/>
+<Security Code="0" ChangesToDetect="16#ffff_ffff_ffff_ffff"/>
+<SafetyInfo/>
+<DataTypes>
+<DataType Name="FRK_T_S0Child" Family="NoFamily" Class="User">
+<Members>
+<Member Name="Flag" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Value" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+</DataType>
+<DataType Name="FRK_T_S0Probe" Family="NoFamily" Class="User">
+<Members>
+<Member Name="B0" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B1" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B2" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B3" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B4" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B5" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B6" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B7" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B8" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="B9" DataType="BOOL" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="After" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Flags" DataType="BOOL" Dimension="32" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Big" DataType="LINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Negative" DataType="LINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Wide" DataType="LREAL" Dimension="0" Radix="Float" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Single" DataType="REAL" Dimension="0" Radix="Float" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Words" DataType="DINT" Dimension="5" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Kids" DataType="FRK_T_S0Child" Dimension="3" Radix="NullType" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="S2" DataType="FRK_T_S0Str2" Dimension="0" Radix="NullType" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="S80" DataType="FRK_T_S0Str80" Dimension="0" Radix="NullType" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="S160" DataType="FRK_T_S0Str160" Dimension="0" Radix="NullType" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="S255" DataType="FRK_T_S0Str255" Dimension="0" Radix="NullType" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="S480" DataType="FRK_T_S0Str480" Dimension="0" Radix="NullType" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Std" DataType="STRING" Dimension="0" Radix="NullType" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="DurUs" DataType="TIME" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="Dur32" DataType="TIME32" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="DurNs" DataType="LTIME" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="StampUsFromLintRaw" DataType="LINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="StampUsFromLint" DataType="DT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="StampNsFromLintRaw" DataType="LINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="StampNsFromLint" DataType="LDT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+<Dependencies>
+<Dependency Type="DataType" Name="FRK_T_S0Child"/>
+<Dependency Type="DataType" Name="FRK_T_S0Str2"/>
+<Dependency Type="DataType" Name="FRK_T_S0Str80"/>
+<Dependency Type="DataType" Name="FRK_T_S0Str160"/>
+<Dependency Type="DataType" Name="FRK_T_S0Str255"/>
+<Dependency Type="DataType" Name="FRK_T_S0Str480"/>
+</Dependencies>
+</DataType>
+<DataType Name="FRK_T_S0Str160" Family="StringFamily" Class="User">
+<Members>
+<Member Name="LEN" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="DATA" DataType="SINT" Dimension="160" Radix="ASCII" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+</DataType>
+<DataType Name="FRK_T_S0Str2" Family="StringFamily" Class="User">
+<Members>
+<Member Name="LEN" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="DATA" DataType="SINT" Dimension="2" Radix="ASCII" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+</DataType>
+<DataType Name="FRK_T_S0Str255" Family="StringFamily" Class="User">
+<Members>
+<Member Name="LEN" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="DATA" DataType="SINT" Dimension="255" Radix="ASCII" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+</DataType>
+<DataType Name="FRK_T_S0Str480" Family="StringFamily" Class="User">
+<Members>
+<Member Name="LEN" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="DATA" DataType="SINT" Dimension="480" Radix="ASCII" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+</DataType>
+<DataType Name="FRK_T_S0Str80" Family="StringFamily" Class="User">
+<Members>
+<Member Name="LEN" DataType="DINT" Dimension="0" Radix="Decimal" Hidden="false" ExternalAccess="Read Only"/>
+<Member Name="DATA" DataType="SINT" Dimension="80" Radix="ASCII" Hidden="false" ExternalAccess="Read Only"/>
+</Members>
+</DataType>
+</DataTypes>
+<Modules>
+<Module Name="Local" CatalogNumber="1756-L81E" Vendor="1" ProductType="14" ProductCode="164" Major="38" Minor="11" ParentModule="Local" ParentModPortId="1" Inhibited="false" MajorFault="true"
+>
+<EKey State="Disabled"/>
+<Ports>
+<Port Id="1" Address="0" Type="ICP" Upstream="false">
+<Bus Size="17"/>
+</Port>
+<Port Id="2" Type="Ethernet" Upstream="false">
+<Bus/>
+</Port>
+</Ports>
+</Module>
+</Modules>
+<AddOnInstructionDefinitions/>
+<Tags>
+<Tag Name="FRK_S12_Probe" TagType="Base" DataType="FRK_T_S0Probe" Constant="false" ExternalAccess="Read Only" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[[0,0,0,0,0,0,0,0,0,0,0,[2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0
+		,2#0,2#0,2#0,2#0,2#0,2#0,2#0,2#0],0,0,0.0000000000000000e+000,0.00000000e+000,[0,0,0,0,0],[[0,0],[0,0],[0,0]],[0,'$00$00'
+		],[0,'$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		],[0,'$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		],[0,'$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		],[0,'$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		],[0,'$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00$00'
+		],0,0,0,0,0,0,0]]]>
+</Data>
+<Data Format="Decorated">
+<Structure DataType="FRK_T_S0Probe">
+<DataValueMember Name="B0" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B1" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B2" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B3" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B4" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B5" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B6" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B7" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B8" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="B9" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="After" DataType="DINT" Radix="Decimal" Value="0"/>
+<ArrayMember Name="Flags" DataType="BOOL" Dimensions="32" Radix="Decimal">
+<Element Index="[0]" Value="0"/>
+<Element Index="[1]" Value="0"/>
+<Element Index="[2]" Value="0"/>
+<Element Index="[3]" Value="0"/>
+<Element Index="[4]" Value="0"/>
+<Element Index="[5]" Value="0"/>
+<Element Index="[6]" Value="0"/>
+<Element Index="[7]" Value="0"/>
+<Element Index="[8]" Value="0"/>
+<Element Index="[9]" Value="0"/>
+<Element Index="[10]" Value="0"/>
+<Element Index="[11]" Value="0"/>
+<Element Index="[12]" Value="0"/>
+<Element Index="[13]" Value="0"/>
+<Element Index="[14]" Value="0"/>
+<Element Index="[15]" Value="0"/>
+<Element Index="[16]" Value="0"/>
+<Element Index="[17]" Value="0"/>
+<Element Index="[18]" Value="0"/>
+<Element Index="[19]" Value="0"/>
+<Element Index="[20]" Value="0"/>
+<Element Index="[21]" Value="0"/>
+<Element Index="[22]" Value="0"/>
+<Element Index="[23]" Value="0"/>
+<Element Index="[24]" Value="0"/>
+<Element Index="[25]" Value="0"/>
+<Element Index="[26]" Value="0"/>
+<Element Index="[27]" Value="0"/>
+<Element Index="[28]" Value="0"/>
+<Element Index="[29]" Value="0"/>
+<Element Index="[30]" Value="0"/>
+<Element Index="[31]" Value="0"/>
+</ArrayMember>
+<DataValueMember Name="Big" DataType="LINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Negative" DataType="LINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Wide" DataType="LREAL" Radix="Float" Value="0.0"/>
+<DataValueMember Name="Single" DataType="REAL" Radix="Float" Value="0.0"/>
+<ArrayMember Name="Words" DataType="DINT" Dimensions="5" Radix="Decimal">
+<Element Index="[0]" Value="0"/>
+<Element Index="[1]" Value="0"/>
+<Element Index="[2]" Value="0"/>
+<Element Index="[3]" Value="0"/>
+<Element Index="[4]" Value="0"/>
+</ArrayMember>
+<ArrayMember Name="Kids" DataType="FRK_T_S0Child" Dimensions="3">
+<Element Index="[0]">
+<Structure DataType="FRK_T_S0Child">
+<DataValueMember Name="Flag" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Value" DataType="DINT" Radix="Decimal" Value="0"/>
+</Structure>
+</Element>
+<Element Index="[1]">
+<Structure DataType="FRK_T_S0Child">
+<DataValueMember Name="Flag" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Value" DataType="DINT" Radix="Decimal" Value="0"/>
+</Structure>
+</Element>
+<Element Index="[2]">
+<Structure DataType="FRK_T_S0Child">
+<DataValueMember Name="Flag" DataType="BOOL" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Value" DataType="DINT" Radix="Decimal" Value="0"/>
+</Structure>
+</Element>
+</ArrayMember>
+<StructureMember Name="S2" DataType="FRK_T_S0Str2">
+<DataValueMember Name="LEN" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="DATA" DataType="FRK_T_S0Str2" Radix="ASCII">
+<![CDATA[]]>
+</DataValueMember>
+</StructureMember>
+<StructureMember Name="S80" DataType="FRK_T_S0Str80">
+<DataValueMember Name="LEN" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="DATA" DataType="FRK_T_S0Str80" Radix="ASCII">
+<![CDATA[]]>
+</DataValueMember>
+</StructureMember>
+<StructureMember Name="S160" DataType="FRK_T_S0Str160">
+<DataValueMember Name="LEN" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="DATA" DataType="FRK_T_S0Str160" Radix="ASCII">
+<![CDATA[]]>
+</DataValueMember>
+</StructureMember>
+<StructureMember Name="S255" DataType="FRK_T_S0Str255">
+<DataValueMember Name="LEN" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="DATA" DataType="FRK_T_S0Str255" Radix="ASCII">
+<![CDATA[]]>
+</DataValueMember>
+</StructureMember>
+<StructureMember Name="S480" DataType="FRK_T_S0Str480">
+<DataValueMember Name="LEN" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="DATA" DataType="FRK_T_S0Str480" Radix="ASCII">
+<![CDATA[]]>
+</DataValueMember>
+</StructureMember>
+<StructureMember Name="Std" DataType="STRING">
+<DataValueMember Name="LEN" DataType="DINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="DATA" DataType="STRING" Radix="ASCII">
+<![CDATA[]]>
+</DataValueMember>
+</StructureMember>
+<DataValueMember Name="DurUs" DataType="TIME" Radix="Decimal" Value="0"/>
+<DataValueMember Name="Dur32" DataType="TIME32" Radix="Decimal" Value="0"/>
+<DataValueMember Name="DurNs" DataType="LTIME" Radix="Decimal" Value="0"/>
+<DataValueMember Name="StampUsFromLintRaw" DataType="LINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="StampUsFromLint" DataType="DT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="StampNsFromLintRaw" DataType="LINT" Radix="Decimal" Value="0"/>
+<DataValueMember Name="StampNsFromLint" DataType="LDT" Radix="Decimal" Value="0"/>
+</Structure>
+</Data>
+</Tag>
+<Tag Name="FRK_S12_Scan" TagType="Base" DataType="DINT" Radix="Decimal" Constant="false" ExternalAccess="Read Only" OpcUaAccess="None">
+<Data Format="L5K">
+<![CDATA[0]]>
+</Data>
+<Data Format="Decorated">
+<DataValue DataType="DINT" Radix="Decimal" Value="0"/>
+</Data>
+</Tag>
+</Tags>
+<Programs>
+<Program Name="FRK_S12Program" TestEdits="false" MainRoutineName="FRK_S12Main" Disabled="false" UseAsFolder="false">
+<Tags/>
+<Routines>
+<Routine Name="FRK_S12Main" Type="ST">
+<STContent>
+<Line Number="0">
+<![CDATA[FRK_S12_Scan := FRK_S12_Scan + 1;]]>
+</Line>
+<Line Number="1">
+<![CDATA[FRK_S12_Probe.B0 := 1;]]>
+</Line>
+<Line Number="2">
+<![CDATA[FRK_S12_Probe.B1 := 0;]]>
+</Line>
+<Line Number="3">
+<![CDATA[FRK_S12_Probe.B2 := 1;]]>
+</Line>
+<Line Number="4">
+<![CDATA[FRK_S12_Probe.B3 := 1;]]>
+</Line>
+<Line Number="5">
+<![CDATA[FRK_S12_Probe.B4 := 0;]]>
+</Line>
+<Line Number="6">
+<![CDATA[FRK_S12_Probe.B5 := 0;]]>
+</Line>
+<Line Number="7">
+<![CDATA[FRK_S12_Probe.B6 := 1;]]>
+</Line>
+<Line Number="8">
+<![CDATA[FRK_S12_Probe.B7 := 0;]]>
+</Line>
+<Line Number="9">
+<![CDATA[FRK_S12_Probe.B8 := 1;]]>
+</Line>
+<Line Number="10">
+<![CDATA[FRK_S12_Probe.B9 := 1;]]>
+</Line>
+<Line Number="11">
+<![CDATA[FRK_S12_Probe.After := 123456789;]]>
+</Line>
+<Line Number="12">
+<![CDATA[FRK_S12_Probe.Flags[0] := 1;]]>
+</Line>
+<Line Number="13">
+<![CDATA[FRK_S12_Probe.Flags[5] := 1;]]>
+</Line>
+<Line Number="14">
+<![CDATA[FRK_S12_Probe.Flags[31] := 1;]]>
+</Line>
+<Line Number="15">
+<![CDATA[FRK_S12_Probe.Big := 16909060;]]>
+</Line>
+<Line Number="16">
+<![CDATA[FRK_S12_Probe.Big := FRK_S12_Probe.Big * 65536;]]>
+</Line>
+<Line Number="17">
+<![CDATA[FRK_S12_Probe.Big := FRK_S12_Probe.Big * 65536;]]>
+</Line>
+<Line Number="18">
+<![CDATA[FRK_S12_Probe.Big := FRK_S12_Probe.Big + 84281096;]]>
+</Line>
+<Line Number="19">
+<![CDATA[FRK_S12_Probe.Negative := 0;]]>
+</Line>
+<Line Number="20">
+<![CDATA[FRK_S12_Probe.Negative := FRK_S12_Probe.Negative - 2;]]>
+</Line>
+<Line Number="21">
+<![CDATA[FRK_S12_Probe.Wide := 3.141592653589793;]]>
+</Line>
+<Line Number="22">
+<![CDATA[FRK_S12_Probe.Single := 1.5;]]>
+</Line>
+<Line Number="23">
+<![CDATA[FRK_S12_Probe.Words[0] := 10;]]>
+</Line>
+<Line Number="24">
+<![CDATA[FRK_S12_Probe.Words[4] := 14;]]>
+</Line>
+<Line Number="25">
+<![CDATA[FRK_S12_Probe.Kids[0].Flag := 1;]]>
+</Line>
+<Line Number="26">
+<![CDATA[FRK_S12_Probe.Kids[0].Value := 7;]]>
+</Line>
+<Line Number="27">
+<![CDATA[FRK_S12_Probe.Kids[2].Flag := 0;]]>
+</Line>
+<Line Number="28">
+<![CDATA[FRK_S12_Probe.Kids[2].Value := -9;]]>
+</Line>
+<Line Number="29">
+<![CDATA[FRK_S12_Probe.S2.LEN := 2;]]>
+</Line>
+<Line Number="30">
+<![CDATA[FRK_S12_Probe.S2.DATA[0] := 79;]]>
+</Line>
+<Line Number="31">
+<![CDATA[FRK_S12_Probe.S2.DATA[1] := 75;]]>
+</Line>
+<Line Number="32">
+<![CDATA[FRK_S12_Probe.S80.LEN := 3;]]>
+</Line>
+<Line Number="33">
+<![CDATA[FRK_S12_Probe.S80.DATA[0] := 65;]]>
+</Line>
+<Line Number="34">
+<![CDATA[FRK_S12_Probe.S80.DATA[1] := -61;]]>
+</Line>
+<Line Number="35">
+<![CDATA[FRK_S12_Probe.S80.DATA[2] := -87;]]>
+</Line>
+<Line Number="36">
+<![CDATA[FRK_S12_Probe.S160.LEN := 160;]]>
+</Line>
+<Line Number="37">
+<![CDATA[FRK_S12_Probe.S160.DATA[0] := 65;]]>
+</Line>
+<Line Number="38">
+<![CDATA[FRK_S12_Probe.S160.DATA[159] := 90;]]>
+</Line>
+<Line Number="39">
+<![CDATA[FRK_S12_Probe.S255.LEN := 255;]]>
+</Line>
+<Line Number="40">
+<![CDATA[FRK_S12_Probe.S255.DATA[0] := 65;]]>
+</Line>
+<Line Number="41">
+<![CDATA[FRK_S12_Probe.S255.DATA[254] := 90;]]>
+</Line>
+<Line Number="42">
+<![CDATA[FRK_S12_Probe.S480.LEN := 480;]]>
+</Line>
+<Line Number="43">
+<![CDATA[FRK_S12_Probe.S480.DATA[0] := 65;]]>
+</Line>
+<Line Number="44">
+<![CDATA[FRK_S12_Probe.S480.DATA[479] := 90;]]>
+</Line>
+<Line Number="45">
+<![CDATA[FRK_S12_Probe.Std.LEN := 1;]]>
+</Line>
+<Line Number="46">
+<![CDATA[FRK_S12_Probe.Std.DATA[0] := 88;]]>
+</Line>
+<Line Number="47">
+<![CDATA[FRK_S12_Probe.DurUs := T#1s500ms;]]>
+</Line>
+<Line Number="48">
+<![CDATA[FRK_S12_Probe.Dur32 := T32#1s500ms;]]>
+</Line>
+<Line Number="49">
+<![CDATA[FRK_S12_Probe.DurNs := LT#1s500ms;]]>
+</Line>
+<Line Number="50">
+<![CDATA[FRK_S12_Probe.StampUsFromLintRaw := 417328;]]>
+</Line>
+<Line Number="51">
+<![CDATA[FRK_S12_Probe.StampUsFromLintRaw := FRK_S12_Probe.StampUsFromLintRaw * 65536;]]>
+</Line>
+<Line Number="52">
+<![CDATA[FRK_S12_Probe.StampUsFromLintRaw := FRK_S12_Probe.StampUsFromLintRaw + 48590;]]>
+</Line>
+<Line Number="53">
+<![CDATA[FRK_S12_Probe.StampUsFromLintRaw := FRK_S12_Probe.StampUsFromLintRaw * 65536;]]>
+</Line>
+<Line Number="54">
+<![CDATA[FRK_S12_Probe.StampUsFromLintRaw := FRK_S12_Probe.StampUsFromLintRaw + 24128;]]>
+</Line>
+<Line Number="55">
+<![CDATA[FRK_S12_Probe.StampUsFromLint := FRK_S12_Probe.StampUsFromLintRaw;]]>
+</Line>
+<Line Number="56">
+<![CDATA[FRK_S12_Probe.StampNsFromLintRaw := 417328741;]]>
+</Line>
+<Line Number="57">
+<![CDATA[FRK_S12_Probe.StampNsFromLintRaw := FRK_S12_Probe.StampNsFromLintRaw * 65536;]]>
+</Line>
+<Line Number="58">
+<![CDATA[FRK_S12_Probe.StampNsFromLintRaw := FRK_S12_Probe.StampNsFromLintRaw + 28192;]]>
+</Line>
+<Line Number="59">
+<![CDATA[FRK_S12_Probe.StampNsFromLintRaw := FRK_S12_Probe.StampNsFromLintRaw * 65536;]]>
+</Line>
+<Line Number="60">
+<![CDATA[FRK_S12_Probe.StampNsFromLintRaw := FRK_S12_Probe.StampNsFromLintRaw + 11541;]]>
+</Line>
+<Line Number="61">
+<![CDATA[FRK_S12_Probe.StampNsFromLint := FRK_S12_Probe.StampNsFromLintRaw;]]>
+</Line>
+</STContent>
+</Routine>
+</Routines>
+</Program>
+</Programs>
+<Tasks>
+<Task Name="FRK_S12Task" Type="PERIODIC" Rate="10" Priority="10" Watchdog="500" DisableUpdateOutputs="true" InhibitTask="false" SynchronizeRedundancyDataDisabled="false">
+<ScheduledPrograms>
+<ScheduledProgram Name="FRK_S12Program"/>
+</ScheduledPrograms>
+</Task>
+</Tasks>
+<CST MasterID="0"/>
+<WallClockTime LocalTimeAdjustment="0" TimeZone="0"/>
+<Trends/>
+<TimeSynchronize Priority1="128" Priority2="128" PTPEnable="false"/>
+<EthernetPorts>
+<EthernetPort Port="1" Label="1" PortEnabled="true"/>
+</EthernetPorts>
+<OpcUaInfo EnabledPorts=""/>
+</Controller>
+</RSLogix5000Content>

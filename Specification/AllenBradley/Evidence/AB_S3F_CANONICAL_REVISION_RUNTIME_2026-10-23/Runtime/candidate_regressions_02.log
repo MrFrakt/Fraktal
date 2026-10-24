@@ -1,0 +1,67 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 153, in execute_fixture
+    exercise(run)
+    ~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 42, in exercise
+    run.login()
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 50, in login
+    self.command(mailbox.LOGIN,User=UNKNOWN_USER,Secret=NEGATIVE_SECRET)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3f_revision_execute.py", line 24, in command
+    return super().command(kind,**args)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3f_fixture_execute.py", line 84, in command
+    answer=super().command(kind,**arguments)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 34, in command
+    report=self.access_pair('login_busy')
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 24, in access_pair
+    return capture.capture_pair(self,destination,
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+        lambda writer:observer.capture_gate(writer,selected),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        key=prefix+'AccessPairs',kind='access',metadata=dict(phase=phase))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3a_fixture_execute.py", line 26, in capture_pair
+    run.check(report['passed'],kind+' equivalence failed')
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 224, in check
+    raise FixtureRefused(message)
+fraktal_ab_part_execute.FixtureRefused: access equivalence failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3f_revision_execute.py", line 101, in <module>
+    if __name__=='__main__':raise SystemExit(main())
+                                             ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3f_revision_execute.py", line 100, in main
+    def main(argv=None):return genealogy.main(argv,run_type_factory=paired_run,schema='fraktal.ab.s3f-revision-fixture')
+                               ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_genealogy_execute.py", line 45, in main
+    return tower.execute_fixture(args,app,account,run_type=run_type,schema=schema)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 175, in execute_fixture
+    run.login()
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 59, in login
+    super().login()
+    ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 109, in login
+    self.command(mb.LOGIN, User=self.account['user'], Secret=self.account['pin'])
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3f_revision_execute.py", line 24, in command
+    return super().command(kind,**args)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3f_fixture_execute.py", line 84, in command
+    answer=super().command(kind,**arguments)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3e_fixture_execute.py", line 29, in command
+    answer=super().command(kind,**arguments)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3d_fixture_execute.py", line 23, in command
+    answer=super().command(kind,**arguments)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3a_fixture_execute.py", line 38, in command
+    return super().command(kind,**arguments)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 88, in command
+    raise FixtureRefused(f'mailbox refused command {kind}, diagnostic key {answer["diagnosticKey"]}')
+fraktal_ab_part_execute.FixtureRefused: mailbox refused command 1, diagnostic key 727

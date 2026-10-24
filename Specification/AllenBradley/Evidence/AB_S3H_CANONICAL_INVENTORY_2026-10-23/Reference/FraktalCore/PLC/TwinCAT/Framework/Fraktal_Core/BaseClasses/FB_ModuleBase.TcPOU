@@ -1,0 +1,1723 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ModuleBase" Id="{8b301a4b-b494-41a3-83ca-dbb612992d12}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §2.2 / §6.1 — the PLCopen lifecycle written ONCE (template method).
+// A concrete type EXTENDS this base, declares its Command/HAL/ParCfg members, and
+// overrides only _M_Dispatch (+ optionally hooks and recipe transaction methods).
+// Edge handling, ExecState mapping, Execute-drop reset, ErrorID publication, and
+// abort routing are inherited. Conformance rows T1/T4 (Core §5.7) are satisfied here
+// and proven once in FB_Base_Tests.
+FUNCTION_BLOCK ABSTRACT FB_ModuleBase IMPLEMENTS I_Module, I_ConfigSource, I_ManualTarget
+VAR_INPUT
+    Execute : BOOL;    // rising edge starts the command (Core §6.1)
+    Abort   : BOOL;    // requests a controlled abort
+END_VAR
+VAR_OUTPUT
+    Busy    : BOOL;
+    Done    : BOOL;
+    Error   : BOOL;
+    Aborted : BOOL;
+    // Core §6.1 — ISA-88 HELD, orthogonal to the terminal states: BUSY, outputs
+    // withdrawn, deliberately not progressing while a declared condition is
+    // unsatisfied. Deliberately NOT an E_ExecState ordinal: that enum is transport
+    // contract (§3.10(a')) and the HMI mirrors its ordinals, so HELD is published
+    // as its own flag beside Busy/Done/Error/Aborted and never renumbers the set.
+    Held    : BOOL;
+    // §3.13 — does this module publish a sequence flow chart? A type that has
+    // no meaningful chain leaves it FALSE and the HMI omits the tab entirely;
+    // FB_UnitBase defaults it TRUE and a Unit may vary it per mode.
+    SequenceViewEnabled : BOOL;
+    ErrorID : DWORD;   // = TO_DWORD(first-out ReasonCode), Core §8.8
+    // §3.12 — derived state published by this module: facts recomputed from the
+    // real state underneath, every scan. Distinct from OutCmd, which is what a
+    // command produced and stays latched until the next one.
+    StateFlags : ARRAY[1..PL_Fraktal.MAX_STATE_FLAGS] OF ST_StateFlag;
+    StateFlagCount : INT;              // highest index published (§8.4 bounded)
+END_VAR
+VAR_OUTPUT
+    Status : ST_ModuleStatus;   // Core §3.10(a')/§6.9(a) — the OPC UA data mirror
+    Timing : ST_ModuleTiming;   // Core §8.11.4(a) — per-command timing, captured here once
+    // §3.10.2 — static facets stay OFF the cyclic OPC UA tree and are served
+    // through the QUERY_CONFIG manifest instead (M_AppendConfig).
+    {attribute 'OPC.UA.DA' := '0'}
+    Nameplate   : ST_Nameplate;  // §3.10.1 asset identity (set at Setup; empty = none)
+    {attribute 'OPC.UA.DA' := '0'}
+    Catalog     : ARRAY[1..PL_Fraktal.MAX_CMD_CATALOG] OF ST_CommandInfo;  // §7.6.1 published command list
+    {attribute 'OPC.UA.DA' := '0'}
+    CatalogCount: INT;
+    Safety       : ST_SafetyStatus;       // §9 optional read-only safety facet (Present=FALSE if absent)
+    ControlPower : ST_ControlPowerStatus; // §9 optional control/power facet
+END_VAR
+VAR
+    _name  : STRING(80);
+    _exec  : E_ExecState := E_ExecState.READY;
+    _step  : INT;
+    _diag  : ST_Diagnostic;
+    _rTrig : R_TRIG;
+    _abortErrTrig : R_TRIG;
+    _initialized : BOOL;
+    _prevExec   : E_ExecState;
+    _manualCmd  : DINT;          // §7.6.1 pending manual command value (0 = none)
+    _manualReq  : BOOL;
+    _manualActive : BOOL;        // one-shot manual request owns Execute until terminal state
+    _cmdArmed   : BOOL;          // terminal state came from a command; gates the §6.1 reset
+    _stateTouched : ARRAY[1..PL_Fraktal.MAX_STATE_FLAGS] OF BOOL;   // §3.12 published this scan
+    _cmdId      : DINT;          // set by _M_TagCommand (one line per type, §8.11.4(a))
+    _cmdLabel   : STRING(120);
+    _tCmdStart  : DWORD;         // monotonic ms at command start (TC3 §8.11)
+    _holdReq    : BOOL;          // §6.1 HELD: re-asserted by dispatch every scan it holds
+    _holdSince  : DATE_AND_TIME; // hold onset, preserved across scans (§8.8 Since)
+    _holdTimeSynchronized : BOOL;
+    // §3.8b/§3.10.2 — the editable values this module has registered about
+    // itself. One record serves both directions: the manifest publishes the
+    // capability from it and a write applies through it, so the metadata a
+    // client validated against and the target actually written cannot drift
+    // apart (§1.1 O1). Off the cyclic tree — pTarget must never reach a client.
+    {attribute 'OPC.UA.DA' := '0'}
+    _configWrite  : ARRAY[1..PL_Fraktal.MAX_CONFIG_WRITES] OF ST_ConfigWriteDef;
+    {attribute 'OPC.UA.DA' := '0'}
+    _nConfigWrite : INT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _pConfigWrite : POINTER TO ST_ConfigWriteDef;
+    _configCapacity : INT := PL_Fraktal.MAX_CONFIG_WRITES;
+    // §3.8a - this module's own recipe record, and the record a request is
+    // viewing instead of it (0 = the live one). See _M_SetModelRegion.
+    {attribute 'OPC.UA.DA' := '0'}
+    _pModelRegion : PVOID;
+    _modelRegionSize : UDINT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _pModelView : PVOID;
+    // §3.8b — one restore-loss slot. ONE, not a list: a module with two retained
+    // structures that both lost their schema lost them for the same reason (its
+    // own layout changed), and one annunciation naming the module is exactly
+    // what the operator needs. The slot is cleared as the root takes it, so the
+    // event is raised exactly once per boot.
+    {attribute 'OPC.UA.DA' := '0'}
+    _restoreLost     : BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _restoreExpected : UINT;
+    {attribute 'OPC.UA.DA' := '0'}
+    _restoreFound    : UINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// FB body just runs the lifecycle; parents may call the instance or Cyclic() (I_Module)
+Cyclic();]]></ST>
+    </Implementation>
+    <Method Name="Cyclic" Id="{55e1a9be-c565-4b0c-ab2b-978ee05c7de5}">
+      <Declaration><![CDATA[// Core §6.1 — edge -> hooks -> dispatch -> map -> Execute-drop reset
+METHOD Cyclic : BOOL
+VAR
+    commandStarted : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[commandStarted := FALSE;
+// Execute-drop reset (Core §6.1): a COMMAND-produced terminal state published in
+// an earlier scan plus Execute low resets to READY BEFORE this scan's mapping, so
+// the outputs go idle in the same call. A completion later this scan still maps
+// its one-cycle DONE/ERROR/ABORTED pulse first (PLCopen). Faults raised OUTSIDE a
+// command (recipe/config at Setup, cyclic condition monitors) latch (§3.8/§8.3):
+// Execute was never high, so the handshake reset does not consume them.
+IF (NOT Execute) AND _cmdArmed
+AND ((_exec = E_ExecState.DONE) OR (_exec = E_ExecState.ERROR) OR (_exec = E_ExecState.ABORTED)) THEN
+    _exec := E_ExecState.READY;
+    _cmdArmed := FALSE;
+END_IF
+
+_rTrig(CLK := Execute);
+// A fresh command edge may also RETRY from a latched non-command fault: the edge
+// clears the diagnostic and re-runs validation, which re-faults if the cause remains.
+IF _rTrig.Q AND ((_exec = E_ExecState.READY)
+    OR ((_exec = E_ExecState.ERROR) AND NOT _cmdArmed)) THEN
+    _exec := E_ExecState.BUSY;      // ParCmd of the concrete type is latched on this edge
+    _cmdArmed := TRUE;
+    _step := 10;
+    _M_ClearDiag();
+    _tCmdStart := TIME_TO_DWORD(TIME());          // §8.11.4(a) command-timing start
+    commandStarted := TRUE;
+END_IF
+
+IF NOT _initialized THEN
+    _initialized := TRUE;
+    OnInit();                        // Core §3.14 one-shot for every module tier
+END_IF
+IF commandStarted THEN
+    OnCommandStart();                // one-shot after init, before cyclic/dispatch
+END_IF
+_M_SweepStateFlags();                // §3.12 last scan's flags resolve here
+OnCyclic();                          // Core §3.14 hook: background management, no outputs
+
+IF Abort AND (_exec = E_ExecState.BUSY) THEN
+    OnAbort();                       // Core §3.14 hook: device-safe abort action
+END_IF
+_abortErrTrig(CLK := Abort AND (_exec = E_ExecState.ERROR));
+IF _abortErrTrig.Q THEN
+    OnAbortInError();                // distinct recovery hook; ERROR remains latched
+END_IF
+
+IF _exec = E_ExecState.BUSY THEN
+    _M_Dispatch();                   // the ONLY thing a type must write (Core §2.2)
+END_IF
+
+// §6.1 HELD resolution — level-based, exactly like an interlock: a hold lasts only
+// while this scan's dispatch re-asserted it, so a restored condition resumes by
+// itself with no per-type "clear the hold" code to forget. A hold never survives
+// leaving BUSY, and a fault raised in the same scan keeps its own diagnostic.
+IF Held AND (NOT _holdReq) AND (_exec = E_ExecState.BUSY) THEN
+    _M_ClearDiag();                  // the declared condition returned
+END_IF
+Held := _holdReq AND (_exec = E_ExecState.BUSY);
+_holdReq := FALSE;
+
+// §8.11.4(a) — close the command's timing row on leaving BUSY (DONE/ERROR/ABORTED)
+IF (_prevExec = E_ExecState.BUSY) AND (_exec <> E_ExecState.BUSY) THEN
+    _M_RecordCmdTiming(TIME_TO_DWORD(TIME()) - _tCmdStart);   // wrap-safe diff (TC3 §8.11)
+END_IF
+_prevExec := _exec;
+
+Busy    := (_exec = E_ExecState.BUSY);
+Done    := (_exec = E_ExecState.DONE);
+Error   := (_exec = E_ExecState.ERROR);
+Aborted := (_exec = E_ExecState.ABORTED);
+ErrorID := TO_DWORD(_diag.ReasonCode);
+
+// §6.9(a)/§3.10(a') — refresh the data mirror: properties are invisible to the
+// OPC UA namespace, so everything the HMI binds is published here as DATA
+Status.ModuleType  := ModuleType;
+Status.State       := _exec;
+Status.FaultActive := (_exec = E_ExecState.ERROR);
+Status.Diagnostic  := _diag;
+_M_PublishStatus();              // tier-specific overlay after the common mirror is final
+
+// A manual command is a one-shot use of the same PLCopen lifecycle. Keep the
+// terminal state visible for this scan, then drop Execute for next-scan reset.
+IF _manualActive AND ((_exec = E_ExecState.DONE) OR (_exec = E_ExecState.ERROR) OR (_exec = E_ExecState.ABORTED)) THEN
+    Execute := FALSE;
+    _manualActive := FALSE;
+END_IF
+Cyclic := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="GetFaultSummary" Id="{9566a5e3-ba25-4315-8418-3442cda23dcf}">
+      <Declaration><![CDATA[// Core §8.2/§6.9 — this node's first-out (composites override via rollup in the EM base)
+METHOD GetFaultSummary : ST_Diagnostic]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[GetFaultSummary := _diag;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbort" Id="{04322c07-87f1-40ea-bc1a-5832b3217887}">
+      <Declaration><![CDATA[// Core §3.14 hook — optional override: device-safe abort action.
+// Override contract (Core §3.14.2): call SUPER^.OnAbort() FIRST and keep its return.
+METHOD PROTECTED OnAbort : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_exec := E_ExecState.ABORTED;
+_step := 0;
+OnAbort := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnAbortInError" Id="{89520f20-9f44-4fc4-bc6c-a17bf4f6fa8f}">
+      <Declaration><![CDATA[// Core §3.14 — optional error-state abort/recovery action. ERROR remains latched
+// until Execute drops. Overrides call SUPER^.OnAbortInError() first.
+METHOD PROTECTED OnAbortInError : DINT]]></Declaration>
+      <Implementation><ST><![CDATA[OnAbortInError := 0;]]></ST></Implementation>
+    </Method>
+    <Method Name="OnInit" Id="{65ff6da7-cd28-41e5-9897-e1d3c337a9f6}">
+      <Declaration><![CDATA[// Core §3.14 — first operational scan, after Setup/recipe load.
+// Overrides call SUPER^.OnInit() first and propagate its return.
+METHOD PROTECTED OnInit : DINT]]></Declaration>
+      <Implementation><ST><![CDATA[OnInit := 0;]]></ST></Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{48bc56d4-8c06-49f6-bf88-b38859740000}">
+      <Declaration><![CDATA[// Core §3.14 hook — optional override: per-scan background management (idempotent,
+// no direct outputs). Override contract: call SUPER^.OnCyclic() FIRST, keep return.
+METHOD PROTECTED OnCyclic : DINT]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[OnCyclic := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="OnCommandStart" Id="{2fbf1ca4-bd83-4ad3-9ad2-aaeef93967dc}">
+      <Declaration><![CDATA[// Core §3.14 hook — one-shot on each accepted Execute rising edge, after OnInit
+// and before OnCyclic/_M_Dispatch. Overrides call SUPER^.OnCommandStart() first.
+// Use for command-local wiring/reset only; process behavior belongs in dispatch.
+METHOD PROTECTED OnCommandStart : DINT]]></Declaration>
+      <Implementation><ST><![CDATA[OnCommandStart := 0;]]></ST></Implementation>
+    </Method>
+    <Method Name="PrepareRecipe" Id="{db5aea26-fad0-45c3-85d6-1c319b06c11c}">
+      <Declaration><![CDATA[// Core §3.8 — types with ParCfg load into staging here.
+METHOD PrepareRecipe : BOOL
+VAR_INPUT
+    Model : ST_ModelId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[PrepareRecipe := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="CommitRecipe" Id="{41e0d6b5-22db-4322-a3fb-6988fedfb14a}">
+      <Declaration><![CDATA[METHOD CommitRecipe]]></Declaration>
+      <Implementation><ST><![CDATA[]]></ST></Implementation>
+    </Method>
+    <Method Name="AbortRecipe" Id="{ea618be8-2d71-4f2b-bbf6-0764ca27fefd}">
+      <Declaration><![CDATA[METHOD AbortRecipe]]></Declaration>
+      <Implementation><ST><![CDATA[]]></ST></Implementation>
+    </Method>
+    <Method Name="ExecuteCommand" Id="{f51ae79d-e26d-48dc-acb5-d17e651f22ea}">
+      <Declaration><![CDATA[// Core §3.2 — generic DINT command path; the catalog is the supported set.
+// Concrete dispatch consumes the inherited manual request, so typed/generic/HMI
+// paths share validation, timing, interlocks, and the PLCopen lifecycle.
+METHOD ExecuteCommand : BOOL
+VAR_INPUT
+    Command : DINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[ExecuteCommand := ManualCommand(Value := Command);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AbortCommand" Id="{245e845f-096c-4671-ac56-5146b4cbe16f}">
+      <Declaration><![CDATA[// Core §3.2/§6.1 — method form of the inherited abort route.
+METHOD AbortCommand : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[AbortCommand := FALSE;
+IF _exec <> E_ExecState.BUSY THEN
+    RETURN;
+END_IF
+OnAbort();
+_exec := E_ExecState.ABORTED;
+_step := 0;
+AbortCommand := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_ClearDiag" Id="{31f29f49-3b1c-41d8-8d5b-7a55e4b57ade}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_ClearDiag]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_diag.ReasonCode  := E_Reason.NONE;
+_diag.Description := '';
+_diag.IoTag := '';
+_diag.IoAddress := '';
+_diag.TimeSynchronized := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Complete" Id="{06af2579-f543-4df4-8570-1a7ac93dd125}">
+      <Declaration><![CDATA[// Core §6.1 — successful completion (the concrete type publishes OutCmd before calling)
+METHOD PROTECTED _M_Complete]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_exec := E_ExecState.DONE;
+_step := 0;
+_M_ClearDiag();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{9ea9e054-f35b-4138-af00-cab2dd9c761f}">
+      <Declaration><![CDATA[// Core §2.2 — THE extension point: the type's CASE _step device logic,
+// calling _M_Fault / _M_FaultDiag / _M_Complete.
+METHOD PROTECTED ABSTRACT _M_Dispatch]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_Fault" Id="{5fc14cdf-5d54-4103-9e66-ade4c511161a}">
+      <Declaration><![CDATA[// Core §6.9 — stamp the first-out reason and hold in ERROR
+METHOD PROTECTED _M_Fault
+VAR_INPUT
+    Reason : E_Reason;
+    Text   : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_diag.ReasonCode  := Reason;
+_diag.Description := Text;
+_diag.SourcePath  := _name;
+_diag.IoTag       := '';
+_diag.IoAddress   := '';
+_diag.Severity    := E_Severity.MED;
+_diag.Category    := E_Category.PROCESS;
+F_RationalizeDiagnostic(Diag := _diag);
+_diag.Since       := F_Now();       // synchronized clock (Core §2.7)
+_diag.TimeSynchronized := F_TimeSynchronized();
+_exec := E_ExecState.ERROR;
+_step := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_FaultDiag" Id="{03522184-ad94-4517-a6d7-9dfc7a3da385}">
+      <Declaration><![CDATA[// Core §8.2 — adopt a ready-made diagnostic verbatim (rollup / connector reason)
+METHOD PROTECTED _M_FaultDiag
+VAR_INPUT
+    Diag : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_diag := Diag;
+F_RationalizeDiagnostic(Diag := _diag);
+_exec := E_ExecState.ERROR;
+_step := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SetName" Id="{6ced507f-831f-4313-88cb-22ca9e2b6dab}">
+      <Declaration><![CDATA[// called from the concrete type's Setup (Core §3.11); Name = browse path (Core §4.8)
+METHOD PROTECTED _M_SetName
+VAR_INPUT
+    Name : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_name := Name;
+Status.Name := Name;   // mirror (§3.10(a'))]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_RecordCmdTiming" Id="{38205e3a-ffbf-41f7-86e4-499454cd2653}">
+      <Declaration><![CDATA[// Core §8.11.4(a) — fold the finished command into its timing row (find-or-allocate)
+METHOD PRIVATE _M_RecordCmdTiming
+VAR_INPUT
+    DurMs : DWORD;
+END_VAR
+VAR
+    i, slot : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Timing.LastCmdTime := DWORD_TO_TIME(DurMs);
+slot := 0;
+FOR i := 1 TO PL_Fraktal.MAX_CMD_STATS DO
+    IF (Timing.Rows[i].Count > 0) AND (Timing.Rows[i].Id = _cmdId) THEN
+        slot := i;
+        EXIT;
+    ELSIF (slot = 0) AND (Timing.Rows[i].Count = 0) THEN
+        slot := i;
+    END_IF
+END_FOR
+IF slot = 0 THEN
+    Timing.Truncated := TRUE;        // fixed array, never grown at runtime (§8.11.4(e))
+ELSE
+    Timing.Rows[slot].Id    := _cmdId;
+    Timing.Rows[slot].Label := _cmdLabel;
+    F_TimingUpdate(Row := Timing.Rows[slot], DurMs := DurMs);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_State" Id="{8a4c71f2-1fd5-4cfd-b3b9-9688e6721e06}">
+      <Declaration><![CDATA[// §3.12 — publish a DERIVED state flag and return it, so the assignment reads
+// exactly as it would without the framework:
+//
+//     OutImm.Homed := _M_State(Idx := 1, Key := 'project.state.atHome',
+//         Ok := Ram.OutImm.Retracted AND Door.OutImm.Retracted);
+//
+// What the call adds over a bare assignment is everything the operator and the
+// HMI need and nobody wants to write per flag (§1.1 O1): the flag carries its
+// own name, and the moment it last changed (§2.7), and it is published on a
+// bounded generic table the HMI renders without knowing the module type (§3.13).
+// Same shape as the §6.9(b) named condition wait, deliberately - one idiom for
+// "a named boolean the framework publishes" (§1.1 O9).
+//
+// CALL IT UNCONDITIONALLY, every scan. A flag that stops being published goes
+// Stale and its Value is forced FALSE on the next scan: state that nobody is
+// computing is not a claim. That is the point of the mechanism - a latch left
+// standing is exactly the failure it exists to prevent.
+//
+// Out-of-range Idx is skipped rather than faulted, matching _M_Await (§6.9(b)):
+// the value still returns, so a mis-indexed flag loses its publication, never
+// the machine logic that reads it.
+METHOD PROTECTED _M_State : BOOL
+VAR_INPUT
+    Idx : INT;
+    Key : STRING(120);
+    Ok  : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_M_State := Ok;
+IF (Idx < 1) OR (Idx > PL_Fraktal.MAX_STATE_FLAGS) THEN
+    RETURN;
+END_IF
+IF Idx > StateFlagCount THEN
+    StateFlagCount := Idx;
+END_IF
+IF (StateFlags[Idx].Value <> Ok) OR (StateFlags[Idx].Key <> Key)
+OR StateFlags[Idx].Stale THEN
+    StateFlags[Idx].Since := F_Now();      // §2.7 synchronized clock
+END_IF
+StateFlags[Idx].Key   := Key;
+StateFlags[Idx].Value := Ok;
+StateFlags[Idx].Stale := FALSE;
+_stateTouched[Idx] := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SweepStateFlags" Id="{7c21cb03-cf91-4f5b-9317-f62b4aefdb3d}">
+      <Declaration><![CDATA[// §3.12 — resolve the previous scan's publications, before this scan re-publishes.
+// A flag the owner stopped computing stops claiming; nothing has to be
+// deregistered when a module stops publishing one (§1.1 O1).
+METHOD PRIVATE _M_SweepStateFlags
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 1 TO StateFlagCount DO
+    IF NOT _stateTouched[i] THEN
+        StateFlags[i].Value := FALSE;
+        StateFlags[i].Stale := TRUE;
+    END_IF
+    _stateTouched[i] := FALSE;
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_TagCommand" Id="{ece46cea-23d0-43c2-813e-8667a9d51bcb}">
+      <Declaration><![CDATA[// Core §8.11.4(a) — the ONE line a type adds for a per-command breakdown:
+//   _M_TagCommand(TO_DINT(Command), '<label>');   (idempotent; scaffold includes it)
+METHOD PROTECTED _M_TagCommand
+VAR_INPUT
+    Id    : DINT;
+    Label : STRING(120);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_cmdId    := Id;
+    _cmdLabel := Label;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_SetPresentation" Id="{e66e1a1c-bccd-4d2b-b10f-04682c152476}">
+      <Declaration><![CDATA[// Optional localizable HMI metadata; keys only, never operator prose.
+METHOD PROTECTED _M_SetPresentation
+VAR_INPUT
+    DisplayNameKey : STRING(160);
+    DescriptionKey : STRING(160);
+    TypeKey : STRING(160);        // §7.1: the TYPE's key, never an instance variable
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[Status.DisplayNameKey := DisplayNameKey;
+Status.DescriptionKey := DescriptionKey;
+Status.TypeKey := TypeKey;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_FaultN" Id="{13380fe6-9f35-461a-9c7d-07489905385d}">
+      <Declaration><![CDATA[// Core §8.8 band-extensibility: fault with a per-type band code (DINT constant).
+// E_Reason is deliberately non-strict, so the numeric assignment is contract, not a cast trick.
+METHOD PROTECTED _M_FaultN
+VAR_INPUT
+    Code : DINT;          // registered band code (Core §8.8 registry)
+    Text : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_diag.ReasonCode  := Code;    // non-strict enum accepts the band value (Core §8.8)
+_diag.Description := Text;
+_diag.SourcePath  := _name;
+_diag.IoTag       := '';
+_diag.IoAddress   := '';
+_diag.Severity    := E_Severity.MED;
+_diag.Category    := E_Category.PROCESS;
+F_RationalizeDiagnostic(Diag := _diag);
+_diag.Since       := F_Now();
+_diag.TimeSynchronized := F_TimeSynchronized();
+_exec := E_ExecState.ERROR;
+_step := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_FaultIoN" Id="{882e3bc6-6ae0-4543-9938-fbd2f3f464fc}">
+      <Declaration><![CDATA[// Type-band fault with the implicated schematic tag and terminal location.
+METHOD PROTECTED _M_FaultIoN
+VAR_INPUT
+    Code : DINT;
+    Text : STRING(255);
+    IoTag : STRING(80);
+    IoAddress : STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_FaultN(Code := Code, Text := Text);
+_diag.IoTag := IoTag;
+_diag.IoAddress := IoAddress;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Hold" Id="{c128d975-71bc-4cb7-ae5c-388502794794}">
+      <Declaration><![CDATA[// Core §6.1 HELD — suspend progress on a NAMED condition instead of faulting.
+// Use it where the condition is expected operator or process behaviour rather than
+// a defect: an interlock lost mid-motion, a hold-to-run permissive released. The
+// module stays BUSY, so the owner keeps awaiting it and resumes when the condition
+// returns; no ERROR, no MANUAL_RESET alarm, nothing to reset. Call it from dispatch
+// EVERY scan the condition is unsatisfied — the base clears the hold as soon as a
+// scan stops re-asserting it. Withdrawing the outputs stays the caller's job: only
+// the device type knows which of its outputs are unsafe to leave energized.
+METHOD PROTECTED _M_Hold
+VAR_INPUT
+    Reason : E_Reason;
+    Text   : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT Held THEN
+    _holdSince := F_Now();           // onset stamped once (§2.7 synchronized clock)
+    _holdTimeSynchronized := F_TimeSynchronized();
+END_IF
+_diag.ReasonCode  := Reason;
+_diag.Description := Text;
+_diag.SourcePath  := _name;
+_diag.IoTag       := '';
+_diag.IoAddress   := '';
+_diag.Severity    := E_Severity.LOW;   // a declared wait informs; it is not a fault (§8.1)
+_diag.Category    := E_Category.PROCESS;
+_diag.Since       := _holdSince;
+_diag.TimeSynchronized := _holdTimeSynchronized;
+_holdReq := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_HoldDiag" Id="{cabbbf3d-07d2-4753-8d57-3580ff32852f}">
+      <Declaration><![CDATA[// Core §6.1 HELD / §8.2 — hold on a ready-made diagnostic (an interlock's first-out,
+// or a held child's reason adopted by its parent). Keeps the originating SourcePath
+// so the operator sees WHICH module is waiting on WHICH condition (§6.9).
+METHOD PROTECTED _M_HoldDiag
+VAR_INPUT
+    Diag : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT Held THEN
+    _holdSince := Diag.Since;        // the condition's own onset, not this scan
+    _holdTimeSynchronized := Diag.TimeSynchronized;
+END_IF
+_diag := Diag;
+_diag.Severity := E_Severity.LOW;
+_diag.Since    := _holdSince;
+_diag.TimeSynchronized := _holdTimeSynchronized;
+_holdReq := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="M_ReleaseCommand" Id="{abc30de8-9e55-482f-92be-0d4a94ab54e7}">
+      <Declaration><![CDATA[// Core §6.1/§8.3(b) — release a command this module can no longer be driven to
+// finish, so the inherited Execute-drop reset clears a latched terminal state on
+// the next scan. Deliberately does NOT touch _exec: that transition stays owned by
+// Cyclic, preserving the §6.1 reset-provenance rule (IMPLEMENTATION_NOTES §47).
+// A live cause therefore re-faults on the next command edge rather than vanishing.
+METHOD M_ReleaseCommand : BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// A command still BUSY (mid-motion, or HELD on a condition) needs cancelling, not
+// just un-asserting: BUSY is not a terminal state, so the Execute-drop reset skips
+// it and the §6.1 acceptance test (`_rTrig.Q AND _exec = READY`) would ignore every
+// later command edge — the module would sit BUSY forever and the recovery sequence
+// would wait on it. AbortCommand routes through OnAbort, so the device gets its own
+// safe-stop action before the handshake unwinds.
+IF _exec = E_ExecState.BUSY THEN
+    AbortCommand();                  // -> ABORTED, then READY once Execute is low
+END_IF
+Execute := FALSE;
+_manualReq    := FALSE;              // an unconsumed manual request must not fire later
+_manualActive := FALSE;
+M_ReleaseCommand := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="HoldActive" Id="{16ae8e7e-a582-4187-9d06-2d07a65c2fed}">
+      <Declaration><![CDATA[PROPERTY HoldActive : BOOL]]></Declaration>
+      <Get Name="Get" Id="{ca95fd31-3b77-4c50-9304-3477957d547a}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[HoldActive := Held;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="FaultActive" Id="{38e2aa5f-3ac0-4eb3-9a1e-ef7a1cb767bc}">
+      <Declaration><![CDATA[PROPERTY FaultActive : BOOL]]></Declaration>
+      <Get Name="Get" Id="{529df577-22bf-4742-bdf3-062d51091f95}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[FaultActive := (_exec = E_ExecState.ERROR);]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="ModuleType" Id="{91a61863-2369-4ad6-a29c-bc990c2122a0}">
+      <Declaration><![CDATA[PROPERTY ModuleType : E_ModuleType]]></Declaration>
+      <Get Name="Get" Id="{dbd948ed-c4ad-40d7-8a31-4b0ed20d2b53}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ModuleType := E_ModuleType.NONE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="Name" Id="{c24d6397-401c-4963-8ab8-f563df940e48}">
+      <Declaration><![CDATA[PROPERTY Name : STRING(80)]]></Declaration>
+      <Get Name="Get" Id="{eb191fec-5268-43d8-8bcb-bfa73048b8de}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Name := _name;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="State" Id="{a1edbb0a-709d-4cde-ad03-289d669b1035}">
+      <Declaration><![CDATA[PROPERTY State : E_ExecState]]></Declaration>
+      <Get Name="Get" Id="{5853c615-2dce-4697-b780-9ecc31157145}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[State := _exec;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="_M_PublishCommand" Id="{29d0f7b0-91bb-4101-9d86-a1adf0963241}">
+      <Declaration><![CDATA[// §7.6.1 — register one manual command in the catalog (call in the module's init).
+// Idempotent by Value: re-publishing a Value updates its label.
+METHOD PROTECTED _M_PublishCommand
+VAR_INPUT
+    Value : DINT;
+    Label : STRING(120);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[FOR i := 1 TO CatalogCount DO
+    IF Catalog[i].Value = Value THEN
+        Catalog[i].Label := Label;
+        RETURN;
+    END_IF
+END_FOR
+IF CatalogCount >= PL_Fraktal.MAX_CMD_CATALOG THEN
+    RETURN;
+END_IF
+CatalogCount := CatalogCount + 1;
+Catalog[CatalogCount].Value := Value;
+Catalog[CatalogCount].Label := Label;]]></ST></Implementation>
+    </Method>
+          <Method Name="_M_PublishHeldCommand" Id="{01af0f1c-f80f-489a-8ba6-67215d1a2b01}">
+        <Declaration><![CDATA[// §7.6.1 - register a HELD manual command (a jog). Same catalog, same
+// idempotence; the style tells the HMI to render press-and-hold and to route it
+// to RequestHeldCommand instead of ExecuteCommand.
+METHOD PROTECTED _M_PublishHeldCommand
+VAR_INPUT
+    Value : DINT;
+    Label : STRING(120);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_PublishCommand(Value := Value, Label := Label);
+FOR i := 1 TO CatalogCount DO
+    IF Catalog[i].Value = Value THEN
+        Catalog[i].Style := E_CommandStyle.HELD;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RequestHeldCommand" Id="{5a80fbe1-2bd4-493d-aae5-92ba8ef683a3}">
+        <Declaration><![CDATA[// §7.6.1 - the entry point for a HELD manual command, called EVERY SCAN while
+// the operator holds the control. Silence is a stop: a module that implements
+// this shall stop the action when the calls stop, whether the operator let go or
+// the transport died (O10 - a lost connection queues nothing).
+//
+// Enable carries the §9 manual-enable fact for actions that need one (motion
+// with the guards open). It is STATUS, never authority: the module still applies
+// its own interlocks, and the safety system remains what actually permits the
+// movement. Modules with no held commands inherit this refusal unchanged.
+METHOD RequestHeldCommand : BOOL
+VAR_INPUT
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RequestHeldCommand := FALSE;   // no held commands on this type (§5.6 defined ELSE)]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="ManualCommand" Id="{0208fca9-aa4b-4e28-85ae-b94b8780ebca}">
+      <Declaration><![CDATA[// §7.6.1 — apply a manual command, routed THROUGH the normal command surface so
+// interlocks/first-out/timing still apply (§3.2). The owning Unit is the single
+// gate: it calls this ONLY after verifying MANUAL mode (§3.4) + MANUAL access
+// (§7.7) and logs the §8.3 event. §7.6 Release<Function> is enforced by the
+// module's own _M_Dispatch. Concrete modules read _manualReq/_manualCmd there.
+METHOD ManualCommand : BOOL
+VAR_INPUT
+    Value : DINT;
+END_VAR
+VAR
+    i : INT;
+    supported : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[ManualCommand := FALSE;
+FOR i := 1 TO CatalogCount DO
+    IF Catalog[i].Value = Value THEN
+        supported := TRUE;
+        EXIT;
+    END_IF
+END_FOR
+IF NOT supported THEN
+    RETURN;                              // reject values outside the published set (§5.6)
+END_IF
+IF (_exec <> E_ExecState.READY) OR Execute OR _manualActive THEN
+    RETURN;
+END_IF
+_manualCmd := Value;
+_manualReq := TRUE;                       // consumed by the module's _M_Dispatch
+_manualActive := TRUE;
+Execute := TRUE;                          // rising edge enters the inherited lifecycle
+ManualCommand := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_PublishStatus" Id="{8f1ef260-b1f4-49fd-8c9a-41554cb2e6db}">
+      <Declaration><![CDATA[// Called after the common Status mirror refresh. Derived tiers may overlay data.
+METHOD PROTECTED _M_PublishStatus]]></Declaration>
+      <Implementation><ST><![CDATA[;]]></ST></Implementation>
+    </Method>
+    <Method Name="SetNameplate" Id="{2b4ef7dc-3acc-4a5f-bbea-5d8ab99fe999}">
+      <Declaration><![CDATA[// §3.10.1 — set the module's asset identity once, at Setup. Not HMI-writable;
+// identity, not configuration (deliberately outside §3.8/§7.7).
+METHOD SetNameplate : BOOL
+VAR_INPUT
+    Plate : ST_Nameplate;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[Nameplate := Plate;
+SetNameplate := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_AppendConfig" Id="{b18e5c30-7f42-4da6-95c8-e0347a91d2b6}">
+      <Declaration><![CDATA[// §3.10.2 I_ConfigSource — export the base-owned static facets this module
+// deliberately keeps off the cyclic OPC UA tree. Item fragments reproduce the
+// server's array naming so the HMI rebuilds the exact browse paths generically.
+// A type with additional static data overrides, calls SUPER^ first, appends.
+METHOD M_AppendConfig : BOOL
+VAR_INPUT
+    Pager : REFERENCE TO FB_ConfigPager;
+END_VAR
+VAR
+    i    : INT;
+    item : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_AppendConfig := TRUE;
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/ProductUri',
+    ValueText := Nameplate.ProductUri);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/ManufacturerName',
+    ValueText := Nameplate.ManufacturerName);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/ProductDesignation',
+    ValueText := Nameplate.ProductDesignation);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/SerialNumber',
+    ValueText := Nameplate.SerialNumber);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/YearOfConstruction',
+    ValueText := Nameplate.YearOfConstruction);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/HardwareVersion',
+    ValueText := Nameplate.HardwareVersion);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/FirmwareVersion',
+    ValueText := Nameplate.FirmwareVersion);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/SoftwareVersion',
+    ValueText := Nameplate.SoftwareVersion);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/OrderCode',
+    ValueText := Nameplate.OrderCode);
+Pager.M_Append(Scope := Status.Name, Item := 'Nameplate/DocumentationUrl',
+    ValueText := Nameplate.DocumentationUrl);
+Pager.M_AppendNumber(Scope := Status.Name, Item := 'CatalogCount',
+    Number := TO_DINT(CatalogCount));
+FOR i := 1 TO CatalogCount DO
+    item := CONCAT('Catalog/Catalog[', CONCAT(TO_STRING(i), ']/Value'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item, Number := Catalog[i].Value);
+    item := CONCAT('Catalog/Catalog[', CONCAT(TO_STRING(i), ']/Label'));
+    Pager.M_Append(Scope := Status.Name, Item := item, ValueText := Catalog[i].Label);
+    // §7.6.1a - how the command is OPERATED. Without this a generic client
+    // cannot tell a jog from a one-shot, and renders a hold-to-run control as a
+    // click: pressing it once would latch motion nothing releases. The HMI
+    // treats an absent Style as ONESHOT, so an older PLC still reads correctly.
+    item := CONCAT('Catalog/Catalog[', CONCAT(TO_STRING(i), ']/Style'));
+    Pager.M_AppendNumber(Scope := Status.Name, Item := item,
+        Number := TO_DINT(Catalog[i].Style));
+END_FOR
+// §3.8b — then everything this module declared editable about itself.
+_M_AppendCapabilities(Pager := Pager, Scope := Status.Name, ItemPrefix := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_AppendCapabilities" Id="{ab3c0cf1-9f7b-4c05-8870-8fa349f89e11}">
+      <Declaration><![CDATA[// §3.8b — every value this module declared editable. The value is read live and
+// the metadata comes from the same record the write will be validated against,
+// so a client can never be shown a capability the PLC would not honour. Scope
+// and ItemPrefix exist for the one module published under another's scope: a
+// line, which a root presents as its own line data (§3.8e).
+METHOD PROTECTED _M_AppendCapabilities
+VAR_INPUT
+    Pager      : REFERENCE TO FB_ConfigPager;
+    Scope      : STRING(255);
+    ItemPrefix : STRING(16);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[FOR i := 1 TO _nConfigWrite DO
+    Pager.M_AppendCapability(Scope := Scope,
+        Item := CONCAT(ItemPrefix, _pConfigWrite[i - 1].Item),
+        ValueText := _M_ConfigValueText(Idx := i),
+        WriteKey := _pConfigWrite[i - 1].Key,
+        WriteRevision := _pConfigWrite[i - 1].Revision,
+        ConfigKind := _pConfigWrite[i - 1].Kind,
+        ValueType := _pConfigWrite[i - 1].ValueType,
+        Writable := NOT _M_ConfigReadOnly(),
+        RequiresReady := _pConfigWrite[i - 1].RequiresReady,
+        HasMinimum := _pConfigWrite[i - 1].HasMinimum,
+        HasMaximum := _pConfigWrite[i - 1].HasMaximum,
+        Minimum := _pConfigWrite[i - 1].Minimum,
+        Maximum := _pConfigWrite[i - 1].Maximum,
+        Unit := _pConfigWrite[i - 1].Unit,
+        LabelKey := _pConfigWrite[i - 1].LabelKey,
+        EnumDomain := _pConfigWrite[i - 1].EnumDomain,
+        EnumLabelKey := _pConfigWrite[i - 1].EnumLabelKey,
+        ClassId := _pConfigWrite[i - 1].ClassId,
+        MinReadLevel := _pConfigWrite[i - 1].MinReadLevel,
+        MinWriteLevel := _pConfigWrite[i - 1].MinWriteLevel,
+        ModelScoped := (_pConfigWrite[i - 1].Kind = E_ConfigKind.PAR_CFG)
+            AND _M_InModelRegion(p := _pConfigWrite[i - 1].pTarget));
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_SetModelRegion" Id="{677ce096-00e3-46a6-bc0e-1e36487af461}">
+      <Declaration><![CDATA[// Core §3.8a - declare this module's own recipe record (its ParCfg). PAR_CFG values
+// registered inside it are MODEL-SCOPED: a root can serve them for any model it
+// offers, by pointing the region at that model's record for one request.
+METHOD PROTECTED _M_SetModelRegion : BOOL
+VAR_INPUT
+    pRegion : PVOID;
+    Size    : UDINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_pModelRegion := pRegion;
+_modelRegionSize := Size;
+_pModelView := 0;
+_M_SetModelRegion := (pRegion <> 0) AND (Size > 0);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_InModelRegion" Id="{996129e5-072b-444a-8fe2-a4e175040326}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_InModelRegion : BOOL
+VAR_INPUT
+    p : PVOID;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InModelRegion := FALSE;
+IF (_pModelRegion = 0) OR (p = 0) THEN
+    RETURN;
+END_IF
+_M_InModelRegion := (p >= _pModelRegion) AND (p < _pModelRegion + _modelRegionSize);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Target" Id="{2524b62d-311c-491a-bec6-bf3d09f9354e}">
+      <Declaration><![CDATA[// Where value Idx lives for THIS request: its registered target, or - while a
+// model view is open - the same offset in the viewed model's record.
+METHOD PRIVATE _M_Target : PVOID
+VAR_INPUT
+    Idx : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_Target := _pConfigWrite[Idx - 1].pTarget;
+IF (_pModelView <> 0) AND (_pConfigWrite[Idx - 1].Kind = E_ConfigKind.PAR_CFG)
+AND _M_InModelRegion(p := _pConfigWrite[Idx - 1].pTarget) THEN
+    _M_Target := _pModelView + (_pConfigWrite[Idx - 1].pTarget - _pModelRegion);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ModelScopedKey" Id="{134e3902-dc11-4e6a-a1d4-bee7caed2682}">
+      <Declaration><![CDATA[// TRUE when WriteKey names one of this module's model-scoped values.
+METHOD PROTECTED _M_ModelScopedKey : BOOL
+VAR_INPUT
+    WriteKey : STRING(160);
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ModelScopedKey := FALSE;
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        _M_ModelScopedKey := (_pConfigWrite[i - 1].Kind = E_ConfigKind.PAR_CFG)
+            AND _M_InModelRegion(p := _pConfigWrite[i - 1].pTarget);
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigWrite" Id="{c81f4a26-05d7-4e93-b6a1-3fd208e7c145}">
+      <Declaration><![CDATA[// §3.8b/§3.10.2 — declare one editable value, at Setup. Registration is the ONLY
+// thing that makes a value writable; publication, browsability and DATA_WRITE
+// never are. All inputs are explicit for TwinCAT 4024 compatibility.
+//
+// A duplicate key is refused and the FIRST registration stands, because nothing
+// here can tell which of the two the author meant. The refusal travels back
+// through Setup, where a composition root sees it — rather than an operator
+// discovering it later at a control that writes the wrong field.
+METHOD M_RegisterConfigWrite : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    Revision      : UDINT;
+    Kind          : E_ConfigKind;
+    ValueType     : E_ConfigValueType;
+    Storage       : E_ConfigStorage;
+    pTarget       : PVOID;
+    RequiresReady : BOOL;
+    HasMinimum    : BOOL;
+    HasMaximum    : BOOL;
+    Minimum       : LREAL;
+    Maximum       : LREAL;
+    Unit          : E_EngUnit;     // NONE = no unit; the HMI shows none
+    LabelKey      : STRING(160);
+    MaxLength     : UINT;
+    EnumDomain    : STRING(255);
+    EnumLabelKey  : STRING(80);    // '' = the values are shown as they are
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigWrite := FALSE;
+IF _pConfigWrite = 0 THEN _pConfigWrite := ADR(_configWrite); END_IF
+IF (Key = '') OR (Revision = 0) OR (pTarget = 0)
+OR (Storage = E_ConfigStorage.NONE)
+OR (_nConfigWrite >= _configCapacity) THEN
+    RETURN;
+END_IF
+// A text target has a size this code cannot see. Storing 80 characters
+// into a STRING(16) would corrupt whatever follows it, so the capacity is
+// declared here and the store never exceeds it.
+IF (Storage = E_ConfigStorage.AS_STRING)
+AND ((MaxLength = 0) OR (MaxLength > 80)) THEN
+    RETURN;
+END_IF
+IF HasMinimum AND HasMaximum AND (Minimum > Maximum) THEN
+    RETURN;                                  // an empty range accepts nothing
+END_IF
+// §3.8e - a line value, and only a line value, is keyed 'line.'. A root publishes
+// the line it references under its OWN scope, so the prefix is what keeps the
+// line's keys and the root's apart; a mismatch in either direction fails closed.
+IF (Kind = E_ConfigKind.LINE_CFG) <> (LEFT(Key, 5) = 'line.') THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = Key THEN
+        RETURN;                              // duplicate (Scope, WriteKey): fail closed
+    END_IF
+END_FOR
+_nConfigWrite := _nConfigWrite + 1;
+_pConfigWrite[_nConfigWrite - 1].Key := Key;
+_pConfigWrite[_nConfigWrite - 1].Item := Item;
+_pConfigWrite[_nConfigWrite - 1].Revision := Revision;
+_pConfigWrite[_nConfigWrite - 1].Kind := Kind;
+_pConfigWrite[_nConfigWrite - 1].ValueType := ValueType;
+_pConfigWrite[_nConfigWrite - 1].Storage := Storage;
+_pConfigWrite[_nConfigWrite - 1].pTarget := pTarget;
+_pConfigWrite[_nConfigWrite - 1].RequiresReady := RequiresReady;
+_pConfigWrite[_nConfigWrite - 1].HasMinimum := HasMinimum;
+_pConfigWrite[_nConfigWrite - 1].HasMaximum := HasMaximum;
+_pConfigWrite[_nConfigWrite - 1].Minimum := Minimum;
+_pConfigWrite[_nConfigWrite - 1].Maximum := Maximum;
+_pConfigWrite[_nConfigWrite - 1].Unit := Unit;
+_pConfigWrite[_nConfigWrite - 1].LabelKey := LabelKey;
+_pConfigWrite[_nConfigWrite - 1].MaxLength := MaxLength;
+_pConfigWrite[_nConfigWrite - 1].EnumDomain := EnumDomain;
+_pConfigWrite[_nConfigWrite - 1].EnumLabelKey := EnumLabelKey;
+M_RegisterConfigWrite := TRUE;]]></ST></Implementation>
+    </Method>
+          <Method Name="M_RegisterCapture" Id="{a1ff216f-afb4-4582-a46e-a56828775efb}">
+        <Declaration><![CDATA[// §3.8c - offer a capture for an ALREADY-REGISTERED editable value. Called at
+// Setup, after the M_RegisterConfigWrite that declares the field.
+//
+// Refused when the key is not registered, which is §3.8c(a) enforced where it
+// cannot be bypassed: capture changes how the number arrives, never which
+// numbers may change. pSource shall point at a value the module already
+// publishes (§3.8c(b)) - the operator has to be able to see the number that is
+// about to be stored, on the same screen, before storing it.
+METHOD M_RegisterCapture : BOOL
+VAR_INPUT
+    WriteKey       : STRING(160);
+    pSource        : PVOID;
+    SourceStorage  : E_ConfigStorage;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_RegisterCapture := FALSE;
+IF (WriteKey = '') OR (pSource = 0) OR (SourceStorage = E_ConfigStorage.NONE) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        _pConfigWrite[i - 1].pCapture       := pSource;
+        _pConfigWrite[i - 1].CaptureStorage := SourceStorage;
+        M_RegisterCapture := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_ReadCaptureText" Id="{d49bad20-ce18-4920-a6f1-093576637e7f}">
+        <Declaration><![CDATA[// §3.8c - read the live source as text, so the capture rejoins the ordinary
+// write path instead of growing a second typed store. One conversion, one
+// validator, one storage routine.
+METHOD PRIVATE _M_ReadCaptureText : STRING(255)
+VAR_INPUT
+    Idx : INT;
+END_VAR
+VAR
+    pB : POINTER TO BOOL;
+    pI : POINTER TO INT;
+    pD : POINTER TO DINT;
+    pU : POINTER TO UDINT;
+    pR : POINTER TO REAL;
+    pL : POINTER TO LREAL;
+    pT : POINTER TO TIME;
+    pS : POINTER TO STRING(80);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_ReadCaptureText := '';
+CASE _pConfigWrite[Idx - 1].CaptureStorage OF
+    E_ConfigStorage.AS_BOOL:
+        pB := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := SEL(pB^, 'FALSE', 'TRUE');
+    E_ConfigStorage.AS_INT:
+        pI := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := INT_TO_STRING(pI^);
+    E_ConfigStorage.AS_DINT:
+        pD := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := DINT_TO_STRING(pD^);
+    E_ConfigStorage.AS_UDINT:
+        pU := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := UDINT_TO_STRING(pU^);
+    E_ConfigStorage.AS_REAL:
+        pR := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := REAL_TO_STRING(pR^);
+    E_ConfigStorage.AS_LREAL:
+        pL := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := LREAL_TO_STRING(pL^);
+    E_ConfigStorage.AS_TIME:
+        // Whole milliseconds, per the HMI number contract (§3.8b).
+        pT := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := DWORD_TO_STRING(TIME_TO_DWORD(pT^));
+    E_ConfigStorage.AS_STRING:
+        pS := _pConfigWrite[Idx - 1].pCapture;
+        _M_ReadCaptureText := pS^;
+ELSE
+    // Defined ELSE (S5.6): an unset or unknown source class yields empty text,
+    // which the write path then refuses to parse. Fail-closed - a capture that
+    // cannot read its source stores nothing rather than storing a zero.
+    _M_ReadCaptureText := '';
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="M_SetConfigAccess" Id="{4af61727-cb2f-447f-a5db-69b776fdb251}">
+      <Declaration><![CDATA[// §3.8d - put an already-registered value into a data class, and/or raise
+// its own minimum levels. Public on purpose: a module TYPE may call it at Setup,
+// and so may a composition root that wants a library value in one of the
+// PROJECT's classes (a library cannot know a project's classes). The minimums
+// only ever raise the class level - see FB_AccessManager.M_DataLevel.
+METHOD M_SetConfigAccess : BOOL
+VAR_INPUT
+    WriteKey      : STRING(160);
+    ClassId       : STRING(80);
+    MinReadLevel  : E_AccessLevel;
+    MinWriteLevel : E_AccessLevel;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_SetConfigAccess := FALSE;
+IF (WriteKey = '') OR (LEN(ClassId) > 40)
+OR (TO_DINT(MinReadLevel) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(MinReadLevel) > TO_DINT(E_AccessLevel.ADMIN))
+OR (TO_DINT(MinWriteLevel) < TO_DINT(E_AccessLevel.NONE))
+OR (TO_DINT(MinWriteLevel) > TO_DINT(E_AccessLevel.ADMIN)) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        _pConfigWrite[i - 1].ClassId := ClassId;
+        _pConfigWrite[i - 1].MinReadLevel := MinReadLevel;
+        _pConfigWrite[i - 1].MinWriteLevel := MinWriteLevel;
+        M_SetConfigAccess := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ConfigAccessOf" Id="{8f82f29d-47d4-42b7-b890-5a29da5f7d55}">
+      <Declaration><![CDATA[// §3.8d I_ConfigSource - this module's own registry only; composites recurse.
+METHOD M_ConfigAccessOf : BOOL
+VAR_INPUT
+    Scope    : STRING(255);
+    WriteKey : STRING(160);
+END_VAR
+VAR_IN_OUT
+    Grant : ST_ConfigAccess;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ConfigAccessOf := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        Grant.Kind := _pConfigWrite[i - 1].Kind;
+        Grant.ClassId := _pConfigWrite[i - 1].ClassId;
+        Grant.MinReadLevel := _pConfigWrite[i - 1].MinReadLevel;
+        Grant.MinWriteLevel := _pConfigWrite[i - 1].MinWriteLevel;
+        M_ConfigAccessOf := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+<Method Name="_M_ConfigReadOnly" Id="{09f932a9-53ed-48f5-b518-802d1cd9e850}">
+  <Declaration><![CDATA[// §3.8e - TRUE while this module's registered values may not be changed by a
+// client: still published, as Writable := FALSE, and refused by the write and
+// staging paths. The base is always writable; a line-data MIRROR is not.
+METHOD PROTECTED _M_ConfigReadOnly : BOOL]]></Declaration>
+  <Implementation>
+    <ST><![CDATA[_M_ConfigReadOnly := FALSE;]]></ST>
+  </Implementation>
+</Method>
+<Method Name="M_RegisterConfigNumber" Id="{9e0a37b1-4c85-42df-a70e-6b1d5f92c308}">
+      <Declaration><![CDATA[// §3.8b — a numeric editable value. Bounds are mandatory here on purpose: an
+// unbounded number is the one a client can set to anything, and "what is the
+// valid range" is a question the owning module is the only one able to answer.
+// Use M_RegisterConfigWrite directly for an unbounded or higher-revision value.
+METHOD M_RegisterConfigNumber : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Unit          : E_EngUnit;     // every number declares one; NONE = unitless
+    Kind          : E_ConfigKind;
+    Storage       : E_ConfigStorage;
+    pTarget       : PVOID;
+    Minimum       : LREAL;
+    Maximum       : LREAL;
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigNumber := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.NUMBER,
+    Storage := Storage, pTarget := pTarget, RequiresReady := RequiresReady,
+    HasMinimum := TRUE, HasMaximum := TRUE, Minimum := Minimum, Maximum := Maximum,
+    Unit := Unit, LabelKey := LabelKey, MaxLength := 0, EnumDomain := '',
+    EnumLabelKey := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigDuration" Id="{3b7d5c40-8e19-4a62-95cb-71e0f4a8d236}">
+      <Declaration><![CDATA[// §3.8b — an editable TIME, carried and edited as whole milliseconds (the HMI
+// validates DURATION as a number; TC3 §3.8 explains the enum spelling).
+METHOD M_RegisterConfigDuration : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Kind          : E_ConfigKind;
+    pTarget       : POINTER TO TIME;
+    MinimumMs     : UDINT;
+    MaximumMs     : UDINT;
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigDuration := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.DURATION,
+    Storage := E_ConfigStorage.AS_TIME, pTarget := pTarget,
+    RequiresReady := RequiresReady, HasMinimum := TRUE, HasMaximum := TRUE,
+    Minimum := TO_LREAL(MinimumMs), Maximum := TO_LREAL(MaximumMs),
+    Unit := E_EngUnit.MILLISECOND, LabelKey := LabelKey, MaxLength := 0,
+    EnumDomain := '', EnumLabelKey := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigFlag" Id="{6d24e8f7-1b93-4057-8ca4-2e5906bd7f81}">
+      <Declaration><![CDATA[// §3.8b — an editable BOOL. The exact domain is declared so a client renders a
+// choice rather than a free-text field, and so 'yes' is rejected rather than
+// silently read as FALSE.
+METHOD M_RegisterConfigFlag : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Kind          : E_ConfigKind;
+    pTarget       : POINTER TO BOOL;
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigFlag := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.BOOLEAN,
+    Storage := E_ConfigStorage.AS_BOOL, pTarget := pTarget,
+    RequiresReady := RequiresReady, HasMinimum := FALSE, HasMaximum := FALSE,
+    Minimum := 0.0, Maximum := 0.0, Unit := E_EngUnit.NONE, LabelKey := LabelKey,
+    MaxLength := 0, EnumDomain := 'TRUE|FALSE', EnumLabelKey := '');]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RegisterConfigChoice" Id="{fc121f64-0f03-47e5-ae17-2f8b0720faaf}">
+      <Declaration><![CDATA[// §3.8b/§3.10.2 - an editable value that is one of a fixed set, e.g. an
+// enumeration stored as its ordinal. Domain lists the exact accepted values
+// ('0|1|2'); EnumLabelKey is the catalog prefix the HMI labels each one with
+// ('<EnumLabelKey>.<value>'), so a client renders a translated choice and
+// anything outside the domain is refused, never read as a default.
+METHOD M_RegisterConfigChoice : BOOL
+VAR_INPUT
+    Key           : STRING(160);
+    Item          : STRING(255);
+    LabelKey      : STRING(160);
+    Kind          : E_ConfigKind;
+    Storage       : E_ConfigStorage;
+    pTarget       : PVOID;
+    Domain        : STRING(255);
+    EnumLabelKey  : STRING(80);
+    RequiresReady : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RegisterConfigChoice := FALSE;
+IF Domain = '' THEN
+    RETURN;                                  // a choice with no choices accepts nothing
+END_IF
+M_RegisterConfigChoice := M_RegisterConfigWrite(Key := Key, Item := Item,
+    Revision := 1, Kind := Kind, ValueType := E_ConfigValueType.NUMBER,
+    Storage := Storage, pTarget := pTarget, RequiresReady := RequiresReady,
+    HasMinimum := FALSE, HasMaximum := FALSE, Minimum := 0.0, Maximum := 0.0,
+    Unit := E_EngUnit.NONE, LabelKey := LabelKey, MaxLength := 0,
+    EnumDomain := Domain, EnumLabelKey := EnumLabelKey);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyConfigWrite" Id="{4a95c7e3-2d68-41bf-9036-b8e1af0524d9}">
+      <Declaration><![CDATA[// §3.8b/§3.10.2 I_ConfigSource — apply one registered write to THIS module.
+// The root has already checked DATA_WRITE and subtree ownership; what is left is
+// everything only the owner knows. Scope selects the module, so the recursive
+// walk asks each module in turn and exactly the one that registered the key
+// answers TRUE. An unknown key, a stale revision, or a value the module refuses
+// all return FALSE and change nothing.
+METHOD M_ApplyConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyConfigWrite := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) OR _M_ConfigReadOnly() THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        IF _pConfigWrite[i - 1].Revision <> Revision THEN
+            RETURN;              // stale capability — the client's metadata is old
+        END_IF
+        IF _pConfigWrite[i - 1].RequiresReady AND NOT RootReady THEN
+            RETURN;
+        END_IF
+        // The type-specific hook sees the candidate BEFORE anything is stored, so
+        // a refusal here is indistinguishable from a range refusal: nothing moved.
+        IF NOT _M_OnConfigWrite(WriteKey := WriteKey, TextValue := TextValue) THEN
+            RETURN;
+        END_IF
+        M_ApplyConfigWrite := _M_StoreConfigValue(Idx := i, TextValue := TextValue,
+            Commit := TRUE);
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+          <Method Name="M_ApplyCapture" Id="{07907dc2-f18a-4b43-8a95-1f84ccaa585f}">
+        <Declaration><![CDATA[// §3.8c - apply a capture to THIS module. Resolves the live value and then hands
+// it to the ordinary write path, so validation, the type's own invariants, range,
+// domain and storage are the SAME code a typed write goes through. A machine-
+// supplied number is not more trustworthy than a human-supplied one (§14).
+METHOD M_ApplyCapture : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    RootReady : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_ApplyCapture := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        // No capture registered for this field: refuse rather than fall back to
+        // some default, so an unoffered capture can never quietly store a zero.
+        IF _pConfigWrite[i - 1].pCapture = 0 THEN
+            RETURN;
+        END_IF
+        M_ApplyCapture := M_ApplyConfigWrite(Scope := Scope, WriteKey := WriteKey,
+            Revision := Revision, TextValue := _M_ReadCaptureText(Idx := i),
+            RootReady := RootReady);
+        RETURN;
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+<Method Name="_M_OnConfigWrite" Id="{8f30b1d5-6ea4-4c27-b95f-0d7a3e416c82}">
+      <Declaration><![CDATA[// §3.10.2 — module-specific invariants a generic type/range check cannot state:
+// a value that must stay below another, a device that must be idle first. The
+// base accepts; the framework still validates revision, type, range and domain
+// and stores only after this returns TRUE. Two rules for an override: it shall
+// have no side effects, because this runs on a candidate that may still be
+// rejected; and it sees the RAW text, not a parsed value — 'abc' reaches it
+// exactly as '7' does, so it must never assume the candidate is a number.
+METHOD PROTECTED _M_OnConfigWrite : BOOL
+VAR_INPUT
+    WriteKey  : STRING(160);
+    TextValue : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_OnConfigWrite := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_StoreConfigValue" Id="{b5c9026e-74a1-4d38-8be0-91f3ac57d264}">
+      <Declaration><![CDATA[// §3.8b/§5.6 — validate a candidate completely, then store it. Every rejection
+// happens before the first byte moves, so a refused write leaves the module
+// exactly as it was. Range is checked against BOTH the declared bounds and the
+// storage type's own limits: a DINT field with no declared maximum still cannot
+// be handed 1E30.
+//
+// Commit := FALSE runs the IDENTICAL validation and stores nothing. That is the
+// staging pass of a §3.8b set load, and it deliberately shares this code rather
+// than restating the rules: a validator that can disagree with the writer is
+// worse than no validator, because it makes an all-or-nothing load claim an
+// atomicity it does not have.
+METHOD PROTECTED _M_StoreConfigValue : BOOL
+VAR_INPUT
+    Idx       : INT;
+    TextValue : STRING(255);
+    Commit    : BOOL;
+END_VAR
+VAR
+    num : LREAL;
+    pB  : POINTER TO BOOL;
+    pI  : POINTER TO INT;
+    pD  : POINTER TO DINT;
+    pU  : POINTER TO UDINT;
+    pR  : POINTER TO REAL;
+    pL  : POINTER TO LREAL;
+    pT  : POINTER TO TIME;
+    pS  : POINTER TO STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_StoreConfigValue := FALSE;
+IF (Idx < 1) OR (Idx > _nConfigWrite) OR (_pConfigWrite[Idx - 1].pTarget = 0) THEN
+    RETURN;
+END_IF
+// A declared domain is exact and is checked on the raw text, whatever the type.
+IF _pConfigWrite[Idx - 1].EnumDomain <> '' THEN
+    IF NOT _M_InEnumDomain(Domain := _pConfigWrite[Idx - 1].EnumDomain,
+            Text := TextValue) THEN
+        RETURN;
+    END_IF
+END_IF
+IF _pConfigWrite[Idx - 1].Storage = E_ConfigStorage.AS_BOOL THEN
+    pB := _M_Target(Idx := Idx);
+    IF (TextValue = 'TRUE') OR (TextValue = 'true') OR (TextValue = 'True')
+    OR (TextValue = '1') THEN
+        IF Commit THEN
+            pB^ := TRUE;
+        END_IF
+    ELSIF (TextValue = 'FALSE') OR (TextValue = 'false') OR (TextValue = 'False')
+    OR (TextValue = '0') THEN
+        IF Commit THEN
+            pB^ := FALSE;
+        END_IF
+    ELSE
+        RETURN;
+    END_IF
+    _M_StoreConfigValue := TRUE;
+    RETURN;
+END_IF
+IF _pConfigWrite[Idx - 1].Storage = E_ConfigStorage.AS_STRING THEN
+    IF TO_UINT(LEN(TextValue)) > _pConfigWrite[Idx - 1].MaxLength THEN
+        RETURN;                              // would truncate: reject, never trim
+    END_IF
+    IF Commit THEN
+        pS := _M_Target(Idx := Idx);
+        pS^ := TextValue;
+    END_IF
+    _M_StoreConfigValue := TRUE;
+    RETURN;
+END_IF
+// Everything else is numeric.
+IF NOT F_TryParseNumber(Text := TextValue, Value => num) THEN
+    RETURN;
+END_IF
+IF _pConfigWrite[Idx - 1].HasMinimum AND (num < _pConfigWrite[Idx - 1].Minimum) THEN
+    RETURN;
+END_IF
+IF _pConfigWrite[Idx - 1].HasMaximum AND (num > _pConfigWrite[Idx - 1].Maximum) THEN
+    RETURN;
+END_IF
+CASE _pConfigWrite[Idx - 1].Storage OF
+    E_ConfigStorage.AS_INT:
+        IF (num < -32768.0) OR (num > 32767.0) THEN
+            RETURN;
+        END_IF
+        // Two statements, not one condition: IEC 61131-3 does not mandate
+        // short-circuit evaluation and TwinCAT's option for it is off by
+        // default, so a combined test would still convert a value the range
+        // check is there to reject (§5.6).
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        IF Commit THEN
+            pI := _M_Target(Idx := Idx);
+            pI^ := LREAL_TO_INT(num);
+        END_IF
+    E_ConfigStorage.AS_DINT:
+        IF (num < -2147483648.0) OR (num > 2147483647.0) THEN
+            RETURN;
+        END_IF
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        IF Commit THEN
+            pD := _M_Target(Idx := Idx);
+            pD^ := LREAL_TO_DINT(num);
+        END_IF
+    E_ConfigStorage.AS_UDINT:
+        IF (num < 0.0) OR (num > 4294967295.0) THEN
+            RETURN;
+        END_IF
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        IF Commit THEN
+            pU := _M_Target(Idx := Idx);
+            pU^ := LREAL_TO_UDINT(num);
+        END_IF
+    E_ConfigStorage.AS_REAL:
+        IF (num < -3.402823E38) OR (num > 3.402823E38) THEN
+            RETURN;
+        END_IF
+        IF Commit THEN
+            pR := _M_Target(Idx := Idx);
+            pR^ := LREAL_TO_REAL(num);
+        END_IF
+    E_ConfigStorage.AS_LREAL:
+        IF Commit THEN
+            pL := _M_Target(Idx := Idx);
+            pL^ := num;
+        END_IF
+    E_ConfigStorage.AS_TIME:
+        // Whole milliseconds: a duration is not a place for a rounding surprise.
+        IF (num < 0.0) OR (num > 4294967295.0) THEN
+            RETURN;
+        END_IF
+        IF num <> TO_LREAL(TO_LINT(num)) THEN
+            RETURN;
+        END_IF
+        IF Commit THEN
+            pT := _M_Target(Idx := Idx);
+            pT^ := UDINT_TO_TIME(LREAL_TO_UDINT(num));
+        END_IF
+ELSE
+    RETURN;
+END_CASE
+_M_StoreConfigValue := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ConfigValueText" Id="{1c7e93a0-58b4-4f26-a8d3-e0471b295cf5}">
+      <Declaration><![CDATA[// §3.10.2 — the current value of a registered entry, in the serialization the
+// client validates and writes back. Read live from the target every walk: a
+// cached copy would let the manifest disagree with the machine.
+METHOD PROTECTED _M_ConfigValueText : STRING(255)
+VAR_INPUT
+    Idx : INT;
+END_VAR
+VAR
+    pB : POINTER TO BOOL;
+    pI : POINTER TO INT;
+    pD : POINTER TO DINT;
+    pU : POINTER TO UDINT;
+    pR : POINTER TO REAL;
+    pL : POINTER TO LREAL;
+    pT : POINTER TO TIME;
+    pS : POINTER TO STRING(80);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ConfigValueText := '';
+IF (Idx < 1) OR (Idx > _nConfigWrite) OR (_pConfigWrite[Idx - 1].pTarget = 0) THEN
+    RETURN;
+END_IF
+CASE _pConfigWrite[Idx - 1].Storage OF
+    E_ConfigStorage.AS_BOOL:
+        pB := _M_Target(Idx := Idx);
+        IF pB^ THEN
+            _M_ConfigValueText := 'TRUE';
+        ELSE
+            _M_ConfigValueText := 'FALSE';
+        END_IF
+    E_ConfigStorage.AS_INT:
+        pI := _M_Target(Idx := Idx);
+        _M_ConfigValueText := TO_STRING(pI^);
+    E_ConfigStorage.AS_DINT:
+        pD := _M_Target(Idx := Idx);
+        _M_ConfigValueText := TO_STRING(pD^);
+    E_ConfigStorage.AS_UDINT:
+        pU := _M_Target(Idx := Idx);
+        _M_ConfigValueText := TO_STRING(pU^);
+    E_ConfigStorage.AS_REAL:
+        pR := _M_Target(Idx := Idx);
+        _M_ConfigValueText := TO_STRING(pR^);
+    E_ConfigStorage.AS_LREAL:
+        pL := _M_Target(Idx := Idx);
+        _M_ConfigValueText := TO_STRING(pL^);
+    E_ConfigStorage.AS_TIME:
+        pT := _M_Target(Idx := Idx);
+        _M_ConfigValueText := TO_STRING(TIME_TO_UDINT(pT^));
+    E_ConfigStorage.AS_STRING:
+        pS := _M_Target(Idx := Idx);
+        _M_ConfigValueText := pS^;
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_InEnumDomain" Id="{e2b6408c-9d15-473a-b0f8-5c9147ae0362}">
+      <Declaration><![CDATA[// §3.10.2 — exact membership in a pipe-separated domain. Exact means exact: no
+// trimming, no case folding. The client was given this list and can send one of
+// its entries.
+METHOD PRIVATE _M_InEnumDomain : BOOL
+VAR_INPUT
+    Domain : STRING(255);
+    Text   : STRING(255);
+END_VAR
+VAR
+    rest  : STRING(255);
+    token : STRING(255);
+    pos   : INT;
+    i     : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_InEnumDomain := FALSE;
+rest := Domain;
+FOR i := 1 TO 32 DO                          // bounded scan (§5.6)
+    IF rest = '' THEN
+        RETURN;
+    END_IF
+    pos := FIND(rest, '|');
+    IF pos = 0 THEN
+        token := rest;
+        rest := '';
+    ELSE
+        token := LEFT(rest, pos - 1);
+        rest := MID(rest, TO_INT(LEN(rest)) - pos, pos + 1);
+    END_IF
+    IF token = Text THEN
+        _M_InEnumDomain := TRUE;
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_StageConfigWrite" Id="{4d81b0f7-25ce-4936-a1b8-6072e5c3941d}">
+      <Declaration><![CDATA[// §3.8b I_ConfigSource — would this write be accepted? Byte-for-byte the
+// lookup and gating of M_ApplyConfigWrite, then the shared validator with
+// Commit := FALSE. Nothing in this module changes, including through the
+// type-specific invariant hook, which §3.10.2 already requires to be free of
+// side effects because it runs on a candidate that may still be rejected.
+METHOD M_StageConfigWrite : BOOL
+VAR_INPUT
+    Scope     : STRING(255);
+    WriteKey  : STRING(160);
+    Revision  : UDINT;
+    TextValue : STRING(255);
+    RootReady : BOOL;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_StageConfigWrite := FALSE;
+IF (WriteKey = '') OR (Scope <> Status.Name) OR _M_ConfigReadOnly() THEN
+    RETURN;
+END_IF
+FOR i := 1 TO _nConfigWrite DO
+    IF _pConfigWrite[i - 1].Key = WriteKey THEN
+        IF _pConfigWrite[i - 1].Revision <> Revision THEN
+            RETURN;
+        END_IF
+        IF _pConfigWrite[i - 1].RequiresReady AND NOT RootReady THEN
+            RETURN;
+        END_IF
+        IF NOT _M_OnConfigWrite(WriteKey := WriteKey, TextValue := TextValue) THEN
+            RETURN;
+        END_IF
+        M_StageConfigWrite := _M_StoreConfigValue(Idx := i, TextValue := TextValue,
+            Commit := FALSE);
+        RETURN;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="M_RestoreStationCfg" Id="{9f0a4c68-b31d-475e-8267-c04e1b95a3d2}">
+      <Declaration><![CDATA[// §3.8b — the restore rule for one retained StationCfg image, written ONCE here
+// so no module type carries its own copy of it (§1.1 O1).
+//
+// Every StationCfg structure shall carry SchemaVersion : UINT as its FIRST
+// member, and this decides what a given value of it means:
+//
+//   version = SchemaVersion  -> restored. Returns TRUE; the caller keeps the
+//                               retained values and does nothing.
+//   version = 0              -> never written. A first boot has lost nothing,
+//                               so it initializes SILENTLY: returns FALSE with
+//                               no annunciation, and the caller writes defaults.
+//   anything else            -> a REAL image was rejected. Returns FALSE and
+//                               records the loss for the root to annunciate with
+//                               this module's canonical path.
+//
+// The version is stamped forward either way, so the next boot is an ordinary
+// restore rather than a repeated annunciation. What is NOT done is reading the
+// unrecognized image by field position: that is precisely how a changed layout
+// becomes a plausible wrong number instead of an honest default.
+//
+// The consequence of a loss belongs to the deployment, not to this module —
+// E_ConfigRestorePolicy at the root decides whether the station runs and
+// annunciates or refuses START_STOP until an ENGINEER acknowledges. A module
+// that faulted itself here would take that decision away from the deployment.
+METHOD M_RestoreStationCfg : BOOL
+VAR_INPUT
+    pVersion      : POINTER TO UINT;   // ADR of the structure's FIRST member
+    SchemaVersion : UINT;              // the layout this build understands
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_RestoreStationCfg := FALSE;
+IF pVersion = 0 THEN
+    RETURN;                              // unwired: defaults, and never a claim
+END_IF
+IF SchemaVersion = 0 THEN
+    RETURN;                              // 0 is reserved for "never written"
+END_IF
+IF pVersion^ = SchemaVersion THEN
+    M_RestoreStationCfg := TRUE;
+    RETURN;
+END_IF
+IF pVersion^ <> 0 THEN
+    // A real image was rejected. The station will run on defaults and it will
+    // say so — the difference between an empty machine and one that has just
+    // lost its commissioning is exactly what an operator needs told.
+    _restoreLost := TRUE;
+    _restoreFound := pVersion^;
+    _restoreExpected := SchemaVersion;
+END_IF
+pVersion^ := SchemaVersion;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_TakeRestoreLoss" Id="{c2716e94-08fb-4d35-b9a0-5e83f1c407d6}">
+      <Declaration><![CDATA[// §3.8b I_ConfigSource — hand the root this module's unreported restore loss,
+// exactly once. Taking it clears the slot, so the root can drain the whole
+// subtree in a loop and each loss is annunciated one time per boot.
+METHOD M_TakeRestoreLoss : BOOL
+VAR_OUTPUT
+    Path     : STRING(80);
+    Expected : UINT;
+    Found    : UINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_TakeRestoreLoss := FALSE;
+Path := '';
+Expected := 0;
+Found := 0;
+IF NOT _restoreLost THEN
+    RETURN;
+END_IF
+_restoreLost := FALSE;
+Path := Status.Name;
+Expected := _restoreExpected;
+Found := _restoreFound;
+M_TakeRestoreLoss := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyManual" Id="{2f9b40e7-56c1-4d38-a072-8e13c5904bd6}">
+      <Declaration><![CDATA[// §7.6.1 I_ManualTarget - answer for THIS module only. Same shape as
+// M_ApplyConfigWrite: the walk asks every module and exactly the one whose
+// Scope matches replies, so routing is a property of registration rather than
+// of a chain somebody maintains by hand.
+METHOD M_ApplyManual : BOOL
+VAR_INPUT
+    Scope : STRING(255);
+    Value : DINT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyManual := FALSE;
+IF Scope <> Status.Name THEN
+    RETURN;
+END_IF
+// ManualCommand still validates the value against the published catalogue and
+// still runs the §6.1 lifecycle. Reaching the module is all this adds.
+M_ApplyManual := ManualCommand(Value := Value);]]></ST></Implementation>
+    </Method>
+    <Method Name="M_ApplyHeld" Id="{c30d17a5-4e82-49f6-b158-70a3e2946c81}">
+      <Declaration><![CDATA[// §7.6.1a I_ManualTarget - the held-command twin of M_ApplyManual. A type with
+// no held commands inherits RequestHeldCommand's refusal, so an unsupported
+// hold is a defined FALSE.
+METHOD M_ApplyHeld : BOOL
+VAR_INPUT
+    Scope  : STRING(255);
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_ApplyHeld := FALSE;
+IF Scope <> Status.Name THEN
+    RETURN;
+END_IF
+M_ApplyHeld := RequestHeldCommand(Value := Value, Enable := Enable);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_UseConfigRegistry" Id="{60f48030-d9e6-4a39-b0de-b15db6cf8b29}">
+      <Declaration><![CDATA[// Optional owner storage selected before any registration; base modules keep twelve slots.
+METHOD PROTECTED _M_UseConfigRegistry : BOOL
+VAR_INPUT
+    pRecords : POINTER TO ST_ConfigWriteDef;
+    Capacity : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_UseConfigRegistry := FALSE;
+IF (_nConfigWrite <> 0) OR (pRecords = 0) OR (Capacity < 1)
+OR (Capacity > PL_Fraktal.MAX_LINE_RECORDS) THEN RETURN; END_IF
+_pConfigWrite := pRecords;
+_configCapacity := Capacity;
+_M_UseConfigRegistry := TRUE;]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

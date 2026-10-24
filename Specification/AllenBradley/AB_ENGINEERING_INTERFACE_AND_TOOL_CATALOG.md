@@ -137,6 +137,30 @@ Never invoke online buttons from a cached coordinate or control ID. Re-read the
 visible route, controller type, project, serial, protection state, and requested
 operation each time.
 
+### 4.2 Hidden WM_COMMAND driver (2026-10-22)
+
+`tools/fraktal_ab_studio_driver.py` replaces keystrokes with the commands
+Studio's own menu resource defines. Menu resource 101 of `LogixACENU.dll` was
+dumped as data for v37 and v38 (identical command ids); the driver posts only
+Verify Controller `32049` and Controller Properties `32023` — the latter is
+re-read from the installed DLL's resource at run time and cross-checked
+against the per-revision qualified map — and refuses every online command id
+(Go Online `32082`, Upload `32085`, Download `32086`, mode changes
+`32087`–`32089`, Clear Faults `32081`, Lock `32093`) by name before any
+message is posted. The session runs hidden on a disposable copy (no focus is
+taken), results are read with `WM_GETTEXT`, revisions whose ids were never
+dumped (v33) are refused, and every Studio process launched during the run —
+including helpers that outlive the tracked pid — must close itself before a
+run reports success. Verify emits the same `fraktal.ab.studio-verify` JSON as
+the SendKeys probe plus a count-button cross-check; capacity emits a capture
+the sealed `fraktal_ab_studio_capacity` reader accepts; `import` drives the
+Save Imported Project As dialog (file-name edit `1148`, revision combo
+`33930`, IDOK) with an absolute target path, replacing the unlicensed SDK
+`SaveAsAsync` path on v38. Qualification, including the side-by-side capacity
+comparison against `Invoke-AbStudioCapacity.ps1` and a negative Verify, is in
+`Evidence/AB_STUDIO_DRIVER_QUALIFICATION_2026-10-22/`.
+
+
 ## 5. Logix Designer SDK interfaces
 
 Installed material:
@@ -295,7 +319,7 @@ All paths below are under `FraktalCore/PLC/Allen-Bradley/tools/`.
 | `fraktal_ab_s7_execute.py` | One fixed write | Read-only apart from `FRK_S7_BumpRevision`; measures cold read cost per connection size, per-table cost, header-poll cost, snapshot coherence across the read window, and revision-change detection; restores the input. |
 | `fraktal_ab_s4_matrix_fixture.py` | None | Generates the representative construct matrix: PERIODIC and CONTINUOUS tasks with schedules, ST/RLL/SFC in one program, nested and tabular records, a `StringFamily` type, a `Constant` tag, and an AOI with all three scan routines. |
 | `fraktal_ab_l5x_inventory.py` | None | Censuses data types, AOIs, tags, programs, routines, tasks and descriptions, and compares two documents. Answers whether a construct survived the **first** import, which the canonical comparator structurally cannot. Reports an absent attribute rather than assuming Studio's default. |
-| `fraktal_ab_phase0_gate.py` | None | R4 regeneration gate: creates the seed, regenerates every fixture, imports each with a clean-summary requirement, and requires a canonical round trip, a construct census, and ID-independent chart equality. Studio Verify is opt-in because it needs a logged-in desktop. |
+| `fraktal_ab_phase0_gate.py` | None | R4 regeneration gate: creates the seed, regenerates every fixture, imports each with a clean-summary requirement, and requires a canonical round trip, a construct census, and ID-independent chart equality. Studio Verify is opt-in; on driver-qualified revisions (v37/v38) it runs hidden and focus-free via `fraktal_ab_studio_driver.py`, otherwise through the SendKeys probe, which needs a logged-in desktop. |
 | `fraktal_ab_s11_execute.py` | Fixed writes | Exact S11 fingerprint, serial and arm guard; writes only `FRK_S11_Command` and `FRK_S11_ResetRequest`; drives one run plus one `SFR` re-entry run and restores/verifies both inputs. |
 | `fraktal_ab_s16_fixture.py` | None | Generates the disposable S16 command-handshake fixture — one `DINT`-only context UDT, a module AOI carrying Core §6.1 over a simulated plant, and a mode owner with an AUTO chain and a MANUAL behavior. Inhibits embedded I/O, disables task output updates, rejects physical-I/O operands, and is scope-fenced by test against growing runtime-base structure. |
 | `fraktal_ab_s16_execute.py` | Fixed writes | Exact S16 fingerprint, serial and arm guard; writes only `FRK_S16_Command`, `FRK_S16_Abort`, `FRK_S16_ModeSelect`, `FRK_S16_HoldRequest` and `FRK_S16_FaultRequest`, and restores all five in a `finally` block. Nine phases covering the handshake, abort, Execute-drop, held, fault/restart, mode switch and ordering/latency. Fails closed. **Not yet run against a controller.** |
@@ -317,7 +341,8 @@ All paths below are under `FraktalCore/PLC/Allen-Bradley/tools/`.
 | `fraktal_ab_l5x_compare.py` | None | Strict full-project canonical comparison; excludes only Rockwell's three known timestamp fields and reports raw/canonical SHA-256. |
 | `fraktal_ab_target_binding_compare.py` | None | Special exact-target comparison; after assertions, normalizes only the proved minor-revision, serial, local-module-minor, and three timestamp changes. |
 | `fraktal_ab_sdk_log_gate.py` | None | Converts SDK console events into a machine result; requires named successes and can require import warnings/errors 0/0. |
-| `fraktal_ab_studio_verify.ps1` | None/Studio offline only | Opens one disposable ACD, invokes Verify Controller through UI Automation, checks counts/details, closes without save, verifies unchanged hash, and refuses repo ACDs or an existing Studio session. |
+| `fraktal_ab_studio_driver.py` | None/Studio offline only | Hidden single-session driver for verify/capacity/import through Studio's own menu command ids (allow-listed, online ids refused by name, unqualified revisions refused); disposable copies, hash-unchanged proof, adopt-and-close of every launched Studio process. See §4.2. |
+| `fraktal_ab_studio_verify.ps1` | None/Studio offline only | SendKeys-based Verify probe, now the fallback for revisions the driver has not qualified (bench v33). Opens one disposable ACD, invokes Verify Controller through UI Automation, checks counts/details, closes without save, verifies unchanged hash, and refuses repo ACDs or an existing Studio session. |
 | `requirements-phase0.txt` | None | Hash-pinned pylogix installation authority. |
 | `test_fraktal_ab_*.py` | None | Unit tests for every Python/PowerShell-adjacent tool contract above. |
 

@@ -1,0 +1,25 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3d_fixture_execute.py", line 43, in <module>
+    if __name__=='__main__':raise SystemExit(main())
+                                             ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3d_fixture_execute.py", line 40, in main
+    return genealogy.main(argv,run_type_factory=paired_run,schema='fraktal.ab.s3d-genealogy-fixture')
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_genealogy_execute.py", line 45, in main
+    return tower.execute_fixture(args,app,account,run_type=run_type,schema=schema)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 162, in execute_fixture
+    operation(language)
+    ~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 267, in held
+    self.set(px.HOLD['PressRam'],0)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3b_fixture_execute.py", line 47, in set
+    report=shared.capture_pair(self,destination,observer,key=prefix+'ConditionPairs',kind='condition',
+        metadata=dict(kind=kind,module=module,diagnosticPath=base,languageOrdinal=language))
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3a_fixture_execute.py", line 26, in capture_pair
+    run.check(report['passed'],kind+' equivalence failed')
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 224, in check
+    raise FixtureRefused(message)
+fraktal_ab_part_execute.FixtureRefused: condition equivalence failed

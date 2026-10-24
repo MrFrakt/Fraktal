@@ -1,0 +1,115 @@
+......EE.
+======================================================================
+ERROR: test_exact_lreal_scaling_populated_stamp_and_stale_result_parent_clear (test_fraktal_ab_s3h_traceability.TraceabilityTests.test_exact_lreal_scaling_populated_stamp_and_stale_result_parent_clear)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 113, in test_exact_lreal_scaling_populated_stamp_and_stale_result_parent_clear
+    self.scan();self.assert_exact();self.assertEqual(self.actual()['Part/Result/Records[1]/Value'],1.001)
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 67, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 471, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 481, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 471, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 471, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 26, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                                      ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 31, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 437, in eval
+    a, b = self._int(left), self._int(right)
+           ~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got True
+
+======================================================================
+ERROR: test_native_division_uses_double_before_division_including_one_third (test_fraktal_ab_s3h_traceability.TraceabilityTests.test_native_division_uses_double_before_division_including_one_third)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 126, in test_native_division_uses_double_before_division_including_one_third
+    self.scan();self.assertIs(self.plc.tags[pub.header_tag(self.app)]['Valid'],True)
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 67, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 471, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 481, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 471, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 471, in _exec
+    self.run(body)
+    ~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 26, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                                      ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3h_traceability.py", line 31, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 437, in eval
+    a, b = self._int(left), self._int(right)
+           ~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 411, in _int
+    raise StFault(f"expected a DINT, got {value!r}")
+fraktal_ab_st_model.StFault: expected a DINT, got False
+
+----------------------------------------------------------------------
+Ran 9 tests in 2.639s
+
+FAILED (errors=2)

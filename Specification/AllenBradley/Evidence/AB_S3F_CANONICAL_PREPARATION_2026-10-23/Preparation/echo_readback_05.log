@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 220, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 214, in main
+    report = compare(args.source, args.exported)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 194, in compare
+    data_b=initials(second,fallback_tags={'/'.join(path.split('/')[:2]) for path in data_a})
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 111, in initials
+    result.update(decode(root,tag,path,ascii_payload))
+                  ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 79, in decode
+    walk(tag.get('DataType'),parse(''.join(data.itertext()).strip()),path,count(tag.get('Dimensions')))
+                             ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 41, in parse
+    result=value()
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 24, in value
+    result.append(value())
+                  ~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 28, in value
+    if text[position]!=',':raise ValueError('invalid L5K array delimiter')
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid L5K array delimiter

@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "retainedFailures": [
+    {
+      "run": "focused_01",
+      "reason": "Integer interpreter rejects BOOL equality; final ST removes this native-invalid expression and the temporary interpreter workaround"
+    },
+    {
+      "run": "native_echo_01",
+      "reason": "Native import rejects overlength identifiers",
+      "identifiers": [
+        {
+          "kind": "DataType",
+          "name": "FRK_T_CanonicalMeasurementDefinitionS3hV63",
+          "characters": 42
+        },
+        {
+          "kind": "DataType",
+          "name": "FRK_T_CanonicalMeasurementDefinitionsS3hV63",
+          "characters": 43
+        },
+        {
+          "kind": "Tag",
+          "name": "FRK_Press_CanonicalMeasurementDefinitions",
+          "characters": 41
+        }
+      ]
+    },
+    {
+      "run": "native_echo_02",
+      "reason": "Native compiler rejects BOOL comparison; final numeric-owner checks replace it"
+    },
+    {
+      "run": "ab_suite_01",
+      "reason": "Prior refusal test still treats now-approved stage 10 as invalid; first unsupported stage is now 11"
+    }
+  ],
+  "failedSourceImagesRetained": true,
+  "validationWeakened": false,
+  "controllerChanges": 0
+}

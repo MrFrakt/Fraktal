@@ -1,0 +1,46 @@
+{
+  "rows": [
+    {
+      "log": "canonical_focused_final.log",
+      "exitCode": 0,
+      "command": [
+        "C:\\Python314\\python.exe",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "FraktalCore/PLC/Allen-Bradley/tools",
+        "-t",
+        "FraktalCore/PLC/Allen-Bradley/tools",
+        "-p",
+        "test_fraktal_ab_canonical_reader.py",
+        "-v"
+      ]
+    },
+    {
+      "log": "s0_diagnostic_cli.log",
+      "exitCode": 0,
+      "command": [
+        "C:\\Python314\\python.exe",
+        "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_canonical_reader.py",
+        "--capture",
+        "FraktalCore/PLC/Allen-Bradley/tools/fixtures/canonical/s0_raw_capture_02.json.gz",
+        "--s0-diagnostic",
+        "--output",
+        "C:\\work\\fraktal-ab-s1-20261020\\run_bedb83a83c6f4373b8fdca0d53d3de01\\s0_diagnostic.json"
+      ]
+    },
+    {
+      "log": "projection_replay_cli.log",
+      "exitCode": 0,
+      "command": [
+        "C:\\Python314\\python.exe",
+        "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_projection_replay.py",
+        "FraktalCore/PLC/Allen-Bradley/tools/fixtures/canonical/genealogy_projection_01.json.gz",
+        "--output",
+        "C:\\work\\fraktal-ab-s1-20261020\\run_bedb83a83c6f4373b8fdca0d53d3de01\\projection_replay.json"
+      ]
+    }
+  ],
+  "passed": true
+}

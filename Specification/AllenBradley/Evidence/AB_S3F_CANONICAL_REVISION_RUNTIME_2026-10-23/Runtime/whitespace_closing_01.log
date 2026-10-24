@@ -1,0 +1,144 @@
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:624: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:625: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:626: trailing whitespace.
++        blocks.extend(canonical.data_types(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3363: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3364: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3365: trailing whitespace.
++        tags.extend(canonical.tags(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4625: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4626: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4627: trailing whitespace.
++        add('CanonicalBegin', canonical.begin_scan(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4709: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4710: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4711: trailing whitespace.
++        add('Canonical', canonical.cyclic(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4730: trailing whitespace.
++def canonical_routines(app):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4731: trailing whitespace.
++    if app.canonical_publication_stage < 4:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4732: trailing whitespace.
++        return []
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4733: trailing whitespace.
++    import fraktal_ab_canonical_status as status
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4734: trailing whitespace.
++    result = [(status.routine_name(app), status.resolver(app))]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4735: trailing whitespace.
++    if app.canonical_publication_stage >= 6:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4736: trailing whitespace.
++        result.append((status.timestamp_routine_name(app), status.epoch_logic(app, stamped=False)))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4737: trailing whitespace.
++    if app.canonical_publication_stage >= 7:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4738: trailing whitespace.
++        import fraktal_ab_canonical_access as access
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4739: trailing whitespace.
++        result += access.routines(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4740: trailing whitespace.
++    if app.canonical_publication_stage>=8:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4741: trailing whitespace.
++        import fraktal_ab_canonical_config as config_publication
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4742: trailing whitespace.
++        import fraktal_ab_config_provider as provider
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4743: trailing whitespace.
++        result += config_publication.routines(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4744: trailing whitespace.
++        result.append((provider.validate_text_routine(app),provider.validate_text_logic(app)))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4745: trailing whitespace.
++        result.append((provider.routine_name(app),provider.logic(app)))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4746: trailing whitespace.
++    return result
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4747: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4748: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4765: trailing whitespace.
++        + ([st_program_routine(name, body) for name, body in canonical_routines(app)])
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4890: trailing whitespace.
++    # V1 keeps its measured S12 exclusions. Native V2 types are admitted only
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4891: trailing whitespace.
++    # in the explicit canonical publisher's generated definitions, never by
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4892: trailing whitespace.
++    # relaxing the legacy working-context contract.
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4893: trailing whitespace.
++    legacy_types = types_xml
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4894: trailing whitespace.
++    if app.canonical_publication_stage:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4895: trailing whitespace.
++        import fraktal_ab_canonical_publication as canonical
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4896: trailing whitespace.
++        for definition in canonical.data_types(app):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4897: trailing whitespace.
++            legacy_types = replace_once(legacy_types, definition, '')
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4898: trailing whitespace.
++    if re.search(r'DataType="BOOL"', legacy_types):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4901: trailing whitespace.
++        if re.search(rf'DataType="{forbidden}"', legacy_types):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4995: trailing whitespace.
++        "BoolMembersInPublicUdt": len(emitted.findall('./Controller/DataTypes/DataType/Members/Member[@DataType="BOOL"]')),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:79: trailing whitespace.
++VERIFY_PS1 = TOOLS / "fraktal_ab_studio_verify.ps1"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:80: trailing whitespace.
++VERIFY_DRIVER = TOOLS / "fraktal_ab_studio_driver.py"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:81: trailing whitespace.
++# The driver posts menu command ids read from LogixACENU.dll; those ids are
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:82: trailing whitespace.
++# qualified for v37/v38 only, so older bench revisions keep the keystroke
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:83: trailing whitespace.
++# probe until their menus are dumped and pinned the same way.
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:84: trailing whitespace.
++DRIVER_QUALIFIED_REVISIONS = {37, 38}
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:85: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:86: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:87: trailing whitespace.
++def default_verify() -> Path:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:88: trailing whitespace.
++    return VERIFY_DRIVER if REVISION in DRIVER_QUALIFIED_REVISIONS else VERIFY_PS1
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:210: trailing whitespace.
++    if verify_script.suffix.lower() == ".ps1":
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:211: trailing whitespace.
++        command = [
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:216: trailing whitespace.
++        ]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:217: trailing whitespace.
++    else:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:218: trailing whitespace.
++        # The hidden WM_COMMAND driver; no focused desktop, no keystrokes.
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:219: trailing whitespace.
++        command = [
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:220: trailing whitespace.
++            sys.executable, str(verify_script), "verify",
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:221: trailing whitespace.
++            "--acd", str(acd), "--revision", str(REVISION),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:222: trailing whitespace.
++            "--timeout", str(timeout),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:223: trailing whitespace.
++        ]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:224: trailing whitespace.
++    completed = subprocess.run(
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:225: trailing whitespace.
++        command,
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:325: trailing whitespace.
++        help="also run Studio Verify Controller on each imported ACD",
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:326: trailing whitespace.
++    )
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:327: trailing whitespace.
++    parser.add_argument(
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:328: trailing whitespace.
++        "--verify-script", type=Path, default=None,
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:329: trailing whitespace.
++        help="verify tool override; defaults to the hidden driver for "
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:330: trailing whitespace.
++        "revisions it is qualified for, else the SendKeys probe",
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase0_gate.py:343: trailing whitespace.
++    verify_script = (args.verify_script or default_verify()) if args.verify else None

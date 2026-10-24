@@ -911,6 +911,12 @@ class Application:
     part_carrier: object | None = None
     # Optional Core 8.13 startup convention; hardware driver owns electrical I/O.
     signal_tower: object | None = None
+    # Explicit migration image only; zero preserves the released V1 output.
+    # S2 publishes the first canonical slice beside the legacy oracle data.
+    canonical_publication_stage: int = 0
+    # Migration oracle only (Part III §3.13): a positive period latches the
+    # paired canonical/legacy records every N scans. Zero emits nothing.
+    canonical_observation_period_ms: int = 0
 
     @property
     def program(self) -> str:
@@ -1353,6 +1359,8 @@ def validate(app: Application) -> list[str]:
     """Return every reason this declaration must not be emitted. Empty means go."""
     import fraktal_ab_nameplate as nameplate
     findings: list[str] = nameplate.validate(app)
+    import fraktal_ab_canonical_publication as canonical
+    findings.extend(canonical.validate(app))
     import fraktal_ab_host_events as host
     findings.extend(host.validate(app))
     import fraktal_ab_resources as resources

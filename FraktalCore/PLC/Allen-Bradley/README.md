@@ -1334,11 +1334,31 @@ Pre-gate tooling:
   SDK console events into a machine result. It can require named successful
   operations and rejects any SDK error event or non-zero import warning/error
   summary; an SDK process exit code alone is not an import gate.
+- [`tools/fraktal_ab_studio_driver.py`](tools/fraktal_ab_studio_driver.py)
+  drives one hidden offline Logix Designer session through Studio's own menu
+  commands — no keystrokes, no focused desktop, no SDK. It posts only the
+  command ids read back from `LogixACENU.dll`'s menu resource (Verify
+  Controller, Controller Properties), refuses every online command id by
+  name, refuses revisions whose ids were never qualified (v37/v38 for verify
+  and capacity, v38 for import), works on a disposable copy it creates, and
+  adopts-and-closes every Studio process it launched. Subcommands: `verify`
+  (same `fraktal.ab.studio-verify` JSON as the SendKeys probe, plus a
+  count-button cross-check), `capacity` (a
+  `fraktal.ab.studio-capacity-capture` the sealed reader accepts; qualified
+  side-by-side against `Invoke-AbStudioCapacity.ps1` in
+  `Specification/AllenBradley/Evidence/AB_STUDIO_DRIVER_QUALIFICATION_2026-10-22/`),
+  and `import` (L5X → new ACD by driving the Save Imported Project As dialog
+  with an absolute path). The phase0 gate uses it for driver-qualified
+  revisions; `fraktal_ab_studio_capacity.py` uses it as its default
+  collector (`--collector powershell` restores the qualified PowerShell one).
 - [`tools/fraktal_ab_studio_verify.ps1`](tools/fraktal_ab_studio_verify.ps1)
-  opens one disposable ACD in the requested Studio revision, invokes offline
-  **Verify Controller**, reads Error List counts/details through UI Automation,
-  closes without saving, and proves the ACD hash stayed unchanged. It refuses
-  repository-contained ACDs and any pre-existing Studio session.
+  is the SendKeys-based predecessor of the driver's verify mode, kept as the
+  qualified fallback for revisions the driver has not qualified (bench v33).
+  It opens one disposable ACD in the requested Studio revision, invokes
+  offline **Verify Controller**, reads Error List counts/details through UI
+  Automation, closes without saving, and proves the ACD hash stayed
+  unchanged. It refuses repository-contained ACDs and any pre-existing
+  Studio session.
 
 Do not hand-author production L5X. Generated artifacts must be imported,
 verified, exported, and compared through Studio 5000, with the exact software,

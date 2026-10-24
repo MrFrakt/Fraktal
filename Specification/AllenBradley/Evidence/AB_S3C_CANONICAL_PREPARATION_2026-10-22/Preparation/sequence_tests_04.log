@@ -1,0 +1,44 @@
+.F.FF....................
+======================================================================
+FAIL: test_history_changes_without_republishing_definitions (test_fraktal_ab_canonical_sequence.SequenceTests.test_history_changes_without_republishing_definitions)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 97, in test_history_changes_without_republishing_definitions
+    self.run_scan();self.assert_oracle();self.assertEqual(header['FragmentRevision'],revision)
+                    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 69, in assert_oracle
+    self.assertEqual(self.flattened(),wanted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Seq[53 chars]uenceAnnotationCount': 0, 'SequenceSteps[1]/Vi[12365 chars]: ''} != {'Seq[53 chars]uenceSteps[1]/StepNo': 0, 'SequenceSteps[1]/Br[12403 chars]alse}
+Diff is 14517 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_mode_reset_clears_every_published_row_and_invalidates_metadata (test_fraktal_ab_canonical_sequence.SequenceTests.test_mode_reset_clears_every_published_row_and_invalidates_metadata)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 103, in test_mode_reset_clears_every_published_row_and_invalidates_metadata
+    self.run_scan();self.assert_oracle()
+                    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 69, in assert_oracle
+    self.assertEqual(self.flattened(),wanted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Seq[53 chars]uenceAnnotationCount': 0, 'SequenceSteps[1]/Vi[12252 chars]: ''} != {'Seq[53 chars]uenceSteps[1]/StepNo': 0, 'SequenceSteps[1]/Br[12290 chars]alse}
+Diff is 14403 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_recipe_expected_time_refreshes_definition_revision (test_fraktal_ab_canonical_sequence.SequenceTests.test_recipe_expected_time_refreshes_definition_revision)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 111, in test_recipe_expected_time_refreshes_definition_revision
+    self.recipe[target]+=123;self.run_scan();self.assert_oracle()
+                                             ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_sequence.py", line 69, in assert_oracle
+    self.assertEqual(self.flattened(),wanted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'Seq[54 chars]uenceAnnotationCount': 0, 'SequenceSteps[1]/Vi[13100 chars]: ''} != {'Seq[54 chars]uenceSteps[1]/StepNo': 0, 'SequenceSteps[1]/Br[13138 chars]alse}
+Diff is 15281 characters long. Set self.maxDiff to None to see it.
+
+----------------------------------------------------------------------
+Ran 25 tests in 0.393s
+
+FAILED (failures=3)

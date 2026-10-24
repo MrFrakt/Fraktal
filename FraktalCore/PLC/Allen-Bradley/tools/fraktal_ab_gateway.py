@@ -273,7 +273,8 @@ class MailboxWriter:
                                        writes, self._write_base, *live)
             if session is not None and self._app.config_sets:
                 from fraktal_ab_set_broker import process
-                return process(_GuardedConnection(comm, self._expect_serial), self._app, self._set_store, session, writes, self._write_base)
+                return process(_GuardedConnection(comm, self._expect_serial), self._app, self._set_store, session, writes, self._write_base,
+                               **({'expect_serial':self._expect_serial} if self._app.canonical_publication_stage>=8 else {}))
             return self._write_base(_GuardedConnection(comm, self._expect_serial), writes)
 
 

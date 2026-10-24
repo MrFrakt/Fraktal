@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 5045, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 5033, in main
+    evidence = generate(station.application(), args.source, args.output, initial_config=image)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4918, in generate
+    text = replace_once(text, "<Programs/>", programs(app))
+                                             ~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4758, in programs
+    st_program_routine(mailbox.routine_name(app), mailbox.handler_logic(app, use_routines=True)),
+                                                  ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_mailbox.py", line 1300, in handler_logic
+    lines.extend(_dispatch(app, use_routines=use_routines))
+                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_mailbox.py", line 1076, in _dispatch
+    lines += [f'IF ({req}.IntValue > 32767) OR ({req}.DurationMs < 0) OR ({req}.DurationMs > {upper}) THEN',
+                     ^^^
+NameError: name 'req' is not defined
