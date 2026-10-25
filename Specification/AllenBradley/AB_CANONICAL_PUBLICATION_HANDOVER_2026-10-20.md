@@ -995,3 +995,10 @@ equivalence at 4,010 paths; 97/97 pairs replayed independently; rollback and
 genealogy/Echo scope. Physical power retention, the press renditions, S3j,
 S3k and S4–S7 remain. See
 [S3i lifetime runtime](Evidence/AB_S3I_CANONICAL_LIFETIME_RUNTIME_2026-10-24.md).
+
+## Capacity reduction and approvals — 2026-10-24
+
+R2 is implemented offline and measured at 64% on the S3i bench (749,480
+Blocks freed). The owner approved R1 (V6.4 type-scoped manifest), the S3j
+contract (vehicle (a) now, (b) at S3 final) and an R2 native session in
+principle. See the [capacity plan](AB_CAPACITY_BUDGET_AND_REDUCTION_PLAN_2026-10-24.md).

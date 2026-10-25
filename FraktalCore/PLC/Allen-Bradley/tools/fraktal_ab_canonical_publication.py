@@ -37,6 +37,8 @@ def validate(app):
         return ["canonical publication supports only disabled, S2, S3a, S3b, S3c, S3d, S3e, S3f, S3g, S3h or S3i"]
     import fraktal_ab_canonical_observation as observation
     findings = observation.validate(app)
+    import fraktal_ab_canonical_text as text
+    findings += text.validate(app)
     if not stage:
         return findings
     if app.major_revision < 37 or not app.controller.startswith(("1756-L8", "5069-L")):
@@ -171,6 +173,8 @@ def schema(app):
         alarms.augment(app,result)
     if app.canonical_publication_stage>=7:
         import fraktal_ab_canonical_access as access
+        # Text slices first: the table-driven page definition is built on them.
+        __import__('fraktal_ab_canonical_text').augment(app,result)
         access.augment(app,result)
     if app.canonical_publication_stage>=8:
         import fraktal_ab_canonical_config as config
@@ -419,6 +423,7 @@ def tags(app):
             *(alarms.tags(app,tag) if app.canonical_publication_stage>=6 else []),
             *(access.tags(app,tag) if app.canonical_publication_stage>=7 else []),
             *(config.tags(app,tag) if app.canonical_publication_stage>=8 else []),
+            *__import__('fraktal_ab_canonical_text').tags(app,tag),
             *(provider.tags(app,tag) if app.canonical_publication_stage>=8 else []),
             *(metrics.tags(app,tag) if app.canonical_publication_stage>=9 else []),
             *(__import__("fraktal_ab_canonical_traceability").tags(app,tag) if app.canonical_publication_stage>=10 else []),

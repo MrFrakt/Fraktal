@@ -54,7 +54,21 @@ The work is done when **all** of the following hold:
 
 ## 2. State at hand-over (2026-10-20)
 
-**Latest, 2026-10-24: S3i exit passes on genealogy/Echo; genealogy is
+**Latest, 2026-10-24: capacity reduction started; R1, S3j and an R2 native
+session approved.** A fitted estimate showed the migration design will not fit
+S3k, S3j or the press, and gives about 56 K Blocks per added module. The
+[capacity plan](AB_CAPACITY_BUDGET_AND_REDUCTION_PLAN_2026-10-24.md) lists eight
+objective-aligned reductions. R2 (table-driven configuration page and audit,
+opt-in `canonical_table_driven`) is implemented offline. It measures 2,014,032
+Blocks (64%) on the S3i bench, 749,480 below the accepted image, with
+equivalent read-back, all oracle cases passing, and every accepted stage image
+byte-identical with the opt-in off. The owner approved the
+[V6.4 manifest](AB_CANONICAL_MANIFEST_V64_CONTRACT_REVIEW_2026-10-24.md) (R1)
+and the [S3j contract](AB_CANONICAL_PUBLICATION_S3J_CONTRACT_REVIEW_2026-10-24.md)
+for offline work. An R2 native session is approved in principle, pending
+exact-image preparation and confirmation. V2 remains inactive.
+
+**Earlier, 2026-10-24: S3i exit passes on genealogy/Echo; genealogy is
 restored.** The owner approved the second lifetime retry (“go on”). Every
 stage ran once and exited 0. Candidate checks were 41/41. The calendar
 lifetime passed 7/7 rows with 38 public commits: natural interval, deferred

@@ -917,6 +917,9 @@ class Application:
     # Migration oracle only (Part III §3.13): a positive period latches the
     # paired canonical/legacy records every N scans. Zero emits nothing.
     canonical_observation_period_ms: int = 0
+    # Capacity plan R2: canonical literals as one constant pool read by loops,
+    # instead of per-byte statements. False keeps released images byte-identical.
+    canonical_table_driven: bool = False
 
     @property
     def program(self) -> str:

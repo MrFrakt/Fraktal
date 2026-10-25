@@ -62,7 +62,44 @@ def augment(app,definitions):
 
 
 def initialize(app,values):values['Access']=dict(Policy={})
-def tags(app,serialize):return [serialize(state_tag(app),WORK,{},access='None')]
+
+
+# Table-driven audit (capacity plan R2): every literal is a pool slice.
+FIXED=(': ',' [kind=',', gate=',']','�',' [automatic]',' [value=',', required=')
+def append_routine(app):return f'FRK_{app.name}_CanonicalAuditAppend'
+def key_table_tag(app):return f'FRK_{app.name}_CanonicalAuditKeyText'
+def capability_table_tag(app):return f'FRK_{app.name}_CanonicalAuditCapText'
+def source_table_tag(app):return f'FRK_{app.name}_CanonicalAuditSourceText'
+
+
+def audit_texts(app):
+    import fraktal_ab_manifest as mf
+    catalogue=keys(app)
+    audit={n:t for n,t in catalogue.items() if t.startswith('std.audit.')}
+    capabilities={r['CapabilityIndex']:catalogue.get(r['WriteKeyKey'],'') for r in mf.content(app)['WriteCapabilities']}
+    sources={i:app.name+('.'+m.name if m else '') for i,m in enumerate((None,*app.modules),1)}
+    return audit,capabilities,sources
+
+
+def literals(app):
+    if app.access_users is None:return []
+    audit,capabilities,sources=audit_texts(app)
+    return [*audit.values(),*FIXED,app.name+'.Access',*sources.values(),*capabilities.values()]
+
+
+def tables(app):
+    import fraktal_ab_canonical_text as text
+    audit,capabilities,sources=audit_texts(app)
+    return {name:text.keyed_table(app,entries) for name,entries in
+            ((key_table_tag(app),audit),(capability_table_tag(app),capabilities),(source_table_tag(app),sources)) if entries}
+
+
+def tags(app,serialize):
+    import fraktal_ab_canonical_text as text
+    result=[serialize(state_tag(app),WORK,{},access='None')]
+    if text.enabled(app) and app.access_users is not None:
+        result+=[serialize(name,text.SLICE,rows,access='None',array=True) for name,(unused,rows) in tables(app).items()]
+    return result
 
 
 def cyclic(app):
@@ -146,6 +183,8 @@ def number_logic(app):
 
 
 def audit_logic(app):
+    import fraktal_ab_canonical_text as text
+    if text.enabled(app):return table_audit_logic(app)
     import fraktal_ab_generate as gen
     import fraktal_ab_manifest as mf
     import fraktal_ab_shelving as shelving
@@ -189,4 +228,52 @@ def audit_logic(app):
     return lines
 
 
-def routines(app):return [(number_routine(app),number_logic(app)),(audit_routine(app),audit_logic(app))] if app.access_users is not None else []
+def table_audit_logic(app):
+    """The same rendering as audit_logic, with literals read from the pool."""
+    import fraktal_ab_canonical_text as text
+    import fraktal_ab_generate as gen
+    import fraktal_ab_manifest as mf
+    import fraktal_ab_shelving as shelving
+    w=state_tag(app);i=w+'.AuditSlot';source=owner.tag(app,'Audit');ring=gen.alarm_ring_tag(app)
+    target=f'{app.name}.AlarmLog.Ring[{i}]';render=w+'.Render';b=w+'.ByteIndex';byte=w+'.ByteValue'
+    col=lambda name:f'{source}.{name}[{i}]';append=append_routine(app);fixed=lambda t:text.append_text(app,append,t)
+    def lookup(table,number,put=None):
+        base,rows=tables(app).get(table,(0,[]))
+        if not rows:return []
+        index=text.work_tag(app)+'.Index';row=f'{table}[{index}]'
+        body=text.put(app,put,f'{row}.Offset',f'{row}.Length') if put else text.append(app,append,f'{row}.Offset',f'{row}.Length')
+        return [f'IF ({number} >= {base}) AND ({number} <= {base+len(rows)-1}) THEN',f'{index} := {number} - {base};',*body,'END_IF;']
+    lines=[f'IF ({source}.SchemaVersion = {owner.AUDIT_SCHEMA}) AND ({col("Key")} <> 0) AND',
+        f'({ring}.RingState[{i}] = {gen.ALARM_CLOSED}) AND ({ring}.RingReasonCode[{i}] = 0) THEN',
+        f'{render}.LEN := 0;',*lookup(key_table_tag(app),col('Key')),*fixed(': '),
+        f'{w}.UserLength := {col("UserLength")};',f'IF {w}.UserLength < 0 THEN {w}.UserLength := 0; END_IF;',
+        f'IF {w}.UserLength > {owner.WIDTH} THEN {w}.UserLength := {owner.WIDTH}; END_IF;',
+        f'FOR {b} := 0 TO {w}.UserLength - 1 DO',f'{w}.WordIndex := {i} * {owner.ACTOR_WORDS} + ({b} - ({b} MOD 4)) / 4;',f'CASE {b} MOD 4 OF']
+    word=f'{source}.UserWords[{w}.WordIndex]'
+    for j in range(4):
+        mask=(255 if j<3 else 127)<<(j*8)
+        lines += [f'{j}:',f'{byte} := ({word} AND {mask}) / {1<<(j*8)};']
+        if j==3:lines += [f'IF {word} < 0 THEN {byte} := {byte} + 128; END_IF;']
+    lines += ['ELSE',f'{byte} := 0;','END_CASE;',f'IF {byte} > 127 THEN',
+        *fixed('�'),'ELSE',*append_byte(app,byte),'END_IF;','END_FOR;',*fixed(' [kind='),
+        f'{w}.Number := {col("Kind")};',f'JSR({number_routine(app)},0);',*fixed(', gate='),
+        f'{w}.Number := {col("Gate")};',f'JSR({number_routine(app)},0);',*fixed(']')]
+    lines += text.put_text(app,target+'.SourcePath',app.name+'.Access',255)
+    shelved=[mf.numeric_key(app,k) for k in (shelving.SHELVED,shelving.UNSHELVED)]
+    lines += [f'IF ({col("Key")} = {shelved[0]}) OR ({col("Key")} = {shelved[1]}) THEN',
+        f'(* Base source resolution already selected the module for shelving. *)',
+        f'{target}.SourcePath.LEN := 0;',*lookup(source_table_tag(app),f'{ring}.RingSourceModuleId[{i}]',target+'.SourcePath'),
+        f'IF {col("Sequence")} = 0 THEN',*fixed(' [automatic]'),'END_IF;','END_IF;',
+        f'IF {col("DataCapability")} <> 0 THEN',*fixed(' [value='),*lookup(capability_table_tag(app),col('DataCapability')),
+        *fixed(', required='),f'{w}.Number := {col("DataRequiredLevel")};',f'JSR({number_routine(app)},0);',*fixed(']'),'END_IF;',
+        f'CPS({render},{target}.Description,1);','END_IF;']
+    return lines
+
+
+def routines(app):
+    import fraktal_ab_canonical_text as text
+    if app.access_users is None:return []
+    result=[(number_routine(app),number_logic(app)),(audit_routine(app),audit_logic(app))]
+    if text.enabled(app):
+        result.append((append_routine(app),text.append_routine_lines(app,state_tag(app)+'.Render',pub.header_tag(app)+'.Valid')))
+    return result

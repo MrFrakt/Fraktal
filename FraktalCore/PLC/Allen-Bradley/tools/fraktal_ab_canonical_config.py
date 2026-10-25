@@ -26,6 +26,41 @@ def number_routine(app):return f'FRK_{app.name}_CanonicalConfigNumber'
 def values(app):return gen.editable_values(app)
 
 
+# Table-driven page (capacity plan R2): one definition row per editable value.
+DEF=P+'ConfigDefV1'
+TEXT_FIELDS=(('Item',255),('WriteKey',160),('LabelKey',160),('ClassId',40),('CaptureSource',255))
+def defs_tag(app):return f'FRK_{app.name}_CanonicalConfigDefs'
+
+
+def entry_texts(app):
+    source=manifest.content(app);keys={x['NumericKey']:x['PortableKey'] for x in source['Localization']}
+    caps=source['WriteCapabilities']
+    return [dict(Item='Config/'+m.name,WriteKey=keys.get(caps[o-1]['WriteKeyKey'],''),LabelKey=keys.get(caps[o-1]['LabelKey'],''),
+                 ClassId=keys.get(caps[o-1].get('ClassKey',0),''),CaptureSource=keys.get(caps[o-1].get('CaptureSourceKey',0),''))
+            for o,r,m in values(app)]
+
+
+def literals(app):return [app.name,*(t for row in entry_texts(app) for t in row.values())]
+
+
+def def_rows(app):
+    """Static entry facts. Live values are ValueCache slots: the cache is refreshed
+    from these exact sources earlier in the same scan, before the page is built."""
+    import fraktal_ab_canonical_text as text
+    caps=manifest.content(app)['WriteCapabilities'];scoped_members=[m.name for m in gen.model_cfg_members(app)]
+    rows=[]
+    for index,((ordinal,record,member),texts) in enumerate(zip(values(app),entry_texts(app),strict=True)):
+        cap=caps[ordinal-1];scoped=gen.is_model_scoped(app,record,member.name)
+        for name,width in TEXT_FIELDS:
+            if len(texts[name].encode('utf-8'))>width:raise ValueError('canonical literal exceeds its declared byte width')
+        rows.append(dict(**{name:text.slice_value(app,texts[name]) for name,_ in TEXT_FIELDS},
+            ConfigKind=cap['ConfigKind'],ValueType=cap['ValueType'],RequiresReady=bool(cap['RequiresReady']),
+            Minimum=cap['Minimum'],Maximum=cap['Maximum'],UnitCode=cap['UnitCode'],ModelScoped=scoped,
+            CanCapture=bool(cap.get('CaptureSourceKey',0)),CacheIndex=index,
+            ModelCache=len(values(app))+scoped_members.index(member.name) if scoped else -1))
+    return rows
+
+
 def cache_sources(app):
     result=[f'{r.name}Tag.{m.name}' for _,r,m in values(app)]
     if gen.model_cfg_members(app):
@@ -85,6 +120,11 @@ def augment(app,definitions):
         'LastSetSequence','LastLostModule','LastLevel','BootSeed','NameValid'))+(
         M('BootMicros','LINT'),M('ValueCache','DINT',count=max(1,len(cache_sources(app)))),
         M('Digits','DINT',count=10),M('Render',S(255)))
+    import fraktal_ab_canonical_text as text
+    if text.enabled(app):
+        definitions[DEF]=(*(M(name,text.SLICE) for name,_ in TEXT_FIELDS),M('ConfigKind','DINT'),M('ValueType','DINT'),
+            M('RequiresReady','BOOL'),M('Minimum','LREAL'),M('Maximum','LREAL'),M('UnitCode','DINT'),
+            M('ModelScoped','BOOL'),M('CanCapture','BOOL'),M('CacheIndex','DINT'),M('ModelCache','DINT'))
 
 
 def initialize(app,result):
@@ -92,8 +132,11 @@ def initialize(app,result):
 
 
 def tags(app,serialize):
-    return [serialize(state_tag(app),WORK,{},access='None'),
+    import fraktal_ab_canonical_text as text
+    result=[serialize(state_tag(app),WORK,{},access='None'),
         serialize(query_status_tag(app),QUERY_STATUS,dict(SchemaVersion=1))]
+    if text.enabled(app):result.append(serialize(defs_tag(app),DEF,def_rows(app),access='None',array=True))
+    return result
 
 
 def query(app):
@@ -161,7 +204,44 @@ def number_logic(app):
     return [line.replace(formatting.state_tag(app),state_tag(app)) for line in formatting.number_logic(app)]
 
 
+def table_page_logic(app):
+    """The same page as page_logic, walked over the definition table."""
+    import fraktal_ab_canonical_text as text
+    w=state_tag(app);target=app.name+'.HmiResponse.ConfigPage';slot=w+'.Slot';row=f'{target}.Entries[{slot}]'
+    d=f'{defs_tag(app)}[{w}.Index]';count=len(values(app));pcount=(count+PAGE_SIZE-1)//PAGE_SIZE
+    stride=len(gen.model_cfg_members(app));cache=text.work_tag(app)+'.Index'
+    lines=[f'{target}.Revision := {w}.Revision;',f'{target}.PageCount := {pcount};',f'{target}.EntryCount := 0;',
+        f'{target}.PageIndex := 0;',f'IF {w}.PageIndex <= 32767 THEN {target}.PageIndex := {w}.PageIndex; ELSE {target}.PageIndex := 32767; END_IF;',
+        f'IF {w}.PageIndex < {pcount} THEN',f'FOR {slot} := 0 TO {PAGE_SIZE-1} DO',
+        f'{w}.Ordinal := {w}.PageIndex * {PAGE_SIZE} + {slot} + 1;',
+        f'IF ({w}.Ordinal >= 1) AND ({w}.Ordinal <= {count}) THEN',f'{w}.Index := {w}.Ordinal - 1;',
+        f'IF (NOT {d}.ModelScoped) OR (({w}.ModelIndex >= 0) AND ({w}.ModelIndex <= {w}.LastCatalogCount)) THEN',
+        *text.put_text(app,row+'.Scope',app.name,255)]
+    for name,_ in TEXT_FIELDS:lines += text.put(app,f'{row}.{name}',f'{d}.{name}.Offset',f'{d}.{name}.Length')
+    lines += [f'{row}.{n}.LEN := 0;' for n in ('Unit','EnumDomain','EnumLabelKey')]
+    lines += [f'{row}.WriteRevision := {manifest.config_revision(app)};',f'{row}.Writable := 1;',
+        f'{row}.HasMinimum := 1;',f'{row}.HasMaximum := 1;',
+        *[f'{row}.{n} := {d}.{n};' for n in ('ConfigKind','ValueType','RequiresReady','Minimum','Maximum','UnitCode','ModelScoped','CanCapture')]]
+    if app.access_users is not None:
+        levels=data.tag(app,'Levels')
+        lines += [f'{row}.{n} := {levels}.{n}[{w}.Index];' for n in ('ReadLevel','WriteLevel')]
+        lines += [f'{row}.Readable := {levels}.Readable[{w}.Index] <> 0;']
+    else:lines += [f'{row}.ReadLevel := -1;',f'{row}.WriteLevel := -1;',f'{row}.Readable := 1;']
+    lines += [f'{row}.ValueText.LEN := 0;',f'IF {row}.Readable THEN',
+        f'IF ({d}.ModelCache < 0) OR ({w}.ModelIndex = 0) THEN {cache} := {d}.CacheIndex;',
+        f'ELSE {cache} := {d}.ModelCache + ({w}.ModelIndex - 1) * {stride}; END_IF;',
+        f'{w}.Number := {w}.ValueCache[{cache}];',
+        f'{w}.Render.LEN := 0;',f'JSR({number_routine(app)},0);',f'CPS({w}.Render,{row}.ValueText,1);','END_IF;',
+        f'{target}.EntryCount := {target}.EntryCount + 1;','END_IF;','END_IF;','END_FOR;','END_IF;']
+    status=query_status_tag(app)
+    return lines+[f'IF ({w}.ModelIndex < 0) OR ({w}.ModelIndex > {w}.LastCatalogCount) THEN {target}.EntryCount := 0; END_IF;',
+        f'{w}.PageBuilt := 1;',f'{status}.PageIndex := {w}.PageIndex;',f'{status}.ModelIndex := {w}.ModelIndex;',
+        f'{status}.Revision := {w}.Revision;',f'{status}.Accepted := 1;',f'{status}.AckSequence := {w}.QuerySequence;']
+
+
 def page_logic(app):
+    import fraktal_ab_canonical_text as text
+    if text.enabled(app):return table_page_logic(app)
     w=state_tag(app);target=app.name+'.HmiResponse.ConfigPage';slot=w+'.Slot';row=f'{target}.Entries[{slot}]'
     source=manifest.content(app);keys={x['NumericKey']:x['PortableKey'] for x in source['Localization']}
     caps=source['WriteCapabilities'];pcount=(len(caps)+PAGE_SIZE-1)//PAGE_SIZE
