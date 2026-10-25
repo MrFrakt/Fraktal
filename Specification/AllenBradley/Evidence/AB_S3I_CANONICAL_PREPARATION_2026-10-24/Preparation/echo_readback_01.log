@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 224, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 218, in main
+    report = compare(args.source, args.exported)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 198, in compare
+    data_b=initials(second,fallback_tags={'/'.join(path.split('/')[:2]) for path in data_a})
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_readback.py", line 115, in initials
+    result.update(decode(root,tag,path,ascii_payload))
+                  ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 97, in decode
+    walk(tag.get('DataType'),parse(''.join(data.itertext()).strip()),path,count(tag.get('Dimensions')))
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 90, in walk
+    walk(member.get('DataType'),item,current+'/'+member.get('Name'),count(member.get('Dimension')))
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 74, in walk
+    for index,item in enumerate(value):walk(kind,item,current+f'/[{index}]')
+                                       ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 90, in walk
+    walk(member.get('DataType'),item,current+'/'+member.get('Name'),count(member.get('Dimension')))
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_l5k_values.py", line 93, in walk
+    raise ValueError('unsupported L5K native atom: '+kind)
+ValueError: unsupported L5K native atom: UINT

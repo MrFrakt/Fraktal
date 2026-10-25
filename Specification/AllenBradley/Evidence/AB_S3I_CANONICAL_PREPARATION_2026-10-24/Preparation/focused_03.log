@@ -1,0 +1,31 @@
+...........E..E.
+======================================================================
+ERROR: test_occupied_history_fields_and_types_match_the_approved_inventory (test_fraktal_ab_s3i_line.LineBehaviorTests.test_occupied_history_fields_and_types_match_the_approved_inventory)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 193, in test_occupied_history_fields_and_types_match_the_approved_inventory
+    for p,row in reviewed.items():self.assertEqual(types[p],row['logicalType'])
+                                                   ~~~~~^^^
+KeyError: 'Press/ShiftHistory[1]/TimeSynchronized'
+
+======================================================================
+ERROR: test_owner_commit_records_time_quality_in_versioned_state_only (test_fraktal_ab_s3i_line.LineBehaviorTests.test_owner_commit_records_time_quality_in_versioned_state_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 111, in test_owner_commit_records_time_quality_in_versioned_state_only
+    self.plc.run(st.parse('\n'.join(owner.accepted(app))))
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 455, in _condition
+    raise StFault("an IF condition must be BOOL; Studio 5000 rejects a DINT there")
+fraktal_ab_st_model.StFault: an IF condition must be BOOL; Studio 5000 rejects a DINT there
+
+----------------------------------------------------------------------
+Ran 16 tests in 12.485s
+
+FAILED (errors=2)

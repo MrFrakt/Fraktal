@@ -4749,6 +4749,9 @@ def canonical_routines(app):
     if app.canonical_publication_stage>=10:
         import fraktal_ab_canonical_traceability as trace
         result += trace.routines(app)
+    if app.canonical_publication_stage>=11:
+        import fraktal_ab_canonical_line as line
+        result += line.routines(app)
     return result
 
 

@@ -14,6 +14,9 @@ from fraktal_ab_canonical_equivalence import stable_scan_pair
 
 ELEMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(?:\[(\d+)\])?\Z")
 DINT = 0xC4
+# The qualified read size: 44 fragments fit the frame period, 500-byte mailbox
+# framing needs about 350 and never does.
+READ_CONNECTION_BYTES = 4000
 
 
 def layout(seed, frame, tags, sizes, header):
@@ -62,6 +65,9 @@ def read(channels, *, frame, tags, sizes, seed, cached, live_generation, frame_g
     import fraktal_ab_paired_fragments as fragments
     import fraktal_ab_paired_socket_reads as sockets
     import fraktal_ab_canonical_observation as observation
+    sizes_in_use = sorted({c.ConnectionSize for c in channels})
+    if sizes_in_use != [READ_CONNECTION_BYTES]:
+        raise ValueError(f"observation frame reads need {READ_CONNECTION_BYTES}-byte connections, not {sizes_in_use}")
     live = [tag for tag in tags if tag not in cached]
     plan = layout(seed, frame, live, sizes, observation.HEADER)
     plans = fragments.partition(channels[0], [frame], {frame: plan["size"]}, connections=len(channels))

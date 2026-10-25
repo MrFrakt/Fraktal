@@ -28,13 +28,13 @@ class Member:
 
 
 def enabled(app):
-    return app.canonical_publication_stage in (wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10)
+    return app.canonical_publication_stage in (wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10, 11)
 
 
 def validate(app):
     stage = app.canonical_publication_stage
-    if type(stage) is not int or stage not in (0, wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10):
-        return ["canonical publication supports only disabled, S2, S3a, S3b, S3c, S3d, S3e, S3f, S3g or S3h"]
+    if type(stage) is not int or stage not in (0, wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10, 11):
+        return ["canonical publication supports only disabled, S2, S3a, S3b, S3c, S3d, S3e, S3f, S3g, S3h or S3i"]
     import fraktal_ab_canonical_observation as observation
     findings = observation.validate(app)
     if not stage:
@@ -50,6 +50,8 @@ def validate(app):
     if stage>=8:reserved.update(('HmiResponse','ConfigPersist','ConfigSets','ConfigSetCount','ConfigSetDocument','ConfigSetDocumentLine','ConfigSetDocumentLines'))
     if stage>=9:reserved.update(('Oee','OeeTrend','OeeTrendHead','Profiler','SystemHealth'))
     if stage>=10:reserved.update(('Part','HostEvents','Nameplate','SignalTower','MachineState'))
+    if stage>=11:reserved.update(('Line','CurrentShift','ShiftStartedAt','ShiftEndsAt','ShiftProductionTarget',
+        'ShiftHistory','ShiftHistoryCount','ShiftHistoryTruncated','ShiftTimeSynchronized','ShiftCalendarPending','ShiftClosedSequence'))
     if app.name in app.sim_inputs or any(m.name in reserved for m in app.modules):
         findings.append("canonical root/member collides with an existing symbol")
     if stage >= 3:
@@ -76,10 +78,14 @@ def validate(app):
     if stage>=10:
         import fraktal_ab_canonical_traceability as trace
         findings.extend(trace.validate(app))
+    if stage>=11:
+        import fraktal_ab_canonical_line as line
+        findings.extend(line.validate(app))
     return findings
 
 
 def root_type(app):
+    if app.canonical_publication_stage==11:return f"FRK_T_{app.name}CanonicalRootS3iV63"
     if app.canonical_publication_stage==10:return f"FRK_T_{app.name}CanonicalRootS3hV63"
     if app.canonical_publication_stage==9:return f"FRK_T_{app.name}CanonicalRootS3gV63"
     if app.canonical_publication_stage==8:return f"FRK_T_{app.name}CanonicalRootS3fV63"
@@ -91,6 +97,7 @@ def root_type(app):
 
 
 def header_type(app):
+    if app.canonical_publication_stage==11:return f"FRK_T_{app.name}CanonicalManifestS3iV63"
     if app.canonical_publication_stage==10:return f"FRK_T_{app.name}CanonicalManifestS3hV63"
     if app.canonical_publication_stage==9:return f"FRK_T_{app.name}CanonicalManifestS3gV63"
     if app.canonical_publication_stage==8:return f"FRK_T_{app.name}CanonicalManifestS3fV63"
@@ -176,6 +183,9 @@ def schema(app):
     if app.canonical_publication_stage>=10:
         import fraktal_ab_canonical_traceability as trace
         trace.augment(app,result)
+    if app.canonical_publication_stage>=11:
+        import fraktal_ab_canonical_line as line
+        line.augment(app,result)
     field_type = PREFIX + ('FieldV61' if app.canonical_publication_stage >= 3 else 'FieldV6')
     result[field_type] = (
         Member("CanonicalPath", string_type(wire.PATH_WIDTH)),
@@ -314,6 +324,9 @@ def initial(app):
     if app.canonical_publication_stage>=10:
         import fraktal_ab_canonical_traceability as trace
         trace.initialize(app,result)
+    if app.canonical_publication_stage>=11:
+        import fraktal_ab_canonical_line as line
+        line.initialize(app,result)
     return result
 
 
@@ -409,6 +422,7 @@ def tags(app):
             *(provider.tags(app,tag) if app.canonical_publication_stage>=8 else []),
             *(metrics.tags(app,tag) if app.canonical_publication_stage>=9 else []),
             *(__import__("fraktal_ab_canonical_traceability").tags(app,tag) if app.canonical_publication_stage>=10 else []),
+            *(__import__("fraktal_ab_canonical_line").tags(app,tag) if app.canonical_publication_stage>=11 else []),
             f'<Tag Name="{generation_tag(app)}" TagType="Base" DataType="DINT" Radix="Decimal" ExternalAccess="Read Only"/>',
             tag(f'FRK_{app.name}_CanonicalTiming',PREFIX+"TimingV6",{}),
             *__import__("fraktal_ab_canonical_observation").tags(app)]
@@ -476,6 +490,9 @@ def cyclic(app):
     if app.canonical_publication_stage>=10:
         import fraktal_ab_canonical_traceability as trace
         lines += trace.cyclic(app)
+    if app.canonical_publication_stage>=11:
+        import fraktal_ab_canonical_line as line
+        lines += line.cyclic(app)
     timing = f'FRK_{app.name}_CanonicalTiming'
     lines += [f'{timing}.Scan := FRK_{app.name}_ScanCount;',
               f'GSV(TASK,{app.task_name},LastScanTime,{timing}.LastScanUs);',

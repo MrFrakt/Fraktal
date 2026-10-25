@@ -1,0 +1,36 @@
+{
+  "readOnly": true,
+  "controllerAccess": false,
+  "failedCapture": {
+    "phase": "original_empty_profile",
+    "error": "no completed PLC scan held across the paired read window",
+    "attempts": 100,
+    "unchangedEvenWaits": 91,
+    "oddPolls": 3,
+    "readWindows": 6,
+    "windowGenerationDeltas": {
+      "2": 6
+    },
+    "firstGeneration": 8804,
+    "lastGeneration": 8828
+  },
+  "calendarWriteCount": 0,
+  "configurationRestored": true,
+  "frameBytes": 173792,
+  "framePeriodScans": 5,
+  "acceptedFixtureReads": {
+    "connectionBytes": 4000,
+    "fragmentPayloadBytes": 3988,
+    "requests": 44,
+    "observer": null
+  },
+  "mailboxWriterConnectionBytes": 500,
+  "mailboxSetsWriterSize": true,
+  "estimatedRequestsAtWriterSize": 357,
+  "estimateBasis": "12-byte reply framing measured at 4,000 bytes; not a measurement at 500 bytes",
+  "cause": "CalendarRun.observe issued QUERY_CONFIG on the mailbox writer, which leaves it at the 500-byte frame size, and passed that writer to the oracle; the oracle gives its observer sockets the primary size",
+  "fix": [
+    "fraktal_ab_s3i_lifetime_execute.CalendarRun.observe reads through the independent 4,000-byte capture_gate observer",
+    "fraktal_ab_paired_observation.read refuses any read socket not at 4,000 bytes before any controller read"
+  ]
+}

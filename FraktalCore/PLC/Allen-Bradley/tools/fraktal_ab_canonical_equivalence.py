@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare paired canonical/projection documents, path by path and type by type.
 
-Only the five approved V2 D2 bounds may move a path. No value tolerance, ignored
+Only finite owner-approved V2 correspondences may move a path. No value tolerance, ignored
 path prefix, numeric bool coercion or implicit subset is accepted. Captured pairs
 and a live acquisition callback use the same comparison. Matching manifest tokens
 establish configuration coherence, not that two separate reads saw one scan.
@@ -9,6 +9,7 @@ establish configuration coherence, not that two separate reads saw one scan.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -22,6 +23,30 @@ CONTRACT = Path(__file__).resolve().parents[4] / "Specification/AllenBradley/AB_
 
 def corrections():
     return load_json(CONTRACT)["arrayBounds"]["correctionsFromV1"]
+
+
+def path_correspondences():
+    """Engineering-only finite alias amendment, bound to the reviewed inventory.
+
+    Runtime clients discover native paths from the PLC. This mapping belongs
+    only to the independent comparison with the frozen legacy projection.
+    """
+    approved = load_json(CONTRACT).get("approvedRemainingSurfaceCorrection")
+    if approved is None:
+        return {}
+    if approved.get("ownerApproved") is not True:
+        raise ValueError("remaining surface correspondences are not owner-approved")
+    name = approved["inventory"]
+    if Path(name).name != name:
+        raise ValueError("contract inventory must be a local specification filename")
+    raw = (CONTRACT.parent / name).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != approved["inventorySha256"]:
+        raise ValueError("approved remaining surface inventory hash differs")
+    rows = json.loads(raw)["proposedFrozenPathRenames"]
+    result = {row["legacyPath"]: row["canonicalPath"] for row in rows}
+    if len(result) != approved["pathSpellings"] or len(set(result.values())) != len(result):
+        raise ValueError("approved path correspondence is incomplete or ambiguous")
+    return result
 
 
 def _type(doc, path):
@@ -38,7 +63,8 @@ def compare_documents(projection, canonical, *, require_types=True):
     units = {p.removesuffix("/Status/ModuleType") for p, v in old.items()
              if p.endswith("/Status/ModuleType") and type(v) is int and v == 1}
     rules = corrections()
-    mapped, differences, shifted = {}, [], []
+    aliases = path_correspondences()
+    mapped, differences, shifted, renamed = {}, [], [], []
     for path in sorted(old):
         target = path
         for unit in units:
@@ -51,6 +77,9 @@ def compare_documents(projection, canonical, *, require_types=True):
                         differences.append(dict(path=path, kind="invalidOldBound"))
                     target = path[:hit.start(1)] + str(index + rule["lowerBound"] - rule["oldLowerBound"]) + path[hit.end(1):]
                     shifted.append(dict(projectionPath=path, canonicalPath=target))
+        if target in aliases:
+            target = aliases[target]
+            renamed.append(dict(projectionPath=path, canonicalPath=target))
         if target in mapped:
             differences.append(dict(path=target, kind="mappingCollision", projectionPath=path))
         mapped[target] = path
@@ -77,10 +106,13 @@ def compare_documents(projection, canonical, *, require_types=True):
                                     projection=old[source], canonical=new[target]))
     # V1 and V2 publish different manifests, hence different configuration hashes.
     # Each acquisition validates its own token. Same-state proof is separate.
-    return dict(schema="fraktal.ab.canonical-equivalence", schemaVersion=1,
+    report = dict(schema="fraktal.ab.canonical-equivalence", schemaVersion=1,
                 equal=not differences, typeAcceptance=require_types and not differences and typed == len(mapped),
                 comparedPaths=len(mapped), typedPaths=typed,
                 d2AllowList=rules, correctedPaths=shifted, differences=differences)
+    if renamed:
+        report["approvedPathCorrections"] = renamed
+    return report
 
 
 def compare_live(acquire_pair):

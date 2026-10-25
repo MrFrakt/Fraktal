@@ -283,7 +283,7 @@ def run(comm, *, application_factory=None, path_contract=None, extra_oracle=None
     if trailing is None or old_reader.decode_header(trailing)!=header:
         raise ValueError('legacy manifest changed after paired acquisition')
     result=compare_live(lambda:pair)
-    return dict(schema='fraktal.ab.'+{2:'s2',3:'s3a',4:'s3b',5:'s3c',6:'s3d',7:'s3e',8:'s3f',9:'s3g',10:'s3h'}[app.canonical_publication_stage]+'-equivalence',schemaVersion=1,readOnly=True,
+    return dict(schema='fraktal.ab.'+{2:'s2',3:'s3a',4:'s3b',5:'s3c',6:'s3d',7:'s3e',8:'s3f',9:'s3g',10:'s3h',11:'s3i'}[app.canonical_publication_stage]+'-equivalence',schemaVersion=1,readOnly=True,
                 serial='601FC87B',passed=result['equal'] and result['typeAcceptance'],
                 comparison=result,pair=pair)
 

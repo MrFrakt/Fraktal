@@ -29,7 +29,11 @@ The work is done when **all** of the following hold:
    numeric coercion, ignored path or tolerance is permitted. The owner also approved
    the [36 S3h type corrections](AB_CANONICAL_PUBLICATION_S3H_CONTRACT_REVIEW_2026-10-23.md),
    including unset Part timestamp empty string to zero; the other 242 added paths
-   retain exact values and types. The frozen genealogy
+   retain exact values and types. The owner also approved the finite
+   [remaining-S3 corrections](AB_CANONICAL_PUBLICATION_REMAINING_S3_CONTRACT_REVIEW_2026-10-24.md)
+   on 2026-10-24: 122 path spellings, 13 frozen type corrections and the
+   enumerated command/status/history schema and arithmetic consequences.
+   The exact inventory and approval are bound in S3i inventory evidence. The frozen genealogy
    capture (4,437 legacy paths) stays immutable; page-window shape and additional
    Core fields have their own explicit S3f oracle. This holds for genealogy and
    the press declaration in all three AUTO renditions.
@@ -50,7 +54,83 @@ The work is done when **all** of the following hold:
 
 ## 2. State at hand-over (2026-10-20)
 
-**Latest, 2026-10-24: S3h exit passes on Echo through the observation
+**Latest, 2026-10-24: S3i exit passes on genealogy/Echo; genealogy is
+restored.** The owner approved the second lifetime retry (“go on”). Every
+stage ran once and exited 0. Candidate checks were 41/41. The calendar
+lifetime passed 7/7 rows with 38 public commits: natural interval, deferred
+target and calendar, natural closure into history, closed-target
+immutability. Its 7 pairs read on the independent 4,000-byte observer. One
+Program/Run without download preserved Line metadata, history values and
+types, and 8/8 first-scan vectors. Idle equivalence matches 4,010 paths. All
+97 pairs replay independently; rollback, 31/31 baseline and final checks pass,
+with no dumps. Candidate cumulative TASK max is 9,206 µs (zero overlaps), close
+to the 10 ms period. Physical power retention, the press renditions, S3j,
+S3k and S4–S7 remain. Read
+[S3i lifetime runtime](Evidence/AB_S3I_CANONICAL_LIFETIME_RUNTIME_2026-10-24.md).
+The approval is consumed; no commit or push; V2 remains inactive.
+
+**Earlier, 2026-10-24: the corrected S3i lifetime retry was refused by its
+own download gate; the controller is unchanged and a second retry is
+prepared.** The retry workspace setup had copied files as text, rewriting CRLF
+line ends; the helper's hash-bound Capacity evidence no longer matched, so it
+refused before download. No download, mode change or tag write occurred;
+read-only guard and preflight afterwards equal the session's record. The
+second workspace is byte-exact, and a new offline replica of the helper's
+download gates passes on it (and fails on the refused workspace). The PLC image
+and the approved observer correction are unchanged. Read the
+[refused retry](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_ATTEMPT_2026-10-24.md) and
+[second retry preparation](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY2_PREPARATION_2026-10-24.md).
+New approval required; no commit or push; V2 remains inactive.
+
+**Earlier, 2026-10-24: S3i lifetime attempt failed at its first calendar
+capture; genealogy is restored and a corrected retry is prepared.** The
+approved lifetime session passed backup, download and 41/41 candidate checks
+(87 frame pairs, independently replayed). Its first calendar capture failed
+before any calendar write: `CalendarRun.observe` read the 173,792-byte frame
+through the mailbox writer, which every command leaves at 500 bytes (about 357
+requests against 44), so no read fitted the frame period. Rollback, 31/31
+baseline and final checks passed, with no dumps. The retained Program/Run cycle
+was not reached; the approval is consumed. The capture now uses the fixture's
+independent 4,000-byte observer, and the frame reader refuses any other socket
+size. 2,191 AB / 74 root tests pass; the PLC image is byte-identical. A fresh
+retry workspace awaits new approval. Read the
+[attempt](Evidence/AB_S3I_CANONICAL_LIFETIME_ATTEMPT_2026-10-24.md) and
+[retry preparation](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_PREPARATION_2026-10-24.md).
+No commit or push; V2 remains inactive.
+
+**Earlier, 2026-10-24: S3i publication passes on genealogy/Echo; calendar
+lifetime remains open.** The approved A5FAFA46…7E36C42 image passed 41 candidate,
+eight native publication vectors and 31 restored-baseline checks. All 88
+same-frame pairs replay independently at 3,360–3,968 typed paths. Capacity is
+87% (2,763,512 / 3,145,728 Blocks); median LastScan is 875.5 µs, cumulative
+max 8,405 µs, zero overlaps. Genealogy is restored, MANUAL/idle/logged out with
+five saved/live documents equal. Every live pair had zero occupied shift
+history rows: synthetic publication vectors do not close natural calendar,
+target-lifetime or retained Program/Run gates. Prepare those next, before S3i
+exit or S3j. Read [runtime evidence](Evidence/AB_S3I_CANONICAL_RUNTIME_2026-10-24.md).
+The read-only observer's missing stage-11 result label was corrected before
+controller changes; all 2,178 AB /74 root tests pass. The session approval is
+consumed. No commit or push; V2 remains inactive.
+
+**Earlier, 2026-10-24: remaining-S3 inventory reconciled; contract review
+is owner-approved for offline implementation.** The 157 raw unmatched keys
+include eight already-covered D2 endpoints. Comparing once in canonical index
+space leaves exactly 149: 126 mailbox/report, 16 Line/shift, five production
+fields and two Features flags; Access/Policy has no remaining gap. The
+[inventory](AB_CANONICAL_PUBLICATION_REMAINING_S3_INVENTORY_2026-10-24.json) proposes 122 native Core path spellings and 13 frozen
+type corrections, plus explicit bounded history and command/status schema
+obligations absent from the frozen sample. The finite target allowance is recorded; V2 remains inactive.
+Read the [contract review](AB_CANONICAL_PUBLICATION_REMAINING_S3_CONTRACT_REVIEW_2026-10-24.md) and [next-stage notes](AB_CANONICAL_PUBLICATION_REMAINING_S3_NOTES_2026-10-24.md).
+
+The accepted S3h image uses 85% Capacity, including its migration frame;
+genealogy was restored afterward. The next image's fit/scan is not measured.
+Shipping S4 coherence is per row/group under Part III §3.13; the frame is not
+a client dependency and is removed at S6. The actual press declaration in all
+three renditions and the separate fieldbus product remain S3 gates. This
+inventory performed no controller operation or production-source change.
+The S3h session approval is consumed. No commit or push.
+
+**Accepted S3h baseline, 2026-10-24: S3h exit passes on Echo through the observation
 frame; genealogy is restored.** The owner approved the session for ACD
 `E07C4196…649745` in chat (“yes i approve”). Every stage ran once and exited 0:
 guard, preflight, backup, download, SDK/read-back/access, 41 / 41 candidate
@@ -997,12 +1077,17 @@ manifest buffer, rather than mandating that numeric window size.
 | 3f | Configuration pages, `ConfigPersist`, `ConfigSets` listing | Pages come from the PLC on `QUERY_CONFIG` (as TC3), not assembled by a client |
 | 3g | `Oee`, `OeeTrend`, `Profiler`, `SystemHealth` | Profiler is 900 paths; derivations are event-driven, not per scan |
 | 3h | `Part` (+ genealogy), `HostEvents`, `Nameplate`, `SignalTower`/`MachineState` | Keep the existing single append owners; only the publication form changes |
-| 3i | `Line` (calendar, shifts) | Line keys stay `line.`-prefixed |
+| 3i | `Line` (calendar, shifts) | Owner-approved offline scope: 16 frozen gaps, two Core Line status members and occupied eight-row V3 history; [S3i publication runtime](Evidence/AB_S3I_CANONICAL_RUNTIME_2026-10-24.md) passed 41+8+31 checks, 88 pairs, 87% Capacity; natural calendar/populated-live-history/target-lifetime/Program-Run gates remain open; parameter keys stay `line.`-prefixed |
 | 3j | Fieldbus topology as its own published data product (TC3 `GVL_<Project>Fieldbus.Topology`) | Not a module root |
-| 3k | `HmiResponse` / release report, `HmiRequest` mailbox | The mailbox stays the single write surface, with ordering per `OPCUA_TRANSPORT.md` |
+| 3k | `HmiResponse` / release report, `HmiRequest` mailbox, counters/derived production flags and Features | 126 mailbox/report plus seven Unit fields; full command discovery, secret exclusion and complete 24-reason versioned owner; one dispatch owner, ordering per `OPCUA_TRANSPORT.md` |
 
-**Exit:** full equivalence (4,437 genealogy paths, plus the press) on Echo;
-31/31 regressions; rendition gate green.
+**Exit:** full equivalence (4,437 genealogy paths under finite approved
+correspondences and complete dynamic/extra Core surfaces), plus the actual press
+declaration, on Echo. Each declaration proves ST, SFC and ladder, exact-image
+Capacity/scan and all required regressions. Genealogy's three renditions do not
+accept the press declaration. Fieldbus has its own product proof even though the
+frozen genealogy has zero fieldbus paths. Reconcile the changing consumer census
+before S6; the original 22-tool/44-test counts predate canonical/frame additions.
 
 ### S4 — Generic Dart `CipSessionClient` and the desktop path
 
@@ -1013,6 +1098,11 @@ manifest buffer, rather than mandating that numeric window size.
   - template-driven decoding plus the manifest lower bound and logical type;
   - `fraktal.opcua.snapshot.v1`, fast/slow tiers like `WebApiSessionClient`;
   - blocking work in a worker isolate, like `AdsSessionClient`.
+- **Coherence** follows Part III §3.13 per published row/group and read tier,
+  using PLC-published revision/access metadata. Do not require one same-scan
+  live document or use the migration observation frame as a shipping protocol.
+  Secret and other command-only values stay outside snapshots and cyclic reads;
+  bounded retries must degrade quality rather than accept a torn group.
 - **Writes** follow `OPCUA_TRANSPORT.md`, but stay disabled unless the endpoint
   is a commissioned CIP Security session (S7). The repository exposes the
   read-only state so the HMI states it explicitly (Core §11.2). Check the
@@ -1118,3 +1208,28 @@ manifest buffer, rather than mandating that numeric window size.
 | S7 | hardware-bound |
 
 Native gates (owner Capacity, downloads) set the real pace.
+
+## S3i calendar lifetime follow-up prepared — 2026-10-24
+
+The next natural-calendar/retained-Program-Run fixture is ready offline for
+unchanged ACD A5FAFA46…7E36C42 (measured 87% Capacity). It uses a fresh published
+Line.LastUpdate, one twelve-hour interval ending three minutes later, target
+40 → requested 99, queued original-calendar restoration, two real newest-first
+history rows and exact before/after Line value/type equality across one
+Program/Run cycle without downloading in that cycle. No private clock access
+or clock set is added. Normal path: 38 public Line commits, ceiling 64 including
+cleanup; operator-session and exact-target guards remain strict.
+
+All 2,189 AB /74 root tests pass, as do eleven focused emitted-ST lifetime
+tests, six negative authorization cases and the guarded helper build. The
+170 inherited source bindings and PLC image are unchanged; two fixture/test
+sources are added. All 88 prior native pairs replay unchanged. The required
+v38 compiler/read-back and Capacity results transfer by exact image hash.
+
+No controller access or change occurred in this preparation. Current owner
+approval is still required for the fresh download, public calendar writes and
+retained cycle; the earlier session approval is consumed. Proposed session
+repeats the 41 candidate checks, adds calendar/retention proof, then rolls back
+and restores five documents/31 baseline checks. Fault clears, clock changes,
+power operations and hard kills remain excluded. S3i exit and S3j stay open.
+See [preparation evidence](Evidence/AB_S3I_CANONICAL_LIFETIME_PREPARATION_2026-10-24.md).

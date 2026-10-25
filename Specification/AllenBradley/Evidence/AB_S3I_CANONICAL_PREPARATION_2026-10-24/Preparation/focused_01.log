@@ -1,0 +1,45 @@
+.......FF.....
+======================================================================
+FAIL: test_minute_stamp_exact_native_limit_and_zero (test_fraktal_ab_s3i_line.LineBehaviorTests.test_minute_stamp_exact_native_limit_and_zero) (minute=153722867, millis=36854)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 144, in test_minute_stamp_exact_native_limit_and_zero
+    self.shift.update(StartedMinute=minute,StartedMs=millis);self.scan();self.assert_exact()
+                                                                         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 76, in assert_exact
+    actual=self.actual();self.assertEqual(actual,expected)
+                         ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: {'Line/LineId': 'PRESS-LINE-1', 'Line/Role': 0, [433 chars]': 0} != {'Line/Role': 0, 'Line/LineId': 'PRESS-LINE-1', [427 chars]': 0}
+  {'CurrentShift': 0,
+   'Line/AppliedRevision': 1,
+   'Line/LastUpdate': 0,
+   'Line/LineId': 'PRESS-LINE-1',
+   'Line/Owner': 'AB-PRESS-BENCH',
+   'Line/Revision': 1,
+   'Line/Role': 0,
+   'Line/SourceError': 0,
+   'Line/Stale': False,
+   'Line/TimeSynchronized': False,
+   'ShiftCalendarPending': False,
+   'ShiftClosedSequence': 0,
+   'ShiftEndsAt': 0,
+   'ShiftHistoryCount': 0,
+   'ShiftHistoryTruncated': False,
+   'ShiftProductionTarget': 0,
+-  'ShiftStartedAt': '1677-09-21T00:13:03.144448384Z',
++  'ShiftStartedAt': '2262-04-11T23:47:36.854Z',
+   'ShiftTimeSynchronized': False}
+
+======================================================================
+FAIL: test_minute_stamp_exact_native_limit_and_zero (test_fraktal_ab_s3i_line.LineBehaviorTests.test_minute_stamp_exact_native_limit_and_zero)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 145, in test_minute_stamp_exact_native_limit_and_zero
+    self.assertEqual(self.root['ShiftStartedAt'],9223372036854000000)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: -9223372016855551616 != 9223372036854000000
+
+----------------------------------------------------------------------
+Ran 13 tests in 10.867s
+
+FAILED (failures=2)

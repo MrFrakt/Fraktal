@@ -166,7 +166,7 @@ class FrameReaderTests(unittest.TestCase):
                     frame_reader.layout(seed, "Frame", change.get("tags", self.live()),
                                         {**self.sizes, **change.get("sizes", {})}, self.header)
 
-    def run_read(self, *, source=10, revision=5, live=8):
+    def run_read(self, *, source=10, revision=5, live=8, sizes=(4000, 4000)):
         events = []
         raw = struct.pack("<ii", source, revision) + bytes(range(8)) + b"ctx!" + b"a0a0" + b"a1a1"
         generations = iter((3, 10, 10))
@@ -185,7 +185,7 @@ class FrameReaderTests(unittest.TestCase):
         with patch("fraktal_ab_paired_fragments.partition", side_effect=partition), \
                 patch("fraktal_ab_paired_socket_reads.acquire", side_effect=acquire), \
                 patch("fraktal_ab_paired_fragments.decode", side_effect=decode):
-            pair = frame_reader.read([object(), object()], frame="Frame", tags=self.tags, sizes=self.sizes,
+            pair = frame_reader.read([SimpleNamespace(ConnectionSize=s) for s in sizes], frame="Frame", tags=self.tags, sizes=self.sizes,
                                      seed=self.seed, cached=self.cached, live_generation=live_generation,
                                      frame_generation=frame_generation, fragment_revision=5, period_scans=5)
         return pair, events
@@ -207,6 +207,20 @@ class FrameReaderTests(unittest.TestCase):
                               ("revision differs", dict(revision=6)), ("uninitialized", dict(live=0))):
             with self.subTest(label), self.assertRaises(ValueError):
                 self.run_read(**change)
+
+    def test_read_refuses_mailbox_sized_connections_before_any_controller_read(self):
+        # A writer left at the 500-byte mailbox framing needs about 350
+        # fragments, so no read can fit the frame period; refuse it outright.
+        for sizes in ((500, 4000), (500, 500), (4000, 4002)):
+            with self.subTest(sizes=sizes):
+                with patch("fraktal_ab_paired_fragments.partition") as partition, \
+                        self.assertRaisesRegex(ValueError, "4000-byte connections"):
+                    frame_reader.read([SimpleNamespace(ConnectionSize=s) for s in sizes], frame="Frame",
+                                      tags=self.tags, sizes=self.sizes, seed=self.seed, cached=self.cached,
+                                      live_generation=lambda: self.fail("generation read"),
+                                      frame_generation=lambda: self.fail("frame read"),
+                                      fragment_revision=5, period_scans=5)
+                partition.assert_not_called()
 
 
 if __name__ == "__main__":

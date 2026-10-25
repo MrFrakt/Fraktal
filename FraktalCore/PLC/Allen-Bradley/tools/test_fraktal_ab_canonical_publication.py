@@ -173,7 +173,8 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(publisher.validate(new),[])
         self.assertEqual(publisher.validate(replace(new,canonical_publication_stage=8)),[])
         self.assertEqual(publisher.validate(replace(new,canonical_publication_stage=9)),[])
-        for app in (replace(new,major_revision=33),replace(new,canonical_publication_stage=11),
+        self.assertEqual(publisher.validate(replace(new,canonical_publication_stage=11)),[])
+        for app in (replace(new,major_revision=33),replace(new,canonical_publication_stage=12),
                     replace(new,canonical_publication_stage=True)):
             self.assertTrue(publisher.validate(app))
 

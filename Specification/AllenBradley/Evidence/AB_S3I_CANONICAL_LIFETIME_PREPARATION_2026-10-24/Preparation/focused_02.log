@@ -1,0 +1,41 @@
+.F...F..F.F
+======================================================================
+FAIL: test_complete_real_owner_and_publisher_lifetime (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_complete_real_owner_and_publisher_lifetime)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 118, in test_complete_real_owner_and_publisher_lifetime
+    self.assertTrue(model.execute(),model.evidence)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : {'rows': [], 'serial': '601FC87B', 'error': "KeyError: 'level'", 'configurationRestored': False, 'calendarWriteCount': 0, 'passed': False}
+
+======================================================================
+FAIL: test_missing_public_clock_never_falls_back_to_private_tags (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_missing_public_clock_never_falls_back_to_private_tags)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 146, in test_missing_public_clock_never_falls_back_to_private_tags
+    self.assertFalse(model.execute());self.assertIn('published',model.evidence['error'])
+                                      ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'published' not found in "KeyError: 'level'"
+
+======================================================================
+FAIL: test_retention_compares_all_line_values_and_types_without_writes (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_retention_compares_all_line_values_and_types_without_writes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 200, in test_retention_compares_all_line_values_and_types_without_writes
+    model=Model(Path(folder)/'calendar.json');self.assertTrue(model.execute())
+                                              ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_wrong_latched_target_fails_and_still_restores_configuration_and_session (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_wrong_latched_target_fails_and_still_restores_configuration_and_session)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 138, in test_wrong_latched_target_fails_and_still_restores_configuration_and_session
+    self.assertIn('running snapshot',model.evidence['error'])
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'running snapshot' not found in "KeyError: 'level'"
+
+----------------------------------------------------------------------
+Ran 11 tests in 1.848s
+
+FAILED (failures=4)

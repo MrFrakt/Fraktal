@@ -1,0 +1,413 @@
+EE.E.EE.EEE
+======================================================================
+ERROR: test_active_session_preflight_never_logs_it_out (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_active_session_preflight_never_logs_it_out)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 148, in test_active_session_preflight_never_logs_it_out
+    model=Model(Path(folder)/'calendar.json');model.session['CurrentLevel']=4
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+======================================================================
+ERROR: test_complete_real_owner_and_publisher_lifetime (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_complete_real_owner_and_publisher_lifetime)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 113, in test_complete_real_owner_and_publisher_lifetime
+    model=Model(Path(folder)/'calendar.json');original=deepcopy(model.cfg)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+======================================================================
+ERROR: test_logout_refuses_an_unrelated_principal (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_logout_refuses_an_unrelated_principal)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 177, in test_logout_refuses_an_unrelated_principal
+    model=Model(Path(folder)/'calendar.json');actor=model.run;actor.login_committed=True
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+======================================================================
+ERROR: test_missing_public_clock_never_falls_back_to_private_tags (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_missing_public_clock_never_falls_back_to_private_tags)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 141, in test_missing_public_clock_never_falls_back_to_private_tags
+    model=Model(Path(folder)/'calendar.json',missing_clock=True);original=deepcopy(model.cfg)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+======================================================================
+ERROR: test_partial_or_active_original_is_refused (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_partial_or_active_original_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 154, in test_partial_or_active_original_is_refused
+    model=Model(Path(folder)/'calendar.json');original=deepcopy(model.cfg)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+======================================================================
+ERROR: test_retention_compares_all_line_values_and_types_without_writes (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_retention_compares_all_line_values_and_types_without_writes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 196, in test_retention_compares_all_line_values_and_types_without_writes
+    model=Model(Path(folder)/'calendar.json');self.assertTrue(model.execute())
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+======================================================================
+ERROR: test_write_guard_refuses_non_line_non_integer_and_excess_frames (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_write_guard_refuses_non_line_non_integer_and_excess_frames)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 162, in test_write_guard_refuses_non_line_non_integer_and_excess_frames
+    model=Model(Path(folder)/'calendar.json');actor=model.run
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+======================================================================
+ERROR: test_wrong_latched_target_fails_and_still_restores_configuration_and_session (test_fraktal_ab_s3i_lifetime.LifetimeTests.test_wrong_latched_target_fails_and_still_restores_configuration_and_session)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 132, in test_wrong_latched_target_fails_and_still_restores_configuration_and_session
+    model=Model(Path(folder)/'calendar.json',bad_target=True);original=deepcopy(model.cfg)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 42, in __init__
+    self.commands=[];self.last=None;self.tick(self.when)
+                                    ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_lifetime.py", line 45, in tick
+    self.when=when;self.schedule.tick(self.plc,when,self.app);self.pub.scan()
+                                                              ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3i_line.py", line 53, in scan
+    with patch.object(st,'_wrap',lambda x:(x+(1<<63))%(1<<64)-(1<<63)):self.plc.run(self.body)
+                                                                       ~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 496, in _exec
+    self.run(self.routines[name])
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 470, in _exec
+    if self._condition(cond):
+       ~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 453, in _condition
+    value = self.eval(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 32, in eval
+    op=node[1];a=self.eval(node[2]);b=self.eval(node[3])
+                 ~~~~~~~~~^^^^^^^^^
+  [Previous line repeated 10 more times]
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3g_metrics.py", line 39, in eval
+    return super().eval(node)
+           ~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 421, in eval
+    value = self.read(node)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 390, in read
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_LineState.TimeSynchronized: no member TimeSynchronized
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.523s
+
+FAILED (errors=8)

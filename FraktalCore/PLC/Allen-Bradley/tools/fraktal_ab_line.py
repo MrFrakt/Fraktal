@@ -110,10 +110,19 @@ def cfg(app):
     return next(r for r in app.records if r.line_cfg)
 
 
-def state_members():
-    return (decl.scalar('SchemaVersion', initial=1), decl.scalar('Revision', initial=1),
+def state_schema(app=None):
+    return 2 if app is not None and app.canonical_publication_stage >= 11 else 1
+
+
+def state_type(app):
+    return f'FRK_T_LineStateV{state_schema(app)}'
+
+
+def state_members(app=None):
+    return (decl.scalar('SchemaVersion', initial=state_schema(app)), decl.scalar('Revision', initial=1),
             decl.scalar('UpdatedDate'), decl.scalar('UpdatedClock'),
-            decl.scalar('LineIdKey'), decl.scalar('OwnerIdKey'))
+            decl.scalar('LineIdKey'), decl.scalar('OwnerIdKey')) + (
+            tuple(decl.scalar(n) for n in ('TimeSynchronized', 'SourceError')) if state_schema(app) >= 2 else ())
 
 
 HISTORY_COLUMNS = ('Index', 'StartMinute', 'StartMs', 'EndMinute', 'EndMs', 'TimeSynchronized', 'ManualReset',
@@ -137,7 +146,7 @@ def work_members():
 
 
 def records(app):
-    return [decl.Record('FRK_T_LineStateV1', state_members()),
+    return [decl.Record(state_type(app), state_members(app)),
             decl.Record('FRK_T_ShiftStateV3', shift_members()),
             decl.Record('FRK_T_LineWorkV3', work_members())]
 
@@ -147,10 +156,10 @@ def tags(app):
     import fraktal_ab_manifest as mf
     from dataclasses import replace
     state = tuple(replace(m, initial=mf.numeric_key(app, app.line.line_id if m.name == 'LineIdKey' else app.line.owner_id))
-                  if m.name in ('LineIdKey', 'OwnerIdKey') else m for m in state_members())
+                  if m.name in ('LineIdKey', 'OwnerIdKey') else m for m in state_members(app))
     return [gen._structure_tag(tag(app, suffix), name, members, external_access=access)
             for suffix, name, members, access in (
-                ('State', 'FRK_T_LineStateV1', state, 'Read Only'),
+                ('State', state_type(app), state, 'Read Only'),
                 ('Shift', 'FRK_T_ShiftStateV3', shift_members(), 'Read Only'),
                 ('Work', 'FRK_T_LineWorkV3', work_members(), 'None'))]
 
@@ -243,7 +252,9 @@ def write_validate(app, ordinal, value):
 def accepted(app):
     s = tag(app, 'State')
     return [f'{s}.Revision := {s}.Revision + 1;', f'IF {s}.Revision <= 0 THEN {s}.Revision := 1; END_IF;',
-            f'{s}.UpdatedDate := FRK_{app.name}_NowDate;', f'{s}.UpdatedClock := FRK_{app.name}_NowTime;']
+            f'{s}.UpdatedDate := FRK_{app.name}_NowDate;', f'{s}.UpdatedClock := FRK_{app.name}_NowTime;'] + (
+            [f'{s}.TimeSynchronized := FRK_{app.name}_HealthProbe.TimeIsSynchronized;', f'{s}.SourceError := 0;']
+            if state_schema(app) >= 2 else [])
 
 
 def set_validate(app, q, s):
@@ -385,7 +396,7 @@ def cyclic(app):
 
 
 def projection(app, state, shifts, *, rows=None):
-    if not app.line or state is None or shifts is None or state.get('SchemaVersion') != 1 or shifts.get('SchemaVersion') != SHIFT_SCHEMA:
+    if not app.line or state is None or shifts is None or state.get('SchemaVersion') not in (1, 2) or shifts.get('SchemaVersion') != SHIFT_SCHEMA:
         return {}
     count = shifts.get('Count', -1)
     if type(count) is not int or not 0 <= count <= HISTORY or not 0 <= shifts.get('Current', -1) <= MAX_SHIFTS:

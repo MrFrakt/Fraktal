@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 
 # The stages whose oracle reads exactly legacy_sources(); a later stage that
 # reads more extends both together.
-FRAME_STAGES = (10,)
+FRAME_STAGES = (10, 11)
 HEADER = ("SourceGeneration", "FragmentRevision")
 NAME_LIMIT = 40
 MAX_PERIOD_SCANS = 100
@@ -41,7 +41,7 @@ def generation_tag(app):
 
 
 def type_name(app):
-    return f"FRK_T_{app.name}ObservationFrameS3h"
+    return f"FRK_T_{app.name}ObservationFrameS3" + ("i" if app.canonical_publication_stage >= 11 else "h")
 
 
 def public_tags(app):
@@ -81,6 +81,9 @@ def legacy_sources(app):
     if app.part_carrier is not None:result.append(part.tag(app))
     if app.host_event_capacity:result.append(host.tag(app))
     if app.signal_tower is not None:result.append(tower.tag(app))
+    if app.canonical_publication_stage >= 11 and app.line is not None:
+        import fraktal_ab_line as line
+        result += [line.tag(app, "State"), line.tag(app, "Shift")]
     return tuple(result)
 
 
@@ -95,7 +98,7 @@ def validate(app):
     if type(period) is not int or period < 0:
         return ["observation frame period is a non-negative integer of milliseconds"]
     if app.canonical_publication_stage not in FRAME_STAGES:
-        return ["observation frame supports only the S3h oracle stage"]
+        return ["observation frame supports only the S3h/S3i oracle stages"]
     findings = []
     if period % app.task_period_ms or not 2 <= period // app.task_period_ms <= MAX_PERIOD_SCANS:
         findings.append(f"observation frame period is 2..{MAX_PERIOD_SCANS} whole task periods")

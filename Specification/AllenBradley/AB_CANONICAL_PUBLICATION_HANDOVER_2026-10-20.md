@@ -34,7 +34,15 @@ important") and retired the 1769-L24ER as a reference target.
 
 ## Current continuation state (2026-10-20)
 
-**Latest, 2026-10-24: S3h exit passes on Echo through the observation
+**Latest, 2026-10-24: the remaining-S3 contract review is ready for owner
+decision, now approved for offline work; S3i implementation is starting.** There are 149 gaps after
+normalizing the frozen keys once for D2 (157 raw, eight false endpoints).
+Read [AB_CANONICAL_PUBLICATION_REMAINING_S3_CONTRACT_REVIEW_2026-10-24.md](AB_CANONICAL_PUBLICATION_REMAINING_S3_CONTRACT_REVIEW_2026-10-24.md) and [AB_CANONICAL_PUBLICATION_REMAINING_S3_NOTES_2026-10-24.md](AB_CANONICAL_PUBLICATION_REMAINING_S3_NOTES_2026-10-24.md). S3h's later observation-frame
+session is accepted; its 85% Capacity belongs to that image, and genealogy
+was restored. Keep per-row/group coherence for S4 and remove the frame at S6.
+The finite V2 target allowance is recorded; no new runtime scope, deployment write posture, commit or push is granted.
+
+**Accepted S3h baseline, 2026-10-24: S3h exit passes on Echo through the observation
 frame; genealogy is restored.** The owner approved the session for ACD
 `E07C4196…649745` in chat (“yes i approve”). Every stage ran once and exited 0:
 guard, preflight, backup, download, SDK/read-back/access, 41 / 41 candidate
@@ -872,3 +880,118 @@ each behind its gates.
   Never cut features or weaken validation to fit.
 - **Report** what passed, failed and was skipped, with exact outputs. Evidence
   is append-only and keeps failed runs.
+
+## S3i offline preparation — 2026-10-24
+
+The approved Line/shift scope is implemented in the opt-in stage 11 profile.
+Sixteen frozen gaps and two missing Core Line fields are added; history has
+eight physical V3 slots, 21 fields per occupied row and PLC count discovery.
+The Line owner stores update time quality in versioned private LineStateV2;
+old stage layouts and source hashes are unchanged. Durations, unsigned words,
+Float32 factors and timestamps follow the approved finite target contract.
+
+The prepared ACD is `A5FAFA46CB5DECCF2EF2C5D6B069B19CB772A42B876A70CFA2E73506B7E36C42`.
+Automatic Studio Capacity is 2,763,512 used / 382,216 available / 3,145,728
+Blocks (87%), an 83,380 Block increase over accepted S3h with its frame.
+Both v38 targets compile and read back equivalently. All 2,178 AB tests and
+74 root tests pass; 88 accepted S3h pairs replay unchanged. Failed model,
+compiler, test and read-back runs remain in the preparation payload.
+
+Eight first-scan publication checks are prepared: empty/full/partial history,
+unsigned/Float32 wrap, unchanged-marker caching, pending calendar/latched
+targets, and exact LDT upper-bound acceptance/refusal. They temporarily set
+only the two fixed Line owner records, restore both byte-for-byte in the same
+scan and rebuild publication from the restored owners. They do not set the
+clock or simulate the calendar producer. They have passed the ST model only;
+native execution, actual calendar lifetime/closure coverage, scan measurement
+and the wider S3 press/rendition gates remain unaccepted.
+
+No controller operation was performed. The prepared session is inert until
+current exact-image approval: MANUAL normalization when needed; fresh guarded
+preflight/backup; Program/download/Run; eight first-scan checks; five-document
+restore and 41 inherited candidate cases with read-only Line/trace/config
+pairs; all-path sizes/scan measurement; genealogy rollback and five-document
+restore/31 baseline cases; MANUAL cleanup/final checks. Fault clears, clock
+changes, hard kills and vendor-state edits are excluded. See
+[the preparation evidence](Evidence/AB_S3I_CANONICAL_PREPARATION_2026-10-24.md).
+
+## S3i publication runtime — 2026-10-24
+
+The approved A5FAFA46…7E36C42 session passed 41 candidate checks, eight native
+publication vectors and 31 restored-baseline checks. All 88 paired captures
+replay independently at 3,360–3,968 typed paths (2–29 attempts under unchanged
+100-poll/five-second bounds). Root/frame sizes are 134,720 / 173,792 bytes;
+Capacity remains 87%. Native LastScan median is 875.5 µs, cumulative max
+8,405 µs, zero overlaps. Genealogy is restored in Run, not faulted, MANUAL/idle,
+logged out, not restoring, original policy and five saved/live documents equal.
+No new dumps, clock changes or fault clears; this session approval is consumed.
+
+S3i exit is still open: every ordinary live pair had ShiftHistoryCount 0.
+The eight first-scan vectors prove publication of synthetic populated rows,
+not natural calendar closure/target lifetime or retained Program/Run behavior.
+Prepare that follow-up using public operations and fresh published timestamps;
+private clock tags stay inaccessible and no clock set is authorized. S3j must
+wait for the S3i exit. Actual press ST/SFC/ladder and S4–S7 remain open.
+
+The Python observer's missing stage-11 result label was repaired before any
+controller change; its one-file read-only delta and both 170-source pin sets
+are recorded. All 2,178 AB and 74 root tests pass. No PLC image, read/comparison
+policy, write vector or bound was changed by that repair. See
+[runtime evidence](Evidence/AB_S3I_CANONICAL_RUNTIME_2026-10-24.md).
+
+## S3i calendar lifetime follow-up prepared — 2026-10-24
+
+The next natural-calendar/retained-Program-Run fixture is ready offline for
+unchanged ACD A5FAFA46…7E36C42 (measured 87% Capacity). It uses a fresh published
+Line.LastUpdate, one twelve-hour interval ending three minutes later, target
+40 → requested 99, queued original-calendar restoration, two real newest-first
+history rows and exact before/after Line value/type equality across one
+Program/Run cycle without downloading in that cycle. No private clock access
+or clock set is added. Normal path: 38 public Line commits, ceiling 64 including
+cleanup; operator-session and exact-target guards remain strict.
+
+All 2,189 AB /74 root tests pass, as do eleven focused emitted-ST lifetime
+tests, six negative authorization cases and the guarded helper build. The
+170 inherited source bindings and PLC image are unchanged; two fixture/test
+sources are added. All 88 prior native pairs replay unchanged. The required
+v38 compiler/read-back and Capacity results transfer by exact image hash.
+
+No controller access or change occurred in this preparation. Current owner
+approval is still required for the fresh download, public calendar writes and
+retained cycle; the earlier session approval is consumed. Proposed session
+repeats the 41 candidate checks, adds calendar/retention proof, then rolls back
+and restores five documents/31 baseline checks. Fault clears, clock changes,
+power operations and hard kills remain excluded. S3i exit and S3j stay open.
+See [preparation evidence](Evidence/AB_S3I_CANONICAL_LIFETIME_PREPARATION_2026-10-24.md).
+
+## S3i lifetime attempt and retry preparation — 2026-10-24
+
+The approved lifetime session passed backup, download and 41/41 candidate
+checks, then failed at its first calendar capture before any calendar write.
+The capture read the frame through the mailbox writer's 500-byte connection,
+not the fixture's independent 4,000-byte observer. Rollback, 31/31 baseline
+and final checks passed; the retained Program/Run cycle was not reached.
+`CalendarRun.observe` now uses that observer, and the frame reader refuses any
+other socket size. A test drives the real method and fails against the old
+code. The PLC image is unchanged; 2,191 AB / 74 root tests pass. The retry
+workspace is prepared with authorization false. See the
+[attempt](Evidence/AB_S3I_CANONICAL_LIFETIME_ATTEMPT_2026-10-24.md) and
+[retry preparation](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_PREPARATION_2026-10-24.md).
+
+The corrected retry's own download gate then refused it: the retry setup had
+copied files as text, rewriting the CRLF line ends of the hash-bound Capacity
+evidence. No controller change occurred. A byte-exact second workspace passes
+a new offline replica of the helper's download gates and awaits approval. See
+the [refused retry](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_ATTEMPT_2026-10-24.md) and
+[second retry preparation](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY2_PREPARATION_2026-10-24.md).
+
+## S3i exit passes — 2026-10-24
+
+The approved second lifetime retry ran every stage once and exited 0:
+41/41 candidate checks; 7/7 calendar rows with 38 public commits; one
+Program/Run without download with Line history and types retained; idle
+equivalence at 4,010 paths; 97/97 pairs replayed independently; rollback and
+31/31 baseline checks. With the accepted publication session, S3i exits at the
+genealogy/Echo scope. Physical power retention, the press renditions, S3j,
+S3k and S4–S7 remain. See
+[S3i lifetime runtime](Evidence/AB_S3I_CANONICAL_LIFETIME_RUNTIME_2026-10-24.md).
