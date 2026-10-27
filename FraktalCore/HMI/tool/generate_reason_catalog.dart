@@ -349,6 +349,7 @@ String _defaultText(String symbol) {
     'DC': 'DC',
     'DEV': 'device',
     'IPC': 'IPC',
+    'NOK': 'NOK',
     'POS': 'position',
     'RESP': 'response',
     'RX': 'receive',

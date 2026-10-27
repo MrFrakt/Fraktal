@@ -7,6 +7,11 @@ generator to consume and not a declaration that the entire TIA port is done.
 The file's SHA-256 is bound in Part IV. Preserve V1 when adding a reviewed,
 versioned successor; the checker has no rewrite/rebaseline mode.
 
+`TIA_FROZEN_CONTRACTS_V2.json` is that successor (reviewed 2026-10-27): V1 plus
+`E_Reason.NOK_LIMIT_REACHED = 2028`. The checker compares the authorities with the
+newest baseline listed in `BASELINES`, requires each earlier one to be contained in
+it unchanged, and requires every baseline's own digest in Part IV.
+
 From the repository root:
 
 ```powershell

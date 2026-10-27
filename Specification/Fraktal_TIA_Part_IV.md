@@ -1810,6 +1810,20 @@ on a station; sequence tables retain their declaration-derived dimensions.
 
 <!-- TIA-CONTRACTS-V1 sha256:65ea0e812b82586de6f27012880a9d0200f4ed283dee39a8f420a7dead101524 -->
 
+### TIA candidate contract baseline, version 2
+
+Reviewed 2026-10-27 by the project owner. The
+[version 2 baseline](../FraktalCore/PLC/Siemens/Contracts/TIA_FROZEN_CONTRACTS_V2.json) is
+version 1 plus one append-only entry, `E_Reason.NOK_LIMIT_REACHED = 2028`: the Core
+0.26.1.0 NOK-part limit (Part I §3.16.5). Every version 1 entry is unchanged and the
+version 1 file is kept byte for byte. `python tools/check_tia_contracts.py` now checks
+the current authorities against version 2, and that version 2 still contains version 1
+with both files bound here. The generated command kernel already carries the reason's
+§8.9 rationalization; no TIA Unit raises it yet, because the binding has no NOK-limit
+mechanism - a recorded gap, not a claim.
+
+<!-- TIA-CONTRACTS-V2 sha256:54f5a1fd9ea66ccde46bc6dda441c5340a6e01df49daaa15ee52a0a33986f331 -->
+
 ### Measured extension, 2026-10-17: complete Line profile admission
 
 Generator 0.25 admits owner and source-bound mirror declarations through normal

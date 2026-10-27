@@ -1054,6 +1054,14 @@ These are the in-PLC events; their **mapping to MES/ISA-95** is §11.6. Result w
 
 The Unit tile shows the live part `Uid`, `Present`, and current `Verdict`; the detail view exposes the result record and genealogy. As everywhere, this renders from the self-describing model with no per-station wiring.
 
+### 3.16.5 NOK-part limit
+
+A run of rejects is the plainest sign that a station has lost its process, and a station that keeps running only adds scrap. A Unit **may** therefore carry a NOK-part limit, given by its composition root: a number of NOK parts **in series**, and/or a number of NOK parts among the **last N judged parts** (OK and NOK; a REWORK verdict is neither). Each rule is off at zero; a limit that is not well formed is refused and the previous one stays in force (§5.6).
+
+- The limit **shall** be counted on the Unit's one verdict path (§8.11.2), so a station counts it the same way with or without a traceability carrier (§3.9).
+- On a trip the Unit **shall** raise one `NOK_LIMIT_REACHED` event (§8.8) of reset class `MANUAL_RESET` — which refuses Start through the release report like any blocking event (§7.8, §8.3(b)) — and a running Unit **shall** finish its current cycle at its stop point (§8.11.1) rather than start the next.
+- The operator reset that closes that event **shall** re-arm both rules.
+
 *Cross-references: §3.8 (recipe provider — the symmetric pattern), §2.7 (timestamps), §8.8 (shared reason vocabulary), §11.6 (host mapping), §14 (carrier/host data is third-party input — validate per secure-coding).*
 
 ### 3.17 Additional modes and extension control
@@ -2219,7 +2227,7 @@ A generic code plus `SourcePath` renders instance-specific — *"Clamp3: part pr
 | System `10–21` | controller & clock health (§8.12, §2.7): `TASK_OVERRUN`=10, `TASK_JITTER_HIGH`=11, `CPU_LOAD_HIGH`=12, `MEMORY_LOW`=13, `IPC_TEMP_HIGH`=14, `FIELDBUS_MASTER_FAULT`=15, `DC_SYNC_LOST`=16, `TIME_SYNC_LOST`=17, `UTILITY_DEVIATION`=18 (§8.14), `IPC_FAN_FAULT`=19, `STORAGE_HEALTH_LOW`=20, `CONTROLLER_METRICS_UNAVAILABLE`=21 |
 | Framework `2000–2009` | common flow reasons: `TIMEOUT`=2001, `PERMISSIVE_NOT_MET`=2002, `INTERLOCK_DROPPED`=2003, `RECIPE_INVALID`=2004, `STEP_STALLED`=2005, `RETRY_EXHAUSTED`=2006, `CYCLE_TIME_DEGRADED`=2007 (maintenance event, §8.11.4/§8.12), `UNSUPPORTED_COMMAND`=2008 (input outside a type's declared command set, §5.6) |
 | Framework `2010–2019` | external device / link supervision (§3.15): `LINK_TIMEOUT`=2010, `DEVICE_NOT_READY`=2011, `DEVICE_PROTOCOL_ERROR`=2012 |
-| Framework `2020–2029` | traceability / part context (§3.16): `CARRIER_READ_FAILED`=2020, `CARRIER_WRITE_FAILED`=2021, `PART_ID_MISMATCH`=2022, `RESULT_RECORD_REJECTED`=2023 |
+| Framework `2020–2029` | traceability / part context (§3.16): `CARRIER_READ_FAILED`=2020, `CARRIER_WRITE_FAILED`=2021, `PART_ID_MISMATCH`=2022, `RESULT_RECORD_REJECTED`=2023, `NOK_LIMIT_REACHED`=2028 (§3.16.5) |
 | Framework `2030–2039` | engineering/commissioning build gates (§7.5): `COMMISSIONING_GATE_ACTIVE`=2030 — one LOW/SYSTEM, non-clearable, non-shelvable event per active gate |
 | Framework `2040–2049` | configuration persistence & parameter sets (§3.8b): `CONFIG_RESTORE_LOST`=2040 (a retained image was rejected — an unrecognized schema version — so the owning module runs on declared defaults; version 0, never written, raises nothing), `CONFIG_PERSIST_FAILED`=2041 (an accepted write did not reach non-volatile storage inside the declared window), `CONFIG_SET_REJECTED`=2042 (a set load was refused; staged and all-or-nothing, so nothing changed, and the refusal names the offending `(Scope, WriteKey)`), `EVENT_CONFIG_SET_APPLIED`=2043 (§8.3 audit event, not an alarm) |
 | Framework `2900–2909` | framework self-test reasons, never raised in production (§5.7 base suite): `TEST_FAULT`=2901 |

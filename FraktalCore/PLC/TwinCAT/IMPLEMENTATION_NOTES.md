@@ -5482,3 +5482,53 @@ Final: Modules 0.13.0.0 installed from the isolated worktree; six `CheckAllObjec
 (0 errors, 0 warnings); both lint profiles, the tool tests and strict consistency green. On
 the isolated UmRT: aggregate 260/260 in 50 suites, Press 9/9 in 2 suites (Ladder AUTO).
 Scope and artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase1.md`.
+
+## 167. The Unit's NOK-part limit (Core 0.26.1.0, 2026-10-27)
+
+Generic control-module expansion WP5.1, with the Press bench as its first consumer.
+
+- **`FB_UnitBase.SetNokPolicy(Cfg : ST_NokPolicyParCfg) : BOOL`**, given by the
+  composition root: `InSeries` NOK parts in a row and/or `WindowNok` NOK among the last
+  `WindowCount` judged parts (`PL_Fraktal.NOK_WINDOW_MAX` = 32). Zero turns a rule off;
+  the default is no limit. Refused, policy unchanged, unless it is the compiled layout and
+  each rule is off or well formed - a window without a limit is refused rather than read
+  as "trip at once". An accepted policy counts afresh. Editing it on site waits for a
+  station that asks.
+- **Counted on the one verdict path, `CountGood`/`CountNok`** - not in `_M_PartProcessed`
+  as the plan said. A station without a part carrier counts through `M_CountGood` and never
+  reaches `_M_PartProcessed`, so the planned hook would have missed it. REWORK neither
+  counts nor ends a series.
+- **A trip** is one `NOK_LIMIT_REACHED` (2028) event, `MANUAL_RESET`; Start is refused by
+  the record `ReleaseReportStart` already adds for any blocking alarm
+  (`std.release.manualReset`), so there is no new gate. The plan stopped there, but a
+  blocking alarm only refuses the *next* Start and a Unit in continuous AUTO is not
+  restarted: it would have kept producing rejects. A running Unit therefore also finishes
+  its cycle at its stop point (`_stopReq`, the graceful mode-change path) and stays
+  stopped.
+- **Fail closed.** A trip whose alarm found the table full is raised again every scan
+  until it exists, and the counters re-arm only once the operator's reset has closed that
+  alarm (`_M_NokCyclic`, also called from `OperatorReset` so the reset re-arms at once).
+  Only the alarm is published; the policy and the window are `OPC.UA.DA` 0.
+- **§8.9.** Rationalized MED/PROCESS, not shelvable. The generator gained the `NOK`
+  acronym, so the reason reads "NOK limit reached."; operator text
+  `std.error.nokLimitReached` in English and Spanish.
+- **Press.** `MAIN` sets 3 in a row or 5 of the last 20 - bench values that exercise both
+  rules, not a process recommendation. The PressTests composition sets none.
+- **Cross-binding.** `E_Reason` is part of TIA's frozen candidate ABI, which allows no
+  change without a versioned review. The owner reviewed this append on 2026-10-27:
+  `TIA_FROZEN_CONTRACTS_V2.json` is V1 plus this entry, V1 stays byte for byte, and
+  `tools/check_tia_contracts.py` now checks against the newest baseline and requires every
+  earlier one to be contained unchanged and bound in Part IV
+  (`test_a_successor_preserves_and_keeps_binding_every_earlier_baseline`). The TIA
+  packages were regenerated - its command kernel carries 2028's rationalization - and the
+  S12 field pin moves to 615. No TIA or AB Unit has the limit; both record the gap.
+- **Upgrade cost.** Core *patch*; Modules 0.13.0.1 is only a rebuild against it. No
+  retained data is involved.
+- **Tests.** `FB_NokPolicy_Tests`, nine rows on two probe Units. The single-scan rows
+  share one, each starting from a clean slate, because a probe Unit is about 350 KB.
+
+Final: Core 0.26.1.0 / Modules 0.13.0.1 installed from the isolated worktree; six
+`CheckAllObjects` clean (0 errors, 0 warnings); lint, tool tests, strict consistency and every
+AB/TIA replay and contract gate green; HMI analyzer clean, 622 passed / 12 skipped. On the
+isolated UmRT: aggregate 269/269 in 51 suites, Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-10-27_TC3_GenericCM_NokPolicy.md`.

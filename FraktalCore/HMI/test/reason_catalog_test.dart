@@ -23,8 +23,9 @@ void main() {
     // 74 the catalog then held): a count assertion nobody updates stops being a
     // check. 77 = 74 + CONFIG_RESTORE_LOST, CONFIG_PERSIST_FAILED,
     // CONFIG_SET_REJECTED, EVENT_CONFIG_SET_APPLIED, minus the retired
-    // AXIS_TEACH_LOST, which the framework band now owns (§8.8).
-    expect(generatedReasonSymbolByCode, hasLength(77));
+    // AXIS_TEACH_LOST, which the framework band now owns (§8.8). 78 adds
+    // NOK_LIMIT_REACHED (§3.16.5).
+    expect(generatedReasonSymbolByCode, hasLength(78));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Check the implemented S7-1500 candidate ABI against its immutable V1 baseline.
+"""Check the implemented S7-1500 candidate ABI against its immutable baselines.
 
 Core DUTs and the existing binding remain authoritative. This read-only gate
 compares their derived layout, enum ordinals, capacities and HMI type projection
-with the baseline; it never regenerates the baseline during a check. This is a
-partial R3 gate, not a release or qualification of unimplemented profiles.
+with the newest reviewed baseline; it never regenerates a baseline during a
+check. Every earlier baseline stays bound in Part IV and is contained, unchanged,
+in its successor. This is a partial R3 gate, not a release or qualification of
+unimplemented profiles.
 """
 from __future__ import annotations
 
@@ -23,7 +25,11 @@ from fraktal_tia_binding import Catalog, native_scalar, split_type
 from fraktal_tia_sequence_view import published_types
 import tia_lint
 
-BASELINE = TIA / 'Contracts/TIA_FROZEN_CONTRACTS_V1.json'
+# Oldest first. A reviewed successor is appended; none is ever rewritten.
+BASELINES = (TIA / 'Contracts/TIA_FROZEN_CONTRACTS_V1.json',
+             TIA / 'Contracts/TIA_FROZEN_CONTRACTS_V2.json')
+BASELINE = BASELINES[-1]
+ADDITION = ': addition requires a versioned contract review'
 PART = ROOT / 'Specification/Fraktal_TIA_Part_IV.md'
 ADAPTER = ROOT / 'FraktalCore/HMI/packages/fraktal_opcua_client/lib/src/webapi_session_client.dart'
 GROUPS = {
@@ -40,7 +46,8 @@ GROUPS = {
 }
 HEADINGS = ('TIA §3.8 Configuration, providers, and value-type binding',
             'TIA §3.13 HMI projection and snapshot coherence',
-            'TIA candidate contract baseline, version 1')
+            'TIA candidate contract baseline, version 1',
+            'TIA candidate contract baseline, version 2')
 
 
 def normalized(value):
@@ -109,7 +116,7 @@ def collect(catalog=None, adapter=None):
 
 
 def differences(expected, actual, path='contract'):
-    """Exact V1 equality: additions also require an explicit versioned review."""
+    """Exact baseline equality: additions also require an explicit versioned review."""
     if isinstance(expected, dict) and isinstance(actual, dict):
         result = []
         for key in sorted(expected.keys() | actual.keys()):
@@ -117,31 +124,47 @@ def differences(expected, actual, path='contract'):
             if key not in actual:
                 result.append(location + ': missing')
             elif key not in expected:
-                result.append(location + ': addition requires a versioned contract review')
+                result.append(location + ADDITION)
             else:
                 result.extend(differences(expected[key], actual[key], location))
         return result
     if isinstance(expected, list) and isinstance(actual, list):
         result = []
         if len(expected) != len(actual):
-            result.append(path + ': item count differs from V1 baseline')
+            result.append(path + ': item count differs from the baseline')
         for index, (left, right) in enumerate(zip(expected, actual)):
             result.extend(differences(left, right, path + '[' + str(index) + ']'))
         return result
     if type(expected) is not type(actual) or expected != actual:
-        return [path + ': differs from V1 baseline']
+        return [path + ': differs from the baseline']
     return []
 
 
-def audit(baseline, current, part, digest):
+def bound(part, version, digest):
+    """Part IV binds each baseline's exact bytes once, under its own version."""
+    prefix = '<!-- TIA-CONTRACTS-V' + str(version) + ' '
+    if part.count(prefix) != 1 or part.count(prefix + 'sha256:' + digest + ' -->') != 1:
+        return ['Part IV baseline V' + str(version) + ' digest missing, duplicated or changed']
+    return []
+
+
+def audit(baseline, current, part, digest, previous=()):
+    """`previous` holds (baseline, digest) of every earlier version, oldest first."""
     findings = []
+    version = baseline.get('baselineVersion', 1)
     if baseline.get('schema') != 'fraktal.tia.frozen-contracts' or baseline.get('schemaVersion') != 1:
         findings.append('unsupported frozen-contract schema/version')
     if baseline.get('profile') != 'reference-1500-implemented-subset':
         findings.append('baseline must name the implemented S7-1500 subset')
-    marker = '<!-- TIA-CONTRACTS-V1 sha256:' + digest + ' -->'
-    if part.count('<!-- TIA-CONTRACTS-V1 ') != 1 or part.count(marker) != 1:
-        findings.append('Part IV baseline digest missing, duplicated or changed')
+    findings.extend(bound(part, version, digest))
+    for earlier, earlier_digest in previous:
+        earlier_version = earlier.get('baselineVersion', 1)
+        if earlier_version >= version:
+            findings.append('baseline versions must increase: V' + str(earlier_version) + ' before V' + str(version))
+        findings.extend(bound(part, earlier_version, earlier_digest))
+        findings.extend('V' + str(version) + ' does not preserve V' + str(earlier_version) + ': ' + d
+                        for d in differences(earlier.get('contracts', {}), baseline.get('contracts', {}))
+                        if not d.endswith(ADDITION))
     for heading in HEADINGS:
         if part.count(heading) != 1:
             findings.append('Part IV heading missing/duplicated: ' + heading)
@@ -206,10 +229,11 @@ def main(argv=None):
     parser.add_argument('--native', type=Path, help='also compare all frozen UDTs in full-profile Openness XML exports')
     args = parser.parse_args(argv)
     try:
-        raw = args.baseline.read_bytes()
-        baseline = json.loads(raw)
+        paths = BASELINES if args.baseline == BASELINE else (args.baseline,)
+        chain = [(json.loads(path.read_bytes()), hashlib.sha256(path.read_bytes()).hexdigest()) for path in paths]
+        baseline, digest = chain[-1]
         current = collect()
-        findings = audit(baseline, current, PART.read_text(encoding='utf-8'), hashlib.sha256(raw).hexdigest())
+        findings = audit(baseline, current, PART.read_text(encoding='utf-8'), digest, chain[:-1])
         counts = {}
         for label, path, read in [('generated', args.generated, generated_records), ('native', args.native, native_records)]:
             if path is not None:
@@ -223,7 +247,7 @@ def main(argv=None):
         print('TIA-CONTRACT: ' + finding)
     if findings:
         return 1
-    print('Fraktal/TIA candidate V1 contract: clean (' + str(len(current['records'])) +
+    print('Fraktal/TIA candidate V' + str(baseline.get('baselineVersion', 1)) + ' contract: clean (' + str(len(current['records'])) +
           ' records, ' + str(len(current['enums'])) + ' enums; ' +
           ', '.join(k + '=' + str(v) for k, v in counts.items()) + '). R3 remains partial.')
     return 0

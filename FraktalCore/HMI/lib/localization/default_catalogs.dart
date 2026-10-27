@@ -188,6 +188,8 @@ const standardEnglish = <String, String>{
       'The sequence asked for a decision it did not define. Check the step.',
   'std.error.hostEventRejected':
       'The host rejected this record. Check the MES link, then reset.',
+  'std.error.nokLimitReached':
+      'Too many NOK parts. The station stops at the end of its cycle; find the cause, then reset.',
   'std.error.nokReasonRequired':
       'A NOK result needs a reason before it can be recorded.',
   'std.error.parallelBranchOutOfRange':
@@ -1386,6 +1388,8 @@ const standardSpanish = <String, String>{
       'La secuencia pidió una decisión que no definió. Revise el paso.',
   'std.error.hostEventRejected':
       'El host rechazó este registro. Revise el enlace MES y reinicie.',
+  'std.error.nokLimitReached':
+      'Demasiadas piezas NOK. La estación se detiene al final de su ciclo; busque la causa y reinicie.',
   'std.error.nokReasonRequired':
       'Un resultado NOK necesita un motivo antes de poder registrarse.',
   'std.error.parallelBranchOutOfRange':
