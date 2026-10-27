@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <DUT Name="ST_CylinderParCfg" Id="{19a484f8-fe46-4cb6-a661-ff9a22a3cb34}">
-    <Declaration><![CDATA[// Core §3.8: SchemaVersion FIRST, initialized to the expected version
+    <Declaration><![CDATA[// Core §3.8: SchemaVersion FIRST, initialized to the expected version. v2 appended
+// the valve-timing members; every default reproduces v1. A zero time is "off" and
+// never conflicts; a non-zero SettleTime or MinOutputTime must be shorter than
+// MoveTimeout, and PulsingWidth shorter than PulsingPeriod (CYL_CFG_INVALID).
 TYPE ST_CylinderParCfg :
 STRUCT
-    SchemaVersion : UINT := 1;
+    SchemaVersion : UINT := 2;
     MoveTimeout   : TIME := T#2S;
+    SettleTime    : TIME := T#0MS;  // end sensor confirmed continuously before Done
+    MinOutputTime : TIME := T#0MS;  // a move is commanded at least this long before Done
+    PulsingWidth  : TIME := T#0MS;  // a move started from no end position pulses its coil...
+    PulsingPeriod : TIME := T#0MS;  // ...for PulsingWidth of every PulsingPeriod, until the target makes
+    ResetOnEndPos : BOOL := FALSE;  // withdraw the coil at Done (impulse/bistable valves); FALSE holds it
+    ResetOnTimeout : BOOL := FALSE; // withdraw the coil when the move times out
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

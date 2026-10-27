@@ -16,11 +16,30 @@ VAR
     _release : ST_ReleaseReport;
     _io6 : ST_CylinderIoIdentity;
     _w : BOOL;
+    // Valve-timing rows (ParCfg v2), one instance each: TcUnit runs a suite's rows
+    // side by side. Timing is assigned by the composition root and validated by
+    // Setup's own PrepareRecipe; only the record rows below need a provider.
+    _cmSettle, _cmBounce, _cmMin, _cmReset, _cmPulse, _cmEnd, _cmWd,
+    _cmToReset, _cmToHold, _cmIntlk, _cmAbort, _cmV1, _cmStored, _cmBad : FB_CylinderCM;
+    _hSettle, _hBounce, _hMin, _hReset, _hPulse, _hEnd, _hWd,
+    _hToReset, _hToHold, _hIntlk, _hAbort, _hV1, _hStored, _hBad : ST_CylinderHal;
+    _simV1 : FB_CylinderSim;
+    _every, _defaults, _recSettle, _recMin, _recPulse : ST_CylinderParCfg;
+    _v1 : ST_ProbeCylinderParCfgV1;
+    _prRecords : FB_LocalRecipeProvider;
+    _model : ST_ModelId;
+    _settleStep, _bounceStep, _minStep, _pulseStep, _endStep, _wdStep, _rises : INT;
+    _settleT0, _bounceT0, _minT0, _pulseT0, _endT0, _wdT0 : TIME;
+    _was, _sawOff, _coilOffBeforeDone, _endSawOff, _wdSawOn, _wdSawOff : BOOL;
+    _resetDone, _timeoutDone, _intlkDone, _abortDone, _v1Done, _storedDone, _badDone : BOOL;
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#5S;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF NOT _w THEN
     _bFast.MoveTimeout := T#0S;              // deterministic timeout in one scan
-    _bBad.SchemaVersion := 2;                // stored schema != expected (=1)
+    _bBad.SchemaVersion := 1;                // stamped 1, the type expects 2 (same size)
     _prOk.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_bOk), Size := SIZEOF(_bOk));
     _prFast.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_bFast), Size := SIZEOF(_bFast));
     _prBad.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_bBad), Size := SIZEOF(_bBad));
@@ -44,6 +63,52 @@ END_VAR]]></Declaration>
     _io6.RetractedTimeoutKey := 'project.error.pressUpSensorTimeout';
     _io6.BothSensorsKey := 'project.error.pressPositionSensorsConflict';
     _cm6.ConfigureIoIdentity(Identity := _io6);
+    _cmSettle.ParCfg.SettleTime := T#50MS;
+    _cmSettle.Setup(Name := 'Test.Settle', HalRef := _hSettle, Recipe := 0);
+    _cmBounce.ParCfg.SettleTime := T#100MS;
+    _cmBounce.Setup(Name := 'Test.Bounce', HalRef := _hBounce, Recipe := 0);
+    _cmMin.ParCfg.MinOutputTime := T#50MS;
+    _cmMin.ParCfg.ResetOnEndPos := TRUE;
+    _cmMin.Setup(Name := 'Test.Min', HalRef := _hMin, Recipe := 0);
+    _cmReset.ParCfg.ResetOnEndPos := TRUE;
+    _cmReset.Setup(Name := 'Test.Reset', HalRef := _hReset, Recipe := 0);
+    _cmPulse.ParCfg.PulsingWidth := T#20MS;
+    _cmPulse.ParCfg.PulsingPeriod := T#100MS;
+    _cmPulse.Setup(Name := 'Test.Pulse', HalRef := _hPulse, Recipe := 0);
+    _cmEnd.ParCfg := _cmPulse.ParCfg;
+    _cmEnd.Setup(Name := 'Test.End', HalRef := _hEnd, Recipe := 0);
+    _cmWd.ParCfg := _cmPulse.ParCfg;
+    _cmWd.Setup(Name := 'Test.Withdraw', HalRef := _hWd, Recipe := 0);
+    _cmToReset.ParCfg.MoveTimeout := T#0S;
+    _cmToReset.ParCfg.ResetOnTimeout := TRUE;
+    _cmToReset.Setup(Name := 'Test.TimeoutReset', HalRef := _hToReset, Recipe := 0);
+    _cmToHold.ParCfg.MoveTimeout := T#0S;
+    _cmToHold.Setup(Name := 'Test.TimeoutHold', HalRef := _hToHold, Recipe := 0);
+    _every.SettleTime := T#30MS;
+    _every.MinOutputTime := T#50MS;
+    _every.PulsingWidth := T#20MS;
+    _every.PulsingPeriod := T#100MS;
+    _every.ResetOnEndPos := TRUE;
+    _every.ResetOnTimeout := TRUE;
+    _cmIntlk.ParCfg := _every;
+    _cmIntlk.Setup(Name := 'Test.IntlkEvery', HalRef := _hIntlk, Recipe := 0);
+    _cmAbort.ParCfg := _every;
+    _cmAbort.Setup(Name := 'Test.AbortEvery', HalRef := _hAbort, Recipe := 0);
+    _cmV1.Setup(Name := 'Test.V1', HalRef := _hV1, Recipe := _prOk);
+    _simV1.Setup(HalRef := _hV1, TravelTime := T#0S);
+    // One provider, one record per refusal: the default ('') record is valid, so
+    // each refused prepare must leave it in force.
+    _recSettle.SettleTime := T#2S;           // = MoveTimeout: the move could never complete
+    _recMin.MinOutputTime := T#3S;           // > MoveTimeout
+    _recPulse.PulsingWidth := T#100MS;       // = PulsingPeriod: the coil never switches off
+    _recPulse.PulsingPeriod := T#100MS;
+    _prRecords.Register(ModelCode := '', RecipeKey := 'CylinderCM', pData := ADR(_bOk), Size := SIZEOF(_bOk));
+    _prRecords.Register(ModelCode := 'SETTLE', RecipeKey := 'CylinderCM', pData := ADR(_recSettle), Size := SIZEOF(_recSettle));
+    _prRecords.Register(ModelCode := 'MIN', RecipeKey := 'CylinderCM', pData := ADR(_recMin), Size := SIZEOF(_recMin));
+    _prRecords.Register(ModelCode := 'PULSE', RecipeKey := 'CylinderCM', pData := ADR(_recPulse), Size := SIZEOF(_recPulse));
+    _prRecords.Register(ModelCode := 'V1', RecipeKey := 'CylinderCM', pData := ADR(_v1), Size := SIZEOF(_v1));
+    _cmStored.Setup(Name := 'Test.StoredV1', HalRef := _hStored, Recipe := _prRecords);
+    _cmBad.Setup(Name := 'Test.BadTiming', HalRef := _hBad, Recipe := _prRecords);
     _w := TRUE;
 END_IF
 Extend_completes_against_sim();
@@ -52,7 +117,20 @@ T3_interlock_withholds_output();
 T5_recipe_schema_mismatch_faults();
 Recipe_lookup_uses_model_and_key();
 Directional_interlock_covers_typed_command();
-Timeout_identifies_sensor_tag();]]></ST>
+Timeout_identifies_sensor_tag();
+Settle_time_delays_done_until_stable();
+Settle_restarts_when_the_sensor_drops();
+Min_output_time_extends_the_coil();
+Pulsing_pattern_while_moving();
+A_move_from_an_end_position_does_not_pulse();
+Withdrawn_outputs_stay_off_while_a_pulsed_move_runs();
+ResetOnEndPos_withdraws_after_done();
+ResetOnTimeout_withdraws_on_fault();
+Interlock_loss_holds_with_coils_off_under_every_setting();
+Abort_de_energizes_under_every_setting();
+Declared_defaults_reproduce_v1_behaviour();
+Stored_v1_record_refused_RECIPE_INVALID();
+Invalid_combinations_refused_CYL_CFG_INVALID();]]></ST>
     </Implementation>
     <Method Name="Extend_completes_against_sim" Id="{3ef42ed9-e916-4872-9b7b-3c0317591c20}">
       <Declaration><![CDATA[METHOD Extend_completes_against_sim]]></Declaration>
@@ -154,7 +232,7 @@ TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[METHOD T5_recipe_schema_mismatch_faults]]></Declaration>
       <Implementation>
         <ST><![CDATA[TEST('T5_recipe_schema_mismatch_faults');
-_cm4.Setup(Name := 'Test.Cyl4', HalRef := _h4, Recipe := _prBad);   // stored v2 vs expected v1
+_cm4.Setup(Name := 'Test.Cyl4', HalRef := _h4, Recipe := _prBad);   // stamped v1 vs expected v2
 _cm4();                                      // map ErrorID
 AssertTrue(Condition := _cm4.FaultActive, Message := 'migrate-or-fault (3.8)');
 AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.RECIPE_INVALID),
@@ -187,6 +265,399 @@ AssertEquals_STRING(Expected := 'EL1809 Ch5', Actual := _d.IoAddress,
     Message := 'timeout carries terminal channel locator');
 AssertEquals_STRING(Expected := 'project.error.pressDownSensorTimeout',
     Actual := _d.Description, Message := 'timeout uses project-localizable sensor message');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Settle_time_delays_done_until_stable" Id="{f202baa5-aeff-4253-bc46-0cfca9379f54}">
+      <Declaration><![CDATA[METHOD Settle_time_delays_done_until_stable]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Settle_time_delays_done_until_stable');
+IF _settleStep = 99 THEN
+    RETURN;
+END_IF
+CASE _settleStep OF
+    0:
+        _cmSettle.Command := E_CylinderCommand.EXTEND;
+        _cmSettle.Execute := TRUE;
+        _cmSettle();                             // step 10
+        _cmSettle();                             // step 20, not reached
+        _hSettle.ExtendedFb := TRUE;
+        _settleT0 := TIME();
+        _cmSettle();
+        AssertFalse(Condition := _cmSettle.Done, Message := 'not Done in the scan the sensor makes');
+        _settleStep := 1;
+    1:
+        IF TIME() - _settleT0 > TEST_TIMEOUT THEN
+            AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_settleStep)));
+            _settleStep := 99;
+            TEST_FINISHED();
+            RETURN;
+        END_IF
+        _cmSettle();
+        IF _cmSettle.Done THEN
+            AssertTrue(Condition := TIME() - _settleT0 >= T#50MS,
+                Message := 'Done only after the sensor held for SettleTime');
+            _cmSettle.Execute := FALSE;
+            _cmSettle();
+            _settleStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _settleStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Settle_restarts_when_the_sensor_drops" Id="{ef02cf08-cb61-478f-8aed-d71e4968d884}">
+      <Declaration><![CDATA[METHOD Settle_restarts_when_the_sensor_drops]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Settle_restarts_when_the_sensor_drops');
+IF _bounceStep = 99 THEN
+    RETURN;
+END_IF
+CASE _bounceStep OF
+    0:
+        _cmBounce.Command := E_CylinderCommand.EXTEND;
+        _cmBounce.Execute := TRUE;
+        _cmBounce();
+        _cmBounce();
+        _hBounce.ExtendedFb := TRUE;             // makes...
+        _cmBounce();
+        _hBounce.ExtendedFb := FALSE;            // ...bounces...
+        _cmBounce();
+        _hBounce.ExtendedFb := TRUE;             // ...and makes again
+        _bounceT0 := TIME();
+        _cmBounce();
+        _bounceStep := 1;
+    1:
+        IF TIME() - _bounceT0 > TEST_TIMEOUT THEN
+            AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_bounceStep)));
+            _bounceStep := 99;
+            TEST_FINISHED();
+            RETURN;
+        END_IF
+        _cmBounce();
+        IF _cmBounce.Done THEN
+            AssertTrue(Condition := TIME() - _bounceT0 >= T#100MS,
+                Message := 'settling is timed from the last make, not the first');
+            _cmBounce.Execute := FALSE;
+            _cmBounce();
+            _bounceStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _bounceStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Min_output_time_extends_the_coil" Id="{a28434f8-9f94-43e6-a20b-14921d2e89bb}">
+      <Declaration><![CDATA[METHOD Min_output_time_extends_the_coil]]></Declaration>
+      <Implementation><ST><![CDATA[// An impulse valve (ResetOnEndPos) at a target that is already confirmed: the coil
+// must still be commanded for MinOutputTime before it is withdrawn.
+TEST('Min_output_time_extends_the_coil');
+IF _minStep = 99 THEN
+    RETURN;
+END_IF
+CASE _minStep OF
+    0:
+        _hMin.ExtendedFb := TRUE;
+        _cmMin.Command := E_CylinderCommand.EXTEND;
+        _cmMin.Execute := TRUE;
+        _minT0 := TIME();
+        _cmMin();
+        _minStep := 1;
+    1:
+        IF TIME() - _minT0 > TEST_TIMEOUT THEN
+            AssertTrue(Condition := FALSE, Message := CONCAT('timed out in step ', INT_TO_STRING(_minStep)));
+            _minStep := 99;
+            TEST_FINISHED();
+            RETURN;
+        END_IF
+        _cmMin();
+        IF _cmMin.Done THEN
+            AssertTrue(Condition := TIME() - _minT0 >= T#50MS,
+                Message := 'Done only after MinOutputTime of commanding');
+            AssertFalse(Condition := _coilOffBeforeDone, Message := 'the coil stayed on until then');
+            AssertFalse(Condition := _hMin.ExtendOut, Message := 'and is withdrawn at Done (ResetOnEndPos)');
+            _cmMin.Execute := FALSE;
+            _cmMin();
+            _minStep := 99;
+            TEST_FINISHED();
+        ELSE
+            _coilOffBeforeDone := _coilOffBeforeDone OR NOT _hMin.ExtendOut;
+        END_IF
+ELSE
+    _minStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Pulsing_pattern_while_moving" Id="{40e048e3-ba0d-4861-91cb-55d86b482cc4}">
+      <Declaration><![CDATA[METHOD Pulsing_pattern_while_moving]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Pulsing_pattern_while_moving');
+IF _pulseStep = 99 THEN
+    RETURN;
+END_IF
+CASE _pulseStep OF
+    0:                                           // both sensors clear: the middle
+        _cmPulse.Command := E_CylinderCommand.EXTEND;
+        _cmPulse.Execute := TRUE;
+        _cmPulse();
+        AssertTrue(Condition := _hPulse.ExtendOut, Message := 'a move from the middle opens with a pulse');
+        _was := TRUE;
+        _pulseT0 := TIME();
+        _pulseStep := 1;
+    1:
+        _cmPulse();
+        IF _hPulse.ExtendOut AND NOT _was THEN
+            _rises := _rises + 1;
+        END_IF
+        _sawOff := _sawOff OR NOT _hPulse.ExtendOut;
+        _was := _hPulse.ExtendOut;
+        AssertFalse(Condition := _hPulse.RetractOut, Message := 'only the commanded coil is ever driven');
+        IF TIME() - _pulseT0 >= T#350MS THEN
+            AssertTrue(Condition := _sawOff, Message := 'the coil is off between pulses');
+            AssertTrue(Condition := _rises >= 2, Message := 'and pulses again every period');
+            AssertTrue(Condition := _cmPulse.Busy, Message := 'pulsing is travel, not completion');
+            _hPulse.ExtendedFb := TRUE;
+            _cmPulse();
+            AssertTrue(Condition := _cmPulse.Done, Message := 'the confirmed target completes the move');
+            AssertTrue(Condition := _hPulse.ExtendOut, Message := 'and the coil is then held steadily');
+            _cmPulse.Execute := FALSE;
+            _cmPulse();
+            _pulseStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _pulseStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_move_from_an_end_position_does_not_pulse" Id="{b8f0d414-fe9b-4cea-bac3-b83bbfbc3d3f}">
+      <Declaration><![CDATA[METHOD A_move_from_an_end_position_does_not_pulse]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_move_from_an_end_position_does_not_pulse');
+IF _endStep = 99 THEN
+    RETURN;
+END_IF
+CASE _endStep OF
+    0:
+        _hEnd.RetractedFb := TRUE;               // starts at home
+        _cmEnd.Command := E_CylinderCommand.EXTEND;
+        _cmEnd.Execute := TRUE;
+        _cmEnd();
+        _endT0 := TIME();
+        _endStep := 1;
+    1:
+        _cmEnd();
+        _endSawOff := _endSawOff OR NOT _hEnd.ExtendOut;
+        IF TIME() - _endT0 >= T#250MS THEN
+            AssertFalse(Condition := _endSawOff,
+                Message := 'a stroke from an end position is driven steadily');
+            _hEnd.RetractedFb := FALSE;
+            _hEnd.ExtendedFb := TRUE;
+            _cmEnd();
+            AssertTrue(Condition := _cmEnd.Done, Message := 'and completes as before');
+            _cmEnd.Execute := FALSE;
+            _cmEnd();
+            _endStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _endStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Withdrawn_outputs_stay_off_while_a_pulsed_move_runs" Id="{0c4b268f-264d-4443-88c8-2beeb07001aa}">
+      <Declaration><![CDATA[METHOD Withdrawn_outputs_stay_off_while_a_pulsed_move_runs]]></Declaration>
+      <Implementation><ST><![CDATA[// WithdrawOutputs is the owner's functional stop. A pulsed move rewrites its coil
+// every scan, which must never undo it: only RestoreOutputs or a new move does.
+TEST('Withdrawn_outputs_stay_off_while_a_pulsed_move_runs');
+IF _wdStep = 99 THEN
+    RETURN;
+END_IF
+CASE _wdStep OF
+    0:
+        _cmWd.Command := E_CylinderCommand.EXTEND;
+        _cmWd.Execute := TRUE;
+        _cmWd();
+        _cmWd();
+        _cmWd.WithdrawOutputs();
+        _wdT0 := TIME();
+        _wdStep := 1;
+    1:
+        _cmWd();
+        _wdSawOn := _wdSawOn OR _hWd.ExtendOut OR _hWd.RetractOut;
+        IF TIME() - _wdT0 >= T#250MS THEN
+            AssertFalse(Condition := _wdSawOn, Message := 'no pulse re-energizes a withdrawn coil');
+            AssertTrue(Condition := _cmWd.Busy, Message := 'the command itself keeps running');
+            _cmWd.RestoreOutputs();
+            AssertTrue(Condition := _hWd.ExtendOut, Message := 'RestoreOutputs drives the coil again');
+            _wdT0 := TIME();
+            _wdStep := 2;
+        END_IF
+    2:
+        _cmWd();
+        _wdSawOff := _wdSawOff OR NOT _hWd.ExtendOut;
+        IF _wdSawOff THEN
+            _hWd.ExtendedFb := TRUE;
+            _cmWd();
+            AssertTrue(Condition := _cmWd.Done, Message := 'the restored move pulses on and completes');
+            _cmWd.Execute := FALSE;
+            _cmWd();
+            _wdStep := 99;
+            TEST_FINISHED();
+        ELSIF TIME() - _wdT0 > TEST_TIMEOUT THEN
+            AssertTrue(Condition := FALSE, Message := 'pulsing did not resume after RestoreOutputs');
+            _wdStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _wdStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="ResetOnEndPos_withdraws_after_done" Id="{e529f7db-745f-4d1a-89fa-fe8652dec140}">
+      <Declaration><![CDATA[METHOD ResetOnEndPos_withdraws_after_done]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('ResetOnEndPos_withdraws_after_done');
+IF _resetDone THEN
+    RETURN;
+END_IF
+_hReset.ExtendedFb := TRUE;
+_cmReset.Command := E_CylinderCommand.EXTEND;
+_cmReset.Execute := TRUE;
+_cmReset();                                      // step 10 energizes
+AssertTrue(Condition := _hReset.ExtendOut, Message := 'the move is commanded');
+_cmReset();                                      // step 20: reached
+AssertTrue(Condition := _cmReset.Done, Message := 'the move completes');
+AssertFalse(Condition := _hReset.ExtendOut, Message := 'the coil is withdrawn at its end position');
+_cmReset.RestoreOutputs();
+AssertFalse(Condition := _hReset.ExtendOut, Message := 'and RestoreOutputs does not re-energize it');
+_cmReset.Execute := FALSE;
+_cmReset();
+_resetDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="ResetOnTimeout_withdraws_on_fault" Id="{f71f9354-c9aa-418d-b24b-ad66396fdebd}">
+      <Declaration><![CDATA[METHOD ResetOnTimeout_withdraws_on_fault]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('ResetOnTimeout_withdraws_on_fault');
+IF _timeoutDone THEN
+    RETURN;
+END_IF
+_cmToReset.Command := E_CylinderCommand.EXTEND;
+_cmToReset.Execute := TRUE;
+_cmToHold.Command := E_CylinderCommand.EXTEND;
+_cmToHold.Execute := TRUE;
+_cmToReset();
+_cmToHold();
+_cmToReset();                                    // MoveTimeout T#0S expires
+_cmToHold();
+AssertTrue(Condition := _cmToReset.Error AND _cmToHold.Error, Message := 'both moves time out');
+AssertFalse(Condition := _hToReset.ExtendOut, Message := 'ResetOnTimeout withdraws the coil');
+AssertTrue(Condition := _hToHold.ExtendOut, Message := 'the default keeps it, as v1 did');
+_timeoutDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Interlock_loss_holds_with_coils_off_under_every_setting" Id="{6230daba-6585-4b3c-ae38-74c28cab3d74}">
+      <Declaration><![CDATA[METHOD Interlock_loss_holds_with_coils_off_under_every_setting]]></Declaration>
+      <Implementation><ST><![CDATA[// T3 with every timing member set: no setting may weaken the §6.1 HELD path.
+TEST('Interlock_loss_holds_with_coils_off_under_every_setting');
+IF _intlkDone THEN
+    RETURN;
+END_IF
+_cmIntlk.SetAreaSafe(Ok := FALSE, DescriptionKey := '');
+_cmIntlk.Command := E_CylinderCommand.EXTEND;
+_cmIntlk.Execute := TRUE;
+_cmIntlk();
+AssertTrue(Condition := _cmIntlk.Held, Message := 'a lost interlock HOLDS the move');
+AssertFalse(Condition := _hIntlk.ExtendOut OR _hIntlk.RetractOut, Message := 'with both coils off');
+_cmIntlk();
+AssertFalse(Condition := _hIntlk.ExtendOut OR _hIntlk.RetractOut, Message := 'and no pulse while held');
+_cmIntlk.SetAreaSafe(Ok := TRUE, DescriptionKey := '');
+_cmIntlk();
+AssertFalse(Condition := _cmIntlk.Held, Message := 'the hold clears with its condition');
+AssertTrue(Condition := _hIntlk.ExtendOut, Message := 'and the resumed move opens with a pulse');
+_cmIntlk.Execute := FALSE;
+_intlkDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Abort_de_energizes_under_every_setting" Id="{6d49d279-08be-45c3-a96a-c9917fceeb3b}">
+      <Declaration><![CDATA[METHOD Abort_de_energizes_under_every_setting]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Abort_de_energizes_under_every_setting');
+IF _abortDone THEN
+    RETURN;
+END_IF
+_cmAbort.Command := E_CylinderCommand.EXTEND;
+_cmAbort.Execute := TRUE;
+_cmAbort();
+_cmAbort();
+_cmAbort.Abort := TRUE;
+_cmAbort();
+AssertTrue(Condition := _cmAbort.Aborted, Message := 'the move is aborted');
+AssertFalse(Condition := _hAbort.ExtendOut OR _hAbort.RetractOut, Message := 'with both coils off');
+_cmAbort.Abort := FALSE;
+_cmAbort.Execute := FALSE;
+_cmAbort();
+_abortDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Declared_defaults_reproduce_v1_behaviour" Id="{a071d6bd-799c-4bef-be9d-80d5919fc3e7}">
+      <Declaration><![CDATA[METHOD Declared_defaults_reproduce_v1_behaviour]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Declared_defaults_reproduce_v1_behaviour');
+IF _v1Done THEN
+    RETURN;
+END_IF
+AssertEquals_UINT(Expected := 2, Actual := _defaults.SchemaVersion, Message := 'the v2 layout');
+AssertTrue(Condition := (_defaults.SettleTime = T#0MS) AND (_defaults.MinOutputTime = T#0MS)
+    AND (_defaults.PulsingWidth = T#0MS) AND (_defaults.PulsingPeriod = T#0MS),
+    Message := 'every new time defaults to off');
+AssertFalse(Condition := _defaults.ResetOnEndPos OR _defaults.ResetOnTimeout,
+    Message := 'every new policy defaults to the v1 hold');
+_cmV1.Command := E_CylinderCommand.EXTEND;
+_cmV1.Execute := TRUE;
+_cmV1();
+_cmV1();
+_simV1();
+_cmV1();
+AssertTrue(Condition := _cmV1.Done, Message := 'Done in the scan the feedback is seen, as v1');
+_cmV1.Execute := FALSE;
+_cmV1();
+AssertTrue(Condition := _hV1.ExtendOut, Message := 'the coil is held after Done, as v1');
+_v1Done := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Stored_v1_record_refused_RECIPE_INVALID" Id="{a7ca6917-7cd9-4f7d-848f-549c3547320c}">
+      <Declaration><![CDATA[METHOD Stored_v1_record_refused_RECIPE_INVALID]]></Declaration>
+      <Implementation><ST><![CDATA[// The upgrade cost of the v2 layout, stated as a test: a record a station stored
+// before the upgrade is refused at the next prepare, never interpreted (§3.8).
+TEST('Stored_v1_record_refused_RECIPE_INVALID');
+IF _storedDone THEN
+    RETURN;
+END_IF
+_model.ModelCode := 'V1';
+AssertFalse(Condition := _cmStored.PrepareRecipe(Model := _model), Message := 'a v1 record is refused');
+_cmStored();
+AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.RECIPE_INVALID), Actual := _cmStored.ErrorID,
+    Message := 'with RECIPE_INVALID, migrate-or-fault (3.8)');
+_storedDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Invalid_combinations_refused_CYL_CFG_INVALID" Id="{69d97683-515a-477d-8eee-ecf2e11a9c67}">
+      <Declaration><![CDATA[METHOD Invalid_combinations_refused_CYL_CFG_INVALID]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Invalid_combinations_refused_CYL_CFG_INVALID');
+IF _badDone THEN
+    RETURN;
+END_IF
+_model.ModelCode := 'SETTLE';
+AssertFalse(Condition := _cmBad.PrepareRecipe(Model := _model),
+    Message := 'a SettleTime the move timeout cannot contain is refused');
+_model.ModelCode := 'MIN';
+AssertFalse(Condition := _cmBad.PrepareRecipe(Model := _model),
+    Message := 'a MinOutputTime beyond the move timeout is refused');
+_model.ModelCode := 'PULSE';
+AssertFalse(Condition := _cmBad.PrepareRecipe(Model := _model),
+    Message := 'a pulse as long as its period is refused');
+_cmBad();
+AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.CYL_CFG_INVALID), Actual := _cmBad.ErrorID,
+    Message := 'with the type configuration reason (8.8)');
+AssertTrue(Condition := (_cmBad.ParCfg.SettleTime = T#0MS) AND (_cmBad.ParCfg.MinOutputTime = T#0MS)
+    AND (_cmBad.ParCfg.PulsingWidth = T#0MS),
+    Message := 'no refused record is applied, even in part');
+_badDone := TRUE;
 TEST_FINISHED();]]></ST></Implementation>
     </Method>
   </POU>

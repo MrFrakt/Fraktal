@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ValveDrive" Id="{a185afd9-c0a4-4c31-83a5-cd314fc14ba0}" SpecialFunc="None">
+    <Declaration><![CDATA[// The coil level of ONE commanded valve move, written once so every cylinder type
+// drives its coils the same way. Owner-private: no module identity, no published
+// state, no I/O - the owner writes the level it returns, and keeps every decision
+// that is not timing (which coil, interlocks, HELD, abort, end-of-move reset).
+//
+// A move that pulses switches its coil on for PulsingWidth at the start of every
+// PulsingPeriod until the owner reports its target confirmed; any other move holds
+// the coil on. MinTimeElapsed reports that the move has been commanded for at
+// least MinOutputTime, for valves that cannot switch faster than that.
+FUNCTION_BLOCK FB_ValveDrive
+VAR_OUTPUT
+    MinTimeElapsed : BOOL;
+END_VAR
+VAR
+    _pulsing : BOOL;   // this move pulses until its target is confirmed
+    _tMin : TON;       // since the move began
+    _tPeriod : TON;    // the running pulse period
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[]]></ST></Implementation>
+    <Method Name="M_Begin" Id="{b043abf4-0117-45f4-b98a-5c55140ce6cb}">
+      <Declaration><![CDATA[// Start a move: the scan the owner first energizes the coil.
+METHOD M_Begin
+VAR_INPUT
+    Pulsing : BOOL;
+    MinOutputTime : TIME;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_pulsing := Pulsing;
+_tPeriod(IN := FALSE);
+_tMin(IN := FALSE);
+_tMin(IN := TRUE, PT := MinOutputTime);
+MinTimeElapsed := _tMin.Q;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Coil" Id="{0c422245-6a2b-4550-b11e-7bf05c940cb2}">
+      <Declaration><![CDATA[// The coil level for this scan of the move begun by M_Begin. Steady holds the coil
+// on (the target is confirmed); when pulsing resumes, it starts with a full pulse.
+METHOD M_Coil : BOOL
+VAR_INPUT
+    Steady : BOOL;
+    PulsingWidth : TIME;
+    PulsingPeriod : TIME;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_tMin(IN := TRUE);
+MinTimeElapsed := _tMin.Q;
+IF _pulsing AND NOT Steady THEN
+    _tPeriod(IN := TRUE, PT := PulsingPeriod);
+    M_Coil := _tPeriod.ET < PulsingWidth;
+    IF _tPeriod.Q THEN
+        _tPeriod(IN := FALSE);         // the next scan opens the next period
+    END_IF
+ELSE
+    _tPeriod(IN := FALSE);
+    M_Coil := TRUE;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

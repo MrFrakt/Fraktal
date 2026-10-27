@@ -3,9 +3,11 @@
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
 Core `0.26.0.0` publishes an analog fieldbus channel's unit as a code
-(`ST_IoChannel.UnitCode`, the legacy `Unit` text derived from it) and Modules
-`0.12.0.0` debounces `FB_DigitalInputCM` at the source (`ParCfg.DebounceTime`); both
-open the generic control-module expansion (IMPLEMENTATION_NOTES §164-§165).
+(`ST_IoChannel.UnitCode`, the legacy `Unit` text derived from it). Modules `0.12.0.0`
+debounces `FB_DigitalInputCM` at the source (`ParCfg.DebounceTime`) and `0.13.0.0` gives
+`FB_CylinderCM` its valve timing (settle, minimum output, pulsing from a middle position,
+end-of-move reset); together they open the generic control-module expansion
+(IMPLEMENTATION_NOTES §164-§166).
 Core `0.25.0.0` put retained data behind a project-chosen persistence medium
 (`I_PersistMedium`: files in a folder, or a retentive pool): a root's live station,
 line and model configuration, its parameter sets and the local user table, restored at
@@ -15,7 +17,7 @@ the user table outside the symbol table, controller/IPC health from the Beckhoff
 Device Manager and the EtherCAT master's own state, frame and CRC counters (§160-§162).
 The Windows clock adapter observes the target's existing time service and expires
 missing quality; see the [build and installation guide](../../../Specification/Guides/TC3_WINDOWS_CLOCK.md).
-Modules `0.12.0.0` pins Core `0.26.0.0`. The latest source audit is
+Modules `0.13.0.0` pins Core `0.26.0.0`. The latest source audit is
 [Core and Press TC3 feature gaps](../../../Specification/Reports/TC3_CORE_PRESS_FEATURE_AUDIT_2026-10-06.md).
 
 > **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their

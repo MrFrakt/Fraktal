@@ -5427,3 +5427,56 @@ tests and strict consistency green; HMI analyzer clean, 622 passed / 12 skipped 
 243/243 in 49 suites, Press 9/9 in 2 suites (Ladder AUTO). The first aggregate run met an
 expired `TC3 PLC` trial licence (2026-10-13); the owner renewed it and both gates passed
 unchanged. Scope and artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase0.md`.
+
+## 166. Cylinder valve timing (Modules 0.13.0.0, 2026-10-26)
+
+Phase 1 of the generic control-module expansion: the valve-timing options stations set
+on their cylinders, on `FB_CylinderCM` - the type stations instantiate.
+
+- **`ST_CylinderParCfg` v2** appends `SettleTime`, `MinOutputTime`, `PulsingWidth`,
+  `PulsingPeriod`, `ResetOnEndPos`, `ResetOnTimeout`; every default reproduces v1.
+  `SettleTime` keeps the configurable cylinder's name and meaning.
+- **Which phase pulses** - the question the plan left open, settled against station
+  practice: a move that **starts with neither end sensor confirmed** (the undefined middle
+  a stop or a held move leaves behind) pulses its coil for `PulsingWidth` of every
+  `PulsingPeriod` until the target confirms; a stroke from an end position is driven
+  steadily. Pulsing is travel, never an end-position refresh. A width that grows each
+  period and pulsing that depends on the mode wait for a station that needs them.
+- **`FB_ValveDrive`**, owner-private (no identity, nothing published): one move's coil
+  level and its minimum output time. The plan's `Hold` input was dropped: the cylinder's
+  §6.1 HOLD rewinds the move to its first step, so a resumed move begins afresh, and a
+  second way to freeze the pattern would have had no caller.
+- **Completion.** `Done` needs the target sensor held for `SettleTime` and the move
+  commanded for `MinOutputTime`. The coil is then held (v1) or, under `ResetOnEndPos`,
+  withdrawn; `ResetOnTimeout` withdraws it on the timeout fault.
+- **No weaker stop.** `OnAbort` still de-energizes, a lost interlock still HOLDS with both
+  coils off, and pulsing never runs while held. One latch is new: a pulsed move writes its
+  coil every scan, which would have undone an owner's `WithdrawOutputs` - the Press
+  withdraws its ram mid-dwell and on every abort. A withdrawal now stays until
+  `RestoreOutputs` or the next move begins, which is what v1 gave by writing the coil once
+  per move. `RestoreOutputs` restores what the module itself would drive, so a coil reset
+  at its end position stays off.
+- **Validation (§5.6).** `PrepareRecipe` refuses a non-zero `SettleTime` or
+  `MinOutputTime` not shorter than `MoveTimeout`, and a `PulsingWidth` not shorter than
+  `PulsingPeriod`, with `CYL_CFG_INVALID` (10115, now shared by both cylinder types); a
+  refused record is not applied. A zero time is off and cannot conflict, so the existing
+  `MoveTimeout := T#0S` timeout rows stand.
+- **Upgrade cost.** Modules *minor*. Records compiled from `ST_CylinderParCfg` take v2 on
+  rebuild. A record a station **stored** under `CylinderCM` is v1-sized and is refused with
+  `RECIPE_INVALID` at the next prepare: list them through `I_RecipeCatalog` before the
+  upgrade and save them again after. The Press passes `Recipe := 0` and stores none. No
+  configuration value is registered for the new members; a station that needs one on site
+  registers it then (`M_RegisterConfigDuration`).
+- **Tests.** Thirteen rows in `FB_CylinderCM_Tests` - the plan's eleven plus
+  `A_move_from_an_end_position_does_not_pulse` and
+  `Withdrawn_outputs_stay_off_while_a_pulsed_move_runs` - with T5 restamped for v2, and four
+  in the new `FB_ValveDrive_Tests`. The stored-record row uses a v1-shaped probe record
+  (`ST_ProbeCylinderParCfgV1`), so it fails on the size a real stored record has.
+- **Deferred.** Valve preset matrices, "reached too fast" detection, mode-dependent
+  pulsing, a growing pulse width, and adoption by `FB_ConfigurableCylinderCM` (with its first
+  consuming station). AB and TIA record the gap in their census.
+
+Final: Modules 0.13.0.0 installed from the isolated worktree; six `CheckAllObjects` clean
+(0 errors, 0 warnings); both lint profiles, the tool tests and strict consistency green. On
+the isolated UmRT: aggregate 260/260 in 50 suites, Press 9/9 in 2 suites (Ladder AUTO).
+Scope and artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase1.md`.

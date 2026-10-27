@@ -2,6 +2,10 @@
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_CylinderCM" Id="{05f548d6-e819-40c3-b0bd-f2c5ee607509}" SpecialFunc="None">
     <Declaration><![CDATA[// Annex A/B pattern on the base class: the type is ONLY its device logic.
+// Valve timing (ParCfg v2) is configuration, never a weaker stop: OnAbort always
+// de-energizes, a lost interlock always HOLDS with both coils off, and a coil the
+// owner withdrew stays off until RestoreOutputs or the next move - whatever the
+// pulsing, minimum-output or end-of-move settings say.
 FUNCTION_BLOCK FB_CylinderCM EXTENDS FB_ControlModuleBase
 VAR_INPUT
     Command : E_CylinderCommand;
@@ -19,6 +23,14 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _recipe : I_RecipeProvider;
     _tMove  : TON;
+    _tSettle : TON;
+    _drive  : FB_ValveDrive;            // the commanded coil's level for this move
+    // WithdrawOutputs is the owner's functional stop. A pulsed move writes its coil
+    // every scan, so the stop is latched here until RestoreOutputs or a new move.
+    _withdrawn : BOOL;
+    // The level the commanded coil keeps outside a move: FALSE only after a Done
+    // under ResetOnEndPos or a timeout under ResetOnTimeout (v1: always held).
+    _holdCoil : BOOL := TRUE;
     _areaSafe : BOOL := TRUE;           // §7.2 application-supplied area/process interlock
     _areaSafeKey : STRING(255);
     _parCfgStaged : ST_CylinderParCfg;
@@ -83,7 +95,8 @@ _bothSensorAddresses := CONCAT(Identity.ExtendedSensor.Address, CONCAT(' / ', Id
       <Declaration><![CDATA[// Functional stop used by an owning sequence on abort/interlock loss.
 // This is not a certified stop; the safety system remains authoritative.
 METHOD WithdrawOutputs]]></Declaration>
-      <Implementation><ST><![CDATA[IF __ISVALIDREF(_hal) THEN
+      <Implementation><ST><![CDATA[_withdrawn := TRUE;
+IF __ISVALIDREF(_hal) THEN
     _hal.ExtendOut := FALSE;
     _hal.RetractOut := FALSE;
 END_IF]]></ST></Implementation>
@@ -114,8 +127,12 @@ END_IF
 IF NOT permitted OR NOT Intlk.AllOk THEN
     RETURN;
 END_IF
-_hal.ExtendOut  := (Command = E_CylinderCommand.EXTEND);
-_hal.RetractOut := (Command = E_CylinderCommand.RETRACT);]]></ST></Implementation>
+// Back to what the module itself would drive: a coil reset at the end of its move
+// (ResetOnEndPos/ResetOnTimeout) stays off. A pulsed move in progress takes over
+// again from its next scan.
+_withdrawn := FALSE;
+_hal.ExtendOut  := (Command = E_CylinderCommand.EXTEND) AND _holdCoil;
+_hal.RetractOut := (Command = E_CylinderCommand.RETRACT) AND _holdCoil;]]></ST></Implementation>
     </Method>
     <Method Name="OnAbort" Id="{e057e446-dbf0-4d4e-8095-e77cb11fc9d8}">
       <Declaration><![CDATA[METHOD PROTECTED OnAbort : DINT]]></Declaration>
@@ -131,20 +148,33 @@ END_IF]]></ST>
       <Declaration><![CDATA[METHOD PrepareRecipe : BOOL
 VAR_INPUT
     Model : ST_ModelId;
+END_VAR
+VAR
+    cfgOk : BOOL;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF _recipe = 0 THEN
     _parCfgStaged := ParCfg;
-    _recipePrepared := TRUE;
-    PrepareRecipe := TRUE;
-ELSIF _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := 'CylinderCM', pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
-    _recipePrepared := TRUE;
-    PrepareRecipe := TRUE;
-ELSE
+ELSIF NOT _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := 'CylinderCM', pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
     _M_Fault(E_Reason.RECIPE_INVALID, 'std.error.recipeSchemaInvalid');
     _recipePrepared := FALSE;
     PrepareRecipe := FALSE;
-END_IF]]></ST>
+    RETURN;
+END_IF
+// §5.6 - a timing combination the type cannot honour is refused here, so it never
+// reaches the scan as behaviour (a move that could never complete, a pulse that
+// never switches off). A zero time is "off" and cannot conflict.
+cfgOk := ((_parCfgStaged.SettleTime = T#0MS) OR (_parCfgStaged.SettleTime < _parCfgStaged.MoveTimeout))
+    AND ((_parCfgStaged.MinOutputTime = T#0MS) OR (_parCfgStaged.MinOutputTime < _parCfgStaged.MoveTimeout))
+    AND ((_parCfgStaged.PulsingWidth = T#0MS) OR (_parCfgStaged.PulsingWidth < _parCfgStaged.PulsingPeriod));
+IF NOT cfgOk THEN
+    _M_FaultN(PL_ModuleReasons.CYL_CFG_INVALID, 'std.error.cylinderConfigurationInvalid');
+    _recipePrepared := FALSE;
+    PrepareRecipe := FALSE;
+    RETURN;
+END_IF
+_recipePrepared := TRUE;
+PrepareRecipe := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="CommitRecipe" Id="{2507146c-6bb3-4103-92db-e1e95f4c558c}">
@@ -213,6 +243,8 @@ END_IF]]></ST>
       <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch
 VAR
     ext : BOOL;
+    reached : BOOL;
+    coil : BOOL;
     d   : ST_Diagnostic;
 END_VAR]]></Declaration>
       <Implementation>
@@ -278,21 +310,42 @@ IF _hal.ExtendedFb AND _hal.RetractedFb THEN
     RETURN;
 END_IF
 ext := (Command = E_CylinderCommand.EXTEND);
+reached := (ext AND _hal.ExtendedFb) OR ((NOT ext) AND _hal.RetractedFb);
 CASE _step OF
     10:
         OutCmd.Reached := FALSE;
-        _hal.ExtendOut  := ext;
-        _hal.RetractOut := NOT ext;
+        // Pulsing is for a move that starts from no end position - the undefined
+        // middle a stop or a held move leaves behind - where a full stroke would
+        // slam; a move from an end position is driven steadily.
+        _drive.M_Begin(Pulsing := (ParCfg.PulsingWidth > T#0MS)
+                AND NOT _hal.ExtendedFb AND NOT _hal.RetractedFb,
+            MinOutputTime := ParCfg.MinOutputTime);
+        _withdrawn := FALSE;
+        _holdCoil := TRUE;
+        _M_DriveCoil(Level := TRUE);
         _tMove(IN := FALSE);
+        _tSettle(IN := FALSE);
         _step := 20;
     20:
         _tMove(IN := TRUE, PT := ParCfg.MoveTimeout);
-        IF (ext AND _hal.ExtendedFb) OR ((NOT ext) AND _hal.RetractedFb) THEN
+        _tSettle(IN := reached, PT := ParCfg.SettleTime);
+        coil := _drive.M_Coil(Steady := reached, PulsingWidth := ParCfg.PulsingWidth,
+            PulsingPeriod := ParCfg.PulsingPeriod);
+        _M_DriveCoil(Level := coil);
+        IF _tSettle.Q AND _drive.MinTimeElapsed THEN
             _tMove(IN := FALSE);
+            _tSettle(IN := FALSE);
+            _holdCoil := NOT ParCfg.ResetOnEndPos;
+            _M_DriveCoil(Level := _holdCoil);
             OutCmd.Reached := TRUE;
             _M_Complete();
         ELSIF _tMove.Q THEN
             _tMove(IN := FALSE);
+            _tSettle(IN := FALSE);
+            IF ParCfg.ResetOnTimeout THEN
+                _holdCoil := FALSE;
+                _M_DriveCoil(Level := FALSE);
+            END_IF
             IF ext AND (_extendedSensorTag <> '') THEN
                 _M_FaultIoN(Code := PL_ModuleReasons.CYL_NOT_EXTENDED, Text := _extendedTimeoutKey,
                     IoTag := _extendedSensorTag, IoAddress := _extendedSensorAddress);
@@ -309,6 +362,19 @@ ELSE
     _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (§5.6)
 END_CASE]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="_M_DriveCoil" Id="{0221bce7-b6e5-4fcf-a935-2d1735159825}">
+      <Declaration><![CDATA[// The commanded direction's coil at Level, the other coil off - unless the owner
+// withdrew the outputs, which only RestoreOutputs or the next move undoes.
+METHOD PRIVATE _M_DriveCoil
+VAR_INPUT
+    Level : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF _withdrawn OR NOT __ISVALIDREF(_hal) THEN
+    RETURN;
+END_IF
+_hal.ExtendOut  := Level AND (Command = E_CylinderCommand.EXTEND);
+_hal.RetractOut := Level AND (Command = E_CylinderCommand.RETRACT);]]></ST></Implementation>
     </Method>
     <Method Name="SetDirectionalPermits" Id="{b1045a9a-9497-4b07-b315-d6be9086fd4c}">
       <Declaration><![CDATA[// Functional collision/process interlocks supplied by the owning EM/Unit.

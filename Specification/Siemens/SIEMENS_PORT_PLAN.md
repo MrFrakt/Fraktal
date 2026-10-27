@@ -301,7 +301,7 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 
 | # | TC3 type | Priority | 1200 | Notes |
 |---|---|---|---|---|
-| M1 | `FB_CylinderCM` + `FB_CylinderSim` | P1 | ✔ | first generated type; T1–T5 |
+| M1 | `FB_CylinderCM` + `FB_CylinderSim` | P1 | ✔ | first generated type; T1–T5; TC3 Modules 0.13 adds `ParCfg` v2 valve timing (`FB_ValveDrive`); not yet carried |
 | M2 | `FB_DigitalInputCM` | P1 | ✔ | TC3 Modules 0.12 adds `ParCfg` v2 `DebounceTime`; not yet carried |
 | M3 | `FB_TwoHandStartCM` | P1 | ✔ | HELD semantics (§6.1) |
 | M4 | `FB_AirPressureMonitorCM` | P1 | ✔ | "air loss held" — kept: process monitor, not power control |

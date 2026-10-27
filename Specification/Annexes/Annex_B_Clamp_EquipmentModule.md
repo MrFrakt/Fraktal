@@ -66,6 +66,8 @@ VAR_INPUT Name : STRING(80); HalRef : REFERENCE TO ST_CylinderHal; Recipe : I_Re
 
 Behaviour (body as Annex A): `EXTEND` drives `ExtendOut`, waits `ExtendedFb` within `ParCfg.MoveTimeout` → `_M_Complete()`, else `_M_FaultStopped(Code := PL_ModuleReasons.CYL_NOT_EXTENDED, Text := 'std.error.cylinderNotExtended')`; `RETRACT` is the mirror. `Status.Diagnostic.SourcePath` is the cylinder's own browse path (e.g. `ClampStation.CylA`).
 
+**Valve timing (`ParCfg` v2).** Appended members, each defaulting to the behaviour above: `SettleTime` (the end sensor must hold for it before `Done`), `MinOutputTime` (the move is commanded at least that long before `Done`, for valves that cannot switch faster), `PulsingWidth`/`PulsingPeriod` (a move that **starts from no end position** pulses its coil until the target makes; a stroke from an end position is driven steadily), and `ResetOnEndPos`/`ResetOnTimeout` (withdraw the coil at `Done` or on the timeout fault — impulse/bistable valves; the default holds it). A non-zero `SettleTime` or `MinOutputTime` not shorter than `MoveTimeout`, or a `PulsingWidth` not shorter than `PulsingPeriod`, is refused at `PrepareRecipe` with `CYL_CFG_INVALID` (10115). None of these settings can weaken a stop: `OnAbort` de-energizes, a lost interlock HOLDS with both coils off (§6.1), and a coil withdrawn by `WithdrawOutputs` stays off until `RestoreOutputs` or the next move. The timing is written once in the owner-private `FB_ValveDrive`.
+
 ---
 
 ## B.2 Clamp EM types

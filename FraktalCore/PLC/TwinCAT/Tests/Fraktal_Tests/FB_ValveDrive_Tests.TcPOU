@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_ValveDrive_Tests" Id="{028bf3f5-1028-4e2f-98f7-38de0cbb3fcf}" SpecialFunc="None">
+    <Declaration><![CDATA[// The owner-private valve timing every cylinder type drives its coils through:
+// the pulse pattern and the minimum output time, against real task time.
+FUNCTION_BLOCK FB_ValveDrive_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _steady, _pulse, _min, _again : FB_ValveDrive;
+    _pulseStep, _minStep, _rises : INT;
+    _pulseT0, _minT0 : TIME;
+    _coil, _was, _sawOff, _steadyDone, _againDone : BOOL;
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#5S;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[Continuous_unless_the_move_pulses();
+Pulses_width_of_every_period_until_steady();
+Min_output_time_is_reported_once_elapsed();
+Begin_replaces_the_previous_move();]]></ST></Implementation>
+    <Method Name="Continuous_unless_the_move_pulses" Id="{148eeaf4-d473-4271-95b8-bcf84fb43dce}">
+      <Declaration><![CDATA[METHOD Continuous_unless_the_move_pulses]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Continuous_unless_the_move_pulses');
+IF _steadyDone THEN
+    RETURN;
+END_IF
+_steady.M_Begin(Pulsing := FALSE, MinOutputTime := T#0MS);
+AssertTrue(Condition := _steady.MinTimeElapsed, Message := 'a zero minimum is met when the move begins');
+AssertTrue(Condition := _steady.M_Coil(Steady := FALSE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS),
+    Message := 'a move that does not pulse holds its coil on');
+AssertTrue(Condition := _steady.M_Coil(Steady := FALSE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS),
+    Message := 'on every scan, whatever the pulse settings');
+_steadyDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Pulses_width_of_every_period_until_steady" Id="{8eefe9c5-ffb9-4cf9-8929-bc920e484af4}">
+      <Declaration><![CDATA[METHOD Pulses_width_of_every_period_until_steady]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Pulses_width_of_every_period_until_steady');
+IF _pulseStep = 99 THEN
+    RETURN;
+END_IF
+CASE _pulseStep OF
+    0:
+        _pulse.M_Begin(Pulsing := TRUE, MinOutputTime := T#0MS);
+        _coil := _pulse.M_Coil(Steady := FALSE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS);
+        AssertTrue(Condition := _coil, Message := 'a pulsed move opens with a pulse');
+        _was := _coil;
+        _pulseT0 := TIME();
+        _pulseStep := 1;
+    1:
+        _coil := _pulse.M_Coil(Steady := FALSE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS);
+        IF _coil AND NOT _was THEN
+            _rises := _rises + 1;
+        END_IF
+        _sawOff := _sawOff OR NOT _coil;
+        _was := _coil;
+        IF TIME() - _pulseT0 >= T#450MS THEN
+            AssertTrue(Condition := _sawOff, Message := 'the coil is off between pulses');
+            AssertTrue(Condition := _rises >= 3, Message := 'a new pulse opens every period');
+            AssertTrue(Condition := _pulse.M_Coil(Steady := TRUE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS),
+                Message := 'Steady holds the coil on');
+            AssertTrue(Condition := _pulse.M_Coil(Steady := FALSE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS),
+                Message := 'pulsing that resumes starts with a full pulse');
+            _pulseStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _pulseStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Min_output_time_is_reported_once_elapsed" Id="{234a9171-1f15-4d49-817a-5d1bf155c0f4}">
+      <Declaration><![CDATA[METHOD Min_output_time_is_reported_once_elapsed]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Min_output_time_is_reported_once_elapsed');
+IF _minStep = 99 THEN
+    RETURN;
+END_IF
+CASE _minStep OF
+    0:
+        _min.M_Begin(Pulsing := FALSE, MinOutputTime := T#50MS);
+        AssertFalse(Condition := _min.MinTimeElapsed, Message := 'not met when the move begins');
+        _minT0 := TIME();
+        _minStep := 1;
+    1:
+        _coil := _min.M_Coil(Steady := FALSE, PulsingWidth := T#0MS, PulsingPeriod := T#0MS);
+        IF _min.MinTimeElapsed THEN
+            AssertTrue(Condition := TIME() - _minT0 >= T#50MS,
+                Message := 'met only after MinOutputTime of commanding');
+            _minStep := 99;
+            TEST_FINISHED();
+        ELSIF TIME() - _minT0 > TEST_TIMEOUT THEN
+            AssertTrue(Condition := FALSE, Message := 'the minimum output time never elapsed');
+            _minStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _minStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Begin_replaces_the_previous_move" Id="{673be9ff-fb75-4df3-90af-03bbbc018c5a}">
+      <Declaration><![CDATA[METHOD Begin_replaces_the_previous_move]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Begin_replaces_the_previous_move');
+IF _againDone THEN
+    RETURN;
+END_IF
+_again.M_Begin(Pulsing := TRUE, MinOutputTime := T#1S);
+AssertFalse(Condition := _again.MinTimeElapsed, Message := 'the first move waits its minimum');
+_again.M_Begin(Pulsing := FALSE, MinOutputTime := T#0MS);
+AssertTrue(Condition := _again.MinTimeElapsed, Message := 'a new move takes its own minimum');
+AssertTrue(Condition := _again.M_Coil(Steady := FALSE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS),
+    Message := 'and its own pulsing decision');
+_againDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
