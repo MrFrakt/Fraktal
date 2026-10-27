@@ -289,7 +289,7 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 | C16 | `FB_EngineeringMode`, `PL_FraktalEngineering` | `FB_EngineeringMode` + constant gate | ✔ | |
 | C17 | `FB_HostEventPublisher` | `FB_HostEventPublisher` | ◐ | |
 | C18 | `FB_SystemHealthPublisher`, `FB_TcSystemHealthProbe` | `FB_SystemHealthPublisher` + `FB_S7HealthProbe` | ◐ | declared exclusions for unsupplied metrics |
-| C19 | `FB_IoTopologyPublisher`, `FB_EcBusHealth` | `FB_IoTopologyPublisher` + `FB_PnBusHealth` | ◐ | PROFINET instead of EtherCAT |
+| C19 | `FB_IoTopologyPublisher`, `FB_EcBusHealth` | `FB_IoTopologyPublisher` + `FB_PnBusHealth` | ◐ | PROFINET instead of EtherCAT; TC3 Core 0.26 adds the analog channel `UnitCode` (§10.5.1), not yet carried |
 | C20 | `FB_LocalRecipeProvider`, `FB_LocalPartCarrier` | same, behind provider dispatch | ✔ | |
 | C21 | `I_PersistMedium` family (`FB_FilePersistMedium`, `FB_RetainPersistMedium`, `FB_MediumConfigStore`, `FB_ConfigSetDocument`, `FB_ConfigSetJson`, `F_Crc32`) | `FB_LoadDbMedium`, `FB_CardFileMedium` (1500), `FB_RetainMedium`, `FB_MediumConfigStore`, `FB_ConfigSetJson` | ◐ | S16 |
 | C22 | `FB_LineData*`, `FB_ShiftSchedule` | same | ✘ | Line profile: S7-1500 first |
@@ -302,7 +302,7 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 | # | TC3 type | Priority | 1200 | Notes |
 |---|---|---|---|---|
 | M1 | `FB_CylinderCM` + `FB_CylinderSim` | P1 | ✔ | first generated type; T1–T5 |
-| M2 | `FB_DigitalInputCM` | P1 | ✔ | |
+| M2 | `FB_DigitalInputCM` | P1 | ✔ | TC3 Modules 0.12 adds `ParCfg` v2 `DebounceTime`; not yet carried |
 | M3 | `FB_TwoHandStartCM` | P1 | ✔ | HELD semantics (§6.1) |
 | M4 | `FB_AirPressureMonitorCM` | P1 | ✔ | "air loss held" — kept: process monitor, not power control |
 | M5 | `FB_ClampEM` | P1 | ✔ | the composite/rollup proof (T6) |

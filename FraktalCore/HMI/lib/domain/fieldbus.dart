@@ -3,6 +3,8 @@
 /// a real transport; the enum ordinals mirror the PLC E_NodeState/E_ChannelKind.
 library;
 
+import 'types.dart';
+
 /// E_NodeState — neutral bus-node state (EtherCAT INIT/PREOP/SAFEOP/OP map on).
 enum NodeState { offline, init, preop, safeop, operational, fault }
 
@@ -20,7 +22,8 @@ class IoChannel {
   final ChannelKind kind;
   final bool boolValue; // digital
   final double analogValue; // analog (scaled)
-  final String unit;
+  final String unit; // legacy text; derived by the PLC when [unitCode] is set
+  final EngUnit? unitCode; // Core 0.26; null = none published
   final bool forced;
   final bool quality; // true = good
   final bool faultActive;
@@ -37,12 +40,16 @@ class IoChannel {
     this.boolValue = false,
     this.analogValue = 0,
     this.unit = '',
+    this.unitCode,
     this.forced = false,
     this.quality = true,
     this.faultActive = false,
     this.diagnosticKey = '',
     this.forceable = false,
   });
+
+  /// The catalog key of the unit to show, or '' for none ([engUnitKey]).
+  String get unitKey => engUnitKey(unitCode, unit);
 }
 
 class BusNode {

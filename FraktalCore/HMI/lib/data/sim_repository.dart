@@ -2781,6 +2781,7 @@ class SimRepository implements PlcRepository {
         boolValue: c.kind == ChannelKind.digital ? f.b : c.boolValue,
         analogValue: c.kind == ChannelKind.analog ? f.a : c.analogValue,
         unit: c.unit,
+        unitCode: c.unitCode,
         forced: true,
         quality: c.quality,
         faultActive: c.faultActive,

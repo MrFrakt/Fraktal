@@ -1051,6 +1051,8 @@ class OpcUaSnapshotMapper {
           boolValue: _boolean(values['$channelPrefix/BoolValue']),
           analogValue: _number(values['$channelPrefix/AnalogValue']),
           unit: _string(values['$channelPrefix/Unit']),
+          // Manifest-only, and exported only when the catalog gave a code.
+          unitCode: engUnitOrNull(values['$channelPrefix/UnitCode']),
           forced: _boolean(values['$channelPrefix/Forced']),
           quality: _boolean(values['$channelPrefix/Quality']) &&
               usable('$channelPrefix/Quality') &&

@@ -466,7 +466,7 @@ through the request mailbox instead. This keeps the published address space
 | `ModePolicy`, `StallTime` | `SupportedModes/RunStylesPublished` |
 | `Nameplate`, `AlarmLog Meta/MetaCount` | `ParCfg`/`StationCfg` (editable fields) |
 | `ST_BusNode` identity (Name/TypeId/Address/ParentIdx/ChannelCount…) | `ST_BusNode.State`, `LinkOk` |
-| `ST_IoChannel` identity/capability (Name/Address/Path/ModulePath/Dir/Kind/Unit/Forceable…) | channel values/Forced/Quality/FaultActive/Diagnostic |
+| `ST_IoChannel` identity/capability (Name/Address/Path/ModulePath/Dir/Kind/Unit/UnitCode/Forceable…) | channel values/Forced/Quality/FaultActive/Diagnostic |
 
 **Protocol.** The root Unit publishes `ConfigRev : UDINT` (seeded from boot
 time, incremented on config writes, model changes, and re-activation) and

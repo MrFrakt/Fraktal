@@ -76,6 +76,12 @@ FOR i := 1 TO Topology.NodeCount DO
         Pager.M_Append(Scope := SCOPE_FIELDBUS,
             Item := CONCAT(chanBase, 'Unit'),
             ValueText := Topology.Nodes[i].Channels[j].Unit);
+        // Only a channel that has a code costs an entry; an absent UnitCode is NONE.
+        IF Topology.Nodes[i].Channels[j].UnitCode <> E_EngUnit.NONE THEN
+            Pager.M_AppendNumber(Scope := SCOPE_FIELDBUS,
+                Item := CONCAT(chanBase, 'UnitCode'),
+                Number := TO_DINT(Topology.Nodes[i].Channels[j].UnitCode));
+        END_IF
         IF Topology.Nodes[i].Channels[j].Forceable THEN
             forceableText := 'TRUE';
         ELSE

@@ -5347,3 +5347,83 @@ two runtime restarts with the newest copies alternating between the slots restor
 every value, model record, set and user without a loss; damaged, deleted and obstructed
 documents behaved as described above. Scope and artifacts:
 `Specification/Evidence/2026-10-06_TC3_PersistMedium.md`.
+
+## 164. An analog channel's unit is a code (Core 0.26.0.0, 2026-10-26)
+
+First step of the generic control-module expansion. A configuration value has published
+its unit as a code since Core 0.14 (`ST_ConfigEntry.UnitCode`, §3.10.2), so the HMI shows
+its own translated symbol; a fieldbus channel still carried only free text
+(`ST_IoChannel.Unit`), so the analog channels the expansion adds would have shown
+untranslated ASCII in the bus view.
+
+- **`ST_IoChannel.UnitCode : E_EngUnit`**, appended, `OPC.UA.DA` 0: static identity,
+  served through the manifest like `Name`/`Address`. `Unit` stays for clients that
+  predate the code.
+- **One source per channel.** `FB_IoTopologyPublisher.M_DefineAnalogChannel` gains a
+  `UnitCode` input. With a code, `Unit` is derived through `F_EngUnitSymbol` - the
+  `ST_ConfigEntry` pattern. The catalog's `EngUnit` text is kept only for a unit the
+  vocabulary lacks (`mA`, raw counts). A channel given both is refused with the existing
+  `std.error.fieldbusChannelMappingInvalid` (`MappingValid=FALSE`) instead of resolved
+  silently: two sources for one fact is exactly what O9 forbids, and the catalog is
+  reviewed engineering data, so the defect belongs on the commissioning screen.
+- **Manifest.** `F_AppendTopologyConfig` exports `UnitCode` only when it is not `NONE`;
+  an absent code reads as none, so a digital channel costs the manifest nothing extra.
+- **HMI.** `IoChannel.unitCode`/`unitKey`; `engUnitKey` in `types.dart` is now the one
+  code-to-key rule, used by `CfgField.unitKey` as well, and `engUnitOrNull` maps an
+  absent code - or one newer than the client - to the legacy text, which a current PLC
+  derived from that code. The channel row and the force dialog show the translated
+  symbol (`2.50 µm`, not the PLC's ASCII `um`).
+- **Upgrade cost.** Core *minor*: the `ST_IoChannel` layout and the method signature
+  change. Every `M_DefineAnalogChannel` call passes `UnitCode` - the 4024 profile has no
+  defaulted method inputs - so the Press catalog's eight EL6001 byte channels now pass
+  `UnitCode := E_EngUnit.NONE`. No retained data is involved.
+- **Tests.** `UnitCode_derives_the_unit_text`, `No_code_keeps_the_catalog_text`,
+  `A_code_and_a_text_together_are_refused` in `FB_IoTopologyPublisher_Tests`, on a table of
+  their own: the refused definition marks its table invalid, and the existing rows
+  validate theirs. HMI: `channel_unit_code_test.dart` (mapper, and the row in every
+  theme).
+- **Parity.** AB carries channel text only; TIA's `FB_IoTopologyPublisher` (C19) does not
+  carry the code yet. Both are recorded in their own census, and the read-surface gate
+  (`tools/check_consistency.py`) declares the AB absence in `AB_ABSENT`. That was the
+  first fieldbus entry ever declared there, and the gate reported it stale although the
+  HMI reads it: its staleness check looked only at module reads. It now judges a
+  `Topology/...` entry against the fieldbus reads and publications
+  (`test_a_fieldbus_absence_is_judged_against_the_fieldbus_surface`).
+
+## 165. Digital-input debounce at the source (Modules 0.12.0.0, 2026-10-26)
+
+A bouncing contact is settled by the module that owns the signal (§7.2.1), not by a wait
+in each sequence that happens to read it: the latter is a per-chain timer a project has
+to remember (O1), and a chain that forgets it advances on a bounce.
+
+- **`ST_DigitalInputParCfg` v2** appends `DebounceTime : TIME := T#0MS`. The type has no
+  recipe provider - the composition root assigns `ParCfg` - so nothing is stored and
+  nothing migrates; existing instances compile to v2 with the default, which is v1.
+- **Behaviour.** `OutImm.Value` follows the HAL only after it has differed from the
+  published value continuously for `DebounceTime`; the timer restarts on acceptance, so a
+  bounce straight back is timed from its own edge. `T#0MS` passes through in the same
+  scan. `Quality = FALSE` publishes `Value := FALSE` and resets the timer, so returning
+  quality is timed afresh rather than restoring the old value.
+- **Fail closed (§5.6).** A `SchemaVersion` other than the compiled layout's, or a
+  `DebounceTime` above `DI_DEBOUNCE_MAX` (`T#10S`, a type constant), makes `Setup` return
+  FALSE and publishes `Quality := FALSE` / `Value := FALSE` every scan for as long as it
+  persists - checked each scan, because `ParCfg` is an input a root may assign after
+  `Setup`. The compiled layout is the DUT's own initializer, read from a method-local
+  default instance, so the version number is written once.
+- **Surface.** No raw-value member and no reason code: a passive monitor has no command
+  to fault, and the raw value waits for a maintenance view that reads it (O4/O9).
+- **Upgrade cost.** Modules *minor* (published `ParCfg` layout); no behaviour changes for
+  an instance that does not set `DebounceTime` - the Press `PartPresentSensor` among them.
+- **Tests.** Five rows in `FB_InputCM_Tests`. The timed rows assert the elapsed `TIME()`
+  when `Value` changes, not a scan count, so a jittery test runtime can neither hide an
+  early change nor fail a correct one.
+- **Parity.** AB's generated digital-input type and TIA's M2 pass the value through;
+  both are recorded in their own census.
+
+Final (§164 and §165): Core 0.26.0.0 / Modules 0.12.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint profiles, the tool
+tests and strict consistency green; HMI analyzer clean, 622 passed / 12 skipped on Flutter
+3.44.6 (the 3.47.x pin is not installed on this host). The TcUnit runtime gates did not run:
+the isolated UmRT's `TC3 PLC` trial licence expired on 2026-10-13 and renewal is an
+interactive captcha, so the eight new rows are compiled, not executed. Scope and
+artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase0.md`.

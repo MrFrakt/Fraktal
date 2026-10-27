@@ -629,6 +629,23 @@ enum EngUnit {
   piecePerHour,
 }
 
+/// The catalog key of the unit to show, or '' for none: a code the PLC
+/// published wins; without one (an older controller, or a unit the vocabulary
+/// lacks) the legacy [legacyText] stands as it is. Shared by every published
+/// unit - a configuration value and a fieldbus channel read the same way.
+String engUnitKey(EngUnit? code, String legacyText) => switch (code) {
+      null => legacyText,
+      EngUnit.none => '',
+      final EngUnit known => 'std.unit.${known.name}',
+    };
+
+/// A published `UnitCode` ordinal, or null when it is absent or newer than
+/// this HMI - the legacy text, which the PLC derives from the code, then shows.
+EngUnit? engUnitOrNull(Object? published) =>
+    published is num && published >= 0 && published < EngUnit.values.length
+        ? EngUnit.values[published.toInt()]
+        : null;
+
 class CfgField {
   /// Portable weekly calendar V2, Monday bit 0 through Sunday bit 6.
   bool get isWeekdayMask => kind == CfgKind.lineCfg &&
@@ -690,13 +707,8 @@ class CfgField {
       this.readable = true,
       this.modelScoped = false});
 
-  /// The catalog key of the unit to show, or '' for none: a code the PLC
-  /// published wins; without one (an older controller) the legacy text stands.
-  String get unitKey => switch (unitCode) {
-        null => unit,
-        EngUnit.none => '',
-        final EngUnit code => 'std.unit.${code.name}',
-      };
+  /// The catalog key of the unit to show, or '' for none ([engUnitKey]).
+  String get unitKey => engUnitKey(unitCode, unit);
 
   /// A true/false value: edited with a checkbox, never typed.
   bool get isFlag => type == CfgType.boolean;

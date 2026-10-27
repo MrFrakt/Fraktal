@@ -72,6 +72,8 @@ routine or loop boundaries, and keep emitted formatting in `fraktal_ab_st_format
 | Signal tower / LAMP_TEST (§8.13) | reusable mapper | absent; no bench hardware | item 7 (stage 3) |
 | Line mirror/shared root (§3.8e) | owner/mirror roles | owner only; Chrome Line controls and physical Line retention unaccepted | item 8 |
 | Running-model set load (§3.8b) | refused | refused | item 9 (stage 6), shared with TC3 |
+| Analog channel unit code (§10.5.1, 2026-10-26) | `ST_IoChannel.UnitCode`, manifest-only; legacy `Unit` text derived from it; a catalog giving both is a mapping defect (Core 0.26.0.0) | channel `Unit` text only | add the code to the channel projection when an AB station has an analog channel; the HMI already reads it |
+| Digital-input debounce (Modules type, 2026-10-26) | `FB_DigitalInputCM` `ParCfg` v2 `DebounceTime` at the source; bad quality or an unhonourable `ParCfg` publishes invalid (Modules 0.12.0.0) | generated digital-input type passes the value through | port with the first AB station that needs it |
 
 Not gaps - deliberate or platform exclusions; keep them visibly unclaimed:
 control power and certified safety; Integrated Motion and PartFeed on the L24ER;

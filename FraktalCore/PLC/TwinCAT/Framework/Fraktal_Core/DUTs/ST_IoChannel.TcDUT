@@ -23,6 +23,9 @@ STRUCT
     Kind       : E_ChannelKind;
     BoolValue  : BOOL;          // digital
     AnalogValue: REAL;          // analog (scaled)
+    // Legacy unit text for clients that predate UnitCode. Derived from UnitCode
+    // when the catalog gives one (F_EngUnitSymbol); the catalog's own text only
+    // for a unit the E_EngUnit vocabulary lacks. Never both.
     {attribute 'OPC.UA.DA' := '0'}
     Unit       : STRING(16);
     Forced     : BOOL;
@@ -45,6 +48,11 @@ STRUCT
     ForceBool  : BOOL;
     {attribute 'OPC.UA.DA' := '0'}
     ForceAnalog: REAL;
+    // Core 0.26 - the analog channel's unit as a CODE, the ST_ConfigEntry.UnitCode
+    // pattern: the HMI shows its own translated symbol (std.unit.<name>). Static,
+    // so manifest-served like Name/Address; NONE = no code, and none is exported.
+    {attribute 'OPC.UA.DA' := '0'}
+    UnitCode   : E_EngUnit;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

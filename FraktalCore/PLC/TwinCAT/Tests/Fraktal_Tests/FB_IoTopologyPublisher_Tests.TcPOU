@@ -9,9 +9,17 @@ VAR
     _data, _dataDuplicate : ST_FieldbusTopology;
     _d : ST_Diagnostic;
     _wired, _duplicateWired : BOOL;
+    // Unit rows: one table of their own, because the refused definition marks
+    // its table invalid. The other two rows read only their own slots.
+    _unitPublisher : FB_IoTopologyPublisher;
+    _unitData : ST_FieldbusTopology;
+    _unitsWired : BOOL;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[Publishes_value_health_and_diagnostic();
-Rejects_duplicate_channel_identity();]]></ST></Implementation>
+Rejects_duplicate_channel_identity();
+UnitCode_derives_the_unit_text();
+No_code_keeps_the_catalog_text();
+A_code_and_a_text_together_are_refused();]]></ST></Implementation>
     <Method Name="Publishes_value_health_and_diagnostic" Id="{fc91f74a-2a63-41f2-af02-1d40e1f6b90a}">
       <Declaration><![CDATA[METHOD Publishes_value_health_and_diagnostic]]></Declaration>
       <Implementation><ST><![CDATA[TEST('Publishes_value_health_and_diagnostic');
@@ -72,6 +80,68 @@ AssertFalse(Condition := _publisherDuplicate.M_Validate(),
 AssertEquals_STRING(Expected := 'std.error.fieldbusChannelIdentityDuplicate',
     Actual := _dataDuplicate.MappingDiagnostic,
     Message := 'mapping failure is explicit and localizable');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_WireUnits" Id="{8e29905a-2ecc-4e09-ae12-776fe5c9b1c7}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_WireUnits]]></Declaration>
+      <Implementation><ST><![CDATA[IF _unitsWired THEN
+    RETURN;
+END_IF
+_unitPublisher.Setup(DataRef := _unitData, ResetData := TRUE);
+_unitPublisher.M_DefineNode(Index := 1, Name := 'Master',
+    DescriptionKey := 'project.hardware.master', TypeId := 'Test AI',
+    Address := 'Master', ParentIndex := 0);
+_unitsWired := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="UnitCode_derives_the_unit_text" Id="{a38d26fa-cf68-4cbd-b0f2-da3ea68580dd}">
+      <Declaration><![CDATA[METHOD UnitCode_derives_the_unit_text]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('UnitCode_derives_the_unit_text');
+_M_WireUnits();
+AssertTrue(Condition := _unitPublisher.M_DefineAnalogChannel(NodeIndex := 1, ChannelIndex := 1,
+        Tag := '_101B301', DescriptionKey := 'project.io.101B301',
+        Address := 'EL3062 Ch1', Path := 'Unit.IO._101B301',
+        ModulePath := 'Unit.SupplyPressure', Dir := E_ChannelDir.INPUT,
+        EngUnit := '', UnitCode := E_EngUnit.BAR),
+    Message := 'a channel with a unit code is accepted');
+AssertEquals_DINT(Expected := TO_DINT(E_EngUnit.BAR),
+    Actual := TO_DINT(_unitData.Nodes[1].Channels[1].UnitCode),
+    Message := 'the code is the published unit');
+AssertEquals_STRING(Expected := 'bar', Actual := _unitData.Nodes[1].Channels[1].Unit,
+    Message := 'the legacy text is derived from the code, not given twice');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="No_code_keeps_the_catalog_text" Id="{b27dfa43-10ac-4952-bc1c-fba5d55692e7}">
+      <Declaration><![CDATA[METHOD No_code_keeps_the_catalog_text]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('No_code_keeps_the_catalog_text');
+_M_WireUnits();
+AssertTrue(Condition := _unitPublisher.M_DefineAnalogChannel(NodeIndex := 1, ChannelIndex := 2,
+        Tag := '_101B302', DescriptionKey := 'project.io.101B302',
+        Address := 'EL3062 Ch2', Path := 'Unit.IO._101B302',
+        ModulePath := 'Unit.SupplyPressure', Dir := E_ChannelDir.INPUT,
+        EngUnit := 'mA', UnitCode := E_EngUnit.NONE),
+    Message := 'a unit the vocabulary lacks is given as text');
+AssertEquals_DINT(Expected := TO_DINT(E_EngUnit.NONE),
+    Actual := TO_DINT(_unitData.Nodes[1].Channels[2].UnitCode),
+    Message := 'no code is published as NONE');
+AssertEquals_STRING(Expected := 'mA', Actual := _unitData.Nodes[1].Channels[2].Unit,
+    Message := 'the catalog text is kept as it is');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="A_code_and_a_text_together_are_refused" Id="{4dcd728f-6a9a-41ab-a138-c9bff2c6df2c}">
+      <Declaration><![CDATA[METHOD A_code_and_a_text_together_are_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_code_and_a_text_together_are_refused');
+_M_WireUnits();
+AssertFalse(Condition := _unitPublisher.M_DefineAnalogChannel(NodeIndex := 1, ChannelIndex := 3,
+        Tag := '_101B303', DescriptionKey := 'project.io.101B303',
+        Address := 'EL3062 Ch3', Path := 'Unit.IO._101B303',
+        ModulePath := 'Unit.SupplyPressure', Dir := E_ChannelDir.INPUT,
+        EngUnit := 'psi', UnitCode := E_EngUnit.BAR),
+    Message := 'two sources for one unit are a mapping defect, not resolved silently');
+AssertEquals_STRING(Expected := '', Actual := _unitData.Nodes[1].Channels[3].Name,
+    Message := 'the refused channel is not written');
+AssertFalse(Condition := _unitData.MappingValid, Message := 'the catalog is reported invalid');
+AssertEquals_STRING(Expected := 'std.error.fieldbusChannelMappingInvalid',
+    Actual := _unitData.MappingDiagnostic, Message := 'with the existing mapping diagnostic');
 TEST_FINISHED();]]></ST></Implementation>
     </Method>
   </POU>

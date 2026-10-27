@@ -257,6 +257,9 @@ M_DefineNode := TRUE;]]></ST></Implementation>
 // bytes of a communication terminal (an EL6001 status/data byte is a channel of
 // the bus like any other, and an operator diagnosing a dead link needs to see it).
 // Identical validation to M_DefineDigitalChannel; only Kind and the unit differ.
+// The unit has ONE source per channel: a UnitCode (the published Unit text is then
+// derived from it), or - only for a unit E_EngUnit lacks - EngUnit text. A channel
+// given both is a mapping defect and is refused, never silently resolved.
 METHOD M_DefineAnalogChannel : BOOL
 VAR_INPUT
     NodeIndex : INT;
@@ -267,7 +270,8 @@ VAR_INPUT
     Path : STRING(255);
     ModulePath : STRING(255);
     Dir : E_ChannelDir;
-    EngUnit : STRING(16);          // '' when the raw count has no engineering unit
+    EngUnit : STRING(16);          // '' with a UnitCode, or when the raw count has no unit
+    UnitCode : E_EngUnit;          // E_EngUnit.NONE when the unit is given as EngUnit text
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_DefineAnalogChannel := FALSE;
 IF NOT _attached THEN
@@ -278,7 +282,8 @@ END_IF
 IF (NodeIndex < 1) OR (NodeIndex > _data.NodeCount)
 OR (ChannelIndex < 1) OR (ChannelIndex > PL_Fraktal.MAX_NODE_CHANNELS)
 OR (Tag = '') OR (DescriptionKey = '') OR (Address = '')
-OR (Path = '') OR (ModulePath = '') THEN
+OR (Path = '') OR (ModulePath = '')
+OR ((UnitCode <> E_EngUnit.NONE) AND (EngUnit <> '')) THEN
     _M_Reject(Text := 'std.error.fieldbusChannelMappingInvalid');
     RETURN;
 ELSE
@@ -291,7 +296,12 @@ _data.Nodes[NodeIndex].Channels[ChannelIndex].Path := Path;
 _data.Nodes[NodeIndex].Channels[ChannelIndex].ModulePath := ModulePath;
 _data.Nodes[NodeIndex].Channels[ChannelIndex].Dir := Dir;
 _data.Nodes[NodeIndex].Channels[ChannelIndex].Kind := E_ChannelKind.ANALOG;
-_data.Nodes[NodeIndex].Channels[ChannelIndex].Unit := EngUnit;
+_data.Nodes[NodeIndex].Channels[ChannelIndex].UnitCode := UnitCode;
+IF UnitCode <> E_EngUnit.NONE THEN
+    _data.Nodes[NodeIndex].Channels[ChannelIndex].Unit := F_EngUnitSymbol(Unit := UnitCode);
+ELSE
+    _data.Nodes[NodeIndex].Channels[ChannelIndex].Unit := EngUnit;
+END_IF
 _data.Nodes[NodeIndex].Channels[ChannelIndex].Quality := TRUE;
 IF ChannelIndex > _data.Nodes[NodeIndex].ChannelCount THEN
     _data.Nodes[NodeIndex].ChannelCount := ChannelIndex;
