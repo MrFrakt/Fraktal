@@ -5423,7 +5423,7 @@ to remember (O1), and a chain that forgets it advances on a bounce.
 Final (§164 and §165): Core 0.26.0.0 / Modules 0.12.0.0 installed from an isolated
 worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint profiles, the tool
 tests and strict consistency green; HMI analyzer clean, 622 passed / 12 skipped on Flutter
-3.44.6 (the 3.47.x pin is not installed on this host). The TcUnit runtime gates did not run:
-the isolated UmRT's `TC3 PLC` trial licence expired on 2026-10-13 and renewal is an
-interactive captcha, so the eight new rows are compiled, not executed. Scope and
-artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase0.md`.
+3.44.6 (the 3.47.x pin is not installed on this host). On the isolated UmRT: aggregate
+243/243 in 49 suites, Press 9/9 in 2 suites (Ladder AUTO). The first aggregate run met an
+expired `TC3 PLC` trial licence (2026-10-13); the owner renewed it and both gates passed
+unchanged. Scope and artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase0.md`.

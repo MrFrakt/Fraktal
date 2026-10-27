@@ -9,10 +9,11 @@
   "objectChecks": "VisualStudio.DTE.18.0, Debug | TwinCAT OS (x64): FraktalCore, FraktalModules, PressDemo, CoreDemo, FraktalTests, PressTests all CheckAllObjects=True, DteErrorListCount=0, 0 errors 0 warnings",
   "hmi": "Flutter 3.44.6 (pinned 3.47.x not installed; --enforce-lockfile refused, lock unchanged): analyze clean; test 622 passed, 12 skipped",
   "runtime": {
-    "target": "UmRT_Default 192.168.1.6.1.1:851",
-    "aggregate": "NOT EXECUTED: activation succeeded, runtime refused Run - License Violation 'TC3 PLC' not found for Fraktal_Tests; TrialLicense.tclrs issued 2026-10-05T19:10:00, expired 2026-10-13T00:00:00",
-    "press": "NOT EXECUTED: same licence",
-    "runtimeLeftIn": "Config, no application"
+    "target": "UmRT_Default 192.168.1.6.1.1:851, Autostart off, -StartBootProjectWithAds",
+    "aggregate": "PASS 243/243 in 49 suites (PRG_TcUnitRunner) 2026-10-26 20:28:36",
+    "press": "PASS 9/9 in 2 suites (PRG_PressTestRunner), Ladder AUTO rendition, 2026-10-26 20:30:20",
+    "failedAttempt": "first aggregate run: License Violation 'TC3 PLC' not found; TrialLicense.tclrs issued 2026-10-05T19:10, expired 2026-10-13T00:00; owner renewed (valid to 2026-11-04T00:00), rerun unchanged",
+    "runtimeLeftIn": "Run, PressTests application stopped"
   },
   "files": {
     "2026-10-26_TC3_GenericCM_Phase0_CheapGates.log": "a34038e142aabc67e84f872f53160314662f3f9e8bd418e6d0b0e322a13241bb",
@@ -26,7 +27,13 @@
     "2026-10-26_TC3_GenericCM_Phase0_ObjectCheck_PressTests.log": "41dfab06fc827b850c24104b484f8e80337d451bdc5d2232a1ff459e0ead0fbc",
     "2026-10-26_TC3_GenericCM_Phase0_HmiTest.log": "83099220d23fa2dad4aac0d92ae2a269b634913ea7413083c86749ce3a583bb1",
     "2026-10-26_TC3_GenericCM_Phase0_TcUnitAggregate_LicenceBlocked.log": "dfdd3d87f2fa2fc9860d72282a48963421fd43a0241863ef15ed58f563a578b3",
-    "2026-10-26_TC3_GenericCM_Phase0_RuntimeLicenceEvents.log": "9f2f9cc8d133cbfef65c854aee9d8ab159c2d52f3bc7285503bbea7daf90e86b"
+    "2026-10-26_TC3_GenericCM_Phase0_RuntimeLicenceEvents.log": "9f2f9cc8d133cbfef65c854aee9d8ab159c2d52f3bc7285503bbea7daf90e86b",
+    "2026-10-26_TC3_GenericCM_Phase0_TcUnitAggregate_Gate.log": "785cad9a3f16cf0eb90ed723dd11aec69900fb2f0da5b78282acae87c3f530f7",
+    "2026-10-26_TC3_GenericCM_Phase0_Aggregate_202836.raw.log": "f75d03004a55d2acab2d12cf77205b711355dc74616f7f00aa24dfd0f35daa37",
+    "2026-10-26_TC3_GenericCM_Phase0_Aggregate_202836.junit.xml": "8becb8a8283a8a756f2e269d1bd8196a3e2c2efb4cdf6a87e3754a5453e15113",
+    "2026-10-26_TC3_GenericCM_Phase0_TcUnitPress_Gate.log": "9e749fc334b21999dbf6b1c7f9e30518511a29343bb9a880c7a501ecf9d144ad",
+    "2026-10-26_TC3_GenericCM_Phase0_Press_203020.raw.log": "60442db180dd9e2d96c630568ce5166fc370f8bceb839d448d62f819e1b229ad",
+    "2026-10-26_TC3_GenericCM_Phase0_Press_203020.junit.xml": "42b05962f7a5d9c55a990ccde7bf35a6b08205d73654fc36cd1d1bbdc10ee7dc"
   },
   "sourceSha256": {
     ".github/workflows/ci.yml": "b9d6bcd64694b799f5031a857bd76eaa5eed37830f15b65d805b2082532d0ea2",
@@ -48,7 +55,7 @@
     "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Modules/DUTs/ST_DigitalInputParCfg.TcDUT": "15adf472c663d144087222cffaca975a0d1f8b18721548ccc392dcf3a39d1492",
     "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Modules/FB_DigitalInputCM.TcPOU": "9c9388dcc25d2c85f87572c8a09bbc44c54a8a799a0cf316da5c7b45615b4fd1",
     "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Modules/Fraktal_Modules.plcproj": "2109184a3f292a6b93ea123288857c87c0112331f0bbfc8aac195552125ee99b",
-    "FraktalCore/PLC/TwinCAT/IMPLEMENTATION_NOTES.md": "bdff64d18172cf7a4c5058e48a86d7a90a72b8d4adb6784a44af25369b7ad185",
+    "FraktalCore/PLC/TwinCAT/IMPLEMENTATION_NOTES.md": "b073174879be781660da24b7764ddaa671532eb073111e4af559cc8687a81d55",
     "FraktalCore/PLC/TwinCAT/README.md": "d143d0a2eacc7944d86ea8d573f1741d919f7e06ed311fcbca473e2c4d89422f",
     "FraktalCore/PLC/TwinCAT/Tests/Fraktal_Tests.plcproj": "b50a4cd67c598cada04b07e2fb0ac63270d2af7263e096685509800379114065",
     "FraktalCore/PLC/TwinCAT/Tests/Fraktal_Tests/FB_InputCM_Tests.TcPOU": "49b11103c706e3a096dcabf484de700c1ebf724a17b28153a78cd972a52b42f1",
