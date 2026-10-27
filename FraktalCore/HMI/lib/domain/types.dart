@@ -639,13 +639,6 @@ String engUnitKey(EngUnit? code, String legacyText) => switch (code) {
       final EngUnit known => 'std.unit.${known.name}',
     };
 
-/// A published `UnitCode` ordinal, or null when it is absent or newer than
-/// this HMI - the legacy text, which the PLC derives from the code, then shows.
-EngUnit? engUnitOrNull(Object? published) =>
-    published is num && published >= 0 && published < EngUnit.values.length
-        ? EngUnit.values[published.toInt()]
-        : null;
-
 class CfgField {
   /// Portable weekly calendar V2, Monday bit 0 through Sunday bit 6.
   bool get isWeekdayMask => kind == CfgKind.lineCfg &&

@@ -133,7 +133,7 @@ class TypeMapTests(unittest.TestCase):
             for path in manifest["witness_encodings"]:
                 self.assertEqual(manifest["witnesses"][path], 1709251198123456789)
                 self.assertFalse(any(name.startswith(path + ".") for name in manifest["witnesses"]))
-            self.assertEqual(sum(len(fields) for fields in manifest["types"].values()), 610)
+            self.assertEqual(sum(len(fields) for fields in manifest["types"].values()), 611)  # + ST_IoChannel.UnitCode
 
     def test_unknown_timestamp_candidate_refuses_before_creating_output(self):
         with tempfile.TemporaryDirectory() as directory:

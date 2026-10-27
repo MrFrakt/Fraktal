@@ -75,7 +75,8 @@ List<BusNode> _tree() => const [
     ];
 
 void main() {
-  test('a published code wins; absent or newer codes keep the legacy text', () {
+  test('a published code wins; absent, NONE or newer codes keep the legacy text',
+      () {
     final projection = OpcUaSnapshotMapper().map({
       'protocol': 'fraktal.opcua.snapshot.v1',
       'values': {
@@ -87,10 +88,11 @@ void main() {
         '$_node/Address': '1004',
         '$_node/State': 4,
         '$_node/LinkOk': true,
-        '$_node/ChannelCount': 3,
+        '$_node/ChannelCount': 4,
         ..._channel(1, '_101B301', 'bar', unitCode: EngUnit.bar.index),
         ..._channel(2, '_101B302', 'mA'),
         ..._channel(3, '_101B303', 'kWh', unitCode: 9999),
+        ..._channel(4, '_101B304', 'mA', unitCode: EngUnit.none.index),
       },
     });
 
@@ -102,6 +104,9 @@ void main() {
     expect(channels[2].unitCode, isNull,
         reason: 'a code newer than this HMI falls back to the derived text');
     expect(channels[2].unitKey, 'kWh');
+    expect(channels[3].unitCode, isNull,
+        reason: 'a binding that publishes the whole struct sends NONE');
+    expect(channels[3].unitKey, 'mA', reason: 'and NONE means the text is the source');
   });
 
   for (var i = 0; i < kThemes.length; i++) {

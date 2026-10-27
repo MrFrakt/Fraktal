@@ -1051,8 +1051,7 @@ class OpcUaSnapshotMapper {
           boolValue: _boolean(values['$channelPrefix/BoolValue']),
           analogValue: _number(values['$channelPrefix/AnalogValue']),
           unit: _string(values['$channelPrefix/Unit']),
-          // Manifest-only, and exported only when the catalog gave a code.
-          unitCode: engUnitOrNull(values['$channelPrefix/UnitCode']),
+          unitCode: _channelUnitCode(values['$channelPrefix/UnitCode']),
           forced: _boolean(values['$channelPrefix/Forced']),
           quality: _boolean(values['$channelPrefix/Quality']) &&
               usable('$channelPrefix/Quality') &&
@@ -1268,6 +1267,15 @@ int _integer(Object? value, {int fallback = 0}) =>
 double _number(Object? value) => value is num ? value.toDouble() : 0;
 Duration _duration(Object? value) =>
     Duration(milliseconds: _number(value).round());
+
+/// A channel's published `UnitCode`, or null - the legacy `Unit` text then
+/// stands - when it is absent (TC3 exports it only for a coded channel), NONE
+/// (the catalog gave the unit as text, if at all; a binding that publishes the
+/// whole struct sends 0) or newer than this HMI (the PLC derived the text).
+EngUnit? _channelUnitCode(Object? published) =>
+    published is num && published > 0 && published < EngUnit.values.length
+        ? EngUnit.values[published.toInt()]
+        : null;
 
 T _enumAt<T>(List<T> values, int index, T fallback) =>
     index >= 0 && index < values.length ? values[index] : fallback;

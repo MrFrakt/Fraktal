@@ -5369,9 +5369,11 @@ untranslated ASCII in the bus view.
 - **Manifest.** `F_AppendTopologyConfig` exports `UnitCode` only when it is not `NONE`;
   an absent code reads as none, so a digital channel costs the manifest nothing extra.
 - **HMI.** `IoChannel.unitCode`/`unitKey`; `engUnitKey` in `types.dart` is now the one
-  code-to-key rule, used by `CfgField.unitKey` as well, and `engUnitOrNull` maps an
-  absent code - or one newer than the client - to the legacy text, which a current PLC
-  derived from that code. The channel row and the force dialog show the translated
+  code-to-key rule, used by `CfgField.unitKey` as well. The mapper reads a channel's
+  absent, `NONE` or newer-than-the-client code as "no code", so the legacy text stands:
+  for a channel, `NONE` means the unit was given as text, and a binding that publishes
+  the whole struct (TIA, a raw ADS read) sends 0 for every uncoded channel. A first
+  version read 0 as "no unit" and would have hidden such a channel's `mA`. The channel row and the force dialog show the translated
   symbol (`2.50 µm`, not the PLC's ASCII `um`).
 - **Upgrade cost.** Core *minor*: the `ST_IoChannel` layout and the method signature
   change. Every `M_DefineAnalogChannel` call passes `UnitCode` - the 4024 profile has no
