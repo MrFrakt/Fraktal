@@ -482,7 +482,7 @@ write scope.
 |---|---|
 | E7 fails and the refused sample's fast-phase source age is > 400 ms | Move the slow refresh into its own worker operation between snapshots, so that a snapshot never contains slow rows: `refreshSlow` becomes a scheduled `acquireSlow` call, and snapshot walks are never due. Offline proof as in WP4b.2 |
 | E7 fails and `replyWaitUs` is > 400 ms | Record a profile-mode DevTools timeline against the rehearsal peer. Fix the UI-isolate hotspot in its owning widget or in `OpcUaSnapshotMapper`. No freshness change |
-| E7 fails in two consecutive profile sessions, and more than 10% of desktop groups need more than two attempts while host CPU is above 85% | Owner decision O7 |
+| E7 fails in two consecutive profile sessions, and more than 10% of desktop groups need more than two attempts while host CPU is above 85% | Apply the pre-selected O7 fallback: the second bench PC (leg 1), or the recorded bench limit if no second host exists (leg 2) |
 | Any of E1–E6 fails | Stop. Reproduce offline from the sealed bytes and fix the owning code. Never retry unchanged |
 | E8 records an overlap or ≥ 10,000 µs | Stop. Locate it with the TASK trace; make the PLC-side fix in the generator, with its own image and Capacity. Never clear counters |
 
@@ -695,10 +695,12 @@ approval.
   process of that instance. Instance discovery is unchanged (every folder with a
   `gateway.args`), so no third index is added. The generic gateway stays
   binding-neutral.
-- The persistence medium is O5. The recommendation is that the host `FileMedium`
-  is the AB reference medium, behind the same seam a controller medium could
-  later use (WP7.5 — which cannot run under O2, so the seam stays open without
-  a date).
+- The persistence medium is decided (O5, 2026-10-27): the host `FileMedium`
+  is the AB reference medium — what the press bench implements — behind the
+  same seam a controller medium could later use (WP7.5 cannot run under O2,
+  so the seam stays open without a date). A project may declare PLC memory
+  only: it runs no host adapter, publishes no `ConfigPersist` subtree and
+  claims no durability.
 
 **WP6.6 — Phase B: collapse the generator.** In `fraktal_ab_generate.py`:
 
@@ -767,10 +769,10 @@ sequence: the collapsed genealogy-S4b image, then the collapsed press image.
   - Capacity and scan (< 10,000 µs, zero overlaps).
 - **Press gates:** the 47 rows, with the seven core cases in each of ST, SFC and
   LD; schema identity; Capacity and scan.
-- **Baseline switch (O6).** The collapsed genealogy image becomes the Echo
-  rollback baseline, with its own 31 canonical baseline cases recorded in this
-  session. The legacy genealogy pin stays archived and is no longer
-  downloaded.
+- **Baseline switch (O6, approved 2026-10-27).** The collapsed genealogy image
+  becomes the Echo rollback baseline, with its own 31 canonical baseline cases
+  recorded in this session. The legacy genealogy pin stays archived and is no
+  longer downloaded.
 
 **Exit:** definition-of-done items 1, 4 and 5, and the census reports zero
 direct legacy references.
@@ -903,14 +905,27 @@ approval, not a design decision.
 - **O4 — V6.9 host-service contract approved** as the WP6.4 shape. The review
   document with its inventory is still written before WP6.5, but no further
   approval gates WP6.5 or the host-service part of WP6.6.
+- **O5 — §3.8b persistence medium** (decided in the second batch, same day).
+  The host `FileMedium` through the WP6.5 host adapter is the AB reference
+  medium and what the press bench implements. A project may declare PLC
+  memory only: it runs no host adapter, publishes no `ConfigPersist`
+  subtree and claims no durability — the HMI reads that as "nothing
+  pending, nothing lost", never a permanent alarm. The declaration's
+  `ConfigMedium` selects per project; the controller-medium seam stays open
+  without a date.
+- **O6 — baseline switch approved.** The collapsed genealogy image becomes
+  the Echo rollback baseline at S6-Q, after it passes its gates in that
+  session; the legacy pin stays archived with its hash.
+- **O7 — fallback pre-selected, leg 1.** If the trigger fires (two profile
+  sessions failing only E7 under host CPU above 85%), the desktop
+  acceptance moves to a second bench Windows PC running the same profile
+  drive against `cip://<echo-host>`. The bench-limit leg (E7 in fixture
+  mode, recorded as a declared exclusion) applies only if no second host
+  exists. No limit, budget or rule changes in either leg.
 
-**Still open:**
-
-| # | Decision | Needed by | Recommendation | If declined |
-|---|---|---|---|---|
-| O5 | §3.8b persistence medium | S6 exit | Host `FileMedium` as the AB reference, permanently under O2 (WP7.5 cannot run) | A controller medium cannot be probed or accepted without hardware |
-| O6 | Baseline switch to the collapsed genealogy image | S6-Q approval | Yes, at S6-Q after the collapsed image passes its gates in-session; keep the legacy pin archived with its hash | The legacy reader branch and baseline fixture must stay |
-| O7 | Contingent: two profile sessions fail only E7 under host CPU above 85% | Only then | Amended under O2: run the profile drive from a second Windows PC on the bench network against `cip://<echo-host>` (no controller purchase; the original "move to S7" leg is void). If no second host exists, record the 1 s desktop budget as a bench limit: S4b exits on E1–E6, E8, E9 plus E7 coverage in fixture mode | Further reader reductions (fewer rows per walk) under the unchanged rules |
+No owner decisions remain open. The next owner touchpoints are the ones
+that cannot be delegated: the C12 browser checklist (owner-operated by
+design, P10) and any controller other than Echo.
 
 ## 7. Risks and mitigations
 

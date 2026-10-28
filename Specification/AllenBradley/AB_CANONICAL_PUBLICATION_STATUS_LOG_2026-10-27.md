@@ -1894,3 +1894,28 @@ while re-reading: `Test-FraktalEndpoint` in `fraktal_instances.ps1` rejects
 installer's endpoint check; the S5 change adds the scheme beside `cip`.
 
 No controller access occurred in this entry.
+
+## Owner decisions O5–O7 — 2026-10-27
+
+The owner settled the three decisions left open by the morning batch:
+
+- **O5 — §3.8b persistence medium.** The host `FileMedium` through the WP6.5
+  host adapter is the AB reference medium and what the press bench
+  implements. A project may declare PLC memory only: it runs no host
+  adapter, publishes no `ConfigPersist` subtree and claims no durability —
+  the HMI reads that as "nothing pending, nothing lost", never a permanent
+  alarm. The declaration's `ConfigMedium` selects per project; the
+  controller-medium seam stays open without a date.
+- **O6 — baseline switch approved.** The collapsed genealogy image becomes
+  the Echo rollback baseline at S6-Q, after it passes its gates in that
+  session; the legacy pin stays archived with its hash and is never
+  downloaded again.
+- **O7 — fallback pre-selected, leg 1.** If two profile sessions fail only
+  E7 under host CPU above 85%, desktop acceptance moves to a second bench
+  Windows PC running the same profile drive against `cip://<echo-host>`.
+  The bench-limit leg (E7 in fixture mode, recorded as a declared
+  exclusion) applies only if no second host exists. No freshness limit,
+  budget or rule changes in either leg.
+
+All seven owner decisions (O1–O7) are now settled. No controller access
+occurred in this entry.
