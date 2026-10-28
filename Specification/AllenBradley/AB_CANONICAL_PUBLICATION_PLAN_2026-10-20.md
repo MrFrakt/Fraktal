@@ -1,1249 +1,939 @@
 # Fraktal/AB canonical publication — implementation plan
 
-Non-normative plan, 2026-10-20. It executes the decisions in
-[AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md](AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md)
-(D1–D9). Where the two differ, the design note's decisions win and this plan is
-corrected. Part III stays authoritative until a stage amends it.
+Non-normative plan, 2026-10-20, restructured 2026-10-27. It executes the
+decisions in [the design note](AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md)
+(D1–D9). Where the two differ, the design note wins and this plan is corrected.
+Part III and frozen contracts V1 stay authoritative for the shipping
+implementation until S6 activates V2.
+
+This revision states the remaining work (S4b–S7) as work packages: the files,
+the change, the tests, the offline gates and the native session for each. It
+also settles in advance every choice that can be settled now (§6.2), so that
+implementation needs no further design decisions except the open owner
+decisions in §6.3. The dated progress narrative to 2026-10-27 is preserved
+verbatim in the [status log](AB_CANONICAL_PUBLICATION_STATUS_LOG_2026-10-27.md).
+The sealed records under `Evidence/` are the authority for every result.
 
 ## 1. Goal and definition of done
 
-AB reaches the HMI the way TC3 and TIA do:
+AB reaches the HMI the way TC3 and TIA do. The PLC publishes the canonical Core
+module tree. One generic session client discovers it through the controller's
+own Symbol and Template objects plus the manifest, with no station declaration
+at runtime.
 
-- the PLC publishes the canonical Core module tree;
-- one generic session client discovers it through the controller's own Symbol
-  and Template objects plus the manifest, with no station declaration at
-  runtime.
-
-The work is done when **all** of the following hold:
+The work is done when all six hold:
 
 1. **Value equivalence.** A generic reader recovers every canonical path the
-   Python projection serves today, with identical values and types. The only
-   exceptions are the five D2 array-bound corrections and the explicitly
-   versioned [owner-approved S3f corrections](AB_CANONICAL_PUBLICATION_S3F_CONTRACT_REVIEW_2026-10-22.md):
-   the 110 enumerated Core types, bounded page windows, 12 missing Core fields,
-   PLC-owned revision/timestamps and validated provider responses. The owner also
-   approved the [200 S3g numeric corrections](AB_CANONICAL_PUBLICATION_S3G_CONTRACT_REVIEW_2026-10-23.md)
-   on 2026-10-23, including exact Core Float32 arithmetic and UInt32 bucket wrap. The
-   [224 dependent value paths](AB_CANONICAL_PUBLICATION_S3G_DEPENDENT_VALUES_REVIEW_2026-10-23.md)
-   are also approved: 64 OEE validity flags and 160 profiler row values. No general
-   numeric coercion, ignored path or tolerance is permitted. The owner also approved
-   the [36 S3h type corrections](AB_CANONICAL_PUBLICATION_S3H_CONTRACT_REVIEW_2026-10-23.md),
-   including unset Part timestamp empty string to zero; the other 242 added paths
-   retain exact values and types. The owner also approved the finite
-   [remaining-S3 corrections](AB_CANONICAL_PUBLICATION_REMAINING_S3_CONTRACT_REVIEW_2026-10-24.md)
-   on 2026-10-24: 122 path spellings, 13 frozen type corrections and the
-   enumerated command/status/history schema and arithmetic consequences.
-   The exact inventory and approval are bound in S3i inventory evidence. The frozen genealogy
-   capture (4,437 legacy paths) stays immutable; page-window shape and additional
-   Core fields have their own explicit S3f oracle. This holds for genealogy and
-   the press declaration in all three AUTO renditions.
-2. **Desktop.** The desktop HMI connects with `cip://<controller>` through a
-   generic `CipSessionClient` in `fraktal_opcua_client`. It is read-only unless
-   the target has a commissioned CIP Security policy (D9).
+   Python projection serves, with identical values and types, for genealogy and
+   for the press declaration in all three AUTO renditions. The frozen genealogy
+   capture (4,437 legacy paths) stays immutable. No general coercion, tolerance
+   or ignored path is permitted. The only differences are these finite,
+   owner-approved corrections:
+
+   | Correction | Approved | Record |
+   |---|---|---|
+   | Five D2 array-bound corrections | 2026-10-20 | design note, D2 |
+   | 110 Core types, bounded page windows, 12 missing Core fields, PLC-owned revision and timestamps, validated provider responses | 2026-10-22 | [S3f review](AB_CANONICAL_PUBLICATION_S3F_CONTRACT_REVIEW_2026-10-22.md) |
+   | 200 numeric corrections, including Core Float32 arithmetic and UInt32 bucket wrap | 2026-10-23 | [S3g review](AB_CANONICAL_PUBLICATION_S3G_CONTRACT_REVIEW_2026-10-23.md) |
+   | 224 dependent values: 64 OEE validity flags, 160 profiler rows | 2026-10-23 | [S3g dependent values](AB_CANONICAL_PUBLICATION_S3G_DEPENDENT_VALUES_REVIEW_2026-10-23.md) |
+   | 36 type corrections, including the unset Part timestamp from empty string to zero | 2026-10-23 | [S3h review](AB_CANONICAL_PUBLICATION_S3H_CONTRACT_REVIEW_2026-10-23.md) |
+   | 122 path spellings, 13 type corrections, command/status/history schema | 2026-10-24 | [remaining-S3 review](AB_CANONICAL_PUBLICATION_REMAINING_S3_CONTRACT_REVIEW_2026-10-24.md) |
+   | Read-only configuration view (V6.8), with its own independent oracle | 2026-10-25 | [S4b review](AB_CANONICAL_PUBLICATION_S4B_READONLY_CONFIG_REVIEW_2026-10-25.md) |
+
+2. **Desktop.** The desktop HMI connects with
+   `cip://<controller>?slot=<n>&serial=<hex>` through the generic
+   `CipSessionClient` in `fraktal_opcua_client` and renders every surface LIVE.
+   It is read-only unless the endpoint is a commissioned CIP Security session
+   (D9).
 3. **Web.** The Dart gateway serves Web clients from the same client
    (`--plc-endpoint cip://…`), with Core §14 writes over `wss://`.
-4. **Retirement.** The Python projection, the Python gateway and the Dart
-   spike (`HMI/lib/data/cip/`) are removed. §3.8b persistence, configuration
-   sets and the host-event sink have new owners (S6). The old generated
-   contexts are gone, and the canonical structures are the working storage.
-5. **Documents.** Part III, frozen contracts V2, `OPCUA_TRANSPORT.md`,
+4. **Retirement.** The Python projection and the Python gateway are deleted.
+   The Dart spike `HMI/lib/data/cip/` is already deleted in the working tree.
+   §3.8b persistence, configuration sets and the host-event sink have
+   declaration-free owners. The legacy generated contexts are gone, and the
+   canonical structures are the working storage.
+5. **Documents.** Part III, frozen contracts V2 (active), `OPCUA_TRANSPORT.md`,
    `AGENTS.md`, the AB README and the new-station guide describe the final
    behaviour. Every gate is green.
-6. **Acceptance.** Echo acceptance passes per stage; physical and CIP Security
+6. **Acceptance.** Echo acceptance passes per stage. Physical and CIP Security
    acceptance pass on a v37+ capable controller (S7).
 
-## 2. State at hand-over (2026-10-20)
+## 2. Status on 2026-10-27
 
-**Latest, 2026-10-24: capacity reduction started; R1, S3j and an R2 native
-session approved.** A fitted estimate showed the migration design will not fit
-S3k, S3j or the press, and gives about 56 K Blocks per added module. The
-[capacity plan](AB_CAPACITY_BUDGET_AND_REDUCTION_PLAN_2026-10-24.md) lists eight
-objective-aligned reductions. R2 (table-driven configuration page and audit,
-opt-in `canonical_table_driven`) is implemented offline. It measures 2,014,032
-Blocks (64%) on the S3i bench, 749,480 below the accepted image, with
-equivalent read-back, all oracle cases passing, and every accepted stage image
-byte-identical with the opt-in off. The owner approved the
-[V6.4 manifest](AB_CANONICAL_MANIFEST_V64_CONTRACT_REVIEW_2026-10-24.md) (R1)
-and the [S3j contract](AB_CANONICAL_PUBLICATION_S3J_CONTRACT_REVIEW_2026-10-24.md)
-for offline work. An R2 native session is approved in principle, pending
-exact-image preparation and confirmation. V2 remains inactive.
+| Stage | Status | Accepted record (local Echo L81E v38) | Still open |
+|---|---|---|---|
+| S0 type rules, V2 draft | Done | [types](Evidence/AB_S0_CANONICAL_TYPES_2026-10-20.md), [supplementary](Evidence/AB_S0_SUPPLEMENTARY_RUNTIME_2026-10-21.md) | — |
+| S1 Python reference reader | Done | [S1](Evidence/AB_S1_CANONICAL_READER_2026-10-20.md) | — |
+| S2 module tree | Done | [S2](Evidence/AB_S2_CANONICAL_RUNTIME_2026-10-21.md) | — |
+| S3a–S3k surfaces | Done at genealogy scope | see the list below | — |
+| S3 exit: press in ST/SFC/LD, path census | Done | [press S3 exit](Evidence/AB_PRESS_S3_EXIT_RUNTIME_2026-10-25.md), [census](AB_CANONICAL_PUBLICATION_S3_PATH_CENSUS_2026-10-25.json) | Physical-module identity and real I/O move to S7 |
+| S4a coherence bindings | Done | [S4a](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md) | — |
+| S4b generic Dart client and desktop | **Open** | Best functional result: [reader run](Evidence/AB_S4B_READER_RUNTIME_2026-10-26.md). Latest: [body-packet attempt](Evidence/AB_S4B_MSP_ATTEMPT_2026-10-27.md) | Desktop, configuration, idle, generic and final scan, together in one accepted session (§5.1) |
+| S5 gateway, Web, installer | Not started | — | §5.2 |
+| S6 retirement, collapse, persistence, events | Not started; census taken | [census](Evidence/AB_S4B_READER_RUNTIME_2026-10-26/Continuation/legacy_consumer_inventory_01.json) | §5.3 |
+| S7 physical controller, CIP Security | Not started | — | §5.4 |
 
-**Earlier, 2026-10-24: S3i exit passes on genealogy/Echo; genealogy is
-restored.** The owner approved the second lifetime retry (“go on”). Every
-stage ran once and exited 0. Candidate checks were 41/41. The calendar
-lifetime passed 7/7 rows with 38 public commits: natural interval, deferred
-target and calendar, natural closure into history, closed-target
-immutability. Its 7 pairs read on the independent 4,000-byte observer. One
-Program/Run without download preserved Line metadata, history values and
-types, and 8/8 first-scan vectors. Idle equivalence matches 4,010 paths. All
-97 pairs replay independently; rollback, 31/31 baseline and final checks pass,
-with no dumps. Candidate cumulative TASK max is 9,206 µs (zero overlaps), close
-to the 10 ms period. Physical power retention, the press renditions, S3j,
-S3k and S4–S7 remain. Read
-[S3i lifetime runtime](Evidence/AB_S3I_CANONICAL_LIFETIME_RUNTIME_2026-10-24.md).
-The approval is consumed; no commit or push; V2 remains inactive.
+S3 surface records: [S3a](Evidence/AB_S3A_CANONICAL_RUNTIME_2026-10-21.md),
+[S3b](Evidence/AB_S3B_CANONICAL_RUNTIME_2026-10-21.md),
+[S3c](Evidence/AB_S3C_CANONICAL_RUNTIME_2026-10-22.md),
+[S3d](Evidence/AB_S3D_CANONICAL_RUNTIME_2026-10-22.md),
+[S3e](Evidence/AB_S3E_CANONICAL_RUNTIME_2026-10-22.md),
+[S3f](Evidence/AB_S3F_CANONICAL_REVISION_RUNTIME_2026-10-23.md),
+[S3g](Evidence/AB_S3G_CANONICAL_RUNTIME_2026-10-23.md),
+[S3h](Evidence/AB_S3H_CANONICAL_OBSERVATION_FRAME_RUNTIME_2026-10-24.md),
+[S3i](Evidence/AB_S3I_CANONICAL_LIFETIME_RUNTIME_2026-10-24.md),
+[R1/R2](Evidence/AB_R1_R2_CANONICAL_RUNTIME_2026-10-24.md),
+[S3j](Evidence/AB_S3J_CANONICAL_RUNTIME_2026-10-25.md) and
+[S3k](Evidence/AB_S3K_CANONICAL_RUNTIME_2026-10-25.md).
 
-**Earlier, 2026-10-24: the corrected S3i lifetime retry was refused by its
-own download gate; the controller is unchanged and a second retry is
-prepared.** The retry workspace setup had copied files as text, rewriting CRLF
-line ends; the helper's hash-bound Capacity evidence no longer matched, so it
-refused before download. No download, mode change or tag write occurred;
-read-only guard and preflight afterwards equal the session's record. The
-second workspace is byte-exact, and a new offline replica of the helper's
-download gates passes on it (and fails on the refused workspace). The PLC image
-and the approved observer correction are unchanged. Read the
-[refused retry](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_ATTEMPT_2026-10-24.md) and
-[second retry preparation](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY2_PREPARATION_2026-10-24.md).
-New approval required; no commit or push; V2 remains inactive.
+The last commit before the decision batch was `f194c3a53` (2026-10-24). O1 was
+decided on 2026-10-27: everything since, including about 28,000 evidence files,
+was committed and pushed to `main` that day (see the
+[status log](AB_CANONICAL_PUBLICATION_STATUS_LOG_2026-10-27.md)). V2 and the Part
+III amendment are owner-approved targets, not active.
 
-**Earlier, 2026-10-24: S3i lifetime attempt failed at its first calendar
-capture; genealogy is restored and a corrected retry is prepared.** The
-approved lifetime session passed backup, download and 41/41 candidate checks
-(87 frame pairs, independently replayed). Its first calendar capture failed
-before any calendar write: `CalendarRun.observe` read the 173,792-byte frame
-through the mailbox writer, which every command leaves at 500 bytes (about 357
-requests against 44), so no read fitted the frame period. Rollback, 31/31
-baseline and final checks passed, with no dumps. The retained Program/Run cycle
-was not reached; the approval is consumed. The capture now uses the fixture's
-independent 4,000-byte observer, and the frame reader refuses any other socket
-size. 2,191 AB / 74 root tests pass; the PLC image is byte-identical. A fresh
-retry workspace awaits new approval. Read the
-[attempt](Evidence/AB_S3I_CANONICAL_LIFETIME_ATTEMPT_2026-10-24.md) and
-[retry preparation](Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_PREPARATION_2026-10-24.md).
-No commit or push; V2 remains inactive.
+### 2.1 Baselines the remaining work starts from
 
-**Earlier, 2026-10-24: S3i publication passes on genealogy/Echo; calendar
-lifetime remains open.** The approved A5FAFA46…7E36C42 image passed 41 candidate,
-eight native publication vectors and 31 restored-baseline checks. All 88
-same-frame pairs replay independently at 3,360–3,968 typed paths. Capacity is
-87% (2,763,512 / 3,145,728 Blocks); median LastScan is 875.5 µs, cumulative
-max 8,405 µs, zero overlaps. Genealogy is restored, MANUAL/idle/logged out with
-five saved/live documents equal. Every live pair had zero occupied shift
-history rows: synthetic publication vectors do not close natural calendar,
-target-lifetime or retained Program/Run gates. Prepare those next, before S3i
-exit or S3j. Read [runtime evidence](Evidence/AB_S3I_CANONICAL_RUNTIME_2026-10-24.md).
-The read-only observer's missing stage-11 result label was corrected before
-controller changes; all 2,178 AB /74 root tests pass. The session approval is
-consumed. No commit or push; V2 remains inactive.
+| Item | Value |
+|---|---|
+| Bench | Echo `601FC87B`, 1756-L81E v38.011, 127.0.0.1 slot 0, Remote keyswitch. The same Windows host (6 logical CPUs, 16 GB) also runs the HMI, gateway, Python and Dart tools |
+| Rollback baseline | Genealogy pin `D67561C4A30002E89B7D3F2973633D794239C5890221FF02319C5CFB93ED4084`, five original host documents, 31 baseline cases. Baseline TASK median 99 µs, maximum 1,166 µs, zero overlaps |
+| S4b candidate image | ACD `30315E6D6D88B1B3133C253D41775A94CD6C26C18F29B07F548CBAA5FA3049A5`, source `60C0AB6C7A40F0A5286B231E2BEF8889CA2FD96E1E2EBD8992D57C76638EBA4E`, manifest hash `3B765353B71891ED750D331CE11B5DDCE7D1663A06837C4C1EB0FC90FA3346AA`. Capacity 2,066,212 used / 1,079,516 available / 3,145,728 Blocks (65%) |
+| S4b write scope | The inherited 41 candidate cases (31 rows, 2 Access, 8 configuration) with exact restoration; 31 baseline cases after rollback |
+| S4b candidate scan | TASK maximum 9,002 µs, zero overlaps: 998 µs margin on the 10 ms period |
+| Press candidate | ACD `15E8902551FD6C6D8041727E69D5C2FE917D5BAC0E031D808DB66D8EBFCFD76F`, 53% Capacity, MaxScan 7,246 µs |
+| Published surface | Genealogy S4b: 5,940 discovered paths, 4,799–5,407 occupied values, 237–239 guarded groups per full walk, seven modules, three bus nodes. Press: 4,058 paths |
+| Toolchain | Flutter 3.47.5 / Dart 3.13.4 at `C:/work/fraktal-toolchains/flutter-3.47.5`, always with `--enforce-lockfile`; Studio v38 two-target build and read-back; the automatic Capacity collector |
+| Tests | 685 HMI passed / 12 skipped; 2,339 AB; 74 root; spec, contracts, strict consistency and whitespace clean |
+| Bound inputs | 373 PLC/gate source bindings; 1,081 session inputs in the latest run |
 
-**Earlier, 2026-10-24: remaining-S3 inventory reconciled; contract review
-is owner-approved for offline implementation.** The 157 raw unmatched keys
-include eight already-covered D2 endpoints. Comparing once in canonical index
-space leaves exactly 149: 126 mailbox/report, 16 Line/shift, five production
-fields and two Features flags; Access/Policy has no remaining gap. The
-[inventory](AB_CANONICAL_PUBLICATION_REMAINING_S3_INVENTORY_2026-10-24.json) proposes 122 native Core path spellings and 13 frozen
-type corrections, plus explicit bounded history and command/status schema
-obligations absent from the frozen sample. The finite target allowance is recorded; V2 remains inactive.
-Read the [contract review](AB_CANONICAL_PUBLICATION_REMAINING_S3_CONTRACT_REVIEW_2026-10-24.md) and [next-stage notes](AB_CANONICAL_PUBLICATION_REMAINING_S3_NOTES_2026-10-24.md).
+### 2.2 Measured facts that constrain the remaining work
 
-The accepted S3h image uses 85% Capacity, including its migration frame;
-genealogy was restored afterward. The next image's fit/scan is not measured.
-Shipping S4 coherence is per row/group under Part III §3.13; the frame is not
-a client dependency and is removed at S6. The actual press declaration in all
-three renditions and the separate fieldbus product remain S3 gates. This
-inventory performed no controller operation or production-source change.
-The S3h session approval is consumed. No commit or push.
+Bench:
 
-**Accepted S3h baseline, 2026-10-24: S3h exit passes on Echo through the observation
-frame; genealogy is restored.** The owner approved the session for ACD
-`E07C4196…649745` in chat (“yes i approve”). Every stage ran once and exited 0:
-guard, preflight, backup, download, SDK/read-back/access, 41 / 41 candidate
-checks, idle equivalence, generic acquisition and TASK timing; then
-hash-checked rollback and 31 / 31 baseline checks, followed by MANUAL cleanup
-and final checks. All 88 pairs were read from the PLC-latched frame under the
-unchanged `stable_scan_pair`, accepted in 2–29 of 100 polls, and compared equal
-at 3,342–3,950 typed paths. They replay independently from native bytes, and
-every record slice equals its frame bytes. Native records are 133,744 / 7,308 /
-16,616 bytes; the frame is 172,088. Candidate LastScan median is 872 µs,
-cumulative max 8,402 µs (equal to the C6 reading), zero overlaps; restored
-genealogy is 99 / 1,167 µs. Capacity is 85% (2,680,132 Blocks); the held-out
-forecast missed by +1.52% and its planning budget now exceeds the total. No
-dumps, fault clears, clock changes or hard kills. The approval is consumed.
-Physical/CIP Security, the 149 remaining inventory paths, S4–S7 and V2
-activation remain separate. Read
-[S3h runtime evidence](Evidence/AB_S3H_CANONICAL_OBSERVATION_FRAME_RUNTIME_2026-10-24.md).
-No commit or push.
+- The Echo service does not start at Windows boot. The owner starts it from an
+  elevated shell: `Start-Service "FactoryTalk Logix Echo Service"`. The
+  preflight refuses to download while an HMI session is logged in; ask the owner
+  to log out rather than weaken it ([redownload](Evidence/AB_ECHO_REDOWNLOAD_2026-10-19.md)).
+- After a forced shutdown, Echo once failed to start with a libComms
+  `+0x50C2A4` NULL dereference
+  ([diagnostic](Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_RUNTIME_2026-10-24.md)).
+  Shut Echo down in order. Every runner refuses to change the controller while a
+  dump file exists.
 
-**Earlier, 2026-10-24: a PLC-latched observation frame replaces the scan
-race; offline gates pass, native authorization pending.** Part III §3.13 says a
-coherence-guarded set shall change less often than its read window or be
-buffered on the PLC side, and retry is no substitute. The S3h pair (the
-133,744-byte root plus 30 legacy owner records) changed every 10 ms scan and
-took 8.7–15.9 ms to read. The owner asked for an evaluation against the Core
-§1.1 objectives and a decision; the frame was adopted under six conditions.
-Every fifth scan, after the canonical section's final even mark, generated
-`CPS` statements copy exactly those records into Read Only
-`FRK_Press_ObservationFrame`. A separate odd/even `FRK_Press_ObservationGeneration`
-brackets the copy, which carries the source scan generation and fragment
-revision. The oracle reads the frame through the unchanged `stable_scan_pair`
-(100 polls/five seconds, fresh start, four sockets, one pending read). It
-refuses a frame older than the capture request, from another definition
-revision, or whose Template members differ from its reads. Comparisons, types,
-corrections and the task period are unchanged. The frame has no top-level
-Status, manifest row or write, and is removed with the legacy contexts at S6.
+Transport:
 
-Nine new tests and 2,158 AB / 74 root tests pass; spec, contracts and strict
-consistency are clean. The frame's sources equal the reads in all 64 accepted
-native pairs. With the frame off the generator reproduces `E83B9A2C…567315`,
-and all eight prior stage images and sealed replays are exact. Source
-`BF456BCA…EFB1F2` builds on both v38 targets (import 0/0), reads back
-equivalent and passes effective access. Prepared ACD: `E07C4196…649745`.
-Automatic Capacity: 2,680,132 used / 465,596 available / 3,145,728 Blocks
-(85%), +178,412 over C6. Scan time and native equivalence need the next
-session, which requires current authorization for this exact ACD. Read
-[observation-frame preparation](Evidence/AB_S3H_CANONICAL_OBSERVATION_FRAME_PREPARATION_2026-10-24.md).
-No controller operation, commit or push.
+- A 4,000- or 4,002-byte connection connects; 8,000, 16,000 and 60,000 are
+  refused. Mailbox commands set the shared connection to 500 bytes, so
+  observers use their own 4,000-byte connections.
+- A Multiple Service Packet is not a whole-scan atomic transaction: 19 of 20
+  packets saw equal counters ([host timing](Evidence/AB_S4B_HOST_TIMING_2026-10-27.md)).
+  Every row keeps its own equal-even counter proof and a window under 10 ms.
+- Per-request latency on this host, median / p95 / maximum: Dart CLI 0.9 / 1.7 /
+  4.0 ms; Flutter without widgets 1.1 / 2.8 / 13.1 ms; Flutter while rendering a
+  UI 1.3 / 7.0 / 16.3 ms. Rendering on the same host pushes request tails past
+  the 10 ms row window.
+- The freshness profile is fixed in `CipReadPlan.freshnessBudget`: poll 250 ms;
+  fast Good/expiry 1 / 3 s; slow period/Good/expiry 5 / 7.5 / 15 s. The desktop
+  row budget is 20 attempts inside one second.
+- The HMI computes effective age as:
+  - the source age of the oldest fast row;
+  - plus transit (the RPC time minus the server's processing bracket);
+  - plus local processing.
 
-**Earlier, 2026-10-24: Echo recovery and S3h diagnostic download succeeded;
-S3h stops at the unchanged coherence gate. Genealogy is restored.** The owner's
-current “retry download on echo” instruction resumed the unused diagnostic
-scope. Exact identity/service/listener/Remote/no-fault checks passed, but the
-genealogy preflight refused a missing manifest. Two raw Symbol reads proved an
-empty RemoteProgram controller. A separate empty-only helper restored a
-hash-checked copy of the already-approved genealogy ACD, ran all 31 baseline
-checks and re-entered the original preflight/backup/S3h driver without changing
-its guards. The recovery helper initially lacked SDK FtspAdapter.exe and
-stopped before download; the exact existing SDK dependency was added and the
-failed log retained. Seven authorization cases and warning-clean build pass.
+  The code is `HMI/lib/data/opcua_freshness.dart` and
+  `HMI/lib/data/opcua_repository.dart:286-337`. Worker queue time is inside the
+  bracket and is not charged.
 
-The C6 S3h download, SDK audit, read-back and access audit pass. The instrumented
-fixture independently replays **64 exact pairs**, with 30 candidate checks
-passing, one SFC `abort` check failing at acquisition, and 10 checks not reached.
-The failed proof uses all 100 allowed polls in 267.188 ms: 38 unchanged-even
-waits, 46 odd polls and 16 complete windows. Five close in the next odd
-generation (+1); eleven close after the next even commit (+2). Wire windows
-are 7,975.6 / 9,838.55 / 15,090.6 µs min/median/max; opening-to-closing spans
-are 8,690 / 10,649.35 / 15,870.6 µs against the 10 ms task period. Immediately
-after failure both TASK mirrors report LastScan 1,065 µs, cumulative max
-8,402 µs and zero overlaps. This sample is not per-window task timing or the
-missing final 20-sample candidate scan gate. No accepted pair mismatches a
-value or type; mixed-generation bytes stay unaccepted.
+Logix generation rules. These bind the S6 generator work:
 
-Candidate cleanup, strict hash-checked genealogy rollback/read-back, all 31
-final baseline checks, MANUAL normalization and final readiness/preflight
-pass. Final baseline native timing is 99 µs median, 1,167 µs cumulative max,
-zero overlaps (20 samples). Total recorded checks this continuation are 93:
-92 pass, one candidate fails; these include the separate initial 31-check
-recovery. No emulator crash, new native dump, hard kill, fault clear, clock
-change or service/power toggle occurred. The session approval is consumed.
+- A member named after a type (`Time`, `DT`, …) fails with
+  `RxSTX_E_UNEXPECTED_TOKEN`.
+- Time literals are normalised: `T#1s500ms`, never `T#1500ms`, and never a
+  `TIME#` prefix.
+- ST has no `MOV`.
+- An array reference inside a subscript fails with
+  `RxCMP_E_OPERAND_INVALIDDIMSPEC`; index through a scalar.
+- Long operands can exceed the compiler's operand-length limit (S3k); keep
+  generated operands short.
+- An untyped decimal rounds to REAL before an LREAL assignment. Use the `L`
+  suffix or typed initial data (D5).
+- A Read Only parent blocks a writable child, so the ancestors of `HmiRequest`
+  are Read/Write. A None member breaks whole-structure reads.
+- Template metadata does not distinguish member RO/RW/None, so the manifest
+  publishes effective access.
 
-The owner's reverse-engineering report and final Ghidra log now explain the
-libComms +0x50C2A4 NULL dereference on the expected-length I/O error-logging
-path. The report attributes its startup trigger to corrupted power-down state
-after the earlier forced shutdown. This session corroborates the instruction/
-logging-call chain and matching binary hash; it does not reproduce that
-corruption. Keep orderly shutdown after faults and inspect controller dump
-folders before a later reboot. No vendor binary/state-file patch is applied.
-Read [diagnostic runtime and recovery evidence](Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_RUNTIME_2026-10-24.md).
-All 159 source and two wrapper bindings stay exact. S3h remains incomplete and
-V2 inactive; the next blocker is reliable read-coherence timing. No commit/push.
+### 2.3 S4b attempt ledger
 
-**Earlier post-reboot observation, 2026-10-24: Windows reboot did not recover the virtual controller.**
-Windows booted at 06:25:37 UTC; Echo's automatic startup exited with code 1
-at 06:26:46 UTC. The service is Running, but exact controller 601FC87B is
-enabled/ClosedExternally, RemoteProgram/Remote, not faulted, with no emulator
-process or CIP listener. The fresh dump repeats 0xC0000005 in libComms.dll
-at offset 0x50C2A4 and the same seven libComms frame offsets. The cause remains
-unconfirmed. The observed reboot is not an agent power-state retry.
+Each attempt was separately authorized. Each ended with genealogy restored and
+31/31 baseline cases, except the preflight attempt, which stopped before
+download with genealogy untouched. The 2026-10-26 runs used ACD `7D75E86E…DEF056BF`; the
+2026-10-27 runs used `30315E6D…3049A5`, which differs only in deferring cold
+first-scan view formatting.
 
-This continuation performed read-only checks only. All 159 project and two
-diagnostic source pins, and the unused C6 deployment image, remain exact.
-The diagnostic approval b76d12f2… remains recorded and unused. Its baseline
-identity/session/document guards cannot pass while the controller is absent;
-no upload, download, mode command or tag write ran. Controller definitions
-and retained-state files were preserved. The consumed restart approval does
-not authorize a further restart/reset/recreation. Rockwell's published next
-step after unsuccessful reboot is technical support; no underlying ASLR or
-retained-state cause has been established. Read
-[post-reboot evidence](Evidence/AB_S3H_CANONICAL_ECHO_POST_REBOOT_2026-10-24.md).
-S3h remains incomplete and V2 inactive. No commit or push.
-
-**Earlier, 2026-10-23: authorized Echo restart failed during emulator startup.**
-The one-shot approval `call_37bd66c3442340b08084fd7b2deb2ce5:0` was used:
-IsEnabled false applied; re-enable was requested and the native emulator
-exited with code 1. The service remains Running; controller 601FC87B remains
-enabled/ClosedExternally, RemoteProgram/Remote, not faulted, with no CIP
-listener. No PLC download, tag write, mode command, fault clear or clock
-change ran. The original S3h diagnostic approval remains recorded and unused.
-
-Fresh native crash metadata records 0xC0000005 in v38.011 libComms.dll at
-offset 0x50C2A4, with exception parameters [0, 0]. The x86 frame chain stays
-in libComms before runtime-library thread frames. Private vendor symbols are
-unavailable; the underlying cause remains unconfirmed. Earlier service logs
-also record an emulator shutdown timeout/forced close and the same startup
-exit before this authorized attempt. Controller definitions/state files stay
-in place. The full memory dump is not archived; only metadata/control-address
-stack frames and selected logs are recorded.
-
-Rockwell's Echo 4.00 release notes describe an initialization issue for which
-a Windows-host reboot is recommended. That is a possible next recovery step;
-ASLR is unconfirmed here. Read [restart result](Evidence/AB_S3H_CANONICAL_ECHO_RESTART_2026-10-23.md).
-S3h remains incomplete and V2 inactive; no further restart is authorized by
-the consumed one-shot approval. No commit or push.
-
-**Earlier restart preparation: the virtual controller was
-ClosedExternally.** Read-only SDK metadata identifies the exact 601FC87B /
-127.0.0.1 / slot 0 / v38.011 controller, enabled, RemoteProgram, Remote,
-not faulted. The emulator process and 44818 listener are absent. SDK loaded-
-project/path strings are empty; that does not prove the persisted PLC image
-is empty while the emulator is unavailable. No new controller change ran.
-
-A separate one-shot disable/re-enable helper is prepared and compile-clean.
-Six offline authorization cases pass. It verifies exact identity/GUID/firmware/
-slot/Remote/not-faulted and the reviewed ClosedExternally/RemoteProgram state
-immediately before use, and refuses if an emulator/listener appears. It changes
-only IsEnabled false then true, through the public SDK. It does not download,
-change keyswitch/mode, clear a fault or set a clock. This added restart needs
-current explicit approval under AGENTS.md §3a; its approval template is false.
-The original diagnostic approval remains recorded and unused. After restart,
-normal identity/session/document guards run; an unverified baseline stops
-before any diagnostic download. Read
-[restart preparation](Evidence/AB_S3H_CANONICAL_ECHO_RESTART_PREPARATION_2026-10-23.md). S3h is incomplete; V2 stays inactive.
-
-**Earlier diagnostic preflight: Echo service was stopped.**
-The owner approved `call_b76d12f2f038411386f83c339fcd94e0:0`, “Approve this
-guarded S3h diagnostic session”. The resumed service/identity guards refuse:
-FactoryTalk Logix Echo Service is Stopped, there is no 44818 listener, and
-this process is not an elevated Administrator. No upload, download, mode
-change or tag write ran. The prepared C6 ACD and diagnostic source pins still
-match; no deployment sentinel or backup artifact exists. Current approval
-remains recorded and unused; it is not being requested again.
-
-The initial command orchestration continued after the first failed guard.
-The backup helper independently refused before upload; all four failed logs
-are retained. The replacement runner checks each return code and stops before
-starting the next dependent phase. Owner action is the handover's documented
-elevated `Start-Service "FactoryTalk Logix Echo Service"`. Once service is
-back, fresh exact-identity/fault/keyswitch/HMI-session/document guards run again.
-Fault clears remain excluded. Read
-[service preflight](Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_SERVICE_PREFLIGHT_2026-10-23.md). S3h/V2 acceptance is unchanged.
-
-**Earlier active-workload S3h diagnostic preparation;
-current authorization pending.** The failed paced retry is sealed: 39 exact
-independent replays, first HELD coherence failure, successful rollback and all
-31 baseline regressions. Larger message requests do not offer a useful path:
-4,000/4,002 bytes connect; 8,000/16,000/60,000 are refused. An immediate-send
-event-loop prototype does not establish a reliable latency gain and is not
-in the implementation. No production reader/observer/PLC source changed.
-
-A separate guarded wrapper now records per-window and generation-read timing,
-keeps the last attempted raw frames explicitly unaccepted, and reads the eight
-existing native TASK mirror scalars after an acquisition failure, before the
-inherited fixture cleans up. It preserves the exact original exception,
-100-poll/five-second history, four sockets/one pending request, comparisons
-and all existing 41 candidate vectors. Evidence compression/writes happen
-after the proof. Timing calls/in-memory rows add small observer overhead;
-the native result will be labelled as instrumented diagnostics. Four wrapper
-tests pass, including authorization refusal and error/history preservation.
-
-All 159 existing source bindings remain exact, so their 2,149 AB / 74 root
-tests and exact-image two-target v38/79% Capacity proofs apply. A fresh C6
-image/helper is ready; fresh read-only baseline checks pass. No new native
-write is authorized or performed. Proposed scope is the same guarded backup,
-C6 download, inherited candidate fixture with diagnostics, and hash-checked
-genealogy rollback/31 baseline checks/final cleanup. Failure still stops the
-fixture and triggers rollback; there is no extra retry loop or acceptance claim.
-Read [diagnostic preparation](Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_PREPARATION_2026-10-23.md). V2 stays inactive;
-fault clears, clock changes, commit and push remain excluded.
-
-**Earlier paced S3h retry stops at active HELD coherence;
-genealogy is restored.** All 39 Access/configuration captures compare and replay
-exactly from native bytes and independently reconstructed owner/provider contexts.
-The two Access and eight configuration cases pass, but the first HELD capture
-fails before comparison: 100 polls contain 77 unchanged-even waits, six odd
-polls and 17 complete read windows; every window crosses one scan boundary.
-Pacing removed the earlier tight-poll starvation but did not establish active
-workload timing. The 1,000 baseline proxy passes do not transfer to this active
-HELD state. No path, type or value mismatch was observed in an accepted pair.
-
-Candidate cleanup, hash-checked rollback, all 31 baseline regressions, strict
-rollback read-back and final Run/not-faulted/Remote/scanning, MANUAL=1/idle/
-logout/not-restoring, five saved/live documents and original policy/preflight
-equality pass. All 159 sources remain unchanged; 2,149 AB / 74 root tests and
-the exact-image compiler/79% Capacity proofs still apply. The current session
-approval is consumed. No fault clear, clock change, commit or push occurred.
-
-S3h remains incomplete. Complete inherited/active/traceability checks, generic
-idle acquisition and candidate TASK timing were not reached. No accepted
-Capacity calibration sample is added; V2 stays inactive. The next task is to
-reduce and instrument active-workload acquisition latency, keeping the same
-100-poll/five-second positive equal-even proof. Read
-[paced retry attempt](Evidence/AB_S3H_CANONICAL_PACED_RETRY_ATTEMPT_2026-10-23.md). No further download is authorized.
-
-**Earlier paced S3h retry preparation (attempt completed above):**
-The prior retry is sealed with genealogy restored and all 31 baseline checks
-passing. Its failed capture spent 93/100 polls waiting for a fresh generation.
-The observer now waits one millisecond after an unchanged even generation.
-Every poll and wait remains inside the same 100-attempt/five-second gate;
-the next iteration checks the deadline before another read. Closing positive
-equal-even proof, four connections, one pending request each, all 47 packets,
-post-window decoding, PLC image and candidate stimuli are unchanged.
-
-The installed four-connection observer passes 1,000 consecutive read-only
-baseline proxy captures in 2–54 polls.
-These use the legacy scan counter and immutable payloads and do not establish
-S3h canonical acceptance. An eight-connection experiment showed similar median
-latency; it is retained as an experiment and is not shipped. All 2,149 AB tests
-(276.776 s), 74 root tests and strict cheap gates pass. The 159-file source
-closure differs only in the pacing implementation and its test. Regeneration
-is byte-identical to source E83B9A2C…567315 and ACD C6B42327…5D7D9DC, so the
-existing two-target v38 compiler/read-back/access and 79% automatic Capacity
-proofs apply. A fresh one-shot helper builds with zero warnings/errors.
-
-Fresh read-only preflight/readiness checks pass on restored genealogy. No new
-download, mode change or tag write is authorized or performed. The next native
-scope remains fresh backup, this exact image, 41 candidate checks/read-only
-equivalence and scan, genealogy rollback and 31 baseline checks/final cleanup.
-Fault clears and clock changes remain excluded. S3h remains incomplete and V2
-inactive; no commit or push. Read
-[paced retry preparation](Evidence/AB_S3H_CANONICAL_PACED_RETRY_PREPARATION_2026-10-23.md).
-
-**Earlier guarded S3h retry failed the coherence gate;
-genealogy is restored.** The first three Access captures match 3,742 paths/types
-exactly, with the five approved D2 bound corrections. The fourth capture
-(`class_policy_changed`) exhausts 100 polls: 93 waiting for a fresh scan,
-three odd-generation polls and four complete read windows, each crossing one
-scan boundary. There is no accepted value/type mismatch. All four sockets
-retain one outstanding read each; the 100-attempt/five-second gate is unchanged.
-
-Candidate cleanup, hash-checked genealogy rollback, all 31 baseline regressions,
-strict rollback read-back and final Run/not-faulted/Remote/scanning,
-MANUAL=1/idle/logout/not-restoring, five saved/live documents and original
-policy/preflight equality pass. No fault clear or clock change occurred.
-The current retry approval is consumed. S3h remains incomplete; the 41 candidate
-checks, complete traceability coverage and candidate timing remain open.
-
-All 159 bound sources remain unchanged during this attempt; the sealed
-2,148 AB / 74 root tests and exact-image v38/Capacity proofs still apply.
-Capacity remains 79%, not added as accepted calibration. Native record sizes
-from the three valid captures are 133,744 / 7,308 / 16,616 bytes. The next
-offline task is to pace fresh-generation polling and reduce acquisition
-overhead; another native session requires a newly prepared, reviewed scope.
-V2 remains inactive; no commit or push. Read
-[retry-attempt evidence](Evidence/AB_S3H_CANONICAL_RETRY_ATTEMPT_2026-10-23.md).
-
-**Earlier S3h retry preparation (attempt completed above):**
-The failed attempt remains sealed and genealogy remains restored. A qualified
-read-only observer now multiplexes four sockets with one pending request each,
-and starts acquisition on a newly completed generation. Every waiting poll
-counts against the original 100 attempts/five seconds. The closing equal-positive-
-even proof, complete byte coverage and post-window decoding are unchanged.
-Twenty baseline timing-proxy captures pass in 4–32 polls, with identical bytes;
-these are transport diagnostics, not S3h canonical acceptance.
-
-All 2,148 AB tests (270.165 s), 74 root tests and the focused transport/
-scan-start tests pass. The source closure binds 159 files. Source L5X and ACD
-are byte-identical to the original qualified S3h image: `C6B42327...5D7D9DC`.
-Both v38 build/read-back/access and automatic Capacity (79%) gates are reused
-by exact hash. A fresh one-shot helper/workspace is ready; no retry controller
-operation is authorized. Next requires current approval for backup, this exact
-download, 41 candidate checks/read-only captures, genealogy rollback and 31
-baseline checks. No fault clear, clock change, commit or push. V2 remains inactive.
-Read [retry preparation](Evidence/AB_S3H_CANONICAL_RETRY_PREPARATION_2026-10-23.md).
-
-**Earlier S3h native attempt stopped at the coherence gate;
-genealogy is restored.** Ten paired captures matched all paths/types exactly,
-but configuration capture six exhausted 100 attempts under the unchanged
-five-second, four-connection proof. The 47-request read plan (42 fragments,
-five batches) needs lower latency; no value tolerance or retry-budget extension
-is accepted. Candidate fixture cleanup and genealogy rollback pass, followed
-by all 31 baseline regressions and final Run/not-faulted/Remote/scanning,
-MANUAL=1/idle/logout, five saved/live documents and policy/preflight equality.
-No fault clear or clock change occurred. This session authorization is consumed.
-
-Before download a reference callback incorrectly treated its Boolean path
-selector as a document. It now takes occupied Count from the independently
-bracketed owner. Two regression tests were added; all 2,140 AB / 74 root /
-13 focused tests and cheap gates pass. PLC source/ACD and generic reader
-remain byte-identical; only the reference and its tests changed before download.
-The prepared Capacity gate stays 79%; the pending stage is not calibrated as
-accepted. Native record sizes from successful pairs are 133,744 / 7,308 /
-16,616 bytes, 157,668 total. S3h remains incomplete; V2 stays inactive.
-Read [failed-attempt evidence](Evidence/AB_S3H_CANONICAL_ATTEMPT_2026-10-23.md).
-
-**Earlier S3h offline preparation (native attempt recorded above):**
-The owner-approved 36 type corrections and unset Part stamp correction are
-implemented with 278 additional consumed paths. The emitted ST and independent
-reference reproduce all 278 frozen genealogy values exactly. Eleven focused
-tests, 2,138 AB tests (277.202 s), 74 root tests, both v38 builds,
-strict read-backs/access and specification/contracts/strict-consistency pass.
-All eight prior accepted images and sealed generic snapshots remain exact;
-the generic reader is unchanged. The source closure binds 157 files.
-
-Prepared ACD `C6B42327...5D7D9DC` has automatic Studio Capacity of
-2,501,720 used / 644,008 available / 3,145,728 total Blocks (79%),
-+94,520 over accepted S3g. No capacity figure was requested from the owner.
-The empirical forecast was 2,501,330 Blocks; it remains advisory. With a full
-host ring, expected page totals are 3,950 / 3,900 / 3,550. Empty/partial rings
-retain only their occupied physical paths, from the PLC Count. Cumulative
-legacy inventory is 4,288 of 4,437, leaving 149 paths for later stages.
-
-Fresh read-only checks confirm genealogy is still Run/not faulted/Remote/
-scanning, MANUAL=1/idle/logout/not-restoring; five saved/live documents and
-policy/preflight match. S3h has not been downloaded. Native equivalence,
-record sizes, scan and rollback remain open; the whole-scan gate stays
-100 attempts/five seconds. Next is separate current authorization for this
-exact image, inherited 41 candidate checks, read-only traceability captures,
-genealogy rollback and 31 baseline checks. No fault clear, clock change,
-commit or push is authorized. V2 remains inactive. Read
-[S3h preparation evidence](Evidence/AB_S3H_CANONICAL_PREPARATION_2026-10-23.md).
-
-**Earlier, 2026-10-23: S3g exit passes on Echo.** All 83 planned checks
-pass on their first runs: 41 candidate cases, nine OEE boundary vectors, two
-profiler high-bit vectors and 31 restored-genealogy regressions. All 88 paired
-captures replay exactly from native bytes and independent provider/metric
-references, at 3,672 / 3,622 / 3,272 paths/types. The unchanged whole-scan proof
-accepts in 1–75 attempts within 100 attempts/five seconds. All 151 prepared
-sources, including the PLC/image and generic reader, are unchanged; their
-2,127 AB and 74 root tests remain bound to the preparation seal.
-
-Automatic Capacity is 76%: 2,407,200 used / 738,528 available / 3,145,728 total
-Blocks, +108,752 over accepted S3f. Native root/definitions/alarm metadata total
-145,084 bytes (121,160 / 7,308 / 16,616). Candidate scan median/max is
-868 / 5,273 µs; restored genealogy 99 / 1,168 µs; zero overlaps. These are Echo
-observations under different workloads, not isolated publication costs.
-
-Genealogy is restored: Run/not faulted/Remote/scanning, MANUAL=1/idle/logout,
-not restoring, all five saved/live documents and policy/preflight equal. No
-fault clear or clock change occurred. This exact session authorization is
-consumed. V2 remains inactive; no commit or push. Read
-[S3g runtime evidence](Evidence/AB_S3G_CANONICAL_RUNTIME_2026-10-23.md).
-S3h offline preparation is now complete as recorded above; further controller
-changes need separate current approval.
-
-**Earlier S3h inventory (2026-10-23):** 278 added legacy paths bring
-cumulative coverage to 4,288, leaving 149. The [contract review](AB_CANONICAL_PUBLICATION_S3H_CONTRACT_REVIEW_2026-10-23.md)
-enumerates 36 Core type corrections: 16 UInt32 event sequences, three Int16
-ring counters and 17 DateTime stamps. The unset Part timestamp would change
-from the legacy empty string to canonical zero within that same list; all
-242 other added paths stay exact. Existing AB genealogy/delivery extensions,
-append/epoch/measurement/tower owners and consumed bounds stay unchanged.
-The owner approved these finite corrections and dependent offline work on
-2026-10-23 (`call_f7da50b3655c43e4be6d7145b8b02c9b:0`). S3h offline implementation now passes the preparation gates above;
-no S3h controller-changing operation is authorized. All 151 accepted S3g sources and 26 seals / 6,059 artifacts verify
-unchanged. Read [S3h inventory evidence](Evidence/AB_S3H_CANONICAL_INVENTORY_2026-10-23.md).
-
-**Earlier S3g offline preparation, 2026-10-23 (session completed above):** both approved amendments
-are implemented: 200 Core numeric types and 224 dependent values, with exactly
-1,055 additional consumed paths. The independent Core Float32/UInt32 reference
-and actual emitted ST pass 13 focused tests, 2,127 full AB tests (291.415 s),
-74 root tests, specification/contracts/strict-consistency and whitespace gates.
-The complete image passes both v38 builds, exact read-back and access audits;
-all seven accepted prior stage images and sealed capture replays remain exact.
-The generic reader is unchanged.
-
-Prepared ACD `CCE00F97...B4A6331` has measured automatic Studio Capacity of
-2,407,200 used / 738,528 available / 3,145,728 total Blocks (76%), +108,752
-over accepted S3f. Source `50E0F897...104DAE91` includes a separately generated
-bench routine: nine first-scan OEE boundary vectors and two high-bit profiler
-rows. The latter save/restore six fixed DINT owner cells in that same scan,
-before normal publication. Results are read-only and outside the canonical tree.
-No controller-changing operation is authorized or performed. Fresh read-only
-checks pass on restored genealogy: Run/not faulted/Remote/scanning,
-MANUAL=1/idle/logout/not-restoring, five documents and policy equal.
-
-Next is current authorization for this exact image and the guarded S3g native
-session: backup, Program/download/Run, 41 candidate regressions plus 11 native
-boundary results, read-only 3,672 / 3,622 / 3,272-path equivalence/size/scan,
-genealogy rollback and 31 baseline regressions/final checks. Native equivalence,
-scan, hardware and CIP Security acceptance remain open. No commit or push.
-Read [complete preparation evidence](Evidence/AB_S3G_CANONICAL_PREPARATION_2026-10-23.md).
-
-**Earlier S3g schema checkpoint, 2026-10-23 (superseded above):** owner approval records the 200 numeric
-corrections. The schema covers all 1,055 paths; native REAL/INT and the existing
-UInt32 bit representation need no generic decoder changes. The schema and health
-mapper pass both v38 compiler/read-back/access gates in an explicitly offline,
-uncalled type/health probe. Four focused tests and 2,118 full AB tests pass;
-S3f source still regenerates exactly B71E30AB...0AE7CF3.
-
-Boundary analysis found 224 dependent value paths omitted by the type-only
-allow-list: 64 OEE validity flags and 160 profiler row values. Their exact Core
-counterexamples and [review draft](AB_CANONICAL_PUBLICATION_S3G_DEPENDENT_VALUES_REVIEW_2026-10-23.md)
-were approved by the owner on 2026-10-23 (question
-`call_43d1f40d2efb4ab69d699df590f3c0bc:0`). The combined finite allowance is
-424 paths: 200 numeric types and 224 dependent values. Full algorithms and
-all complete-image gates remain required before deployment. No complete S3g deployment image,
-exact-image Capacity, native equivalence/scan or session is prepared. The layout
-forecast is advisory only. No controller access or changing operation occurred;
-the last verified live image is restored genealogy from the S3f session.
-Read [checkpoint evidence](Evidence/AB_S3G_CANONICAL_SCHEMA_2026-10-23.md).
-
-**Latest, 2026-10-23: S3f exit passes on Echo.** The authorized revision
-follow-up completed 74 accepted checks (42 candidate, one retained Program/Run,
-31 restored genealogy), with 93 independently replayed paired captures and
-2,114 AB / 74 root tests passing. Revision changes 745193095 → 1646242802 across
-the no-download restart; retained configuration/banks/policy/page stay equal.
-Both model CHANGEOVERs and exact restoration pass. Capacity is 73%, 2,298,448
-used / 847,280 available / 3,145,728 total Blocks. Candidate scan is 835 µs
-median / 4,573 µs maximum; restored genealogy 99 / 1,168 µs; zero overlaps.
-Read [revision runtime evidence](Evidence/AB_S3F_CANONICAL_REVISION_RUNTIME_2026-10-23.md).
-All failed attempts are retained (125 actual rows, 74 accepted); four read-only
-connections and fixture mode-application waits leave the PLC image and generic
-reader unchanged. Echo is restored to genealogy, Run/not faulted/Remote,
-MANUAL=1/idle/logout, five saved/live documents equal, policy/preflight equal.
-Current sources: 143. This session approval is consumed; V2 remains inactive.
-S3g offline preparation is described above; further native changes need their own current approval.
-
-**Next stage, S3g inventory (2026-10-23):** 1,055 added legacy paths bring
-cumulative legacy coverage to 4,010. Core declarations differ at 200 numeric
-paths (64 Float, 101 UInt32, 35 Int16), including explicit OEE rounding/wrap
-consequences. The [contract review](AB_CANONICAL_PUBLICATION_S3G_CONTRACT_REVIEW_2026-10-23.md)
-was approved by the owner for contract/offline work on 2026-10-23. S3g
-implementation is now in progress. No S3g controller operation is authorized.
-
-**Completed session, 2026-10-23:** the authorized S3f runtime session passes
-at its recorded scope: 31 inherited candidate rows, two Access checks, eight
-configuration cases and 31 restored-baseline rows. All 88 paired captures replay
-identically, including complete native fragments and independent provider
-contexts. Pages contain 2,617 / 2,567 / 2,217 paths/types. The observer now balances
-bounded fragment packets across two read-only connections inside the unchanged
-100-attempt/five-second whole-scan proof (1-59 accepted attempts); the PLC image
-and generic reader are unchanged. Two observer failures and a full repeat for
-missing MANUAL policy observations remain archived (113 actual rows, 72 accepted).
-140 current sources are bound; 2,108 AB tests and 74 root tests pass. See
-[runtime evidence](Evidence/AB_S3F_CANONICAL_RUNTIME_2026-10-23.md). Genealogy,
-Run/not faulted, MANUAL=1/idle/logout, five documents, policy and preflight are
-restored. This exact session approval is consumed. S3f retained restart and
-active-model native revision vectors remain open before its full exit; S3g is
-not started. No commit/push or further controller operation is authorized by
-the completed session.
-
-**Prior preparation, 2026-10-23:** S3f offline implementation has both v38
-compiler/read-back/access gates and a prepared ACD, pin A05695F1...E3EB66.
-Automatic Studio Capacity passes at 73%: 2,298,412 used / 847,316 available /
-3,145,728 total Blocks (+729,560 over S3e). Closing gates pass: 2,104 AB tests,
-74 root tests, specification/contracts and strict consistency. The
-[preparation evidence](Evidence/AB_S3F_CANONICAL_PREPARATION_2026-10-23.md) binds
-138 sources and retains all failed runs. The [S3f notes](AB_CANONICAL_PUBLICATION_S3F_NOTES_2026-10-23.md)
-and V6.3 wire draft describe bounded pages, corrected Core types and validated
-PLC-held provider responses. The fixture prepares 31 inherited rows, two Access
-checks and eight configuration cases, with 31 baseline rows after rollback.
-Native equivalence/scan/rollback and current controller authorization remain
-pending; the accepted live genealogy baseline is unchanged. No commit/push.
-
-**Current continuation, 2026-10-20:** the corrected first S0 probe was downloaded
-and measured, and genealogy restored with 31/31 regressions and passing final
-checks. D6/D7 are selected in the design note. See
-[runtime evidence](Evidence/AB_S0_CANONICAL_TYPES_2026-10-20.md),
-[V2 draft](AB_FROZEN_CONTRACTS_V2.json) and
-[Part III amendment draft](AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md).
-**Owner approved the target drafts on 2026-10-20: “Approve drafts and proceed
-to S1”. The S1 reference-oracle exit now passes at its recorded scope.** See
-[S1 evidence](Evidence/AB_S1_CANONICAL_READER_2026-10-20.md).
-The supplementary S0 runtime session completed on 2026-10-21 with owner
-Capacity fit, exact 2 MiB fragmented reads, browse-name root, effective access,
-precise LREAL vectors, 31/31 restored regressions and passing final checks; see
-[supplementary evidence](Evidence/AB_S0_SUPPLEMENTARY_RUNTIME_2026-10-21.md). The
-following hand-over state is historical; its original probe was superseded by
-[the corrected preparation](Evidence/AB_S0_CANONICAL_PROBE_PREPARATION_2026-10-20.md).
-
-### Echo
-
-- **Loaded image:** `fraktal_ab_genealogy_demo`, manifest
-  `6DEC4C1DC2F7F78A`. Re-downloaded on 10-19 with 31/31 regressions; see
-  [AB_ECHO_REDOWNLOAD_2026-10-19](Evidence/AB_ECHO_REDOWNLOAD_2026-10-19.md).
-- **The Echo service fails to start at boot.** The host rebooted on 10-19
-  20:38 and on 10-20 21:40, and both times the FactoryTalk Logix Echo Service
-  timed out on start (Service Control Manager events 7009/7000). The service
-  ACL lets only SYSTEM and elevated Administrators start it, so the owner must
-  run `Start-Service "FactoryTalk Logix Echo Service"` from an elevated shell.
-- **An HMI session was still logged in** (`echo_admin`, level 4) at the last
-  check. The preflight refuses to download over an active session. Do not
-  weaken that guard; ask the owner to log out.
-
-### S0 (prepared, not downloaded)
-
-- **Tools** (uncommitted):
-  - `tools/fraktal_ab_s0_canonical_probe.py` — generator;
-  - `tools/fraktal_ab_s0_canonical_measure.py` — read-only template decoder
-    and measurement;
-  - `tools/test_fraktal_ab_s0_canonical_probe.py` — 7 tests, passing.
-- **Work folder:** `C:/work/fraktal-ab-s0-20261019/`.
-  - The combined probe `combined/s0_combined.L5X` compiles on both v38 targets
-    with equivalent read-back.
-  - The prepared ACD `s0_probe.ACD` (SHA-256 `F7E54A1A…`) has equivalent
-    read-back and a clean log.
-  - `session/S0Session.exe` has the modes `prepare-probe` (done), `backup`,
-    `deploy-probe` and `restore-genealogy`.
-  - `scripts/preflight.py`, `scripts/guard_echo.py` and
-    `scripts/probe_loaded.py` support the session.
-- **Compiler facts already measured** (v38, offline SDK build):
-  - A member named after a type (`Time`, `DT`, …) fails with
-    `RxSTX_E_UNEXPECTED_TOKEN`.
-  - Time literals must be normalised: `T#1500ms` fails and `T#1s500ms`
-    compiles. The `TIME#` prefix fails.
-  - `TIME32`, `LTIME`, `DT` and `LDT` declare.
-  - Assigning a LINT into `TIME`/`DT`/`LDT` compiles.
-  - ST has no `MOV` (`RxSTX_E_INVALID_FUNC`).
-  - Studio canonicalises structured members to `Radix="NullType"`.
-  - StringFamily widths up to 480 compile.
-- **Runtime facts already measured** (Echo, read-only, 10-19):
-  - Symbol/Template discovery returns member names, types, offsets and BOOL
-    bit numbers.
-  - The generic decoder matches the layout decoder on all 47 `FRK_Press_Unit`
-    members.
-  - StringFamily members are recognised by shape.
-  - The golden projection capture is
-    `C:/work/fraktal-ab-echo-20261019/projection_capture_01.json`
-    (50 reads, 4,437 values, SHA-256 `5CA907E6…`).
-
-### Uncommitted working tree
-
-- The design note and this plan.
-- The S0 tools and their tests.
-- The 10-19 Echo evidence record.
-- The removal of the CIP spike's hex-dump `print`s in
-  `HMI/lib/data/cip/eip_cip_client.dart`.
-- Pre-existing owner edits that are not this work: `.gitignore`,
-  `AGENTS.md`, and the `.dart_tool` files under the Siemens archive snapshot.
+| Date | Record | Reached | Stopped at |
+|---|---|---|---|
+| 10-26 | [canonical attempt](Evidence/AB_S4B_CANONICAL_ATTEMPT_2026-10-26.md) | Download, audits | `Unterminated Template name` before readiness; 0/41 cases |
+| 10-26 | [Template retry](Evidence/AB_S4B_TEMPLATE_RETRY_ATTEMPT_2026-10-26.md) | Template and manifest discovery | First root sample refused |
+| 10-26 | [root diagnostic](Evidence/AB_S4B_ROOT_DIAGNOSTIC_ATTEMPT_2026-10-26.md) | Readiness | Root age 2,065.752 ms after 2,495.609 ms of processing |
+| 10-26 | [lookup retry](Evidence/AB_S4B_LOOKUP_RETRY_ATTEMPT_2026-10-26.md) | 41/41, 140 snapshots | Root Status Uncertain (`coherence-unavailable`) |
+| 10-26 | [coherence retry](Evidence/AB_S4B_COHERENCE_RETRY_ATTEMPT_2026-10-26.md) | 41/41, 587 rows | Bad value: 10 s slow expiry against the declared 15 s |
+| 10-26 | [freshness retry](Evidence/AB_S4B_FRESHNESS_RETRY_ATTEMPT_2026-10-26.md) | 41/41, 884 samples | Root Status retries exhausted (three attempts in 6,237 µs) |
+| 10-26 | [reader run](Evidence/AB_S4B_READER_RUNTIME_2026-10-26.md) | 41/41, 87 replays, 902 samples, configuration (1,100 values), idle and generic (5,407) | TASK maximum 10,033 µs with one startup overlap |
+| 10-26 | [desktop/scan preflight](Evidence/AB_S4B_DESKTOP_SCAN_PREFLIGHT_ATTEMPT_2026-10-26.md) | Backup | Ready-file race, before download |
+| 10-26 | [desktop/scan run](Evidence/AB_S4B_DESKTOP_SCAN_RUNTIME_2026-10-26.md) | All reader gates | Desktop helper false positive (zero modules); startup overlap |
+| 10-27 | [cold desktop](Evidence/AB_S4B_COLD_DESKTOP_ATTEMPT_2026-10-27.md) | 41 cases | Observer incomplete after 68 samples; later stages skipped |
+| 10-27 | [Status order](Evidence/AB_S4B_STATUS_ORDER_ATTEMPT_2026-10-27.md) | 41/41, 910 samples | Desktop startup null check |
+| 10-27 | [startup diagnostic](Evidence/AB_S4B_STARTUP_DIAGNOSTIC_ATTEMPT_2026-10-27.md) | 41/41, 906 samples | Desktop startup sample late or expired |
+| 10-27 | [parallel reader](Evidence/AB_S4B_PARALLEL_READER_ATTEMPT_2026-10-27.md) | 25/41 | Legacy Part reader: snapshot changed during every bounded read |
+| 10-27 | [Part-read diagnostic](Evidence/AB_S4B_PART_READ_DIAGNOSTIC_ATTEMPT_2026-10-27.md) | 41/41, 1,991 samples | Desktop STALE after overview |
+| 10-27 | [desktop timing](Evidence/AB_S4B_DESKTOP_TIMING_ATTEMPT_2026-10-27.md) | 41/41, 2,035 samples | Desktop STALE after overview |
+| 10-27 | [tier/queue](Evidence/AB_S4B_TIER_QUEUE_ATTEMPT_2026-10-27.md) | 49 samples | Login busy state not observed |
+| 10-27 | [busy witness](Evidence/AB_S4B_BUSY_WITNESS_ATTEMPT_2026-10-27.md) | 41/41, 2,805 samples | Desktop STALE after overview, 1,310.560 ms |
+| 10-27 | [row refill](Evidence/AB_S4B_REFILL_ATTEMPT_2026-10-27.md) | 41/41, 3,144 samples | Desktop STALE after overview, 1,428.145 ms |
+| 10-27 | [body packets](Evidence/AB_S4B_MSP_ATTEMPT_2026-10-27.md) | 41/41, 87 replays, 2,851 samples, median age 209.959 ms | Desktop STALE after overview, 1,051.723 ms |
 
 ## 3. Invariants for every stage
 
-- **One source.** The declaration remains the only source; the generator emits
-  the L5X. Hand-authored L5X is forbidden, and no station knowledge may enter a
-  client.
+- **One source.** The declaration is the only source, and the generator emits
+  the L5X. Hand-authored L5X is forbidden. No station knowledge enters a client.
 - **Canonical paths.** Paths, leaf names, enum ordinals and logical types equal
   TC3's (`HMI_CONTRACT.md`, `HMI/lib/domain/types.dart`). Array indices follow
   each array's Core-declared bound (D2).
 - **Published versus private.** Published members are External Access *Read
-  Only*; only `HmiRequest` is *Read/Write*; private storage is *None*. The R6
-  allow-list audit runs on every generated image.
-- **Native types per D3–D7.** Never name a member after a type. Use
-  normalised time literals.
+  Only*. Only `HmiRequest` and the typed command endpoints are *Read/Write*.
+  Private storage is *None*. The R6 allow-list audit runs on every generated
+  image.
+- **Native types per D3–D7**, and the generation rules in §2.2.
 - **Language parity.** ST/SFC/LD parity holds; the rendition gate and the 31
   regressions stay green.
-- **Controller-changing operations.** Each needs the owner's **current**
-  authorization, the exact identity guard immediately before use, a backup
-  upload, and restoration with acceptance afterwards. Evidence is append-only
-  under `Specification/AllenBradley/Evidence/`, including failed runs.
-- **Budget.** Memory and scan time are measured per stage (Studio Capacity
-  Estimate; native `TASK` `MaxScanTime`). The owner requested an automatic
-  estimate on 2026-10-21; the [calibrated forecast](AB_CAPACITY_FORECAST_METHOD_2026-10-21.md)
-  provides offline budgets. The qualified automatic Studio collector now
-  supplies the exact offline Capacity values from a hash-checked review copy;
-  it reproduced the owner's S3a values before measuring S3b. This replaces
-  routine screenshot requests on the qualified L81E/v38 English setup, while
-  preserving the measured gate. Forecasts remain advisory. No feature is cut
-  and no validation weakened to make an image fit.
+- **No gate is passed by relaxing it.** No freshness limit, proof window,
+  attempt budget, tier rule, coherence rule, access policy or read-only rule
+  changes to make a gate pass. No feature is cut and no validation weakened to
+  make an image fit.
+- **Budget.** Memory and scan time are measured per image. Memory uses the
+  automatic Studio Capacity collector on a hash-checked review copy. Scan time
+  uses native `TASK` `MaxScanTime` and the overlap count. The
+  [forecast](AB_CAPACITY_FORECAST_METHOD_2026-10-21.md) and the
+  [capacity plan](AB_CAPACITY_BUDGET_AND_REDUCTION_PLAN_2026-10-24.md) are
+  advisory.
+- **Controller changes** follow §4. Evidence is append-only under
+  `Specification/AllenBradley/Evidence/`, failed runs included.
 
-## 4. Stages
+## 4. Native session protocol
 
-### S0 — Measure the type rules and draft contract V2 (target drafts approved)
+Every controller-changing session follows these five steps. The stage sections
+list only what differs.
 
-Steps 1–3, 5 and 6's draft preparation have completed for the first probe.
-The supplementary step-4 session completed on 2026-10-21; see
-[runtime evidence](Evidence/AB_S0_SUPPLEMENTARY_RUNTIME_2026-10-21.md) and
-[preparation evidence](Evidence/AB_S0_SUPPLEMENTARY_PREPARATION_2026-10-21.md).
-Five positive cases compile/read back on both v38 targets. Echo reads all
-2,097,152 bytes exactly at both 500/4000-byte connection settings, with
-fragmented reads from byte zero. The 2 MiB + 4-byte UDT is rejected at import
-on both compiler targets; no global array-tag size limit is claimed. The
-browse-name root and precise LREAL `L`-suffix/typed-data vectors pass. Owner
-Capacity displays 69%: 2,189,916 used / 3,145,728 total blocks, 955,812 available.
-Native task MaxScanTime is 10 us with zero overlaps on this inert 10 ms probe.
-Genealogy and all five live documents were restored, 31/31 regressions pass,
-and final read-only checks pass. This completed session must not be reused. The
-first image's untyped decimal rounded to REAL before LREAL assignment. Retain
-this finding and the failed
-reader/acquisition attempts in the runtime evidence. The first session's
-preflight, backup and download outputs already exist and must not be overwritten.
+1. **Prepare offline.**
+   - Record exact ACD and source hashes.
+   - Both v38 targets build and read back; the effective access audit passes;
+     automatic Capacity is recorded.
+   - Every offline gate for the stage is green.
+   - Create a fresh workspace `C:/work/fraktal-ab-<stage>-<yyyymmdd>/session_NN/`.
+     Its runner verifies every bound input's hash before the first controller
+     call.
+   - The approval template is set to false, and a sealed preparation record is
+     written.
+2. **Ask once.** The owner approves one sentence naming the session and its
+   image, for example "Approve guarded S4b profile-desktop session". The
+   approval covers that image, that write scope and its rollback, once.
+   **Echo standing authorization (2026-10-27).** The owner states the Echo
+   instance exists exclusively for this work, so a session whose guard
+   confirms identity `601FC87B` at 127.0.0.1 slot 0 needs no per-session
+   approval. Every other rule of this section is unchanged — guards, dump
+   check, exact-target check, rollback, sealing — and any controller other
+   than Echo still needs its own approval.
+3. **Run.**
+   - Guard: service, listener, identity `601FC87B`, v38.011, slot 0, Remote, not
+     faulted, no HMI session logged in.
+   - Dump check, MANUAL normalization, preflight, backup upload.
+   - Start the read-only TASK monitor (100 ms).
+   - Program/download/Run; SDK log audits; read-back; access audit; candidate
+     guard.
+   - Then the stage gates. A writer stage stops the session at its first
+     failure. Read-only stages after the writer stages still run and record
+     (P5). Then the session rolls back.
+4. **Roll back.**
+   - Guarded MANUAL; download a hash-checked copy of the genealogy pin (the
+     original file is never opened); SDK and access audits.
+   - Restore the five original host documents; run the 31/31 baseline cases;
+     restore MANUAL, idle and logged out.
+   - Final checks, preflight verify-only, baseline timing.
+5. **Seal.**
+   - Whitelisted artifacts only: no ACD/BAK, binaries or credentials.
+   - Record payload hashes and never overwrite. Failed runs are sealed exactly
+     like passing ones.
+   - Update the stage's §2 row and add one §2.3-style ledger line. Nothing else
+     in this plan changes for a session.
 
-1. Owner starts Echo (elevated) and logs out of the HMI. Get current download
-   authorization.
-2. Run `S0Session.exe backup` (guard, preflight, upload), then
-   `deploy-probe`.
-3. Run the read-only `fraktal_ab_s0_canonical_measure.py --expect-serial
-   601FC87B --generation combined/combined.json --output <new>.json`. Record:
-   - template type codes for `TIME`/`TIME32`/`LTIME`/`DT`/`LDT`;
-   - their units, by comparison with the assigned literals;
-   - what LINT→`DT`/`LDT` assignment does to the value (Rockwell treats every
-     LINT as an `LDT` in conversion);
-   - BOOL bit packing, string LEN and bytes (UTF-8), nested structure arrays.
-4. Extend the probe with the questions S2 depends on, compiled and measured
-   in the same session if possible:
-   - **Size:** the largest single structure and tag the controller accepts,
-     and whether reads need Read Tag Fragmented (`0x52`).
-   - **Naming:** a controller-scope root tag named exactly as the root's
-     browse name (`Press`).
-   - **Discoverable access:** whether External Access shows in the Symbol and
-     Template access bits.
-5. Run `restore-genealogy`, then `fraktal_ab_genealogy_execute.py`
-   (configuration restore and 31 regressions) and the final read-only checks.
-6. **Decide** D6 and D7 from the measurements. Write the evidence record,
-   `AB_FROZEN_CONTRACTS_V2.json` (draft) and the Part III amendment draft. The
-   amendment covers §3.8 type map V2, §3.10 exposure, §11.1 (desktop direct
-   per D9, replacing "Direct CIP from the HMI is not the reference design"),
-   and the L24ER retirement.
+Never in any session: fault clears, TASK-counter clears, clock changes, power or
+vendor-state operations, Echo hard kills, or archiving a credential or Secret.
 
-**Exit:** the owner approves the V2 draft. Achieved on 2026-10-20. The
-supplementary gates before S2 now pass at their measured Echo scope.
-Access findings correct the earlier physical assumption: a writable descendant
-needs Read/Write on every ancestor, with Read Only on other public members.
-None members prevent whole-structure reads, so private working storage stays
-outside the canonical whole-read records. Symbol attribute 10 distinguishes
-top-level RO (2) / RW (0) on this Echo; raw Template metadata does not distinguish
-member RO/RW/None. The V6 manifest therefore publishes effective member access
-alongside logical types and bounds. These findings implement the approved
-leaf policy; they do not activate shipping V2 or authorize an S2 download.
+## 5. Remaining work
 
-### S1 — Generic reference reader (Python, test oracle)
+### 5.1 S4b — close the desktop gate
 
-- **New tool** `tools/fraktal_ab_canonical_reader.py`. It discovers through
-  Symbol, Template and manifest, decodes with the S0 decoder, and emits the
-  same `values` document shape as `fraktal_ab_projection.project`. It is a gate
-  oracle, not a shipped runtime: no gateway uses it.
-- **New tool** `tools/fraktal_ab_canonical_equivalence.py`. It compares the
-  reader's output with the projection for the same controller state, both live
-  and from recorded captures. Its report lists every differing path, with the
-  D2 allow-list explicit.
-- **Capture fixtures.** Promote `projection_capture_01.json` (and a press
-  capture) to compact test fixtures, plus Symbol/Template/tag-byte captures for
-  the canonical image once S2 exists. Fixtures are recorded data, never
-  hand-edited. Keep them within a stated size budget; compress if necessary.
-- **Tests:** synthetic-template unit tests, extending
-  `test_fraktal_ab_s0_canonical_probe.py`, and capture-replay tests.
+**What the evidence establishes.**
 
-**Exit:** the reader reproduces S0 measurements and the equivalence tool runs
-in the AB suite.
+1. The reader is functionally complete. The [reader run](Evidence/AB_S4B_READER_RUNTIME_2026-10-26.md)
+   passed all of these on 5,407 paths:
+   - 41/41 cases and 87/87 replays;
+   - four configuration pages (1,100 values);
+   - idle equivalence and generic acquisition.
 
-**Oracle exit passed, 2026-10-20:** 1,921 AB tests (20 canonical tests), 74 root
-tests, clean spec/contracts/strict consistency, both unchanged S0 v38 offline
-build/read-backs, full 47-check S0 replay and 4,437-value legacy replay. See
-[S1 evidence](Evidence/AB_S1_CANONICAL_READER_2026-10-20.md) for the remaining
-capture/wire-adapter boundary and exact outputs. No controller change occurred.
+   The desktop gate has never passed. The final scan gate passed only in runs
+   that ended before the desktop stage could run.
+2. Every desktop failure since the Part-read diagnostic is the same. The first
+   snapshot is LIVE; the second is refused at `after-overview`. The last three
+   sessions' refused snapshots:
 
-**Implementation boundary clarified on 2026-10-20:** S1's generic reader uses
-a normalized PLC-manifest annotation model. The physical V6 layout is explicitly
-S2 work in the approved V2 target; therefore the standard wire-manifest loader
-and stable paired live V1/V2 acquisition belong to S2, alongside its first image.
-The S1 live seam requires that loader, never a station declaration or an external
-manifest file. Matching configuration tokens does not prove scan atomicity.
+   | Session | Source age | Acquisition | Transit | Effective age |
+   |---|---:|---:|---:|---:|
+   | busy witness | 995.5 ms | 1,012.0 ms | 311.6 ms | 1,310.6 ms |
+   | row refill | 996.6 ms | 1,125.7 ms | 428.6 ms | 1,428.1 ms |
+   | body packets | 738.0 ms | 745.6 ms | 309.7 ms | 1,051.7 ms |
 
-No recorded press projection read/values capture was found in the checkout or
-`C:/work`; only the genealogy golden capture exists. Record the press fixture
-on an appropriately gated image before full S3 equivalence acceptance. Do not
-re-contact the retired L24ER to fill this gap, relabel genealogy, or manufacture
-recorded values. Canonical Symbol/Template/byte captures remain S2 work as above.
+   The limit is 1,000 ms.
+3. The refused walk is no larger than the observer's. It read 237 groups over
+   5,940 discovered paths. The observer's slowest walks read the same 237–239
+   groups in at most 364.5 ms, and its median acquisition is 209.5 ms. The
+   refused walk's slowest groups needed 4–6 coherence attempts of 35–58 ms each.
+   The first desktop walk's slowest groups needed 2–3 attempts of about 19 ms.
+4. The desktop runs under `flutter test`, on the same six-CPU host as the Echo
+   emulator:
+   - the debug-mode (JIT) `flutter_tester` engine with software rendering;
+   - `LiveTestWidgetsFlutterBindingFramePolicy.fullyLive`, at 1600×1000.
 
-S0's recorded bytes omit Template structure sizes and have no canonical root
-or manifest. S1 replays them diagnostically and reproduces all 47 checks,
-including the two DT/LREAL findings. Strict canonical decoding requires Template
-attribute **5** byte sizes. Synthetic templates test that path; a read-only Echo
-observation confirms the attribute service against 50 legacy templates, without
-claiming V6 acceptance or settling the supplementary maximum-size/access probe.
+   Rendering on this host raises request tails from 4 ms to 16 ms, above the
+   10 ms row window (§2.2). Debug-mode timing is not the shipped product's
+   timing; Flutter's guidance is to measure performance in profile mode.
+5. Two client inefficiencies add cost:
+   - On every snapshot, `CipSessionEngine.snapshot` re-expands and sends the full
+     discovered path vector (`cip_session_client.dart:274-278`; 10–19 ms on the
+     desktop). `OPCUA_TRANSPORT.md:385-387` and the repository
+     (`opcua_repository.dart:300-307`) expect it once per discovery, and the Web
+     API client sends it only when it changes (`webapi_session_client.dart:364`).
+   - On a slow-due walk (the first walk, then every 5 s), `CipReadPlan.acquire`
+     interleaves slow rows with fast rows in schema order
+     (`cip_read_plan.dart:706`). Fast rows read early keep ageing while the slow
+     reads that follow complete.
 
-### S2 — Canonical module tree (first published surface)
+So the desktop gate measures debug-mode rendering contention on a shared host
+as much as it measures the client. The packages below:
 
-**Offline candidate prepared, 2026-10-21:** the opt-in genealogy image publishes
-46 S2 paths for one Unit and six CMs, alongside unchanged legacy contexts and
-its V5 oracle manifest. The separate V6 manifest and generic physical loader
-are implemented; see [wire candidate](AB_CANONICAL_PUBLICATION_S2_WIRE_DRAFT_2026-10-21.md)
-and [preparation evidence](Evidence/AB_S2_CANONICAL_PREPARATION_2026-10-21.md).
-Both v38 targets compile/read back; prepared ACD pin is 2B3F99D9...D200973.
-The fixture's same-state gate uses an equal-even generation around all paired
-reads, bracketed around the entire PLC scan. **S2 exit passed on 2026-10-21**:
-46/46 paths and types match with same-scan proof, both owner Capacity values
-and native scan deltas are recorded, and candidate/restored-baseline
-regressions pass 31/31 each. Genealogy is restored and final checks pass. See
-[runtime evidence](Evidence/AB_S2_CANONICAL_RUNTIME_2026-10-21.md), including
-the retained interrupted backup and guarded recovery. The next surface is S3a;
-shipping V2 activation and the remaining stages are still open.
+- remove the client's own excess;
+- make acceptance run the shipped build;
+- let one session show where the remaining time goes.
 
-During migration V5 remains solely for the existing oracle/harnesses. V6 is
-the canonical client's manifest; no client reinterprets the V5 context rows.
-The first Status slice contains identity/state/fault fields; diagnostics follow
-in S3b. ModelCode retains the application's existing 80-byte catalog bound.
-The module forest is discovered from native Status members. Private scratch
-and the test generation/timing records are not module roots.
+None changes a limit, budget, rule or policy (§3).
 
-- **Generator** (`fraktal_ab_generate.py`):
-  - a root record (`FRK_T_<App>Root`) and a controller tag named exactly as the
-    root's browse name;
-  - every module's `Status : ST_ModuleStatus` equivalent as named members;
-  - children as members named after the schematic;
-  - mode, run style, model, `Step`/`CurrentStep`.
-  - During S2–S3 the canonical structures are written **alongside** the
-    existing contexts. Running both is a migration device only; S6 collapses
-    them.
-  - Derived values move into generated ST in the owning service
-    (`unit_logic`, `module_logic`, `diagnostic_logic`, …), never into a client.
-- **Manifest** (`fraktal_ab_manifest.py`): `Fields` rows describe canonical
-  paths with `LogicalType` and the D2 logical lower bound/element count. BOOL
-  arrays are expanded from template DWORD storage using that logical extent.
-  Manifest major steps to 6.
-  Effective member access is published where native discovery does not provide
-  it; derive it from the same owning declarations as the UDT access settings.
-  Canonical whole-read records contain no None members. Ancestors of a writable
-  mailbox are Read/Write while other public branches remain Read Only.
-  `content_hash`/`config_revision` stay the coherence token.
-- **Tests:** generator unit tests (member names, access, radix, no reserved
-  names), compile and read-back on both targets, then live equivalence on Echo
-  for the published subset.
+**WP4b.1 — Send the path vector once per discovery.**
 
-**Exit:** equivalence for the S2 subset, plus memory and scan deltas recorded.
+- `HMI/packages/fraktal_opcua_client/lib/src/cip_session_client.dart`:
+  - `CipSessionEngine` gains `bool _pathsSent = false`.
+  - `snapshot()` calls `plan.publication.discoverPaths()` and fills `'paths'`
+    only while `_pathsSent` is false, then sets it true. Afterwards it sends
+    `'paths': const <String>[]`.
+  - `discover()` builds a new engine, so every reconnect sends the vector again.
+  - The trace records `pathExpansionUs` and `pathCount` only on the sending
+    snapshot.
+- Tests:
+  - the first snapshot carries exactly `discoverPaths()` and the second
+    carries `[]`;
+  - after a new `connect` the vector is sent again;
+  - the repository keeps the last non-empty vector
+    (`opcua_repository.dart:304-307`), and its tier classification is unchanged.
 
-### S3 — Remaining surfaces, one at a time
+**WP4b.2 — Read slow-due rows before fast rows.**
 
-Migrate in this order, smallest dependency first. Each surface is one commit
-with its own equivalence, Capacity and scan record.
+- `cip_read_plan.dart`, `acquire()`, when `paths == null && due`, walks the
+  records in two phases with `flush()` between them:
+  1. `slowOnly` visits only groups whose consumed leaves are all slow (the
+     existing test at line 706);
+  2. `fast` visits only groups with at least one fast leaf.
 
-S3a uses a [94-path inventory](AB_CANONICAL_PUBLICATION_S3A_NOTES_2026-10-21.md).
-The code exposes a distinction the original surface list did not spell out:
-physical array capacity differs from the current logical view, and the model
-count changes at runtime. V6.0's static exact-extent rows need a versioned
-published view before this image can be generated. Decision.Timeout/SourcePath
-also have no oracle paths; resolve that separate Core gap explicitly. Neither
-finding permits weakening the five-D2-only equivalence rule. The owner selected the logical-view option, and the
-[V6.1 candidate](AB_CANONICAL_PUBLICATION_S3A_WIRE_DRAFT_2026-10-21.md) implements
-explicit selections/live count references with validation even for empty
-arrays. S2 output is unchanged. **S3a offline preparation passes:** 1,960 AB
-tests, 74 root tests, both v38 compiler/read-backs and a pinned reopened ACD.
-See [preparation evidence](Evidence/AB_S3A_CANONICAL_PREPARATION_2026-10-21.md).
-**S3a runtime exit passes at this subset**, after current owner authorization
-for the pinned F1D24CA8...A7EE79F image. Capacity is 817,476 used / 2,328,252
-available / 3,145,728 total blocks (displayed 25%), +72,232 blocks over S2.
-All 94 paths/types match, including four active-decision pairs. Candidate
-and restored-genealogy regressions pass 31/31 each. The first candidate run's
-18 completed rows and failed same-scan acquisition are retained; moving
-metadata copies/decoding after the closing generation read fixes the harness
-without changing PLC code, proof or retry budget. Native candidate median
-LastScanTime is 110 us, cumulative MaxScanTime 1,178 us, zero overlaps; the
-prior S2 observations were 109 / 1,177 us. Workloads differ by the disclosed
-failed/retried fixture and paired captures, so these are observations rather
-than isolated cost measurements. Genealogy is restored and final checks pass.
-See [runtime evidence](Evidence/AB_S3A_CANONICAL_RUNTIME_2026-10-21.md).
-S3b offline preparation now passes 2,007 AB tests, 74 root tests, the native
-compiler/read-back and automatic Capacity gates; see
-[preparation evidence](Evidence/AB_S3B_CANONICAL_PREPARATION_2026-10-21.md).
-Its independent inventory has 304 paths: the accepted 94, six diagnostic
-fields on seven modules (42), and seven timing fields on eight rows for three
-commanded CMs (168). The fixture has no EM. Several full-Core status fields have
-no oracle paths; these remain explicit gaps in
-[the S3b notes](AB_CANONICAL_PUBLICATION_S3B_NOTES_2026-10-21.md).
-The prepared ACD is pinned to `634A3A86...4394EEF`. Automatic Studio Capacity
-is 991,612 used / 2,154,116 available / 3,145,728 total blocks (31% displayed),
-+174,136 blocks over S3a. **S3b runtime exit now passes at this subset** after
-current owner approval of that exact image: 304/304 paths/types, four decision
-pairs, ten held pairs and four Unit first-out fault pairs, covering all three
-renditions. Candidate and restored-genealogy regressions pass 31/31 each.
-The first eight-row run failed same-scan acquisition because mailbox commands
-set the shared connection to 500 bytes. An independent 4,000-byte read observer
-fixes this without changing framing or proof. A subsequent 31-row run lacked
-fault observations after child Execute-drop; observing the owning Unit's
-latched first-out closes the original coverage gate. All failures and 39 extra
-candidate rows remain recorded. Accepted captures need one or two attempts.
-Native candidate median LastScanTime is 123 us (122–123), cumulative maximum
-1,190 us, zero overlaps; prior S3a was 110/1,178 us. These are observations
-under disclosed different workloads, not isolated publication costs.
-Genealogy/five documents are restored and final checks pass. Final gates:
-2,011 AB tests, 74 root tests, spec/contracts/strict consistency and native
-download/read-back/access checks. See
-[runtime evidence](Evidence/AB_S3B_CANONICAL_RUNTIME_2026-10-21.md).
-S3c offline preparation passes at an independently inventoried
-647 paths (304 prior plus 343 sequence/current-step leaves). Both v38 builds,
-strict read-backs/access, 2,052 AB tests and 74 root tests pass. Automatic
-Capacity is 1,107,552 used / 2,038,176 available / 3,145,728 total Blocks (35%),
-+115,940 over S3b. ACD pin: A2559188...0C2286C. See
-[preparation evidence](Evidence/AB_S3C_CANONICAL_PREPARATION_2026-10-22.md) and the
-[S3c notes](AB_CANONICAL_PUBLICATION_S3C_NOTES_2026-10-22.md) and
-[V6.2 record-binding draft](AB_CANONICAL_PUBLICATION_S3C_WIRE_DRAFT_2026-10-22.md).
-Definitions live in a separate PLC record bound by the manifest; the PLC Chart
-still owns fast-step history. The native root carries the cursor, history,
-sparse notes and current-step detail. Generic discovery imports no station.
+  The Status phase stays last. `seenCounts` persists across phases, so each
+  count is read once per walk, as today. Non-due walks and targeted reads
+  (`paths != null`) are unchanged.
+- Every walk reads the same request multiset as today. Only the order changes,
+  and only on due walks.
+- Tests use recorded-wire replay from `test/fixtures/cip_publication_goldens.json.gz`
+  and a synthetic clock advancing 1 ms per request:
+  1. For due and non-due walks, the sorted wire-request list is identical to
+     the current order.
+  2. Values and types are identical.
+  3. On a due walk, the maximum fast `ageMs` is bounded by the fast and Status
+     phases, and is lower than the interleaved order's by at least the slow
+     phase's duration.
+  4. A non-due walk's request order is byte-identical.
 
-**S3c runtime exit passes at this subset** after current owner approval of
-A2559188...0C2286C. Candidate/baseline regressions pass 31/31 each on their first
-runs. All 647 paths/types match across four decisions, 14 held/fault pairs and
-21 sequence pairs, covering ST/SFC/LD mode clear, sparse warning notes and
-retained completed fast steps. Idle equivalence and generic discovery also
-pass. All 40 paired captures and the generic capture replay identically.
-Same-scan attempts range 1-6 within the unchanged 100-attempt/five-second gate.
-Native candidate median/range is 200 us / 200-201, cumulative maximum 1,600 us,
-zero overlaps; prior S3b observations were 123/1,190 us. Different workloads
-preclude an isolated publication-cost claim. Restored genealogy is 99/1,167 us.
-See [runtime evidence](Evidence/AB_S3C_CANONICAL_RUNTIME_2026-10-22.md).
+**WP4b.3 — Measure the remaining time.** These run under
+`--dart-define=fraktal.cip.trace=true` only; default builds are unchanged.
 
-**Readiness correction, 2026-10-22:** the inherited work scripts called Mode 0
-MANUAL; the declaration defines AUTO=0, MANUAL=1. Earlier MANUAL claims remain
-unsupported and sealed evidence is unchanged. Under the S3c approval the fixed
-helper performed three LOGIN/SET_MODE(1)/LOGOUT normalizations, without policy
-or stimulus changes. Final guards now verify actual MANUAL=1/idle, Run, not
-faulted, Remote, scanning, logged out, not restoring, saved/live documents
-equal, restored policy and the original preflight. The initial legacy-backup
-access audit used the wrong canonical allow-list and stopped deployment; an
-exact tag/access comparison with the sealed genealogy artifact passes before
-download. The failed audit is retained; no controller or reader rule changed.
+- **Worker.** Per walk: `due`; group count and duration per phase (`slowOnly`,
+  `fast`, `status`); the number of groups needing more than two attempts.
+- **Delivery.**
+  - The worker adds `sentTimelineUs` to each reply, taken from `Timeline.now`
+    (`dart:developer`). It is one monotonic clock across all isolates.
+  - The repository logs `replyWaitUs` (`Timeline.now - sentTimelineUs`) and
+    `requestDelayUs` (UI send to worker receipt) beside the existing
+    `stage=complete-sample-rejected` line.
+- **Session.** A read-only host monitor samples `\Process(*)\% Processor Time`
+  for the Echo emulator, the HMI process, Python and Dart every second, from
+  download to rollback (`Get-Counter`).
 
-S3d offline preparation passes at 2,125 paths: the accepted 647 plus 1,469
-AlarmLog paths and nine StateFlags paths. The original table's 1,469 described
-AlarmLog alone; see the [S3d inventory/notes](AB_CANONICAL_PUBLICATION_S3D_NOTES_2026-10-22.md).
-Both v38 builds/read-backs/access and 2,062 AB tests pass. The prepared ACD pin
-is E5CA9AB3...7CF7C9D. Automatic Capacity is 1,290,016 used / 1,855,712 available /
-3,145,728 total Blocks (41%), +182,464 over S3c. One shared PLC calendar routine
-serves diagnostics, event timestamps and flags; caches avoid unchanged text/time
-work. Alarm append/reset ownership and all earlier image outputs are unchanged.
+**WP4b.4 — Run desktop acceptance on the shipped build.**
 
-S3d runtime now passes under the owner's exact-session approval. Candidate
-and restored-baseline fixtures pass 31/31; four decision, 14 held/fault,
-21 sequence and eight reset captures (four before/after pairs) cover ST/SFC/LD.
-All 2,125 paths/types match; 48 paired captures including idle replay exactly.
-Active/closed events, nonzero duration, ring wrap, flag transitions and one-reset
-Blocking release are observed. WAIT_RESET is model-covered but was not observed
-in these runtime captures. Full-Core event Category, ResetAt and ShelvedUntil
-remain explicit oracle gaps. See [runtime evidence](Evidence/AB_S3D_CANONICAL_RUNTIME_2026-10-22.md).
+- Add `integration_test: sdk: flutter` to `HMI/pubspec.yaml`
+  `dev_dependencies`. It is an SDK package, dev only, and nothing extra ships.
+- Move the session's `desktop_diagnostic_qualification_test.dart` into
+  `HMI/integration_test/ab_desktop_acceptance_test.dart`, with driver
+  `HMI/test_driver/integration_test.dart`. Coverage stays the same:
+  - production factory and repository;
+  - LIVE and the expected seven modules at every capture;
+  - every tab of every module, the fieldbus page and its three nodes (31 views);
+  - two refused actions per root, the read-only icon present, zero client
+    writes.
 
-**Acquisition correction:** the original full-record read exceeded the 10 ms
-task window. Two retained attempts stopped after eight and 26 passing rows.
-The acceptance harness now caches PLC-bound V6.2 metadata under equal manifest
-revision tokens and reads live canonical/oracle records on two independently
-guarded read-only connections. Both finish inside the same unchanged equal-even
-scan proof (100 attempts/five seconds); accepted attempts range 1-8. The generic
-reader, PLC image, task period and regression stimuli are unchanged. Actual
-recorded regression rows total 96, including 34 from the failed attempts;
-individual tag-write calls were not instrumented. This fixes the read plan,
-without weakening the gate or treating failed runs as accepted coverage.
+  It uses `IntegrationTestWidgetsFlutterBinding`; screenshots stay on the
+  existing `RepaintBoundary.toImage` path.
+- Run it as:
 
-Native root/sequence/alarm-metadata payloads measure 77,304 / 7,308 / 16,616
-bytes. Candidate scan median/range is 437 us / 436-437, cumulative maximum
-3,111 us, zero overlaps. Restored genealogy is 99 us / 99-100, maximum 1,167 us.
-These workloads differ; their difference is not an isolated publication cost.
-Genealogy is restored, actual MANUAL=1/idle, Run, not faulted, Remote, scanning,
-logged out, five saved/live documents equal, policy and original preflight
-verified. The S3d approval is consumed; S3e preparation is next and a future
-controller session needs its own gates/authorization. No commit/push is authorized.
+  ```
+  flutter drive --profile -d windows \
+    --driver=test_driver/integration_test.dart \
+    --target=integration_test/ab_desktop_acceptance_test.dart \
+    --dart-define=fraktal.cip.trace=true \
+    "--dart-define=fraktal.ab.desktop.endpoint=cip://127.0.0.1?slot=0&serial=601FC87B" \
+    --dart-define=fraktal.ab.desktop.output=<session>/desktop_profile
+  ```
 
-Final S3d gates: 2,066 AB tests / 276.677 s and 74 root tests / 1.942 s;
-spec/contracts, strict consistency (0 errors/warnings) and whitespace pass.
-Only the acquisition oracle and its tests changed from the preparation seal;
-68 other bound sources, including all PLC/generator inputs, are unchanged.
-Both native v38 build/read-back gates remain bound to that exact image.
+- The debug `flutter test` form keeps only its captured-fixture mode, as
+  rendering proof with no freshness claim. That is its existing role.
 
-S3e offline preparation now covers 2,154 paths, adding 29 Access/data-policy
-paths and enriching the existing ring's audit Description/SourcePath in place.
-See its [independent inventory and notes](AB_CANONICAL_PUBLICATION_S3E_NOTES_2026-10-22.md).
-Policy.Required completes the fifth D2 zero-bound mapping. A generic BITSTRING32
-reader correction preserves the unsigned LoginResultSequence high bit; no
-station fact enters the reader. All five earlier images/replays are unchanged.
-Both v38 builds/read-back/access and 2,078 AB tests pass. Original prepared pin
-95E85B50...A1B240B has automatic measured Capacity 1,568,852 / 3,145,728 Blocks
-(49%, +278,836 over S3d). The source, review copy and receipt are hash-bound.
+**WP4b.5 — Rehearse without Echo.**
 
-The next fixture scope includes the inherited 31 rows plus two explicit Access
-checks (unknown-user login refusal, one class read-level edit/restoration), six
-read-only Access phases and the inherited decision/condition/sequence/reset
-captures. The owner subsequently approved and completed that S3e session. Its
-exact-artifact [preparation record](Evidence/AB_S3E_CANONICAL_PREPARATION_2026-10-22.md)
-binds both native builds, 2,078 AB / 74 root tests, spec/contracts, strict
-consistency/whitespace, measured Capacity, helpers and false approval template.
-Runtime now passes at all 2,154 values/types: 31 inherited candidate rows, two
-fixed Access checks, four decisions, 14 held/fault, 21 sequence, eight reset and
-six Access captures, plus idle (54 paired captures, independently replayed).
-LoginBusy/failure/success/logout, manual/class-policy changes and audit actor/
-action text are observed. The original whole-scan proof remains 100 attempts /
-five seconds, with accepted attempts 1-41; metadata uses V6.2 revision coherence.
-See [runtime evidence](Evidence/AB_S3E_CANONICAL_RUNTIME_2026-10-22.md).
+- Promote the socket `Peer` in `HMI/test/cip_transport_test.dart` into
+  `HMI/tool/cip_rehearsal_peer.dart`, a loopback EtherNet/IP server that serves:
+  - the Symbol, Template and record bytes of the sealed S4b generic capture
+    `Evidence/AB_S4B_READER_RUNTIME_2026-10-26/Runtime/generic_capture.json.gz`,
+    hash-pinned (its image differs from `30315E6D…` only in first-scan
+    behaviour);
+  - the recorded identity serial;
+  - Read Tag Fragmented and Multiple Service Packet;
+  - synthetic coherence counters: +2 every 10 ms, odd for 1 ms;
+  - a per-request delay drawn from the Flutter distribution in the
+    [host-timing record](Evidence/AB_S4B_HOST_TIMING_2026-10-27.md).
 
-The first complete candidate matrix passed. Its first coverage audit incorrectly
-checked Required[1] for MANUAL; the owner uses zero-based gate 2. An unnecessary
-partial repeat stopped after one inherited row and two passing Access checks
-under that same wrong observer expectation. Both cleanups restored documents/
-policy. The corrected audit derives the gate from the owning action map and
-accepts the original complete captures, which already include 0/1 at Required[2].
-The temporary observer/test edits were restored byte-for-byte. All 76 prepared
-root sources still match; no PLC/image/stimulus/proof change was needed.
+  It records the hash of the capture it serves.
+- It is rehearsal apparatus, never acceptance evidence. No shipped endpoint
+  default points at it.
+- **Gate before any further S4b native preparation.** With Echo running
+  genealogy, untouched, in the background:
+  1. The profile-mode acceptance (WP4b.4) passes against the peer three runs in
+     a row, with maximum effective age ≤ 700 ms.
+  2. The debug `flutter test` live form, run against the same peer, either
+     reproduces a STALE refusal or the record states why it does not.
 
-Baseline regressions pass 31/31. Actual recorded rows total 67 (64 accepted,
-three extra from the partial repeat). Known additional fixed-vector/normalization
-mailbox commands total 12; per-tag write calls are unmeasured. Native root/
-sequence/alarm-metadata payloads are 77,856 / 7,308 / 16,616 bytes. Candidate
-TASK median/range is 817 us / 816-817, cumulative maximum 4,033 us, zero overlaps;
-genealogy is 99 us / 99-100, maximum 1,167 us. Workloads differ; this is not an
-isolated publication-cost measurement. WAIT_RESET, high-bit injection and
-data-denial detail retain explicit model-only scope where not runtime-observed.
-Genealogy is restored, Run/not faulted, Remote, scanning, actual MANUAL=1/idle,
-logged out, five saved/live documents equal, original policy/preflight verified.
-S3e authorization is consumed. S3f preparation is next; future controller work
-requires its own exact-image gates and current approval. No commit/push.
+  Record both in an offline evidence note.
 
-**S3f inventory finding, 2026-10-22:** the independent
-[inventory](AB_CANONICAL_PUBLICATION_S3F_INVENTORY_2026-10-22.json) identifies
-801 additional legacy paths (2,955 cumulative), including 30 configuration
-entries of 25 fields. The current oracle conflicts with the target's Core
-types at 110 paths, omits 12 Core fields, and serves all 30 entries as one
-host-assembled page. PendingSince is time-of-day without a date; revisions
-exclude boot identity; non-empty set/document responses are host overlays.
-Read the [contract correction proposal](AB_CANONICAL_PUBLICATION_S3F_CONTRACT_REVIEW_2026-10-22.md).
-The owner has approved its bounded-page/type/time/provider corrections for
-offline implementation; section 1 now names this exact additional exception.
-The immutable inventory evidence records the earlier pending state. S3f offline
-implementation and compiler/model validation are in progress; no controller
-operation is authorized and no S3f runtime acceptance is claimed. The reference window of
-16 is an implementation choice; Core requires bounded paging without a full
-manifest buffer, rather than mandating that numeric window size.
+**WP4b.6 — Session order.** The next runner runs these after
+`candidate_regressions`, in this order:
 
-| Order | Surface | Notes |
+1. the independent four-page configuration comparison (1,100 values against the
+   post-fixture oracle);
+2. `idle_equivalence`;
+3. `generic_acquire`;
+4. `desktop_profile`;
+5. `candidate_timing`.
+
+All five are read-only, so each runs and records even if an earlier one fails.
+The session passes only if all pass.
+
+**Offline gates before preparation.**
+
+- WP4b.1–4b.5 tests pass, including the rehearsal gate.
+- The full HMI suite passes on the pinned SDK with `--enforce-lockfile` (685
+  plus the new tests, 12 skips), with `flutter analyze` and
+  `flutter build windows --profile`.
+- The PLC image is unchanged. Its 373 bindings, 2,339 AB tests, both v38 targets
+  and 65% Capacity transfer by hash.
+- 74 root tests; spec, contracts, strict consistency and whitespace.
+
+**Native session S4b-Q** follows §4 with image `30315E6D…` and the unchanged
+write scope.
+
+| Gate | Pass criterion |
+|---|---|
+| E1 candidate cases | 41/41 (31 rows, 2 Access, 8 configuration) with exact restoration |
+| E2 replays | 87/87 independent raw-read pairs; exact values and types |
+| E3 observer | Zero Bad samples; every Good value younger than the fast Good limit; Uncertain rows payload-free |
+| E4 configuration | Four pages, 1,100 exact values and types against the post-fixture oracle |
+| E5 idle equivalence | 5,407 paths, zero differences |
+| E6 generic acquisition | 5,407 values, seven modules |
+| E7 desktop | Profile build LIVE at all 31 captures; seven modules, three bus nodes; refusals recorded; zero client writes; maximum effective age recorded |
+| E8 scan | TASK cumulative maximum < 10,000 µs and zero overlaps from download to the end of E7; 20-sample timing recorded |
+| E9 rollback | §4 step 4 complete |
+
+**Failure responses, decided now.**
+
+| Signature | Next step |
+|---|---|
+| E7 fails and the refused sample's fast-phase source age is > 400 ms | Move the slow refresh into its own worker operation between snapshots, so that a snapshot never contains slow rows: `refreshSlow` becomes a scheduled `acquireSlow` call, and snapshot walks are never due. Offline proof as in WP4b.2 |
+| E7 fails and `replyWaitUs` is > 400 ms | Record a profile-mode DevTools timeline against the rehearsal peer. Fix the UI-isolate hotspot in its owning widget or in `OpcUaSnapshotMapper`. No freshness change |
+| E7 fails in two consecutive profile sessions, and more than 10% of desktop groups need more than two attempts while host CPU is above 85% | Owner decision O7 |
+| Any of E1–E6 fails | Stop. Reproduce offline from the sealed bytes and fix the owning code. Never retry unchanged |
+| E8 records an overlap or ≥ 10,000 µs | Stop. Locate it with the TASK trace; make the PLC-side fix in the generator, with its own image and Capacity. Never clear counters |
+
+**Exit:** E1–E9 pass in one session.
+
+### 5.2 S5 — Dart gateway `cip://` for Web clients and commanding
+
+S5 changes only HMI and gateway code. The PLC image stays `30315E6D…`; its
+V6.6 `CommandBindings` already publish the typed command ingress
+([wire draft](AB_CANONICAL_PUBLICATION_S3K_WIRE_DRAFT_2026-10-25.md)).
+
+**WP5.1 — Typed command writer in the client.**
+
+- New `HMI/packages/fraktal_opcua_client/lib/src/cip_command_writer.dart`, used
+  only when `CipSessionClient.connect(…, commandWrites: true)`. The desktop
+  factory never sets it (D9). The gateway sets it when the instance has at least
+  one `--write-root`.
+- It uses one dedicated, serial-pinned 4,000-byte connection (the binding's
+  `ConnectionBytes`), separate from the four read-only connections.
+- `writeBatch(List<OpcUaWrite>)`:
+  - It accepts only one root's `<root>/HmiRequest/<field>` writes with
+    `Sequence` last. The gateway already enforces this; the writer re-checks it.
+  - It maps the root to its `CommandBindings` row.
+  - It encodes the `PayloadSymbol` record from its Template:
+    - `SchemaVersion` = the row's `Version` (1);
+    - `ManifestRevision` = the discovered `ConfigRevision`;
+    - `StagedSequence` = `Sequence`;
+    - `Arguments` = the nine Core fields. An absent field takes its Core zero
+      value.
+    - Strings are UTF-8 with a byte-counted `LEN`; `BoolValue` is native BOOL;
+      `DurationMs` keeps UInt32 bits.
+  - It refuses before any I/O on an unknown field, a type mismatch, a string
+    longer than its Template capacity, or a payload over `MaximumPayloadBytes`
+    (1,024).
+- On the wire:
+  1. one unfragmented Write Tag (`0x4D`) of the payload record;
+  2. one Write Tag of the DINT `CommitSymbol` = `Sequence`.
+
+  It returns true only if both replies are status 0. It never retries, splits or
+  replays after a reconnect. Any transport error closes the writer connection
+  and requires rediscovery.
+- `write()` for a single path returns false for every path on CIP.
+- Tests (offline, socket peer):
+  - exact payload bytes for each of the 39 command kinds against the Template;
+  - a refusal for each malformed case above;
+  - ordering (payload, then commit), and no commit after a failed payload;
+  - no write from a read-only client;
+  - a reconnect discards the in-flight batch.
+
+**WP5.2 — `cip://` in the gateway.**
+
+- `HMI/gateway/bin/fraktal_gateway.dart`:
+  - Accepts `cip://<host>[:44818]?slot=<0-255>&serial=<8 hex digits>`, using the
+    same query validation as `external_repository_factory_native.dart:56-66`.
+    `serial` is mandatory for the gateway, because it pins the controller the
+    gateway may write to.
+  - Connects through `ReconnectingOpcUaSessionClient` to
+    `CipSessionClient.connect(commandWrites: writeRoots.isNotEmpty)`.
+  - Logs `stage=cip-connect` and `stage=connected transport=cip`, and reports
+    the OPC UA security profile as ignored, as for ADS.
+  - The usage text and the scheme error message add `cip://`.
+- `HMI/gateway/lib/src/fraktal_gateway_server.dart`: write validation and the
+  global serializer are unchanged. The `QUERY_CONFIG` viewer exception
+  (`_isConfigQuery`) is never used on CIP: a read-only instance's client refuses
+  writes, and configuration is read through WP5.3.
+
+**WP5.3 — Configuration pages over the gateway.**
+
+- Add the method `readConfigurationPage` (`params: {root, model}`) to
+  `fraktal.opcua.gateway.v1`. The gateway answers it from the session client's
+  `OpcUaReadOnlyConfigurationClient` after `config.permitsRead('<root>/…')`.
+- An older gateway answers `Unsupported gateway method.`, and the client
+  reports configuration as unavailable. It never falls back to a mailbox query.
+- `HMI/lib/data/opcua_gateway_client_io.dart` and `opcua_gateway_client_web.dart`
+  implement `OpcUaReadOnlyConfigurationClient` with the new method. The WebSocket
+  gateway protocol section of `OPCUA_TRANSPORT.md` documents it.
+
+**WP5.4 — Installer, tray and documents.**
+
+- `HMI/gateway/deploy/windows/fraktal_instances.ps1`, `Test-FraktalEndpoint`:
+  accept `cip` with a non-empty host, only the `slot` and `serial` query keys,
+  and a serial of 8 hex digits. It also lacks `s7web` (found 2026-10-27): the
+  scheme set is `ws/wss/http/https/opc.tcp/ads`, so a `s7web://` instance — a
+  transport the gateway already serves — is rejected by the installer today.
+  Add the scheme in the same change.
+- `fraktal_wizard.ps1`: the endpoint labels and invalid-endpoint messages
+  (lines 505 and 575) name `cip://<host>?slot=0&serial=<serial>`.
+- `HMI/gateway/DEPLOYMENT.md` and `Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md`:
+  a `cip://` row and an example instance. The per-instance write-root question
+  is unchanged.
+- Remove the Python AB gateway instructions from the AB README and
+  `AB_NEW_PROJECT_GUIDE.md`. The code itself is deleted in WP6.7.
+
+**Offline gates:**
+
+- the WP5.1–5.4 tests;
+- `dart test` in `HMI/gateway`;
+- the full HMI suite and analyzer;
+- `dart run tool/build_gateway.dart --clean`, including the Windows installer;
+- the AB and root gates, unchanged.
+
+**Owner decision before the session:** O3, the bench gateway posture.
+
+**Native session S5-Q** follows §4 with the same image and rollback. The
+controller writes come only from these cases. The automated cases use the Dart
+WebSocket client, which speaks the same protocol as the Web HMI.
+
+| Case | Instance | Pass |
 |---|---|---|
-| 3a | Unit core: `Decision`, `Catalog`, `ModePolicy`, `Supported*Published`, `AvailableModels` | Apply D2 bounds (`ModePolicy`, `SupportedModesPublished`, `SupportedRunStylesPublished` from 0) |
-| 3b | CM/EM status, command timing, diagnostics | The PLC publishes `DescriptionKey`/reason codes, never rendered text |
-| 3c | Sequence: `SequenceSteps`, `SequenceAnnotations`, `ActiveSteps`, step definitions | `ActiveSteps` from 0 (D2); keep fast-step history PLC-side |
-| 3d | `AlarmLog` (Active, Ring, Meta), `StateFlags` | 1,469 AlarmLog + 9 flag paths; 2,125 cumulative. Preserve S0 size/read qualification and measure actual same-scan acquisition |
-| 3e | `Access` (`Policy.Required` from 0, D2), audit, data policy | Login stays plain PIN through the mailbox. The gateway's salt pre-hash used declaration data and is dropped; the PLC hashes, with `LoginBusy` covering latency |
-| 3f | Configuration pages, `ConfigPersist`, `ConfigSets` listing | Pages come from the PLC on `QUERY_CONFIG` (as TC3), not assembled by a client |
-| 3g | `Oee`, `OeeTrend`, `Profiler`, `SystemHealth` | Profiler is 900 paths; derivations are event-driven, not per scan |
-| 3h | `Part` (+ genealogy), `HostEvents`, `Nameplate`, `SignalTower`/`MachineState` | Keep the existing single append owners; only the publication form changes |
-| 3i | `Line` (calendar, shifts) | Owner-approved offline scope: 16 frozen gaps, two Core Line status members and occupied eight-row V3 history; [S3i publication runtime](Evidence/AB_S3I_CANONICAL_RUNTIME_2026-10-24.md) passed 41+8+31 checks, 88 pairs, 87% Capacity; natural calendar/populated-live-history/target-lifetime/Program-Run gates remain open; parameter keys stay `line.`-prefixed |
-| 3j | Fieldbus topology as its own published data product (TC3 `GVL_<Project>Fieldbus.Topology`) | Not a module root |
-| 3k | `HmiResponse` / release report, `HmiRequest` mailbox, counters/derived production flags and Features | 126 mailbox/report plus seven Unit fields; full command discovery, secret exclusion and complete 24-reason versioned owner; one dispatch owner, ordering per `OPCUA_TRANSPORT.md` |
+| C1 discovery | `echo` | LIVE with seven modules; `/readyz` 200; `writeAccess.enabled` true |
+| C2 login, valid PIN | `echo` | Accepted with a matching typed acknowledgement; no Secret in any snapshot, log or evidence |
+| C3 login, wrong PIN | `echo` | Refused with the owner's reason |
+| C4 mode MANUAL → AUTO → MANUAL | `echo` | Each step acknowledged; `Mode` follows |
+| C5 one manual command on one CM | `echo` | Acknowledged; the CM state follows |
+| C6 configuration edit, then exact restore | `echo` | The value changes, then equals the original; `ConfigRev` advances |
+| C7 configuration page | `echo` | `readConfigurationPage` equals the S4b oracle page |
+| C8 write outside the write root | `echo` | Refused by the gateway; the PLC acknowledgement is unchanged |
+| C9 duplicate or stale sequence | `echo` | Refused by the gateway; the acknowledgement is unchanged |
+| C10 read-only instance | `echo-view` | Every command refused before the PLC; the acknowledgement is unchanged; `writeAccess.enabled` false |
+| C11 gateway restart | stop, then start `echo` | Client STALE, DOWN after 5 s, LIVE after the restart; nothing replayed (acknowledgement unchanged across the restart) |
+| C12 browser | owner, Chrome, the packaged Web HMI on `echo`'s origin | LIVE overview, login, an acknowledged mode change, logout; the owner records the checklist, as on [2026-09-24](Evidence/AB_BROWSER_COMMAND_2026-09-24.md) |
+| C13 final state | `echo` | Logged out, MANUAL, idle |
 
-**Exit:** full equivalence (4,437 genealogy paths under finite approved
-correspondences and complete dynamic/extra Core surfaces), plus the actual press
-declaration, on Echo. Each declaration proves ST, SFC and ladder, exact-image
-Capacity/scan and all required regressions. Genealogy's three renditions do not
-accept the press declaration. Fieldbus has its own product proof even though the
-frozen genealogy has zero fieldbus paths. Reconcile the changing consumer census
-before S6; the original 22-tool/44-test counts predate canonical/frame additions.
+**Exit:** C1–C13 pass, and `/healthz` `writeAccess` matches each instance's
+configuration.
 
-### S4 — Generic Dart `CipSessionClient` and the desktop path
+### 5.3 S6 — Retirement, collapse, persistence and events
 
-- **New** `HMI/packages/fraktal_opcua_client/lib/src/cip_session_client.dart`,
-  exported like `ads_session_client.dart`. It covers:
-  - EtherNet/IP session handling and a large Forward Open;
-  - Symbol list (`0x6B`), Template reads (`0x6C`) and Read Tag Fragmented;
-  - template-driven decoding plus the manifest lower bound and logical type;
-  - `fraktal.opcua.snapshot.v1`, fast/slow tiers like `WebApiSessionClient`;
-  - blocking work in a worker isolate, like `AdsSessionClient`.
-- **Coherence** follows Part III §3.13 per published row/group and read tier,
-  using PLC-published revision/access metadata. Do not require one same-scan
-  live document or use the migration observation frame as a shipping protocol.
-  Secret and other command-only values stay outside snapshots and cyclic reads;
-  bounded retries must degrade quality rather than accept a torn group.
-- **Writes** follow `OPCUA_TRANSPORT.md`, but stay disabled unless the endpoint
-  is a commissioned CIP Security session (S7). The repository exposes the
-  read-only state so the HMI states it explicitly (Core §11.2). Check the
-  existing gateway read-only behaviour first and reuse its mechanism.
-- **Factory:** `external_repository_factory_native.dart` routes `cip://` to
-  the new client.
-- **Delete** the spike `HMI/lib/data/cip/` (`cip_session_client.dart`,
-  `eip_cip_client.dart`, `fraktal_manifest.dart`, `libplctag_bridge.dart`).
-- **Golden tests** replay recorded Symbol/Template/tag bytes to the expected
-  snapshot from S1.
-- **Gates:** `flutter analyze`, the full HMI suite with the pinned Flutter
-  `--enforce-lockfile`, and desktop acceptance on Echo (render all surfaces,
-  writes refused with an explicit read-only state).
+Order: WP6.1 → 6.2 → 6.3, with 6.4 (owner approval) in parallel; then 6.5 → 6.6
+→ 6.7 → 6.8 → the native session.
 
-### S5 — Dart gateway `cip://` for Web clients and commanding
+**WP6.1 — Classify every legacy consumer.** Re-run the census script
+(`Evidence/AB_S4B_READER_RUNTIME_2026-10-26/Continuation/inventory_legacy_consumers_01.py`)
+on the current tree. It found 107 direct consumers (54 tools, 53 tests) and 284
+transitive ones. Extend it to assign each module one class by these rules; the
+first match wins, and an unclassified module stops the step.
 
-- `HMI/gateway/bin/fraktal_gateway.dart`: add `cip://` beside `ads://` and
-  `s7web://`, using the same session client. Add the deployment switches the
-  scheme needs (serial pin, slot) and document them in `DEPLOYMENT.md`.
-- Writes reach the PLC through the gateway's existing Core §14 gate (token +
-  `wss://`, write roots). For each station, ask and record **read-only or
-  write-enabled** (AGENTS §3a).
-- Update the Windows installer and tray: an instance may use a `cip://`
-  endpoint. Drop the never-exercised Python AB gateway packaging path.
-- **Acceptance:** the Web HMI renders and commands Echo through the Dart
-  gateway, and recovers after a gateway restart.
+| Class | Rule | Action |
+|---|---|---|
+| RT runtime projection and gateway | `fraktal_ab_projection`, `fraktal_ab_projection_replay`, `fraktal_ab_gateway`, `fraktal_ab_mailbox_probe`, their `test_` modules, `requirements-gateway.txt`, `HMI/test/live_ab_gateway_test.dart`, `HMI/test/live_ab_command_test.dart` | Delete in WP6.7 |
+| MO migration oracle | `fraktal_ab_s<N><x>_{equivalence,reference,fixture_execute,revision_execute,lifetime_execute,io_execute}`, `fraktal_ab_s4b_equivalence`, `fraktal_ab_canonical_equivalence`, `fraktal_ab_canonical_observation`, `fraktal_ab_paired_observation`, `fraktal_ab_mailbox_frame`, and their tests | Final sealed replay (WP6.3), then delete in WP6.7 |
+| GN generator | `fraktal_ab_generate`, `fraktal_ab_resources` | Collapse in WP6.6 |
+| AD host adapter | `fraktal_ab_host_events`, `fraktal_ab_sets`, `fraktal_ab_set_broker`, `fraktal_ab_medium` | Re-home in WP6.5 |
+| HX acceptance harness | Every other `*_execute`, `fraktal_ab_press_parity`, `fraktal_ab_s9_*` | Migrate to canonical reads in WP6.2 |
+| UT unit test | Every other `test_fraktal_ab_*` that uses `*_context_members` or the projection | Rewrite against the canonical structures in WP6.6 |
+| HL helper | Any other direct consumer | Replace the legacy import with its canonical owner; a helper that serves only RT or MO follows them |
 
-### S6 — Retirement and collapse
+The output is `Specification/AllenBradley/AB_S6_CONSUMER_CLASSIFICATION_<date>.json`.
+WP6.7's deletion step reads it.
 
-1. **Migrate the harnesses.** 22 tools and 44 test modules read the generated
-   contexts (`read_unit`, `read_layout`, `*_context_members`, the projection).
-   Move every acceptance harness, including the 31-row regressions and the
-   Part, tower and genealogy executes, onto canonical reads through the S1
-   reader. The equivalence gate must stay green throughout.
-2. **Collapse the generator.** Make the canonical structures the working
-   storage. Remove the old contexts, the v5 manifest tables they described and
-   the copy logic, together with the migration-only S3h observation frame
-   (`canonical_observation_period_ms`). Record the memory and scan savings.
-3. **Persistence (§3.8b).** Relocate it per the owner decision (see §6). TC3
-   and TIA keep documents and sets on a PLC-owned medium, so the coherent
-   target is a controller medium behind the existing store seam.
-   - Probe Logix file and SD services on the 5580 and on Echo first (v38 audit
-     N8).
-   - Until it is accepted, the Python live-document keeper and set store
-     remain as a standalone adapter reading through the S1 reader, not as a
-     gateway.
-4. **Host-event sink.** Keep it as a deployment adapter (Core §11.6), reading
-   the canonical `HostEvents` through a generic reader. Its durability,
-   cursor and dedup behaviour is unchanged.
-5. **Delete** `fraktal_ab_projection.py`, `fraktal_ab_gateway.py` and the code
-   only they used. Update `check_ab_spec.py` and `check_ab_contracts.py` (V2)
-   and `check_consistency`.
-6. **Documents:**
-   - Part III (final form of the S0 drafts);
-   - `OPCUA_TRANSPORT.md` (new "Allen-Bradley CIP transport" section beside
-     ADS and S7 Web API);
-   - `AGENTS.md` §3a (baseline v37+, L24ER retired, `cip://` no longer a
-     spike) and §5;
-   - the AB README and `AB_NEW_PROJECT_GUIDE.md`;
-   - `HMI_CONTRACT.md` (the five D2 bounds).
+**WP6.2 — Phase A: harnesses on canonical reads, legacy still present.**
 
-### S7 — Physical controller and CIP Security
+- Every HX module reads through `fraktal_ab_canonical_reader.py` (S1) instead of
+  `read_unit`, `read_layout` or `*_context_members`. Assertions are unchanged.
+  `fraktal_ab_press_execute.py` loses its `read_layout` and `read_unit`
+  definitions.
+- Until the baseline switch (O6), a harness chooses its reader by discovery: a
+  controller that publishes exactly one canonical manifest is read
+  canonically, and any other is read through the legacy reader. The rollback
+  baseline is the legacy genealogy image, which has no canonical tree. This
+  temporary dual path ends in WP6.7.
+- Offline gate: every migrated harness replays its sealed captures with
+  unchanged verdicts.
 
-- Obtain a CIP Security-capable 5380/5580 at v37 or above. Commission a
-  FactoryTalk Policy Manager policy. Add a TLS client (port 2221,
-  certificate-based) to `CipSessionClient`.
-- Enable direct writes per D9.
-- Physical acceptance: Capacity/fit, scan, retention across power cycle,
-  download and upgrade, and Part III §11.2.1 security evidence.
+**WP6.3 — Final sealed replay, before any generator change.** On the
+pre-collapse tree, run once more:
 
-## 5. Risks and mitigations
+- every MO test;
+- all accepted image pins (byte-identical regeneration);
+- every sealed capture replay.
+
+Seal the result as `Evidence/AB_S6_MIGRATION_ORACLE_FINAL_REPLAY_<date>`, with
+hashes. From then on, sealed evidence stays readable data, and its executable
+replay ends by design.
+
+**WP6.4 — Host-service contract (owner approval, O4).** The staged ConfigSet and
+ConfigProvider inputs, the live-document keeper and the host-event sink are the
+last consumers that need the station declaration and the legacy endpoints. For
+example, `fraktal_ab_set_broker.py` maps keys through `gen.editable_values(app)`.
+The recommended contract is V6.9, additive like V6.6:
+
+- a `HostServiceBindings` manifest table with one row per root and service
+  (`ConfigSets`, `ConfigProvider`, `LiveDocuments`, `HostEvents`). Each row gives
+  the version, request, commit and reply symbols, the chunk record and maximum
+  chunk bytes, and the required access gate;
+- documents move in bounded chunks addressed by (scope, key). The PLC resolves
+  keys to its own ordinals, as the typed command ingress does;
+- every chunk and receipt uses the typed ingress's commit/acknowledge state
+  table: serial arithmetic, collision refusal, no replay;
+- the legacy staged endpoints and the legacy Frame ingress are removed in WP6.6.
+
+Write it as `AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_<date>.md`, with
+its inventory, then ask. WP6.5 and the host-service part of WP6.6 wait for the
+approval.
+
+**WP6.5 — Declaration-free host adapter.**
+
+- One process per controller instance:
+  `FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_host_adapter.py`, built from
+  the AD modules. It discovers through the S1 reader and the V6.9 bindings, and
+  serves three things:
+  - configuration sets and the provider, with `FileStore` unchanged at
+    `%LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root>`;
+  - live documents re-applied after a download, through `FileMedium`;
+  - HostEvents delivery, with durability, cursor and deduplication unchanged.
+- It writes only through the V6.9 endpoints and imports nothing from
+  `fraktal_ab_declaration` or `fraktal_ab_generate`; a test asserts that.
+- It runs beside each gateway instance from an optional
+  `instances\<name>\host_adapter.args`, and the tray supervises it as a second
+  process of that instance. Instance discovery is unchanged (every folder with a
+  `gateway.args`), so no third index is added. The generic gateway stays
+  binding-neutral.
+- The persistence medium is O5. The recommendation is that the host `FileMedium`
+  is the AB reference medium, behind the same seam a controller medium could
+  later use (WP7.5 — which cannot run under O2, so the seam stays open without
+  a date).
+
+**WP6.6 — Phase B: collapse the generator.** In `fraktal_ab_generate.py`:
+
+- **R8.** The canonical structures become the working storage. Remove
+  `common_/module_/type_/unit_context_members`, the legacy contexts, the V5
+  manifest tables (with their 768-field cap), the copy layer and the S3h
+  observation frame (`canonical_observation_period_ms`).
+- **R3.** Each module AOI writes its canonical leaf directly through InOut;
+  `ScanCanonical` and `CanonicalDiagnostic` keep only per-instance calls.
+- **R6.** Acceptance-only routines (native check vectors, first-scan bench
+  vectors) are emitted only when a declaration enables them. Production
+  declarations never do.
+- **R5.** A production declaration selects one AUTO rendition (ST, SFC or LD).
+  Acceptance declarations keep all three for the parity gate.
+- The legacy staged service and Frame endpoints are removed. V6.9 is the only
+  host-service path, and the typed ingress is the only command path.
+- UT modules assert on the canonical structures in the executed-ST model.
+
+Offline gates:
+
+- **Schema identity.** The collapsed genealogy-S4b image's discovered path set
+  and logical types equal those of `30315E6D…` exactly (5,940 paths). The
+  collapsed press image's equal the press S3 exit image's.
+- Executed-ST model cases are unchanged.
+- Both v38 targets build and read back; the access audit passes.
+- Capacity is recorded against the capacity plan's ranges: 2.3–2.6 M Blocks
+  with R8 alone, 0.9–1.4 M with R3.
+- The scan-risk proxy (ST token count) is recorded.
+
+**WP6.7 — Delete and update the gates.**
+
+- Delete RT and MO per the classification file. After the baseline switch,
+  delete the harnesses' legacy reader branch and the legacy baseline fixture.
+- Re-run the census; it must report zero direct legacy references.
+- Switch `tools/check_ab_spec.py` and `tools/check_ab_contracts.py` to V2.
+  Update `tools/check_consistency.py` wherever it names a deleted file, and the
+  AB README's test counts.
+
+**WP6.8 — Documents and activation.**
+
+- **Part III.** Apply the [amendment draft](AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md):
+  - §1, §2.1 and §4.1: reference profile and L24ER retirement;
+  - §3.8 type map V2; §3.10 exposure; §3.10.2 read-only configuration;
+  - §3.13 coherence; §11.1 topology.
+
+  Add V6.9.
+- **Frozen contracts.** `AB_FROZEN_CONTRACTS_V2.json` gets `active: true`, and
+  V1 is marked superseded.
+- **`OPCUA_TRANSPORT.md`.** A new "Allen-Bradley CIP transport" section beside
+  ADS and the S7 Web API: discovery, row coherence, the freshness profile, the
+  command writer and `readConfigurationPage`.
+- **`AGENTS.md`.** §3a: the v37+ baseline, the L24ER retired, `cip://` no
+  longer spike scope, the Python gateway gone. §5: `cip://` among the gateway
+  transports.
+- The AB README, `AB_NEW_PROJECT_GUIDE.md`, and `HMI_CONTRACT.md` (AB adopts
+  TC3's bounds for the five D2 arrays).
+
+**Native session S6-Q** follows §4. One approval covers two candidate images in
+sequence: the collapsed genealogy-S4b image, then the collapsed press image.
+
+- **Genealogy gates:**
+  - the 41 candidate cases on canonical harnesses;
+  - E7 desktop;
+  - gateway cases C1, C4, C6 and C11;
+  - native schema identity (path set and types equal to S4b);
+  - Capacity and scan (< 10,000 µs, zero overlaps).
+- **Press gates:** the 47 rows, with the seven core cases in each of ST, SFC and
+  LD; schema identity; Capacity and scan.
+- **Baseline switch (O6).** The collapsed genealogy image becomes the Echo
+  rollback baseline, with its own 31 canonical baseline cases recorded in this
+  session. The legacy genealogy pin stays archived and is no longer
+  downloaded.
+
+**Exit:** definition-of-done items 1, 4 and 5, and the census reports zero
+direct legacy references.
+
+### 5.4 S7 — Physical controller and CIP Security
+
+**WP7.0 — Hardware (owner decision O2).** Recommended:
+
+- a ControlLogix 5580 (1756-L81E or larger) at firmware v37 or later, CIP
+  Security–capable on the port the HMI uses;
+- one digital input and one digital output module matching a declared
+  station's I/O catalog;
+- an isolated network.
+
+Staying in Echo's family keeps the 3 MB memory basis. Confirm CIP Security
+support for the exact catalog number and firmware against Rockwell's current
+compatibility data before purchase.
+
+**O2 decided 2026-10-27: no physical controller will be bought.** S7 is
+therefore deferred without a date, not cancelled: every hardware-only gate
+(WP7.4 physical acceptance, WP7.5 controller-medium probe, and
+definition-of-done item 6) becomes a declared exclusion in the binding record
+for as long as no hardware exists — the press81 `require_controller_metrics`
+pattern, never a standing event. WP7.5 never runs, so O5's "revisit after
+WP7.5" clause is void. Whether WP7.1–7.3 (`cips://`, direct writes, policy
+commissioning) are worth implementing with no controller that can accept them
+is revisited only after S4b–S6 exit; Echo cannot terminate TLS on port 2221,
+so nothing in S7 is provable on the bench.
+
+**WP7.1 — CIP Security client.**
+
+- Endpoint: `cips://<host>[:2221]?slot=<n>&serial=<hex>`, EtherNet/IP over TLS.
+- Certificate-based device identity; Dart's TLS stack has no PSK.
+- Credentials come from `FRAKTAL_CIP_CLIENT_CERTIFICATE`,
+  `FRAKTAL_CIP_CLIENT_PRIVATE_KEY`, `FRAKTAL_CIP_CLIENT_KEY_PASSWORD` and
+  `FRAKTAL_CIP_TRUSTED_CA`, following the WSS pattern in
+  `external_repository_factory_native.dart:36-45`.
+- TLS 1.2 or later. The server certificate is validated against the trusted CA,
+  and the identity against the pinned serial.
+- The same `CipReadPool` and `CipSessionEngine` run above the TLS socket.
+
+**WP7.2 — Direct writes.** `cips://` sets `commandWrites: true`, so `readOnly`
+is false; `cip://` stays read-only. The writer is WP5.1's. The operator still
+authenticates through the PLC login (Core §14).
+
+**WP7.3 — Policy commissioning.**
+
+- A FactoryTalk Policy Manager policy: controller and HMI-host certificates,
+  integrity and confidentiality required.
+- Record the policy export as evidence, without private keys.
+- Record the Part III §11.2.1 evidence: authenticated principal, least
+  privilege, no anonymous write.
+
+**WP7.4 — Physical acceptance.** Every session needs its own owner
+authorization, and the owner performs any power cycle. Gates:
+
+- Capacity on the physical controller;
+- scan maximum and overlaps under the workload;
+- the 41 + 31 cases and the press's 47 rows;
+- the desktop over `cips://` with writes: login, mode, a manual command,
+  configuration edit and restore;
+- the gateway over `cip://` and `cips://`;
+- retention across a power cycle;
+- download and firmware/project upgrade, with live documents re-applied by the
+  host adapter;
+- physical-module identity and offline I/O proof (the S3 residual): every
+  catalog channel's address, tag and identity match the declaration and the
+  fieldbus product;
+- unsecured CIP writes refused.
+
+**WP7.5 — Controller medium probe (v38 audit N8).** A read-only probe of the
+Logix file and SD services on the 5580. Its result decides whether O5 can move
+§3.8b to a controller medium. Until then, the host `FileMedium` stays.
+
+**Exit:** definition-of-done items 2, 3 and 6 on the physical controller.
+
+## 6. Decisions
+
+### 6.1 Already decided
+
+- D1–D9 in the design note.
+- The V2 and Part III targets (2026-10-20).
+- The finite corrections in §1.
+- S3j D-1 to D-6, R1 and R2 (2026-10-24).
+- S4 coherence contract A, the S4b read-only configuration option A and the S3k
+  command ABI option A (2026-10-25).
+
+### 6.2 Decided in this plan
+
+| # | Decision | Basis |
+|---|---|---|
+| P1 | The path vector is sent once per discovery | `OPCUA_TRANSPORT.md:385-387`; the repository contract; the Web API client |
+| P2 | Slow-due rows are read before fast rows; counts once per walk | The request multiset is unchanged; fast age is bounded by fast work; slow Good is 7.5 s |
+| P3 | Desktop freshness acceptance runs the profile build on the Windows embedder (`flutter drive --profile`), adding the SDK `integration_test` dev dependency. The debug harness stays fixture-only | The shipped product is AOT, and debug timing is not representative. Rendering contention is measured (§2.2) |
+| P4 | The Echo-free rehearsal peer passes before any further S4b native preparation | Nineteen sessions, none of them accepted; every iteration costs an owner approval and a download |
+| P5 | Read-only stages run after a failure; writer stages stop at their first failure | Each session yields all of its read-only results |
+| P6 | Timing instruments are trace-only: phases, delivery via `Timeline.now`, host CPU | Measure before the next correction |
+| P7 | CIP command writes: the payload record, then the commit DINT, on one dedicated connection; no retry, split or replay; single writes refused | V6.6 wire draft; Part III §7.7; the `OPCUA_TRANSPORT.md` mailbox rules |
+| P8 | Gateway `cip://` requires `serial`; writes only with a write root | The gateway writes to the PLC; AGENTS.md §3a |
+| P9 | Configuration over the gateway goes through `readConfigurationPage`; no mailbox fallback on CIP | S4b option A; one mechanism (O9) |
+| P10 | Browser acceptance is an owner-operated checklist; the automated cases use the Dart WebSocket client | No browser automation exists in the repository; precedent of 2026-09-24 |
+| P11 | The S6 classification rules and actions in WP6.1 | The census |
+| P12 | A final sealed replay precedes deleting the oracles; executable replay of old evidence then ends | One source (O9); evidence stays immutable |
+| P13 | Harnesses choose their reader by discovery until the baseline switch | No declaration at runtime; the legacy baseline must stay testable |
+| P14 | Host services run in one declaration-free Python adapter per instance, supervised beside the gateway | Design note S6; Core §11.6; the generic gateway stays binding-neutral |
+| P15 | `cips://` with certificate identity and WSS-style environment credentials | D9; Dart TLS has no PSK; the existing environment-variable idiom |
+
+### 6.3 Owner decisions
+
+Each native session also needs its own exact authorization (§4) — waived for
+Echo by the standing authorization of 2026-10-27. That is an operation
+approval, not a design decision.
+
+**Decided 2026-10-27:**
+
+- **O1 — commit and push.** Everything since `f194c3a53` was committed and
+  pushed to `main` on 2026-10-27, excluding the `.dart_tool` caches inside
+  sealed evidence snapshots (the modified Siemens ones restored to HEAD; a
+  `.gitignore` rule keeps future ones out). From here on, one commit per
+  stage exit.
+- **O2 — no S7 hardware purchase.** See WP7.0 for the recorded consequences:
+  hardware-only gates become declared exclusions; S7 is deferred without a
+  date; WP7.5 never runs.
+- **O3 — Echo posture and standing use.** The owner states Echo exists
+  exclusively for this work, so Echo sessions need no per-session approval
+  (§4 step 2 records the standing authorization; guards and rollback stay).
+  The S5 bench runs the recommended pair: a write-enabled `echo`
+  (`--write-root Press`, port 8080) and a read-only `echo-view` (port 8081),
+  recorded in the binding record (AGENTS.md §3a).
+- **O4 — V6.9 host-service contract approved** as the WP6.4 shape. The review
+  document with its inventory is still written before WP6.5, but no further
+  approval gates WP6.5 or the host-service part of WP6.6.
+
+**Still open:**
+
+| # | Decision | Needed by | Recommendation | If declined |
+|---|---|---|---|---|
+| O5 | §3.8b persistence medium | S6 exit | Host `FileMedium` as the AB reference, permanently under O2 (WP7.5 cannot run) | A controller medium cannot be probed or accepted without hardware |
+| O6 | Baseline switch to the collapsed genealogy image | S6-Q approval | Yes, at S6-Q after the collapsed image passes its gates in-session; keep the legacy pin archived with its hash | The legacy reader branch and baseline fixture must stay |
+| O7 | Contingent: two profile sessions fail only E7 under host CPU above 85% | Only then | Amended under O2: run the profile drive from a second Windows PC on the bench network against `cip://<echo-host>` (no controller purchase; the original "move to S7" leg is void). If no second host exists, record the 1 s desktop budget as a bench limit: S4b exits on E1–E6, E8, E9 plus E7 coverage in fixture mode | Further reader reductions (fewer rows per walk) under the unchanged rules |
+
+## 7. Risks and mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Scan time grows as Python derivations move into ST | Measure per surface. Compute derivations on change, not every scan. Keep owners single (one append owner per ring) |
-| Structure-size or CIP read limits for large roots (AlarmLog, Profiler) | Measure in S0 step 4. If needed, publish a surface as its own data-product tag with the identical canonical path rule, decided once in Part III |
-| String memory at Core widths | Budgeted against 3 MB; measured per stage |
-| Persistence relocation (Echo may not emulate SD/file services) | Probe first. Keep the standalone adapter until a medium is accepted. Owner decision recorded |
-| Harness migration volume (22 tools, 44 tests) | Migrate behind the equivalence gate before deleting anything |
-| Echo availability after reboot | Elevated start by the owner. Check the service and listener before any guarded step |
-| HMI customization bound to the five old AB array paths | Call it out in release notes. The mapper is already base-agnostic |
+| A shared host cannot demonstrate the 1 s desktop budget | P3 profile build, P4 rehearsal, P6 measurement; O7 as the recorded contingency |
+| The scan margin is 998 µs; R3's indirect addressing can raise scan time | Measure per image (E8); the TASK monitor runs from download; a generator fix gets its own image |
+| The collapse moves code and data | Schema identity, executed-ST model cases and native rows gate WP6.6; the capacity ranges are ±30% estimates |
+| Harness migration volume (107 direct and 284 transitive modules) | WP6.1 rules; Phase A before the collapse; the final sealed replay before deletion |
+| Unsecured CIP writes from the gateway host carry the PIN in clear on the controller network | Part III §11.2.1 zone-and-conduit posture until S7; the bench uses loopback only; `cips://` at S7 |
+| Persistence on hardware | WP7.4 download/upgrade retention; WP7.5 probe; the host `FileMedium` stays until a medium is accepted |
+| Echo availability | Elevated start by the owner; service and listener checks before every guarded step; orderly shutdown |
+| HMI customizations bound to the five old AB array paths | Release notes; the mapper is already base-agnostic |
 
-## 6. Owner decisions pending
+## 8. Sequence and effort (estimates, not commitments)
 
-1. V2/Part III target approval **recorded 2026-10-20** (D6/D7 included); no longer pending.
-2. The §3.8b persistence medium (controller medium versus a standalone
-   adapter) after the S6 probe.
-3. Read-only or write-enabled for each gateway station (S5, AGENTS §3a).
-4. Hardware for S7.
-5. Commit and push policy for this work. Nothing is committed yet.
+| Step | Offline work | Native sessions |
+|---|---|---|
+| S4b: WP4b.1–4b.6 | 3–4 days | 1 (S4b-Q) |
+| S5: WP5.1–5.4 | 4–5 days | 1 (S5-Q) |
+| S6: WP6.1–6.8 | 3–4 weeks, plus the O4 review | 1 (S6-Q, two images) |
+| S7: WP7.1–7.5 | 1–2 weeks after hardware | 1–2 on hardware |
 
-## 7. Relative size (estimate, not a commitment)
-
-| Stage | Estimate |
-|---|---|
-| S0 | 1–2 days |
-| S1 | 2–3 days |
-| S2 | about 1 week |
-| S3 | 3–6 weeks |
-| S4 | 1–2 weeks |
-| S5 | about 1 week |
-| S6 | 2–3 weeks |
-| S7 | hardware-bound |
-
-Native gates (owner Capacity, downloads) set the real pace.
-
-## S3i calendar lifetime follow-up prepared — 2026-10-24
-
-The next natural-calendar/retained-Program-Run fixture is ready offline for
-unchanged ACD A5FAFA46…7E36C42 (measured 87% Capacity). It uses a fresh published
-Line.LastUpdate, one twelve-hour interval ending three minutes later, target
-40 → requested 99, queued original-calendar restoration, two real newest-first
-history rows and exact before/after Line value/type equality across one
-Program/Run cycle without downloading in that cycle. No private clock access
-or clock set is added. Normal path: 38 public Line commits, ceiling 64 including
-cleanup; operator-session and exact-target guards remain strict.
-
-All 2,189 AB /74 root tests pass, as do eleven focused emitted-ST lifetime
-tests, six negative authorization cases and the guarded helper build. The
-170 inherited source bindings and PLC image are unchanged; two fixture/test
-sources are added. All 88 prior native pairs replay unchanged. The required
-v38 compiler/read-back and Capacity results transfer by exact image hash.
-
-No controller access or change occurred in this preparation. Current owner
-approval is still required for the fresh download, public calendar writes and
-retained cycle; the earlier session approval is consumed. Proposed session
-repeats the 41 candidate checks, adds calendar/retention proof, then rolls back
-and restores five documents/31 baseline checks. Fault clears, clock changes,
-power operations and hard kills remain excluded. S3i exit and S3j stay open.
-See [preparation evidence](Evidence/AB_S3I_CANONICAL_LIFETIME_PREPARATION_2026-10-24.md).
+Owner approvals and native sessions set the real pace. The plan avoids the
+S4b pattern of one session per hypothesis: each session above runs only after
+its offline gates, and the rehearsal peer where one applies, have passed.

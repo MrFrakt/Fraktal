@@ -5,6 +5,9 @@ export 'package:fraktal_opcua_client/opcua_session_client.dart'
         OpcUaRemoteException,
         OpcUaBatchSessionClient,
         OpcUaBulkReadClient,
+        OpcUaDataValueReadClient,
+        OpcUaReadOnlyConfigurationClient,
+        OpcUaWritePolicyClient,
         OpcUaPathDiscoveryClient,
         OpcUaSessionClient,
         OpcUaSessionClientBatch,
@@ -19,12 +22,6 @@ export 'package:fraktal_opcua_client/opcua_session_client.dart'
 /// Maximum targeted-read batch in version 1 of the Web gateway contract.
 /// Repository detail scheduling uses the same bound as both gateway clients.
 const opcUaTargetReadBatchSize = 512;
-
-/// Optional targeted-read envelope. Cached values retain their source age and
-/// quality rather than becoming fresh at the time a viewer requests them.
-abstract interface class OpcUaDataValueReadClient {
-  Future<Map<String, Object?>> readDataValues(List<String> browsePaths);
-}
 
 Map<String, Object?> decodeTargetedDataValues(Object? result) {
   if (result is! Map) {

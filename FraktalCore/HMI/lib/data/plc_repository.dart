@@ -12,6 +12,16 @@ import '../domain/fieldbus.dart';
 /// ST_HmiRequest.TextValue is STRING(255): what one request can carry.
 const int kConfigSetRequestTextMax = 255;
 
+abstract interface class PlcRepositoryWritePolicy {
+  bool get readOnly;
+}
+
+extension PlcRepositoryConnectionPolicy on PlcRepository {
+  bool get readOnly =>
+      this is PlcRepositoryWritePolicy &&
+      (this as PlcRepositoryWritePolicy).readOnly;
+}
+
 /// The widest set line the PLC renders and accepts (its STRING(480) document
 /// line). A longer line is refused by name before anything is sent.
 const int kConfigSetImportLineMax = 480;
@@ -138,9 +148,11 @@ abstract class PlcRepository {
   /// The set as JSON lines (header first), or null when refused. Each value
   /// needs its own read level on the PLC (§3.8d(e)); an export is never thinned.
   Future<String?> exportConfigSet(String rootPath, String name);
+
   /// Optional PLC-owned catalog. Clone without changing the running recipe.
   Future<bool> createModel(String rootPath, String code,
       {int sourceModel = 0, String sourceSet = ''});
+
   /// Immutable PLC snapshot, without consuming a saved-set slot.
   Future<String?> exportCurrentConfig(String rootPath, CfgKind kind,
       {int modelIndex = 0});

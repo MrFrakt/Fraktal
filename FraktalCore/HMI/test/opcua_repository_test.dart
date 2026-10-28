@@ -306,7 +306,8 @@ void main() {
     addTearDown(repository.dispose);
     await expectLater(repository.login('PneumaticPress', 'admin1', 'sampled'),
         throwsA(isA<TimeoutException>()));
-    expect(client.resultReads, greaterThanOrEqualTo(3));
+    expect(client.expiredResultReported, isTrue,
+        reason: 'the completed correlated result was observed without a session');
   });
 
   test('pending login timeout is unavailable rather than invalid credentials',
@@ -1014,8 +1015,10 @@ class _PendingLoginClient extends _LoginClient implements OpcUaBulkReadClient {
 
 class _CorrelatedLoginClient extends _PendingLoginClient {
   final bool sessionExpires;
+  bool expiredResultReported = false;
   _CorrelatedLoginClient({this.sessionExpires = false})
-      : super(loginSucceeds: true, loginTimeoutMs: sessionExpires ? 180 : null);
+      : super(loginSucceeds: true, pendingReads: sessionExpires ? 1 : 3,
+          loginTimeoutMs: sessionExpires ? 180 : null);
 
   @override
   Future<Map<String, Object?>> snapshot() async {
@@ -1034,6 +1037,7 @@ class _CorrelatedLoginClient extends _PendingLoginClient {
     values['$base/LoginResultSequence'] =
         resultReads < pendingReads ? sequence - 1 : sequence;
     if (sessionExpires && resultReads >= pendingReads) {
+      expiredResultReported = true;
       values['$base/CurrentUser'] = '';
       values['$base/CurrentLevel'] = AccessLevel.none.index;
     }

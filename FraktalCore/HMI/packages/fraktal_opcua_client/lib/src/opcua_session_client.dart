@@ -45,6 +45,23 @@ abstract class OpcUaBatchSessionClient implements OpcUaSessionClient {
   Future<bool> writeBatch(List<OpcUaWrite> writes);
 }
 
+/// Optional connection policy, enforced by a transport before any wire write.
+/// Existing secured transports retain their own configured authorization.
+abstract interface class OpcUaWritePolicyClient implements OpcUaSessionClient {
+  bool get readOnly;
+}
+
+/// Targeted values retain the source's quality and monotonic age.
+abstract interface class OpcUaDataValueReadClient {
+  Future<Map<String, Object?>> readDataValues(List<String> browsePaths);
+}
+
+/// PLC-published configuration read service; no mailbox query or page write.
+abstract interface class OpcUaReadOnlyConfigurationClient {
+  Future<Map<String, Object?>?> readConfigurationPage(
+      String root, int modelOrdinal);
+}
+
 /// Optional capability: a client that can read a small set of browse paths in
 /// one service call, without paying for a full snapshot. Used for mailbox
 /// acknowledgement polling, config-manifest page reads, and on-demand facets;

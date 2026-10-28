@@ -9,7 +9,9 @@ import '../domain/module_node.dart';
 import '../domain/types.dart';
 import 'plc_repository.dart';
 
-class ScopedPlcRepository implements PlcRepository {
+class ScopedPlcRepository implements PlcRepository, PlcRepositoryWritePolicy {
+  @override
+  bool get readOnly => source.readOnly;
   final PlcRepository source;
   final _forest = StreamController<List<ModuleNode>>.broadcast();
   final _fieldbus = StreamController<List<BusNode>>.broadcast();
@@ -196,8 +198,10 @@ class ScopedPlcRepository implements PlcRepository {
   @override
   Future<bool> writeConfig(String nodePath, CfgField field, String value,
           {int modelIndex = 0}) =>
-      _bool(nodePath,
-          () => source.writeConfig(nodePath, field, value, modelIndex: modelIndex));
+      _bool(
+          nodePath,
+          () => source.writeConfig(nodePath, field, value,
+              modelIndex: modelIndex));
   @override
   Future<List<CfgField>?> queryModelConfig(String rootPath, int modelIndex) =>
       _allows(rootPath)
@@ -206,8 +210,10 @@ class ScopedPlcRepository implements PlcRepository {
   @override
   Future<bool> setClassLevel(String rootPath, String classId, AccessLevel level,
           {required bool forWrite}) =>
-      _bool(rootPath,
-          () => source.setClassLevel(rootPath, classId, level, forWrite: forWrite));
+      _bool(
+          rootPath,
+          () => source.setClassLevel(rootPath, classId, level,
+              forWrite: forWrite));
   @override
   Future<List<ConfigSetInfo>?> listConfigSets(String rootPath) =>
       _allows(rootPath) ? source.listConfigSets(rootPath) : Future.value(null);
@@ -222,17 +228,22 @@ class ScopedPlcRepository implements PlcRepository {
       _bool(rootPath, () => source.deleteConfigSet(rootPath, name));
   @override
   Future<String?> exportConfigSet(String rootPath, String name) =>
-      _allows(rootPath) ? source.exportConfigSet(rootPath, name) : Future.value(null);
+      _allows(rootPath)
+          ? source.exportConfigSet(rootPath, name)
+          : Future.value(null);
   @override
   Future<bool> createModel(String rootPath, String code,
           {int sourceModel = 0, String sourceSet = ''}) =>
-      _bool(rootPath, () => source.createModel(rootPath, code,
-          sourceModel: sourceModel, sourceSet: sourceSet));
+      _bool(
+          rootPath,
+          () => source.createModel(rootPath, code,
+              sourceModel: sourceModel, sourceSet: sourceSet));
   @override
   Future<String?> exportCurrentConfig(String rootPath, CfgKind kind,
-          {int modelIndex = 0}) => _allows(rootPath)
-      ? source.exportCurrentConfig(rootPath, kind, modelIndex: modelIndex)
-      : Future.value(null);
+          {int modelIndex = 0}) =>
+      _allows(rootPath)
+          ? source.exportCurrentConfig(rootPath, kind, modelIndex: modelIndex)
+          : Future.value(null);
   @override
   Future<bool> importConfigSet(String rootPath, String document) =>
       _bool(rootPath, () => source.importConfigSet(rootPath, document));
@@ -240,8 +251,9 @@ class ScopedPlcRepository implements PlcRepository {
   Future<bool> acknowledgeConfigRestore(String rootPath) =>
       _bool(rootPath, () => source.acknowledgeConfigRestore(rootPath));
   @override
-  Future<String> configSetRejection(String rootPath) =>
-      _allows(rootPath) ? source.configSetRejection(rootPath) : Future.value('');
+  Future<String> configSetRejection(String rootPath) => _allows(rootPath)
+      ? source.configSetRejection(rootPath)
+      : Future.value('');
   @override
   Future<bool> shelveAlarm(String unitPath, String sourcePath,
           String description, Duration duration) =>
@@ -279,7 +291,8 @@ class ScopedPlcRepository implements PlcRepository {
 
   @override
   void setModuleIoViewActive(String? modulePath) {
-    _moduleIoPath = modulePath != null && _allows(modulePath) ? modulePath : null;
+    _moduleIoPath =
+        modulePath != null && _allows(modulePath) ? modulePath : null;
     source.setModuleIoViewActive(_moduleIoPath);
   }
 

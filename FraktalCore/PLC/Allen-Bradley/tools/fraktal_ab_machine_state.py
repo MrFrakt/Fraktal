@@ -26,11 +26,19 @@ def classify(app, unit, blocking):
     return next((STATES[state] for state, terms in PRIORITIES if any(values[t] for t in terms)), STATES['IDLE'])
 
 
+def wait_condition(app, unit, kind):
+    positions = ' OR '.join(f'(({unit}.Mode = {m}) AND ({unit}.Step = {s}))'
+                           for m, s in wait_steps(app, kind)) or '0 = 1'
+    return f'(({unit}.Error = 0) AND ({unit}.Running <> 0) AND ({positions}))'
+
+
+def wait_logic(app, starved, blocked, unit):
+    return [f'{starved} := {wait_condition(app,unit,"WAIT_UPSTREAM")};',
+            f'{blocked} := {wait_condition(app,unit,"WAIT_DOWNSTREAM")};']
+
+
 def logic(app, target, unit, alarm):
-    def wait(kind):
-        positions = ' OR '.join(f'(({unit}.Mode = {m}) AND ({unit}.Step = {s}))'
-                                for m, s in wait_steps(app, kind)) or '0 = 1'
-        return f'(({unit}.Error = 0) AND ({unit}.Running <> 0) AND ({positions}))'
+    def wait(kind):return wait_condition(app,unit,kind)
     terms = dict(error=f'{unit}.Error <> 0', blocking=f'{alarm}.Blocking <> 0',
                  changeover=f'{unit}.Mode = {CHANGEOVER}', blocked=wait('WAIT_DOWNSTREAM'),
                  starved=wait('WAIT_UPSTREAM'), running=f'{unit}.Running <> 0',

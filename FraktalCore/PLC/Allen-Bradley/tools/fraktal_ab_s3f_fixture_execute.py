@@ -11,7 +11,6 @@ from pathlib import Path
 import fraktal_ab_genealogy_execute as genealogy
 import fraktal_ab_genealogy_s3f_demo as candidate
 import fraktal_ab_canonical_publication as publication
-import fraktal_ab_canonical_manifest as manifest_wire
 import fraktal_ab_canonical_reader as reader
 import fraktal_ab_config_provider as provider
 import fraktal_ab_config_provider_wire as wire
@@ -36,8 +35,7 @@ MISSING_NAME='s3f_absent_set'
 
 
 def expected_manifest(app):
-    return manifest_wire.content_hash(publication.field_rows(app),legacy.content_hash(app),app.canonical_publication_stage,
-        minor=manifest_wire.SERVICE_MINOR,bindings=publication.publication_bindings(app),services=provider.services(app))
+    return publication.manifest_values(app)['ContentHash']
 
 
 def provider_targets(app):
@@ -56,12 +54,12 @@ def import_pieces(document):
                 BoolValue=final and i==len(document)-1)
 
 
-def paired_run(destination,*,candidate_factory=None,equivalence_gate=None,prefix='s3f'):
+def paired_run(destination,*,candidate_factory=None,equivalence_gate=None,prefix='s3f',base=None):
     state=dict(page=0,model=0,provider_state={})
     selected=equivalence.run if equivalence_gate is None else equivalence_gate
     selected_factory=candidate.application if candidate_factory is None else candidate_factory
     def gate(comm):return selected(comm,**state)
-    parent=previous.paired_run(destination,gate=gate,prefix=prefix)
+    parent=previous.paired_run(destination,gate=gate,prefix=prefix,base=base)
 
     class ConfigRun(parent):
         def __init__(self,*args,**kwargs):

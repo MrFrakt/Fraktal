@@ -109,8 +109,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
       final index = controller.index;
       final tab = tabs[index];
       final includesIo = tab.kind.hostsCards &&
-          _ModuleCardsTab(app: app, node: node, tab: tab)
-              .usesModuleIo(context);
+          _ModuleCardsTab(app: app, node: node, tab: tab).usesModuleIo(context);
       final containers = tab.kind.hostsCards
           ? _ModuleCardsTab(
                   app: app, node: node, tab: tab, guidanceTab: _guidanceTab)
@@ -143,7 +142,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
   /// tab bar - an empty
   /// tab is a click that shows nothing - and comes back in edit mode, where
   /// an ADMIN arranges it.
-  bool _isEmptyTab(BuildContext context, ModuleNode node, ModuleTabDefinition tab) {
+  bool _isEmptyTab(
+      BuildContext context, ModuleNode node, ModuleTabDefinition tab) {
     if (tab.kind.hostsCards) {
       return _ModuleCardsTab(
               app: app, node: node, tab: tab, guidanceTab: _guidanceTab)
@@ -193,9 +193,10 @@ class _ModuleDetailState extends State<ModuleDetail> {
     return DefaultTabController(
       key: controllerKey,
       length: visibleTabs.length,
-      initialIndex: visibleTabs.indexWhere((tab) =>
-          tab.id == app.moduleView(node.path).selectedTabId).clamp(0,
-              visibleTabs.length - 1),
+      initialIndex: visibleTabs
+          .indexWhere(
+              (tab) => tab.id == app.moduleView(node.path).selectedTabId)
+          .clamp(0, visibleTabs.length - 1),
       // Operator tabs change atomically. Flutter's TabController otherwise
       // drives the indicator and PageView through separate animations; under
       // live PLC rebuild load those can visibly pause near completion.
@@ -380,9 +381,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
                     ? 'std.module.editor.clearDefaultTab'
                     : 'std.module.editor.setDefaultTab'),
                 onPressed: () => _toggleDefaultTab(selectedTab),
-                icon: Icon(selectedTab.isDefault
-                    ? Icons.star
-                    : Icons.star_outline),
+                icon: Icon(
+                    selectedTab.isDefault ? Icons.star : Icons.star_outline),
               ),
               if (selectedTab.kind.hostsCards) ...[
                 const SizedBox(width: 6),
@@ -500,27 +500,27 @@ class _ModuleDetailState extends State<ModuleDetail> {
         ModuleTabKind.custom || ModuleTabKind.guidance => _ViewClassBadge(
             viewClass: tab.kind.acceptsBackground ? tab.viewClass : null,
             child: CustomModuleTabView(
-            app: app,
-            node: node,
-            tab: tab,
-            editing: _editing,
-            onEditControl: (control) =>
-                _editControl(node, tab, control, capabilities),
-            onRemoveControl: (id) =>
-                _removeControl(node, tab, id, capabilities),
-            onMoveControlUp: (index) =>
-                _moveControl(node, tab, index, -1, capabilities),
-            onMoveControlDown: (index) =>
-                _moveControl(node, tab, index, 1, capabilities),
-            onReorderControl: (oldIndex, newIndex) =>
-                _reorderControl(node, tab, oldIndex, newIndex, capabilities),
-            onPlaceControl: (id, placement) =>
-                _placeControl(tab, id, placement),
-            onAddControlAt: (kind, placement) => _addControl(
-                node, tab, capabilities,
-                kind: kind, placement: placement),
-            onGridChanged: (grid) => _upsertDraftTab(tab.withGrid(grid)),
-          ),
+              app: app,
+              node: node,
+              tab: tab,
+              editing: _editing,
+              onEditControl: (control) =>
+                  _editControl(node, tab, control, capabilities),
+              onRemoveControl: (id) =>
+                  _removeControl(node, tab, id, capabilities),
+              onMoveControlUp: (index) =>
+                  _moveControl(node, tab, index, -1, capabilities),
+              onMoveControlDown: (index) =>
+                  _moveControl(node, tab, index, 1, capabilities),
+              onReorderControl: (oldIndex, newIndex) =>
+                  _reorderControl(node, tab, oldIndex, newIndex, capabilities),
+              onPlaceControl: (id, placement) =>
+                  _placeControl(tab, id, placement),
+              onAddControlAt: (kind, placement) => _addControl(
+                  node, tab, capabilities,
+                  kind: kind, placement: placement),
+              onGridChanged: (grid) => _upsertDraftTab(tab.withGrid(grid)),
+            ),
           ),
       };
 
@@ -674,8 +674,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
           ModuleNode node, ModuleTabCapabilities capabilities) =>
       _typeScope && node.typeKey.isNotEmpty
           ? app.content.tabsFor(_scope(node), capabilities)
-          : app.content
-              .tabsFor(node.path, capabilities, typeKey: node.typeKey);
+          : app.content.tabsFor(node.path, capabilities, typeKey: node.typeKey);
 
   /// Switching scope reloads the draft, so it is only offered while the draft
   /// has no unpublished change to lose.
@@ -706,16 +705,16 @@ class _ModuleDetailState extends State<ModuleDetail> {
       await app.content.publishTile(scope, profile);
     } on FormatException catch (refused) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.tr(refused.message))));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(context.tr(refused.message))));
       }
     }
   }
 
   Future<void> _useTypeLayout(
       ModuleNode node, ModuleTabCapabilities capabilities) async {
-    await app.content.clearLayout(node.path, capabilities,
-        author: app.session.user);
+    await app.content
+        .clearLayout(node.path, capabilities, author: app.session.user);
     if (!mounted) return;
     setState(() {
       _draftTabs = List.unmodifiable(_scopeTabs(node, capabilities));
@@ -785,7 +784,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
                 for (var i = 0; i < tabs.length; i++)
                   Padding(
                     key: ValueKey('tab-order-${tabs[i].id}'),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     child: tabs[i].isDefault
                         ? Chip(
                             avatar: const Icon(Icons.star, size: 18),
@@ -794,7 +794,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
                         : ReorderableDragStartListener(
                             index: i,
                             child: Chip(
-                              avatar: const Icon(Icons.drag_indicator, size: 18),
+                              avatar:
+                                  const Icon(Icons.drag_indicator, size: 18),
                               label: LText(tabs[i].title),
                             ),
                           ),
@@ -880,8 +881,8 @@ class _ModuleDetailState extends State<ModuleDetail> {
       // keep the draft so the author can fix it.
       hmiLog('publish ${node.path}: refused: ${refused.message}');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.tr(refused.message))));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(context.tr(refused.message))));
       }
       return;
     }
@@ -1065,7 +1066,6 @@ class _ModuleDetailState extends State<ModuleDetail> {
   }
 }
 
-
 /// A view's display class, shown ON the view (LOCALIZATION §7.4): a
 /// maintenance display standing in as an operating screen is apparent to
 /// anyone at the panel. Null = a fixed view with no authored class.
@@ -1236,7 +1236,8 @@ class _ModuleCardsTab extends StatelessWidget {
         return FraktalCard(
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               LText(n.message,
                   style: TextStyle(
                       color: n.faultActive
@@ -1281,7 +1282,7 @@ class _ModuleCardsTab extends StatelessWidget {
           health: n.systemHealth,
           tower: n.signalTower,
           canLampTest:
-              operations && !n.running && s.permits(GatedAction.manual),
+              operations && !n.running && app.permitsLocal(GatedAction.manual),
           onLampTest: () => app.repo.lampTest(n.path),
           onExplain: () => app.showReleaseReportAction(
               n.path, GatedAction.manual, 'Lamp test blocked'),
@@ -1293,7 +1294,7 @@ class _ModuleCardsTab extends StatelessWidget {
           domainId: n.controlDomainId,
           domainName: n.controlDomainName,
           memberUnits: n.controlDomainMembers,
-          canControl: s.permits(GatedAction.powerControl),
+          canControl: app.permitsLocal(GatedAction.powerControl),
           onControlOn: () => app.repo.controlOn(n.path),
           onControlOff: () => app.repo.controlOff(n.path),
           onExplain: () => app.showReleaseReportAction(
@@ -1304,14 +1305,16 @@ class _ModuleCardsTab extends StatelessWidget {
             ? null
             : NameplateCard(plate: n.nameplate!);
       case ModuleCardKind.shift:
-        return n.shift == null ? null : ShiftCard(shift: n.shift!, goodCount: n.goodCount);
+        return n.shift == null
+            ? null
+            : ShiftCard(shift: n.shift!, goodCount: n.goodCount);
       case ModuleCardKind.oee:
         if (n.oee == null) return null;
         return OeeCard(
           oee: n.oee!,
           onReset: () async {
             // §7.8 act-or-explain: blocked reset opens the release panel
-            if (!app.session.permits(GatedAction.dataWrite)) {
+            if (!app.permitsLocal(GatedAction.dataWrite)) {
               app.showReleaseReportAction(
                   n.path, GatedAction.dataWrite, 'OEE reset blocked');
               return;
@@ -1330,7 +1333,8 @@ class _ModuleCardsTab extends StatelessWidget {
         return FraktalCard(
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (n.blocking)
                 MaterialBanner(
                   backgroundColor: Theme.of(context).colorScheme.errorContainer,
@@ -1347,20 +1351,20 @@ class _ModuleCardsTab extends StatelessWidget {
                   ],
                 ),
               Wrap(
-                spacing: kInlineItemGap,
-                runSpacing: kInlineItemGap,
-                children: [
-                Chip(
-                    avatar: const Icon(Icons.qr_code_2, size: 18),
-                    label: LText('Model ${n.modelCode}')),
-                Chip(
-                    label: LText(
-                        'Mode ${n.modeActive?.name.toUpperCase() ?? '-'}')),
-                if (n.machineState != null)
-                  Chip(
-                      avatar: const Icon(Icons.factory_outlined, size: 18),
-                      label: LText(n.machineState!.name.toUpperCase())),
-              ]),
+                  spacing: kInlineItemGap,
+                  runSpacing: kInlineItemGap,
+                  children: [
+                    Chip(
+                        avatar: const Icon(Icons.qr_code_2, size: 18),
+                        label: LText('Model ${n.modelCode}')),
+                    Chip(
+                        label: LText(
+                            'Mode ${n.modeActive?.name.toUpperCase() ?? '-'}')),
+                    if (n.machineState != null)
+                      Chip(
+                          avatar: const Icon(Icons.factory_outlined, size: 18),
+                          label: LText(n.machineState!.name.toUpperCase())),
+                  ]),
               if (n.stateFlags.isNotEmpty) _stateFlags(context, n.stateFlags),
               const SizedBox(height: kInlineItemGap),
               _controls(context, n, s),
@@ -1373,20 +1377,20 @@ class _ModuleCardsTab extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              children: [
-              Chip(label: LText('Good ${n.goodCount}')),
-              Chip(label: LText('NOK ${n.nokCount}')),
-              if (n.reworkCount > 0)
-                Chip(label: LText('Rework ${n.reworkCount}')),
-              if (n.lastCycleTime > Duration.zero)
-                Chip(
-                    avatar: const Icon(Icons.timer_outlined, size: 18),
-                    label: LText(
-                        'Cycle ${(n.lastCycleTime.inMilliseconds / 1000).toStringAsFixed(1)}s'
-                        ' (best ${(n.minCycleTime.inMilliseconds / 1000).toStringAsFixed(1)}s)')),
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                children: [
+                  Chip(label: LText('Good ${n.goodCount}')),
+                  Chip(label: LText('NOK ${n.nokCount}')),
+                  if (n.reworkCount > 0)
+                    Chip(label: LText('Rework ${n.reworkCount}')),
+                  if (n.lastCycleTime > Duration.zero)
+                    Chip(
+                        avatar: const Icon(Icons.timer_outlined, size: 18),
+                        label: LText(
+                            'Cycle ${(n.lastCycleTime.inMilliseconds / 1000).toStringAsFixed(1)}s'
+                            ' (best ${(n.minCycleTime.inMilliseconds / 1000).toStringAsFixed(1)}s)')),
+                ]),
           ),
         );
       case ModuleCardKind.cycleAnalysis:
@@ -1394,30 +1398,41 @@ class _ModuleCardsTab extends StatelessWidget {
         // §8.11.4(c) cycle-time analysis: trend (why it moved) -> Gantt (which
         // step, and where in the cycle) -> Pareto (which step, over time) ->
         // command timing per child module (which command).
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          CycleTrendView(
-              key: ValueKey('${n.path}/cycle-trend'),
-              hiddenTimeClasses: app.moduleView(n.path)
-                  .hiddenFor<TimeClass>('${tab.id}/cycle-trend'),
-              history: n.cycleHistory, minCycleTime: n.minCycleTime),
-          if (n.cycle != null)
-            CycleProfileView(key: ValueKey('${n.path}/cycle-profile'), profile: n.cycle!,
-                hiddenTimeClasses: app.moduleView(n.path)
-                    .hiddenFor<TimeClass>('${tab.id}/cycle-profile')),
-          if (n.stepStats.isNotEmpty)
-            StepParetoView(key: ValueKey('${n.path}/step-pareto'), stats: n.stepStats,
-                hiddenTimeClasses: app.moduleView(n.path)
-                    .hiddenFor<TimeClass>('${tab.id}/step-pareto')),
-          for (final child in n.children)
-            if (child.commandTimings.isNotEmpty)
-              CommandTimingView(
-                  moduleName: child.name, rows: child.commandTimings),
-        ]);
+        return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CycleTrendView(
+                  key: ValueKey('${n.path}/cycle-trend'),
+                  hiddenTimeClasses: app
+                      .moduleView(n.path)
+                      .hiddenFor<TimeClass>('${tab.id}/cycle-trend'),
+                  history: n.cycleHistory,
+                  minCycleTime: n.minCycleTime),
+              if (n.cycle != null)
+                CycleProfileView(
+                    key: ValueKey('${n.path}/cycle-profile'),
+                    profile: n.cycle!,
+                    hiddenTimeClasses: app
+                        .moduleView(n.path)
+                        .hiddenFor<TimeClass>('${tab.id}/cycle-profile')),
+              if (n.stepStats.isNotEmpty)
+                StepParetoView(
+                    key: ValueKey('${n.path}/step-pareto'),
+                    stats: n.stepStats,
+                    hiddenTimeClasses: app
+                        .moduleView(n.path)
+                        .hiddenFor<TimeClass>('${tab.id}/step-pareto')),
+              for (final child in n.children)
+                if (child.commandTimings.isNotEmpty)
+                  CommandTimingView(
+                      moduleName: child.name, rows: child.commandTimings),
+            ]);
       case ModuleCardKind.activeEvents:
         return FraktalCard(
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               LText('Active events',
                   style: Theme.of(context).textTheme.titleMedium),
               for (final e in n.activeEvents) _eventTile(context, e),
@@ -1428,8 +1443,11 @@ class _ModuleCardsTab extends StatelessWidget {
         );
       case ModuleCardKind.history:
         return n.isUnit && s.permits(GatedAction.alarmHistory)
-            ? HistoryBrowser(node: n, hiddenSeverities: app.moduleView(n.path)
-                .hiddenFor<Severity>('${tab.id}/history'))
+            ? HistoryBrowser(
+                node: n,
+                hiddenSeverities: app
+                    .moduleView(n.path)
+                    .hiddenFor<Severity>('${tab.id}/history'))
             : null;
       case ModuleCardKind.description:
         return ModuleInformationCard(app: app, node: n);
@@ -1463,7 +1481,8 @@ class _ModuleCardsTab extends StatelessWidget {
         return FraktalCard(
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               LText(guidance.title,
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -1559,8 +1578,10 @@ class _ModuleCardsTab extends StatelessWidget {
       ),
       IconButton(
         tooltip: context.tr('std.module.editor.removeCard'),
-        onPressed: () =>
-            _commit([for (final card in cards) if (card != placement) card]),
+        onPressed: () => _commit([
+          for (final card in cards)
+            if (card != placement) card
+        ]),
         icon: const Icon(Icons.close),
       ),
     ]);
@@ -1590,7 +1611,8 @@ class _ModuleCardsTab extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           header,
           body,
         ]),
@@ -1599,7 +1621,8 @@ class _ModuleCardsTab extends StatelessWidget {
   }
 
   /// Dropping here moves a card to the end.
-  Widget _endDropTarget(BuildContext context, List<ModuleCardPlacement> cards) =>
+  Widget _endDropTarget(
+          BuildContext context, List<ModuleCardPlacement> cards) =>
       DragTarget<ModuleCardKind>(
         onAcceptWithDetails: (details) =>
             _move(cards, details.data, cards.length),
@@ -1631,8 +1654,7 @@ class _ModuleCardsTab extends StatelessWidget {
     // a Card only paints, it does not re-pair the foreground, and without this
     // every glyph inside inherits whatever style encloses the card (app_theme).
     final bosch = FraktalChromeTheme.of(context) != null;
-    final cardFill = bosch ? Colors.white
-        : operatorActionContainer(context);
+    final cardFill = bosch ? Colors.white : operatorActionContainer(context);
     return FraktalCard(
       color: cardFill,
       shape: RoundedRectangleBorder(
@@ -1646,50 +1668,53 @@ class _ModuleCardsTab extends StatelessWidget {
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-              const Icon(Icons.pan_tool_outlined, color: kOperatorActionColor),
-              LText('Manual commands',
-                  style: Theme.of(context).textTheme.titleMedium),
-              // Each chip paints its own fill inside the tinted card, so each
-              // pairs its own foreground rather than inheriting the card's.
-              if (!inManual)
-                _pairedChip(context, null, 'Unit not in MANUAL')
-              else if (!canManual)
-                _pairedChip(context, Icons.lock_outline, 'MANUAL access'),
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Icon(Icons.pan_tool_outlined,
+                      color: kOperatorActionColor),
+                  LText('Manual commands',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  // Each chip paints its own fill inside the tinted card, so each
+                  // pairs its own foreground rather than inheriting the card's.
+                  if (!inManual)
+                    _pairedChip(context, null, 'Unit not in MANUAL')
+                  else if (!canManual)
+                    _pairedChip(context, Icons.lock_outline, 'MANUAL access'),
+                ]),
             const SizedBox(height: 4),
             LText(
                 'Routed through the module — interlocks still apply (§7.6.1).',
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 8),
             Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              children: [
-              for (final c in n.commands)
-                // §7.6.1a - a HELD command is hold-to-run, not a click: the control
-                // refreshes the request while it is down and releases it on lift,
-                // cancel, dispose - anything that ends the asking stops the motion.
-                if (c.style == CommandStyle.held)
-                  _HeldManualButton(app: app, node: n.path, command: c)
-                else
-                  FilledButton.tonal(
-                    style: enabled
-                        ? FilledButton.styleFrom(
-                            backgroundColor: kOperatorActionColor,
-                            foregroundColor: Colors.white)
-                        : null,
-                    // §7.6.0: a blocked manual button reveals WHY instead of being inert
-                    onPressed: enabled
-                        ? () => _manual(context, n, c)
-                        : () => app.showReleaseReportManual(
-                            app.rootOf(n.path)?.path ?? '', n.path, c.value),
-                    child: LText(c.label),
-                  ),
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                children: [
+                  for (final c in n.commands)
+                    // §7.6.1a - a HELD command is hold-to-run, not a click: the control
+                    // refreshes the request while it is down and releases it on lift,
+                    // cancel, dispose - anything that ends the asking stops the motion.
+                    if (c.style == CommandStyle.held)
+                      _HeldManualButton(app: app, node: n.path, command: c)
+                    else
+                      FilledButton.tonal(
+                        style: enabled
+                            ? FilledButton.styleFrom(
+                                backgroundColor: kOperatorActionColor,
+                                foregroundColor: Colors.white)
+                            : null,
+                        // §7.6.0: a blocked manual button reveals WHY instead of being inert
+                        onPressed: enabled
+                            ? () => _manual(context, n, c)
+                            : () => app.showReleaseReportManual(
+                                app.rootOf(n.path)?.path ?? '',
+                                n.path,
+                                c.value),
+                        child: LText(c.label),
+                      ),
+                ]),
             const SizedBox(height: 16),
             ModuleIoSignals(
               modulePath: n.path,
@@ -1727,7 +1752,7 @@ class _ModuleCardsTab extends StatelessWidget {
       OutlinedButton.icon(
         icon: const Icon(Icons.swap_horiz),
         label: const LText('Changeover'),
-        onPressed: s.permits(GatedAction.changeover)
+        onPressed: app.permitsLocal(GatedAction.changeover)
             ? () => _changeover(context, n)
             : () => app.showReleaseReportAction(
                 n.path, GatedAction.changeover, 'Changeover blocked'),
@@ -1870,7 +1895,7 @@ class _ModuleCardsTab extends StatelessWidget {
               'Not shelvable: this reason has no rationalization record or is flagged non-shelvable (§8.10). Safety alarms are never shelvable.')));
       return;
     }
-    if (!app.session.permits(GatedAction.alarmShelve)) {
+    if (!app.permitsLocal(GatedAction.alarmShelve)) {
       app.showReleaseReportAction(
           root, GatedAction.alarmShelve, 'Shelve blocked');
       return;
@@ -1893,10 +1918,7 @@ Widget _stateFlags(BuildContext context, List<StateFlag> flags) {
   final now = hmiNow();
   return Padding(
     padding: const EdgeInsets.only(top: kInlineItemGap),
-    child: Wrap(
-      spacing: kInlineItemGap,
-      runSpacing: kInlineItemGap,
-      children: [
+    child: Wrap(spacing: kInlineItemGap, runSpacing: kInlineItemGap, children: [
       for (final f in flags)
         Chip(
           avatar: Icon(

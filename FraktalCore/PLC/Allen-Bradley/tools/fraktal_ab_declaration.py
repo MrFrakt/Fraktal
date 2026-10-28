@@ -724,6 +724,9 @@ class IoModule:
     description_key: str
     data_width: int
     channels: tuple[IoChannel, ...]
+    # Canonical HAL boundary: a controller-owned sampled-word record. Empty
+    # means unavailable, never a healthy zero. The client never sees this name.
+    sample_tag: str = ""
 
     @property
     def input_tag(self) -> str:
@@ -920,6 +923,14 @@ class Application:
     # Capacity plan R2: canonical literals as one constant pool read by loops,
     # instead of per-byte statements. False keeps released images byte-identical.
     canonical_table_driven: bool = False
+    # Capacity plan R1: type-scoped V6.4 manifest; released images keep V6.0-3.
+    canonical_type_manifest: bool = False
+    # S4: discoverable bindings to existing scan-generation guards (V6.7).
+    canonical_read_coherence: bool = False
+    # S4b: PLC-owned read-only configuration discovery (V6.8).
+    canonical_config_read_view: bool = False
+    # Disposable S3j acceptance source, never a production HAL driver.
+    canonical_io_fixture: bool = False
 
     @property
     def program(self) -> str:

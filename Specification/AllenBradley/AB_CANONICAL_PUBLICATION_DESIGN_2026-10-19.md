@@ -1,13 +1,27 @@
 # Fraktal/AB canonical publication — one architecture across bindings
 
-Non-normative design note, 2026-10-19, continued 2026-10-20. Status:
-**first S0 runtime measurement and restoration completed; D6/D7 selected;
-V2 and the Part III amendment are owner-approved target drafts; the S1 oracle exit passes.** The
-production generator and HMI have not migrated. Part III stays authoritative
-until the stages below pass their gates and amend it. See
-[S0 evidence](Evidence/AB_S0_CANONICAL_TYPES_2026-10-20.md).
+Non-normative design note, 2026-10-19, continued through 2026-10-27. Status:
+**S3 Echo exit and S4a pass; S4b remains open.** The [body-packet attempt](Evidence/AB_S4B_MSP_ATTEMPT_2026-10-27.md)
+passes 41 cases/87 exact replays, the busy witness and 2,851 entirely Good Dart
+samples, median age 209.959 ms. Counts/body are batched between separate completed
+counter reads; no MSP ordering/atomicity assumption. Strict desktop initially
+LIVE then STALE after overview at **1,051.723 ms** against 1,000 ms. Precise delay
+cause remains unisolated; later acquisition/final timing skipped. TASK maximum
+9,002 us /zero overlaps; genealogy/31 baseline/final checks pass. Approval consumed.
+Offline acquisition/delivery reduction is next, preserving proofs/freshness.
+685 HMI/12 skips, 73 focused and 74 root tests pass; unchanged 373 PLC/gate
+bindings retain 2,339 AB tests/65% Capacity by hashes. V2/Part III inactive;
+S5-S7/physical I/O remain. See the [plan](AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md).
 
 ## Owner decisions
+
+- **Read-only configuration discovery:** the owner selected option A in the
+  [S4b review](AB_CANONICAL_PUBLICATION_S4B_READONLY_CONFIG_REVIEW_2026-10-25.md).
+  V6.8 publishes a versioned definition/value view, including occupied model
+  banks and access masking, from the existing configuration owner. Direct
+  unsecured CIP never uses a mailbox query to select a page or bank. This
+  approves the contract and offline work; the exact new image/session requires
+  separate current authorization.
 
 - **Coherent architecture** (2026-10-19): *"having a coherent architecture
   along all implementations is important."* Fraktal/AB shall reach the HMI the

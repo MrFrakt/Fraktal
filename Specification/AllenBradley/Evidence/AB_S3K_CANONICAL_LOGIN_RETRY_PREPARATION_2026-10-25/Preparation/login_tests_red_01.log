@@ -1,0 +1,30 @@
+...........FF.
+======================================================================
+FAIL: test_legacy_login_after_typed_uses_its_own_token (test_fraktal_ab_s3k_login.LoginSequenceTests.test_legacy_login_after_typed_uses_its_own_token)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3k_login.py", line 78, in test_legacy_login_after_typed_uses_its_own_token
+    self.assertEqual(self.consume_and_finish(bench)['CurrentLevel'], 4)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 4
+
+======================================================================
+FAIL: test_typed_pin_login_completes_with_real_sha_and_preserves_legacy_commit_and_ack (test_fraktal_ab_s3k_login.LoginSequenceTests.test_typed_pin_login_completes_with_real_sha_and_preserves_legacy_commit_and_ack)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s3k_login.py", line 63, in test_typed_pin_login_completes_with_real_sha_and_preserves_legacy_commit_and_ack
+    self.assertEqual((held['CurrentLevel'], held['LoginFailed'], held['LoginResultSequence']), (4, 0, 12))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (0, 1, 12) != (4, 0, 12)
+
+First differing element 0:
+0
+4
+
+- (0, 1, 12)
++ (4, 0, 12)
+
+----------------------------------------------------------------------
+Ran 14 tests in 7.740s
+
+FAILED (failures=2)

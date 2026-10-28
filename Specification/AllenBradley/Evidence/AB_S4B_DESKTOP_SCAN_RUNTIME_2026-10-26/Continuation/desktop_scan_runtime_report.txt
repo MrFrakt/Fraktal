@@ -1,0 +1,97 @@
+# S4b desktop/early-scan runtime — 2026-10-26
+
+**The reader again passes its functional checks, but desktop acceptance and
+scan review fail. The desktop helper's success flag is rejected: it captured
+zero modules and two empty/STale views. TASK overlap occurs during startup,
+between the observations at probe counts 1 and 17. Genealogy and all 31
+baseline/final checks are restored. S4b remains open.**
+
+The current owner approved “Approve guarded S4b desktop/scan session”,
+`call_6c35ecad4ba84714a17ec9b7b68f5ad4:0`, for the
+[original package](AB_S4B_DESKTOP_SCAN_PREPARATION_2026-10-26.md).
+Its [first attempt](AB_S4B_DESKTOP_SCAN_PREFLIGHT_ATTEMPT_2026-10-26.md)
+stopped before download/writes at a partial ready-file race. The
+[readiness-only continuation](AB_S4B_DESKTOP_SCAN_CONTINUATION_2026-10-26.md)
+preserves that failure and completes the same current instruction with no
+additional image/write scope. That scope is now completed and consumed.
+
+## Passed
+
+- Fresh guards, backup, Program/download/Run, SDK audits, read-back/access and
+  candidate guard pass on Echo 601FC87B, 1756-L81E v38.011, 127.0.0.1 slot 0.
+- Unchanged prepared ACD
+  `7D75E86E9315E0383EDE0C4588A6D327848F54C8A6DBB26B987CCB36DEF056BF`,
+  source `C4D0E14475AADB651A6C7DA23F63ABD6A10F2A11698E629A828CDD67F38C1C6F`.
+  Capacity 65%: 2,066,100 /3,145,728 Blocks. Both-target v38 proofs transfer
+  by unchanged PLC/source/image hashes.
+- **41/41 candidate checks**, restored values/policy and empty isolated store.
+  **87/87 independent raw-record replays**, exact values/types over
+  {summary[pairedMinimumPaths]}–{summary[pairedMaximumPaths]} occupied paths.
+- **{samples} cyclic Dart samples**, {all_good} entirely Good and {uncertain}
+  with Uncertain rows. Fast age median/p95/max
+  {inspection[sampleAgeMs][median]} /{inspection[sampleAgeMs][p95]} /
+  {inspection[sampleAgeMs][maximum]} ms. Largest accepted row window
+  {inspection[maximumAcceptedRowWindowUs][maximum]} us remains below 10,000 us.
+- Four configuration pages, live plus three banks, pass **1,100 exact oracle
+  value/type comparisons**; targeted detail reads pass. Observer writes zero.
+- Idle equivalence **{native[idlePaths]} paths**, no differences. Generic
+  acquisition **{native[acquiredValues]} values /{native[acquiredModules]} modules**.
+- Genealogy restored from the pinned-copy original
+  `D67561C4A30002E89B7D3F2973633D794239C5890221FF02319C5CFB93ED4084`.
+  Five exact original host documents, **31/31 baseline cases**, policy, MANUAL
+  cleanup, final checks/preflight pass. Baseline scan median/max
+  {baseline_median} /{baseline_max} us, zero overlaps. Final Run/not faulted,
+  scanning, MANUAL/idle/logout, not restoring, saved/live documents equal.
+  No dumps, fault clears, clock changes, power/vendor-state operations or
+  Echo hard kills. Only the SDK-saved working ACD changed among 1,066 bindings.
+
+## Desktop result rejected
+
+The actual live helper returns process exit 0 and claims desktopLiveAccepted.
+Its own JSON records **modules: []**, **fieldbusNodes: []**, and only overview
+and fieldbus screenshots. The overview image shows STALE and an empty body.
+This is a false-positive helper result, not accepted rendering or a connection
+proof. The post-run coverage review exits 1, rejecting the success flag against
+the required seven modules, three bus nodes and 31 distinct views.
+
+The helper waited for a nonempty forest once, then failed to require LIVE and
+nonempty data while capturing; its empty traversal therefore passed. The UI
+correctly withdrew unavailable data. The specific read/IPC/render timing that
+made this desktop connection stale was not captured, and its stdout log is
+empty. No claim that this is solely warm-up, renderer cost or PLC behavior is
+supported. The separate direct Dart observer passed its active workload; that
+does not replace the desktop path's quality/liveness gate.
+
+## Startup scan finding
+
+Final native TASK median **{native[taskScanMedianUs]} us**, cumulative maximum
+**{native[taskScanCumulativeMaxUs]} us**, **{native[taskOverlaps]} overlap** on a 10 ms task.
+The read-only monitor records **7,045 observations**, 6,979 valid, 66 temporary
+unavailable reads during download. Median/max poll spacing is 100,782 /
+123,083 us. No counters or faults are cleared.
+
+The new probe epoch starts at zero after download. At the observation with
+Samples=1, cached MaxScanUs/OverlapCount are 0/0. The next observation with
+Samples=17 has MaxScanUs=10,033 and OverlapCount=1, at
+2026-10-27T02:28:59.953742Z. This precedes the Dart candidate observer and
+desktop. The count then stays at one through candidate timing, up to probe
+sample 67,131. It localizes the finding to early startup, not to later desktop
+rendering. Polling/scalar non-atomicity does not identify the exact offending
+scan, PLC routine or host scheduling cause. Preserve the budget/finding;
+inspect initialization before choosing a code correction.
+
+## Next and remaining
+
+Correct the desktop helper so stale/empty traversal cannot pass; retain
+link/forest and source-age timing diagnostics, verify coverage and preserve
+failed snapshots. Diagnose the real desktop acquisition behavior. Review the
+PLC startup path using the measured early interval. No proof or scan limit
+is weakened. Any changed image/new controller session needs its own gates
+and current authorization; the completed scope is not reused.
+
+Offline source-gated results remain 647 Flutter tests (12 skipped), pinned
+Flutter 3.47.5 /Dart 3.13.4, Windows/analyzer/lockfile, 74 root tests and 2,336
+unchanged AB tests. The continuation adds 14 readiness/workflow tests and
+authorization refusals. Desktop, scan review, S5–S7 and S3 physical I/O proof
+remain; V2/Part III inactive. No commit/push. Credentials and ACD binaries are
+excluded. All failed runs, raw frames, monitor samples and screenshots remain.

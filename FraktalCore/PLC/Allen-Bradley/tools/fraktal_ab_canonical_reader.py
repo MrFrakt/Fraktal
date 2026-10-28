@@ -138,17 +138,26 @@ def snapshot(capture):
             or manifest.get("truncated") is not False:
         raise ValueError("unsupported, invalid or truncated canonical manifest")
     minor = manifest.get('schemaMinor', 0)
-    if type(minor) is not int or minor not in (0, 1, 2, 3):
+    if type(minor) is not int or minor not in (0, 1, 2, 3, 4, 5, 6, 7, 8):
         raise ValueError('unsupported canonical manifest minor version')
     if minor<2 and any(key in manifest for key in ('bindings','fragmentRevision')):
         raise ValueError('record bindings require manifest V6.2')
+    if minor<5 and 'dataProducts' in manifest:raise ValueError('data products require manifest V6.5')
+    if minor<6 and 'commandBindings' in manifest:raise ValueError('command bindings require V6.6')
+    if minor<7 and 'readCoherenceBindings' in manifest:raise ValueError('read-coherence bindings require V6.7')
     token = tuple(coherence_token(manifest))
     if not isinstance(token[0], str) or not token[0] or type(token[1]) is not int:
         raise ValueError("invalid manifest coherence token")
     if capture.get("coherenceBefore") != list(token) or capture.get("coherenceAfter") != list(token):
         raise ValueError("manifest changed during acquisition")
     objects, sizes = template_objects(capture["templates"])
-    annotations = manifest["annotations"]
+    annotations = manifest.get('annotations', {}) if minor>=4 else manifest['annotations']
+    type_annotations, path_exceptions, used_pairs = {}, {}, set()
+    if minor >= 4:
+        from fraktal_ab_canonical_manifest import type_tables
+        if 'annotations' in manifest:
+            raise ValueError('V6.4 cannot mix path and type annotations')
+        type_annotations, path_exceptions = type_tables(manifest['typeAnnotations'], manifest['pathExceptions'])
     used, values, types = set(), {}, {}
     symbols = {}
     for symbol in capture["symbols"]:
@@ -161,6 +170,19 @@ def snapshot(capture):
         if record["tag"] in records:
             raise ValueError("duplicate tag sample")
         records[record["tag"]] = record
+    commands=[]
+    if minor>=6:
+        from fraktal_ab_command_binding import bindings as validate_commands
+        commands=validate_commands(manifest.get('commandBindings'))
+        from fraktal_ab_command_binding import operations as validate_operations
+        validate_operations(manifest.get('commandOperations'))
+        if {r['RequestSymbol'] for r in manifest.get('services',[])}&set(records):
+            raise ValueError('staged service/request values are forbidden in persisted cyclic captures')
+        if {r['PayloadSymbol'] for r in commands}&set(records):
+            raise ValueError('command-only payload values are forbidden in persisted cyclic captures')
+        if {r['ResponseSymbol'] for r in commands}&set(records):
+            raise ValueError('on-demand command replies are not cyclic records')
+    if minor<8 and 'readServices' in manifest:raise ValueError('read services require V6.8')
     roots = []
     for name, symbol in symbols.items():
         if symbol.get("arrayRank", 0) != 0:
@@ -172,6 +194,7 @@ def snapshot(capture):
     if not roots:
         raise ValueError("no controller-scope module with a top-level Status")
     decoded_roots, schema_rows = {}, {}
+    root_symbols = {root:root for root in roots}
     for root in roots:
         handle = symbols[root]['handle']
         if root not in records:
@@ -185,10 +208,45 @@ def snapshot(capture):
             raise ValueError(f'{root}: root is not a Unit')
         decoded_roots[root] = value
 
+    product_sources=set()
+    if minor>=5:
+        from fraktal_ab_canonical_manifest import data_products
+        for product in data_products(manifest.get('dataProducts')):
+            source,root=product['SourceSymbol'],product['CanonicalRoot']
+            if source in roots or any(root==old or root.startswith(old+'/') or old.startswith(root+'/') for old in roots):
+                raise ValueError('data product collides with a module root')
+            symbol=symbols.get(source)
+            if not symbol or symbol.get('arrayRank',0) or source not in records or symbol.get('handle') not in objects:
+                raise ValueError('data product Symbol/sample unavailable')
+            handle=symbol['handle']
+            if is_string(member_table(objects[handle])) is not None:
+                raise ValueError('data product must be a structured record')
+            decoded_roots[root]=decode_record(bytes.fromhex(records[source]['rawHex']),handle,capture['templates'])
+            root_symbols[root]=source;product_sources.add(source)
+
+    if minor>=7:
+        from fraktal_ab_read_coherence import validate_rows
+        validate_rows(manifest.get('readCoherenceBindings'),expected_prefixes=set(roots)|set(decoded_roots))
+        for binding in manifest['readCoherenceBindings']:
+            symbol=symbols.get(binding['RevisionSymbol'])
+            if not symbol or symbol.get('atomic')!=0xC4 or symbol.get('arrayRank',0):
+                raise ValueError('read-coherence revision Symbol is not a DINT scalar')
+
+    if minor>=8:
+        from fraktal_ab_config_read_view import validate_descriptors
+        for descriptor in validate_descriptors(manifest.get('readServices')):
+            if descriptor['RootSymbol'] not in roots or descriptor['CanonicalRoot'] not in decoded_roots \
+                    or descriptor['CanonicalRoot'] in roots:
+                raise ValueError('read-service root/product is not published')
+            view=decoded_roots[descriptor['CanonicalRoot']]
+            identity=view.get('RootIdentity',{})
+            if view.get('SchemaVersion')!=1 or not identity.get('string') \
+                    or bytes.fromhex(identity['bytes']).decode('utf-8')!=descriptor['RootSymbol']:
+                raise ValueError('read-service view version/identity differs')
     fragments=[]
     if minor>=2:
         bindings=manifest.get('bindings')
-        if not isinstance(bindings,list) or not 1<=len(bindings)<=1024:
+        if not isinstance(bindings,list) or not (0 if minor>=4 else 1)<=len(bindings)<=1024:
             raise ValueError('invalid canonical record bindings')
         sources=set()
         for binding in bindings:
@@ -196,7 +254,7 @@ def snapshot(capture):
                 raise ValueError('invalid canonical record binding')
             source,target=binding['SourceSymbol'],binding['TargetRoot']
             if not isinstance(source,str) or not isinstance(target,str) or not NAME.fullmatch(source) \
-                    or source in sources or source in roots or target not in roots:
+                    or source in sources or source in roots or source in product_sources or target not in roots:
                 raise ValueError('invalid canonical fragment source/root')
             sources.add(source)
             symbol=symbols.get(source)
@@ -207,7 +265,7 @@ def snapshot(capture):
                 raise ValueError('canonical fragment must be a structured record')
             value=decode_record(bytes.fromhex(records[source]['rawHex']),handle,capture['templates'])
             fragments.append((target,handle,value))
-        if set(records)!=set(roots)|sources:raise ValueError('unbound canonical tag sample')
+        if set(records)!=set(roots)|sources|product_sources:raise ValueError('unbound canonical tag sample')
 
     def schema_walk(path, handle, depth=0, *, fragment=False):
         if depth > 64:
@@ -215,6 +273,15 @@ def snapshot(capture):
         for row in member_table(objects[handle]):
             if fragment and row['name']=='Status':raise ValueError('fragment cannot define a module identity')
             key = path+'/'+row['name']
+            if minor >= 4:
+                pair = (objects[handle].Name, row['name'])
+                annotation = dict(type_annotations.get(pair, {}))
+                if pair in type_annotations:used_pairs.add(pair)
+                if 'countMember' in annotation:
+                    annotation['countPath'] = path+'/'+annotation.pop('countMember')
+                if key in annotations and annotations[key] != annotation:
+                    raise ValueError('conflicting type-scoped annotation: '+key)
+                if annotation:annotations[key] = annotation
             if key in schema_rows:
                 old=schema_rows[key]
                 if not fragment or not old['struct'] or not row['struct'] or old['array']!=row['array'] \
@@ -226,10 +293,41 @@ def snapshot(capture):
             if row['struct'] and is_string(member_table(objects[row['handle']])) is None:
                 schema_walk(key+('[*]' if row['array'] else ''), row['handle'], depth+1,fragment=fragment)
 
-    for root in roots:
-        schema_walk(root, symbols[root]['handle'])
+    for root,source in root_symbols.items():
+        schema_walk(root, symbols[source]['handle'])
     native_rows=set(schema_rows)
     for target,handle,unused in fragments:schema_walk(target,handle,fragment=True)
+    command_arguments={}
+    if minor>=6:
+        from fraktal_ab_command_binding import schema as command_schema
+        for descriptor in commands:
+            root=descriptor['RootSymbol']
+            if root not in roots:raise ValueError('command binding root is not a discovered Unit')
+            handle=command_schema(descriptor,symbols,objects,sizes,member_table,is_string)
+            before=set(schema_rows)
+            schema_walk(root+'/HmiRequest',handle,fragment=True)
+            for path in set(schema_rows)-before:
+                row=schema_rows[path]
+                width=is_string(member_table(objects[row['handle']])) if row['struct'] else None
+                command_arguments[path]=dict(readRole='CommandOnly',
+                    nativeType='String' if width is not None else NATIVE_TYPES[row['atomic']],
+                    **({'byteCapacity':width} if width is not None else {}))
+    if minor >= 4:
+        by_name = {}
+        for handle,template in objects.items():
+            if not any(pair[0]==template.Name for pair in type_annotations):continue
+            shape = (sizes[handle],member_table(template))
+            if template.Name in by_name and by_name[template.Name] != shape:
+                raise ValueError('ambiguous annotated Template name')
+            by_name[template.Name] = shape
+        if set(type_annotations) != used_pairs:
+            raise ValueError('type annotations refer to absent Template members')
+        for key, exception in path_exceptions.items():
+            if key not in schema_rows:
+                raise ValueError('path exception refers to an absent member')
+            annotations.setdefault(key, {}).update(exception)
+        if any(row['array'] and key not in annotations for key,row in schema_rows.items()):
+            raise ValueError('physical array lacks a type-scoped logical extent')
     if set(annotations)-set(schema_rows):
         raise ValueError('manifest contains annotations for paths absent from acquired roots')
 
@@ -257,20 +355,51 @@ def snapshot(capture):
                 raise ValueError(f'{key}: invalid array index selection')
             if count_path is not None:
                 target = schema_rows.get(count_path) if isinstance(count_path,str) else None
-                if selection is not None or count_path not in native_rows or target is None or target['array'] or target['struct'] \
+                if selection is not None or target is None or target['array'] or target['struct'] \
                         or target['atomic'] not in (0xC2,0xC3,0xC4,0xC5,0xC6,0xC7,0xC8,0xC9) \
-                        or '[*]' in count_path or count_path.split('/')[0] != key.split('/')[0]:
+                        or (('[*]' in count_path or count_path not in native_rows) if minor<4 else
+                            count_path.rsplit('/',1)[0] != key.rsplit('/',1)[0]) \
+                        or count_path.split('/')[0] != key.split('/')[0]:
                     raise ValueError(f'{key}: count reference is not a published same-root integer scalar')
         elif any(k in annotation for k in ('lowerBound','elementCount','countPath','indices')):
             raise ValueError(f'{key}: array annotation on scalar')
+
+    # A logical sibling can be in the native record while its array is in a
+    # bound metadata fragment. Schema validation above proves disjoint leaves
+    # and matching containers before we assemble their count lookup view.
+    count_roots = deepcopy(decoded_roots) if minor>=4 else None
+    def merge_count_view(target, source):
+        if isinstance(target,dict) and isinstance(source,dict):
+            for key,value in source.items():
+                if key in target:merge_count_view(target[key],value)
+                else:target[key]=deepcopy(value)
+        elif isinstance(target,list) and isinstance(source,list) and len(target)==len(source):
+            for left,right in zip(target,source):merge_count_view(left,right)
+        else:
+            raise ValueError('fragment count view has colliding leaves or mismatched containers')
+    if minor>=4:
+        for target,handle,value in fragments:merge_count_view(count_roots[target],value)
 
     def array_indices(path, annotation):
         extent = annotation['elementCount']
         count_path = annotation.get('countPath')
         if count_path is not None:
-            value = decoded_roots
-            for segment in count_path.split('/'):
-                value = value[segment]
+            if minor>=4:
+                concrete = path.rsplit('/',1)[0]+'/'+count_path.rsplit('/',1)[1]
+                owner = next(r for r in count_roots if concrete.startswith(r+'/'))
+                value, prefix = count_roots[owner], owner
+                for segment in concrete[len(owner)+1:].split('/'):
+                    match = re.fullmatch(r'([A-Za-z_][A-Za-z0-9_]*)(?:\[(-?\d+)\])?',segment)
+                    name,index = match.groups()
+                    prefix = prefix+'/'+name if prefix else name
+                    value = value[name]
+                    if index is not None:
+                        value = value[int(index)-annotations[_annotation_key(prefix)]['lowerBound']]
+                        prefix += '['+index+']'
+            else:
+                value = decoded_roots
+                for segment in count_path.split('/'):
+                    value = value[segment]
             if type(value) is not int or not 0 <= value <= extent:
                 raise ValueError(f'{path}: live array count exceeds logical capacity')
             return range(value)
@@ -363,15 +492,18 @@ def snapshot(capture):
             if row["name"] in value:
                 walk(f"{path}/{row['name']}", value[row["name"]], row, depth)
 
-    for root in roots:
-        walk_struct(root, decoded_roots[root], symbols[root]['handle'], 0)
+    for root,source in root_symbols.items():
+        walk_struct(root, decoded_roots[root], symbols[source]['handle'], 0)
     for target,handle,value in fragments:walk_struct(target,value,handle,0)
     if not minor and set(annotations) != used:
         raise ValueError("manifest contains annotations for paths absent from acquired roots")
     return dict(schema=SNAPSHOT, schemaVersion=1, values=values, types=types,
                 nodeCount=len(values), moduleCount=sum(p.endswith("/Status/Name") for p in values),
                 contentHash=token[0], configRevision=token[1], truncated=False,
-                dataValues={p: dict(value=v, type=types[p], status=0) for p, v in values.items()})
+                dataValues={p: dict(value=v, type=types[p], status=0) for p, v in values.items()},
+                **(dict(commandBindings=commands,commandArguments=command_arguments) if minor>=6 else {}),
+                **(dict(readCoherenceBindings=manifest['readCoherenceBindings']) if minor>=7 else {}),
+                **(dict(readServices=manifest['readServices']) if minor>=8 else {}))
 
 
 def template_byte_size(comm, handle):
@@ -389,6 +521,19 @@ def template_byte_size(comm, handle):
             or not 0 < size <= MAX_BYTES:
         raise ValueError("invalid Template structure-size attribute reply")
     return size
+
+
+def template_structure_handle(comm,handle):
+    """Template attribute 1, not the instance ID; never read payload bytes.
+
+    Rockwell 1756-PM020I pp. 12, 52-53 defines this write-type parameter.
+    """
+    status,packet=comm.conn.send(comm._cip_message(0x03,0x6C,handle,[1]))
+    if status!=0 or packet is None or len(packet)!=58:
+        raise ValueError('Template structure-handle attribute read failed')
+    fields=struct.unpack('<BBBBHHHH',packet[46:])
+    if fields[:7]!=(0x83,0,0,0,1,1,0):raise ValueError('invalid Template structure-handle reply')
+    return fields[7]
 
 
 def coherence_token(manifest):
@@ -424,10 +569,34 @@ def read_document(comm, manifest_reader=None, *, expect_serial):
     symbols = [dict(name=t.TagName, handle=t.DataTypeValue, arrayRank=t.Array)
                for t in reply.Value if t.Struct and NAME.fullmatch(t.TagName)]
     before = deepcopy(manifest_reader(comm, symbols, templates))
+    if before.get('schemaMinor',0)>=6:
+        for binding in before['commandBindings']:
+            name=binding['CommitSymbol']
+            tags=[t for t in reply.Value if t.TagName==name]
+            if len(tags)!=1 or tags[0].Struct or tags[0].Array or tags[0].DataTypeValue!=0xC4:
+                raise ValueError('command commit Symbol is not a DINT scalar')
+            symbols.append(dict(name=name,atomic=0xC4,arrayRank=0))
+    if before.get('schemaMinor',0)>=7:
+        for name in sorted({b['RevisionSymbol'] for b in before['readCoherenceBindings']}):
+            matches=[t for t in reply.Value if t.TagName==name]
+            if len(matches)!=1 or matches[0].Struct or matches[0].Array or matches[0].DataTypeValue!=0xC4:
+                raise ValueError('read-coherence revision Symbol is not a DINT scalar')
+            if name not in {s['name'] for s in symbols}:symbols.append(dict(name=name,atomic=0xC4,arrayRank=0))
+    if before.get('schemaMinor',0)>=6:
+        forbidden={b['PayloadSymbol'] for b in before['commandBindings']}|{s['RequestSymbol'] for s in before.get('services',[])}
+        planned={s['name'] for s in symbols if s.get('handle') in objects and not s.get('arrayRank',0)
+                 and any(r['name']=='Status' and r['struct'] for r in member_table(objects[s['handle']]))}
+        planned|={b['SourceSymbol'] for b in before.get('bindings',[])}|{b['SourceSymbol'] for b in before.get('dataProducts',[])}
+        if planned&forbidden:raise ValueError('cyclic read plan includes a command or service input')
+        by_handle={t['handle']:t for t in templates}
+        by_name={s['name']:s for s in symbols}
+        for b in before['commandBindings']:
+            handle=by_name[b['PayloadSymbol']]['handle']
+            by_handle[handle]['structureHandle']=template_structure_handle(comm,handle)
     records = []
     for symbol in symbols:
         if symbol["arrayRank"] or not any(r["name"] == "Status" and r["struct"]
-                                         for r in member_table(objects[symbol["handle"]])):
+                                         for r in member_table(objects.get(symbol.get("handle"),SimpleNamespace(Fields=[])))):
             continue
         sample = comm.Read(symbol["name"])
         if sample.Status != "Success" or not isinstance(sample.Value, (bytes, bytearray)):
@@ -440,6 +609,14 @@ def read_document(comm, manifest_reader=None, *, expect_serial):
             sample=comm.Read(source)
             if sample.Status!='Success' or not isinstance(sample.Value,(bytes,bytearray)):
                 raise ValueError('canonical fragment read failed')
+            records.append(dict(tag=source,rawHex=bytes(sample.Value).hex()))
+    if before.get('schemaMinor',0)>=5:
+        for product in before['dataProducts']:
+            source=product['SourceSymbol']
+            if source not in {s['name'] for s in symbols}:raise ValueError('data product Symbol unavailable')
+            sample=comm.Read(source)
+            if sample.Status!='Success' or not isinstance(sample.Value,(bytes,bytearray)):
+                raise ValueError('data product read failed')
             records.append(dict(tag=source,rawHex=bytes(sample.Value).hex()))
     after = manifest_reader(comm, symbols, templates)
     capture = dict(schema=SCHEMA, schemaVersion=1, serial=expect_serial, readOnly=True,

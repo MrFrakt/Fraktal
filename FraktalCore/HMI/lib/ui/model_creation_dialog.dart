@@ -68,9 +68,8 @@ class _ModelCreationDialogState extends State<_ModelCreationDialog> {
   @override
   Widget build(BuildContext context) {
     final root = widget.root;
-    final session = widget.app.session;
-    final permitted = session.permits(GatedAction.configSet) &&
-        session.permits(GatedAction.dataWrite) &&
+    final permitted = widget.app.permitsLocal(GatedAction.configSet) &&
+        widget.app.permitsLocal(GatedAction.dataWrite) &&
         root.availableModels.length < root.modelCapacity;
     return AlertDialog(
       title: const LText('New model'),

@@ -1,0 +1,36 @@
+{
+  "passed": false,
+  "scope": "Development attempts preserved alongside successful final qualification",
+  "observations": [
+    {
+      "run": "focused_03.log and regeneration_01.log",
+      "result": "Failed",
+      "reason": "A refactor moved a conditional sequence import out of tags; restored it; generation_regen_02 reproduces the compiled source bytes"
+    },
+    {
+      "run": "ab_suite_02.log",
+      "result": "2227 tests, 1 error",
+      "reason": "An existing fixture test uses fixture.legacy; import restored; focused_05 passes; ab_suite_03 is the final rerun"
+    },
+    {
+      "run": "capture_replay_01.log",
+      "result": "Failed before decoding",
+      "reason": "Archive scan encountered a non-object JSON root; the subsequent scanner ignores non-capture JSON"
+    },
+    {
+      "run": "interactive replay development",
+      "result": "Failed at fragment sibling-count resolution",
+      "reason": "Alarm Meta count belongs to the native logical sibling; the corrected reader validates joined containers and resolves the assembled logical tree"
+    },
+    {
+      "run": "sdk_echo_audit_01.log, sdk_physical_audit_01.log, prepare_sdk_audit_01.log",
+      "result": "CLI argument errors",
+      "reason": "--require is repeatable, not variadic; corrected _02 audits all Clean"
+    },
+    {
+      "run": "Native preparation baseline_readonly_01.log",
+      "result": "Missing session preflight.json",
+      "reason": "Final checker requires the later session preflight; separate read-only baseline-state probe passes; no controller writes"
+    }
+  ]
+}

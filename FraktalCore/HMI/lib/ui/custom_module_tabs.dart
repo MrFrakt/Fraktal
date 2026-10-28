@@ -156,10 +156,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
   Widget? _layerBar(BuildContext context) {
     final layers = widget.tab.layers;
     if (widget.editing || layers.isEmpty) return null;
-    return Wrap(
-      spacing: kInlineItemGap,
-      runSpacing: kInlineItemGap,
-      children: [
+    return Wrap(spacing: kInlineItemGap, runSpacing: kInlineItemGap, children: [
       for (final layer in layers)
         PresetChip(
           child: FilterChip(
@@ -167,9 +164,8 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
             label: LText(layer),
             selected: !_hiddenLayers.contains(layer),
             onSelected: (show) => setState(
-              () => show
-                  ? _hiddenLayers.remove(layer)
-                  : _hiddenLayers.add(layer),
+              () =>
+                  show ? _hiddenLayers.remove(layer) : _hiddenLayers.add(layer),
             ),
           ),
         ),
@@ -621,10 +617,7 @@ class _CustomModuleTabViewState extends State<CustomModuleTabView> {
       const SizedBox(height: 4),
       LText('std.module.editor.paletteHelp', style: text.bodySmall),
       const SizedBox(height: 10),
-      Wrap(
-        spacing: kInlineItemGap,
-        runSpacing: kInlineItemGap,
-        children: [
+      Wrap(spacing: kInlineItemGap, runSpacing: kInlineItemGap, children: [
         for (final kind in kOverlayPaletteKinds)
           OverlayDragSource(
             key: ValueKey('palette-${kind.name}'),
@@ -896,20 +889,20 @@ class MotionModuleTab extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              children: [
-              _StateChip(
-                  label: 'std.module.motion.homed',
-                  active: motion.homed,
-                  abnormalWhenFalse: true),
-              _StateChip(
-                  label: 'std.module.motion.moving', active: motion.moving),
-              _StateChip(
-                  label: 'std.module.motion.fault',
-                  active: node.faultActive,
-                  abnormalWhenTrue: true),
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                children: [
+                  _StateChip(
+                      label: 'std.module.motion.homed',
+                      active: motion.homed,
+                      abnormalWhenFalse: true),
+                  _StateChip(
+                      label: 'std.module.motion.moving', active: motion.moving),
+                  _StateChip(
+                      label: 'std.module.motion.fault',
+                      active: node.faultActive,
+                      abnormalWhenTrue: true),
+                ]),
             const SizedBox(height: 12),
             const LText('std.module.motion.nonSafetyNotice'),
           ]),
@@ -1083,23 +1076,23 @@ class CodeReaderModuleTab extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              children: [
-              _StateChip(
-                  label: 'std.module.reader.noRead',
-                  active: noRead,
-                  abnormalWhenTrue: true),
-              _StateChip(
-                  label: 'std.module.reader.matchOk',
-                  active: matchOk,
-                  abnormalWhenFalse: true),
-              if (node.link != null)
-                _StateChip(
-                    label: 'std.module.reader.linked',
-                    active: node.link!.linked,
-                    abnormalWhenFalse: true),
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                children: [
+                  _StateChip(
+                      label: 'std.module.reader.noRead',
+                      active: noRead,
+                      abnormalWhenTrue: true),
+                  _StateChip(
+                      label: 'std.module.reader.matchOk',
+                      active: matchOk,
+                      abnormalWhenFalse: true),
+                  if (node.link != null)
+                    _StateChip(
+                        label: 'std.module.reader.linked',
+                        active: node.link!.linked,
+                        abnormalWhenFalse: true),
+                ]),
           ]),
         ),
       ),
@@ -1161,20 +1154,21 @@ class RfidModuleTab extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Wrap(
-              spacing: kInlineItemGap,
-              runSpacing: kInlineItemGap,
-              children: [
-              _StateChip(label: 'std.module.rfid.tagPresent', active: present),
-              if (quality != null)
-                Chip(
-                    label: Text(
-                        '${context.tr('std.module.rfid.quality')}: $quality')),
-              if (node.link != null)
-                _StateChip(
-                    label: 'std.module.reader.linked',
-                    active: node.link!.linked,
-                    abnormalWhenFalse: true),
-            ]),
+                spacing: kInlineItemGap,
+                runSpacing: kInlineItemGap,
+                children: [
+                  _StateChip(
+                      label: 'std.module.rfid.tagPresent', active: present),
+                  if (quality != null)
+                    Chip(
+                        label: Text(
+                            '${context.tr('std.module.rfid.quality')}: $quality')),
+                  if (node.link != null)
+                    _StateChip(
+                        label: 'std.module.reader.linked',
+                        active: node.link!.linked,
+                        abnormalWhenFalse: true),
+                ]),
           ]),
         ),
       ),
@@ -1888,7 +1882,7 @@ class _TextInputControlState extends State<_TextInputControl> {
   Future<void> _writeConfig(BuildContext context) async {
     final root = widget.app.rootOf(widget.node.path);
     if (root == null) return;
-    if (!widget.app.session.permits(GatedAction.dataWrite)) {
+    if (!widget.app.permitsLocal(GatedAction.dataWrite)) {
       widget.app.showReleaseReportAction(
           root.path, GatedAction.dataWrite, 'std.release.configBlocked');
       return;

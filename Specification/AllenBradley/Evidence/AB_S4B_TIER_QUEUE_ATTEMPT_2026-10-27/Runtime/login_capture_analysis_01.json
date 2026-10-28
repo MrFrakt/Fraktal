@@ -1,0 +1,53 @@
+{
+  "controllerAccess": false,
+  "fixtureError": "bounded login must be observed busy",
+  "capturePassed": true,
+  "paths": 5199,
+  "canonical": {
+    "CurrentLevel": 0,
+    "LoginBusy": false,
+    "LoginFailed": true,
+    "LoginResultSequence": 1
+  },
+  "legacy": {
+    "CurrentLevel": 0,
+    "LoginBusy": 0,
+    "LoginFailed": 1,
+    "LoginResultSequence": 1
+  },
+  "sameStateVerified": true,
+  "stateEvidence": {
+    "kind": "PLC observation frame generation",
+    "generation": 1198,
+    "attempts": [
+      {
+        "before": 1196,
+        "waitingFreshScan": true
+      },
+      {
+        "before": 1196,
+        "waitingFreshScan": true
+      },
+      {
+        "before": 1198,
+        "after": 1198
+      }
+    ],
+    "readOnly": true,
+    "freshStart": true,
+    "frame": {
+      "tag": "FRK_Press_ObservationFrame",
+      "bytes": 299088,
+      "sourceGeneration": 5990,
+      "notBefore": 5988,
+      "fragmentRevision": 0,
+      "periodScans": 5
+    }
+  },
+  "conclusion": "The accepted full comparison sampled completed refusal, not the required transient busy state.",
+  "busyStateObserved": false,
+  "requestToCaptureDurationMeasured": false,
+  "exactMissCauseConfirmed": false,
+  "acceptancePassed": false,
+  "next": "Observe the canonical/legacy busy values under one scan guard immediately after acknowledgement, before the full capture; retain the full comparison and all refusals."
+}

@@ -1,0 +1,151 @@
+"""Seal body-only MSP qualification; separately completed counters, no new grant."""
+from pathlib import Path
+import concurrent.futures
+import datetime
+import gzip
+import hashlib
+import json
+
+R=Path('C:/Users/SoftIndVM/Fraktal');W=Path(__file__).parent;S=W.parent/'session_01'
+OLD=Path('C:/work/fraktal-ab-s4b-refill-20261027/session_01')
+E=R/'Specification/AllenBradley/Evidence'
+P=E/'AB_S4B_REFILL_PREPARATION_2026-10-27'
+O=E/'AB_S4B_MSP_PREPARATION_2026-10-27';REPORT=O.with_suffix('.md')
+load=lambda p:json.loads(Path(p).read_bytes())
+sha=lambda p:hashlib.sha256(Path(p).read_bytes()).hexdigest()
+assert not O.exists() and not REPORT.exists() and not (S/'source_bindings.json').exists()
+assert sha(P/'manifest.json')=='cb7ccb572576b28591233484ca404ea6416a3f8cfe28e5ee75a479aabad40750'
+assert sha(E/'AB_S4B_REFILL_ATTEMPT_2026-10-27/manifest.json')=='1a053e52cb712d765dbace40438f5b0f11d15b8cfa918fc158ecf7ad8460058d'
+assert sha(E/'AB_S4B_HOST_TIMING_2026-10-27/manifest.json')=='c0b6acb693f954b150fb4f8d21bf36ca6d4fa3af4fe2a20b6227868561f67af8'
+for name in ('authorization.json','session_started.json','deploy_attempt.json','echo_before_s4b.ACD','desktop_live'):
+    assert not (S/name).exists(),name
+for label in ('prepare_session_01','busy_witness_tests_01','sdk_build_01','authorization_checks_01',
+    'workflow_checks_01','readiness_checks_01','readonly_refusals_01','part_trace_tests_01',
+    'update_status_01','spec_01','contracts_01','consistency_01','root_tests_01','whitespace_01',
+    'pub_01','flutter_02','analyze_02','windows_02','focused_02','wire_replay_01','refresh_mirror_02',
+    'body_batch_tests_02','correct_scope_01','materialize_report_01'):
+    assert load(W/(label+'_exit.json'))['exitCode']==0,label
+assert load(W/'cli_refusal_01_exit.json')['exitCode']==255
+for label,text in [('busy_witness_tests_01','Ran 14 tests'),('part_trace_tests_01','Ran 6 tests'),
+    ('root_tests_01','Ran 74 tests'),('flutter_02','685 ~12: All tests passed!'),
+    ('focused_02','+73: All tests passed!'),('body_batch_tests_02','+16: All tests passed!'),
+    ('analyze_02','No issues found!'),('sdk_build_01','0 Warning(s)')]:
+    assert text.encode() in (W/(label+'.log')).read_bytes(),label
+assert b'0 Error(s)' in (W/'sdk_build_01.log').read_bytes()
+previous=load(OLD/'runtime_summary_01.json')
+assert previous['genealogyRestored'] and previous['baselineCases']==31 and previous['finalChecksPassed']
+assert previous['authorizationConsumed'] and not previous['currentControllerChangesAuthorized']
+assert previous['candidateCases']==41 and previous['observerSamples']==previous['allGoodSamples']==3144
+assert previous['pairedCapturesReplayed']==87 and previous['loginBusyWitness']['passed'] and not previous['nativeAccepted']
+pin='30315E6D6D88B1B3133C253D41775A94CD6C26C18F29B07F548CBAA5FA3049A5'
+source_pin='60C0AB6C7A40F0A5286B231E2BEF8889CA2FD96E1E2EBD8992D57C76638EBA4E'
+assert sha(S/'s4b_read_view.ACD').upper()==pin
+assert sha(S/'s4b_read_view.L5X').upper()==source_pin
+docs={R/'Specification/AllenBradley'/n for n in ('AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md',
+    'AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md','AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md','AB_FROZEN_CONTRACTS_V2.json')}
+mirror=load(W/'isolated_hmi_sources_02.json')
+hmi={Path(p) for p in mirror['changed']};added={Path(p) for p in mirror['added']}
+assert len(hmi)==4 and len(added)==1 and len(mirror['files'])==320
+copies={Path(row['copy']) for row in mirror['files'] if Path(row['source']) in hmi}
+package=Path('C:/work/fraktal-ab-s4b-20261025/hmi_verify_01/.dart_tool/package_config.json')
+allowed=docs|hmi|copies|{package}
+replay=load(W/'wire_replay_01.json')
+assert replay['wireReads']==810 and replay['packetRequests']==711 and replay['batchPackets']==59
+assert replay['ordinaryRequests']==652 and replay['groups']==237 and replay['consumedValues']==976
+assert replay['hiddenByClassReads']==0 and not replay['nativeTimingClaim']
+files=set();changed=[];plc_count=0
+for name,expected in load(OLD/'source_bindings.json')['sha256'].items():
+    path=Path(name)
+    if path.is_relative_to(OLD):
+        path=S/path.relative_to(OLD)
+        if not path.is_file():continue
+    else:
+        if sha(path).upper()!=expected.upper():
+            assert path in allowed,'unexpected shipping/input change: '+name
+            changed.append(path)
+        if 'FraktalCore/PLC/Allen-Bradley/tools/' in name:
+            assert sha(path).upper()==expected.upper(),name
+            plc_count+=1
+    files.add(path)
+assert set(changed)-{package}==docs|hmi|copies and plc_count==373
+for row in mirror['files']:
+    path,copy=Path(row['source']),Path(row['copy'])
+    assert sha(path)==row['sha256'] and path.read_bytes()==copy.read_bytes()
+    files.update((path,copy))
+for path in S.rglob('*'):
+    if path.is_file() and not any(part in ('obj','__pycache__') for part in path.parts):
+        if path.suffix.lower() in ('.py','.cs','.csproj','.dart','.json','.dll','.exe','.l5x','.acd','.sha256'):
+            files.add(path)
+assert (S/'login_busy_witness.py').read_bytes()==(W/'login_busy_witness.py').read_bytes()
+for name in ('qualification_session_v2.py','desktop_readonly.py','task_monitor.py','session/Program.cs',
+    'desktop_diagnostic_qualification_test.dart','part_read_diagnostics.py'):
+    assert (S/name).read_text(encoding='utf-8')==(OLD/name).read_text(encoding='utf-8').replace(OLD.as_posix(),S.as_posix()),name
+assert load(package)['flutterVersion']=='3.47.5'
+assert (package.parent.parent/'pubspec.lock').read_bytes()==(R/'FraktalCore/HMI/pubspec.lock').read_bytes()
+approval=load(S/'authorization.template.json')
+assert not approval['CurrentOwnerApproved']
+assert approval['SessionOnlyLoginBusyWitness'] and approval['ReadOnlyMultipleServiceRows']
+assert 'between separately completed counter reads' in approval['Scope']
+assert 'counter, count dependencies, body and closing counter' not in approval['Scope']
+files.add(package);files.update(docs)
+files.discard(R/'FraktalCore/HMI/.dart_tool/package_config.json')
+names={row['name'] for row in load(P/'manifest.json')['priorSeals']}
+names.update(('AB_S4B_REFILL_PREPARATION_2026-10-27','AB_S4B_REFILL_ATTEMPT_2026-10-27','AB_S4B_HOST_TIMING_2026-10-27'))
+assert len(names)==107
+checks=[];seals=[]
+for name in sorted(names):
+    path=E/name/'manifest.json';manifest=load(path)
+    if manifest.get('reportSha256'):assert sha(E/manifest['report'])==manifest['reportSha256'].lower(),name
+    checks.extend((path.parent/row['path'],row) for row in manifest['artifacts'])
+    seals.append(dict(name=name,manifestSha256=sha(path),artifacts=len(manifest['artifacts'])))
+def verify(item):
+    path,row=item;raw=path.read_bytes()
+    assert len(raw)==row['bytes'] and hashlib.sha256(raw).hexdigest()==row['sha256'].lower(),path
+    if row.get('expandedSha256'):assert hashlib.sha256(gzip.decompress(raw)).hexdigest()==row['expandedSha256'].lower(),path
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:list(pool.map(verify,checks))
+def save(path,value):
+    with path.open('x',encoding='utf-8',newline='') as f:json.dump(value,f,indent=2,ensure_ascii=False);f.write('\n')
+# Every gate, current input and prior seal verifies before immutable output.
+save(S/'source_bindings.json',dict(schema='fraktal.ab.s4b-msp-source-bindings',gatesPassed=True,
+    currentOwnerApproved=False,canonicalSha256=pin,sourceSha256=source_pin,unchangedPlcBoundFiles=373,
+    changedHmiFiles=mirror['changed'],addedHmiFiles=mirror['added'],hmiMirrorInputs=320,
+    sessionOnlyLoginBusyWitness=True,boundedRowRefill=True,readOnlyBodyMsp=True,separateCompletedCounters=True,
+    intraPacketOrderAssumed=False,privatePinnedPackageMap=True,
+    sha256={p.as_posix():sha(p).upper() for p in sorted(files)}))
+with REPORT.open('x',encoding='utf-8',newline='') as f:f.write((W/'msp_preparation_report_01.md').read_text(encoding='utf-8'))
+artifacts=[]
+def archive(path,relative):
+    assert 'credential' not in path.name.lower(),path
+    raw=path.read_bytes();expanded=None
+    if path.suffix.lower() in ('.log','.l5x'):
+        expanded=hashlib.sha256(raw).hexdigest();raw=gzip.compress(raw,mtime=0);relative+='.gz'
+    target=O/relative;target.parent.mkdir(parents=True,exist_ok=True)
+    with target.open('xb') as f:f.write(raw)
+    artifacts.append(dict(path=relative,source=path.as_posix(),bytes=len(raw),sha256=sha(target),
+        **(dict(expandedSha256=expanded) if expanded else {})))
+for path in sorted(files):
+    if path.suffix.lower() in ('.acd','.dll','.exe'):continue
+    if path.is_relative_to(S):relative='Preparation/'+path.relative_to(S).as_posix()
+    elif path.is_relative_to(R):relative='Source/'+path.relative_to(R).as_posix()
+    else:continue
+    archive(path,relative)
+archive(S/'source_bindings.json','Preparation/source_bindings.json')
+for path in sorted(W.iterdir()):
+    if path.is_file() and path.name!='seal_preparation_01.log' and path.suffix.lower() in ('.py','.json','.log','.md','.dart','.before'):
+        archive(path,'Offline/'+path.name)
+save(O/'manifest.json',dict(schema='fraktal.ab.s4b-msp-preparation',schemaVersion=1,
+    sealedUtc=datetime.datetime.now(datetime.timezone.utc).isoformat(),report=REPORT.name,reportSha256=sha(REPORT),
+    canonicalSha256=pin,sourceSha256=source_pin,sourceBindingsSha256=sha(S/'source_bindings.json'),
+    transferredPreparationManifestSha256=sha(P/'manifest.json'),abTests=2339,rootTests=74,
+    flutterTests=685,flutterSkipped=12,busyWitnessTests=14,partTraceTests=6,batchTests=16,focusedTests=73,
+    unchangedPlcBoundFiles=373,changedShippingHmiFiles=4,addedShippingHmiFiles=1,
+    sessionOnlyLoginBusyWitness=True,readOnlyBodyMsp=True,separateCompletedCounters=True,
+    intraPacketOrderAssumed=False,prototypeExcluded=True,replayPacketRequests=711,replayLogicalReads=810,
+    nativeSessionAuthorized=False,nativeAccepted=False,controllerChanges=0,priorSeals=seals,
+    artifacts=artifacts,credentialFilesArchived=False,acdBinariesArchived=False,sdkBinariesArchived=False))
+for row in artifacts:assert sha(O/row['path'])==row['sha256']
+save(W/'sealed_preparation_01.json',dict(passed=True,manifestSha256=sha(O/'manifest.json'),artifacts=len(artifacts),
+    sourceBindings=len(files),priorSeals=len(seals),unchangedPlcBoundFiles=373,changedShippingHmiFiles=4,
+    addedShippingHmiFiles=1,nativeSessionAuthorized=False,controllerChanges=0))
+print(json.dumps(dict(sealed=True,artifacts=len(artifacts),sourceBindings=len(files),priorSeals=len(seals),
+    changedShippingFiles=4,addedShippingFiles=1,nativeSessionAuthorized=False,controllerChanges=0)))

@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../domain/types.dart';
+import '../data/plc_repository.dart';
 import '../state/app_state.dart';
 import 'login_dialog.dart';
 import 'module_detail.dart';
@@ -55,6 +56,19 @@ class Shell extends StatelessWidget {
         drawer:
             wide ? null : Drawer(child: SafeArea(child: TreeMenu(app: app))),
         body: Column(children: [
+          if (app.repo.readOnly)
+            Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    child: Row(children: [
+                      const Icon(Icons.visibility_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      Text(context.tr('read-only'),
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface)),
+                    ]))),
           // §7.5.2 above §8.3: the gate banner is the LOWEST priority message
           // the station raises, so it must not compete with the alarm banner for
           // the same strip - it would always lose, on exactly the builds where
@@ -75,7 +89,7 @@ class Shell extends StatelessWidget {
                         TreeMenu(app: app),
                         const VerticalDivider(width: 1),
                         Expanded(child: body),
-                        if (!app.showOverview) ...[
+                        if (!app.showOverview && !app.repo.readOnly) ...[
                           const VerticalDivider(width: 1),
                           ModeBar(app: app),
                         ],
@@ -84,8 +98,10 @@ class Shell extends StatelessWidget {
                         ? body
                         : Row(children: [
                             Expanded(child: body),
-                            const VerticalDivider(width: 1),
-                            ModeBar(app: app),
+                            if (!app.repo.readOnly) ...[
+                              const VerticalDivider(width: 1),
+                              ModeBar(app: app),
+                            ],
                           ])),
           ),
         ]),
@@ -96,7 +112,8 @@ class Shell extends StatelessWidget {
   PreferredSizeWidget _appBar(BuildContext context, bool wide) {
     final s = app.session;
     final metrics = ControlScaleScope.of(context);
-    final compactActions = !wide && metrics.touchTarget > 48 &&
+    final compactActions = !wide &&
+        metrics.touchTarget > 48 &&
         MediaQuery.sizeOf(context).width < metrics.touchTarget * 6 + 120;
     return AppBar(
       title: Row(children: [
@@ -114,21 +131,32 @@ class Shell extends StatelessWidget {
           PopupMenuButton<String>(
             key: const Key('shell-more-actions'),
             tooltip: context.tr('std.nav.more'),
-            child: SizedBox.square(dimension: metrics.touchTarget,
-              child: Icon(Icons.more_vert, size: metrics.iconSize)),
+            child: SizedBox.square(
+                dimension: metrics.touchTarget,
+                child: Icon(Icons.more_vert, size: metrics.iconSize)),
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'view', height: metrics.touchTarget,
-                child: LText(app.showFieldbus ? 'Show modules' : 'Show fieldbus')),
-              PopupMenuItem(value: 'overview', height: metrics.touchTarget,
-                child: const LText('std.nav.overview')),
-              PopupMenuItem(value: 'settings', height: metrics.touchTarget,
-                child: const LText('std.settings.title')),
+              PopupMenuItem(
+                  value: 'view',
+                  height: metrics.touchTarget,
+                  child: LText(
+                      app.showFieldbus ? 'Show modules' : 'Show fieldbus')),
+              PopupMenuItem(
+                  value: 'overview',
+                  height: metrics.touchTarget,
+                  child: const LText('std.nav.overview')),
+              PopupMenuItem(
+                  value: 'settings',
+                  height: metrics.touchTarget,
+                  child: const LText('std.settings.title')),
             ],
             onSelected: (action) {
               switch (action) {
-                case 'view': app.setFieldbusView(!app.showFieldbus);
-                case 'overview': app.openOverview();
-                case 'settings': _showSettings(context);
+                case 'view':
+                  app.setFieldbusView(!app.showFieldbus);
+                case 'overview':
+                  app.openOverview();
+                case 'settings':
+                  _showSettings(context);
               }
             },
           )
@@ -138,9 +166,7 @@ class Shell extends StatelessWidget {
             child: ViewSwitch<bool>(
               options: const [
                 ViewSwitchOption(
-                    value: false,
-                    icon: Icons.account_tree,
-                    label: 'Modules'),
+                    value: false, icon: Icons.account_tree, label: 'Modules'),
                 ViewSwitchOption(
                     value: true, icon: Icons.lan_outlined, label: 'Fieldbus'),
               ],
@@ -157,34 +183,41 @@ class Shell extends StatelessWidget {
             onPressed: () => app.setFieldbusView(!app.showFieldbus),
           ),
         const SizedBox(width: 8),
-        if (!compactActions) IconButton(
-          tooltip: context.tr('std.nav.overview'),
-          icon: const Icon(Icons.dashboard_outlined),
-          onPressed: app.openOverview,
-        ),
+        if (!compactActions)
+          IconButton(
+            tooltip: context.tr('std.nav.overview'),
+            icon: const Icon(Icons.dashboard_outlined),
+            onPressed: app.openOverview,
+          ),
         // One settings entry consolidates theme, language, keyboard, and the
         // admin connection/unit-edit flows (declutters the bar; Core O9).
-        if (!compactActions) IconButton(
-          key: const Key('settings'),
-          tooltip: context.tr('std.settings.title'),
-          icon: const Icon(Icons.settings_outlined),
-          onPressed: () => _showSettings(context),
-        ),
+        if (!compactActions)
+          IconButton(
+            key: const Key('settings'),
+            tooltip: context.tr('std.settings.title'),
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => _showSettings(context),
+          ),
         if (s.level == AccessLevel.none && wide)
           TextButton.icon(
-              onPressed: () => showLoginDialog(context, app),
+              onPressed: app.repo.readOnly
+                  ? null
+                  : () => showLoginDialog(context, app),
               icon: const Icon(Icons.login),
               label: const LText('Login'))
         else if (s.level == AccessLevel.none)
           IconButton(
             tooltip: context.tr('std.login.title'),
-            onPressed: () => showLoginDialog(context, app),
+            onPressed:
+                app.repo.readOnly ? null : () => showLoginDialog(context, app),
             icon: const Icon(Icons.login),
           )
         else if (wide)
           TextButton.icon(
-            onPressed: () =>
-                app.repo.logout(app.rootOf(app.selectedPath ?? '')?.path ?? ''),
+            onPressed: app.repo.readOnly
+                ? null
+                : () => app.repo
+                    .logout(app.rootOf(app.selectedPath ?? '')?.path ?? ''),
             icon: const Icon(Icons.logout),
             label: LText('${s.user} (${s.level.name})'),
           )
@@ -194,8 +227,10 @@ class Shell extends StatelessWidget {
               'user': s.user,
               'level': context.tr('std.access.${s.level.name}'),
             }),
-            onPressed: () =>
-                app.repo.logout(app.rootOf(app.selectedPath ?? '')?.path ?? ''),
+            onPressed: app.repo.readOnly
+                ? null
+                : () => app.repo
+                    .logout(app.rootOf(app.selectedPath ?? '')?.path ?? ''),
             icon: const Icon(Icons.logout),
           ),
         // §8.3(b) fault clear — fixed upper-right position, right of login.
@@ -206,9 +241,9 @@ class Shell extends StatelessWidget {
   }
 
   void _showSettings(BuildContext context) => showSettingsDialog(context, app,
-    onEditConnection: onEditConnection,
-    onEditUnitSelection: onEditUnitSelection,
-    onEditAppearance: onEditAppearance,
-    onEditAccess: onEditAccess,
-    onLanguageChanged: onLanguageChanged);
+      onEditConnection: onEditConnection,
+      onEditUnitSelection: onEditUnitSelection,
+      onEditAppearance: onEditAppearance,
+      onEditAccess: onEditAccess,
+      onLanguageChanged: onLanguageChanged);
 }

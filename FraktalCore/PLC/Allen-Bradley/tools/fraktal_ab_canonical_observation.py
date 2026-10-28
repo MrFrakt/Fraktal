@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 
 # The stages whose oracle reads exactly legacy_sources(); a later stage that
 # reads more extends both together.
-FRAME_STAGES = (10, 11)
+FRAME_STAGES = (10, 11, 12, 13)
 HEADER = ("SourceGeneration", "FragmentRevision")
 NAME_LIMIT = 40
 MAX_PERIOD_SCANS = 100
@@ -41,6 +41,7 @@ def generation_tag(app):
 
 
 def type_name(app):
+    if app.canonical_publication_stage>=13:return f"FRK_T_{app.name}ObservationFrameS3k"
     return f"FRK_T_{app.name}ObservationFrameS3" + ("i" if app.canonical_publication_stage >= 11 else "h")
 
 
@@ -84,11 +85,23 @@ def legacy_sources(app):
     if app.canonical_publication_stage >= 11 and app.line is not None:
         import fraktal_ab_line as line
         result += [line.tag(app, "State"), line.tag(app, "Shift")]
+    if app.canonical_publication_stage>=12:
+        import fraktal_ab_canonical_fieldbus as fieldbus
+        if fieldbus.enabled(app):result.extend(m.sample_tag for m in app.io_modules if m.sample_tag)
+    if app.canonical_publication_stage>=13:
+        import fraktal_ab_canonical_mailbox as mailbox
+        import fraktal_ab_mailbox as owner
+        result.extend((mailbox.input_tag(app),owner.response_tag_name(app),gen.release_report_tag(app)))
     return tuple(result)
 
 
 def sources(app):
-    return (app.name, *legacy_sources(app))
+    products=()
+    if app.canonical_publication_stage>=12:
+        import fraktal_ab_canonical_fieldbus as fieldbus
+        from fraktal_ab_canonical_publication import products as published_products
+        products=tuple(row['SourceSymbol'] for row in published_products(app))
+    return (app.name, *products, *legacy_sources(app))
 
 
 def validate(app):
@@ -98,7 +111,7 @@ def validate(app):
     if type(period) is not int or period < 0:
         return ["observation frame period is a non-negative integer of milliseconds"]
     if app.canonical_publication_stage not in FRAME_STAGES:
-        return ["observation frame supports only the S3h/S3i oracle stages"]
+        return ["observation frame supports only the S3h/S3i/S3j oracle stages"]
     findings = []
     if period % app.task_period_ms or not 2 <= period // app.task_period_ms <= MAX_PERIOD_SCANS:
         findings.append(f"observation frame period is 2..{MAX_PERIOD_SCANS} whole task periods")

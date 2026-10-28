@@ -691,6 +691,14 @@ write, fault clear, clock set, firmware, network configuration — without curre
 explicit authorization and an exact target check immediately before use. Prior
 authorization is historical and shall not be inferred.
 
+**Exception recorded 2026-10-27 — the Echo bench.** The owner states the
+FactoryTalk Logix Echo instance (identity `601FC87B`, 127.0.0.1 slot 0) exists
+exclusively for this repository's agents: guarded Echo sessions no longer need
+a per-session approval. The guards, exact-target check, rollback and session
+protocol of the AB canonical publication plan (§4) still apply unchanged, and
+every controller other than Echo keeps the rule above in full. The decision is
+O3 in that plan's §6.3, with the status log entry of 2026-10-27.
+
 ---
 
 ## 4. HMI editing guardrails

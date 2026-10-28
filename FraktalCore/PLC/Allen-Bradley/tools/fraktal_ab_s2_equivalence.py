@@ -9,6 +9,7 @@ import gzip
 import json
 import os
 from pathlib import Path
+import sys
 
 from fraktal_ab_canonical_reader import read_document, snapshot
 from fraktal_ab_canonical_manifest import read_manifest
@@ -31,13 +32,13 @@ def oracle(app, rows, unit, contexts, codes, *, expected=None, extra=None, logic
     import fraktal_ab_projection as projection
     values={}
     catalogue={row['NumericKey']:row['PortableKey'] for row in rows['Localization']}
-    for module in projection.modules(rows):
+    for module in projection.modules(rows,app=app):
         base=module['base']
         values.update({base+'/Status/Name':module['identity'],
                        base+'/Status/ModuleType':module['type'],
                        base+'/Status/DisplayNameKey':module['displayNameKey']})
         if module['typeKey']:values[base+'/Status/TypeKey']=module['typeKey']
-        detail=(projection.unit_status(unit,None) if module['type']==1 else
+        detail=(projection.unit_status(unit,None,app=app) if module['type']==1 else
                 projection.module_status(contexts[module['identity'].split('.')[-1]],app,
                                          module['identity'].split('.')[-1],catalogue))
         values.update({base+'/'+path:value for path,value in detail.items()})
@@ -140,9 +141,11 @@ def _scan_reads(comm, tags, generation, *, raw_sizes=None, cached_records=None,
 
 
 def run(comm, *, application_factory=None, path_contract=None, extra_oracle=None, logical_types=None,
-        additional_inputs=None):
+        additional_inputs=None, oracle_declaration='fraktal_ab_genealogy_demo'):
     # Pin this fixture before importing any legacy module with an APP singleton.
-    os.environ['FRAKTAL_AB_DECLARATION']='fraktal_ab_genealogy_demo'
+    os.environ['FRAKTAL_AB_DECLARATION']=oracle_declaration
+    import importlib
+    imported=sys.modules.get('fraktal_ab_projection')
     import fraktal_ab_genealogy_canonical_demo as declaration
     import fraktal_ab_generate as gen
     import fraktal_ab_manifest as legacy
@@ -152,6 +155,10 @@ def run(comm, *, application_factory=None, path_contract=None, extra_oracle=None
     import fraktal_ab_models as models
     import fraktal_ab_canonical_publication as publisher
     app=(application_factory or declaration.application)()
+    # A walk binds the candidate first (its guard needs the exact legacy manifest);
+    # anything else already bound would be a silently wrong oracle.
+    if imported is not None and imported.APP not in (importlib.import_module(oracle_declaration).application(), app):
+        raise ValueError('legacy oracle already bound to another declaration in this process')
     def check_identity(channel):
         device=channel.GetDeviceProperties()
         if device.Status!='Success' or device.Value is None or (
@@ -165,7 +172,7 @@ def run(comm, *, application_factory=None, path_contract=None, extra_oracle=None
     payload,status,unused=old_reader._read_raw(comm,legacy.header_tag(app))
     if payload is None:raise ValueError('legacy oracle manifest header unavailable')
     header=old_reader.decode_header(payload)
-    projection.validate(header)
+    projection.validate(header,app=app)
     if seed['manifest']['legacyContentHash']!=header['ContentHash']:
         raise ValueError('canonical manifest describes a different legacy image')
     rows={table.name:old_reader.read_table(comm,table)['rows'][:header[table.name+'Count']]
@@ -283,7 +290,7 @@ def run(comm, *, application_factory=None, path_contract=None, extra_oracle=None
     if trailing is None or old_reader.decode_header(trailing)!=header:
         raise ValueError('legacy manifest changed after paired acquisition')
     result=compare_live(lambda:pair)
-    return dict(schema='fraktal.ab.'+{2:'s2',3:'s3a',4:'s3b',5:'s3c',6:'s3d',7:'s3e',8:'s3f',9:'s3g',10:'s3h',11:'s3i'}[app.canonical_publication_stage]+'-equivalence',schemaVersion=1,readOnly=True,
+    return dict(schema='fraktal.ab.'+{2:'s2',3:'s3a',4:'s3b',5:'s3c',6:'s3d',7:'s3e',8:'s3f',9:'s3g',10:'s3h',11:'s3i',12:'s3j',13:'s3k'}[app.canonical_publication_stage]+'-equivalence',schemaVersion=1,readOnly=True,
                 serial='601FC87B',passed=result['equal'] and result['typeAcceptance'],
                 comparison=result,pair=pair)
 

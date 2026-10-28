@@ -1,0 +1,72 @@
+"""Offline authorization refusals, helper paths and saved-document revision proof."""
+from pathlib import Path
+import copy
+import hashlib
+import json
+import runpy
+import subprocess
+import sys
+
+W = Path(__file__).parent
+R = W.parent / 'retry_revision_01'
+ROOT = Path('C:/Users/SoftIndVM/Fraktal')
+sys.path.insert(0, str(ROOT / 'FraktalCore/PLC/Allen-Bradley/tools'))
+import fraktal_ab_genealogy_demo as baseline
+import fraktal_ab_genealogy_s3k_demo as candidate
+import fraktal_ab_manifest as manifest
+import fraktal_ab_sets as sets
+import fraktal_ab_st_model as st
+
+module = runpy.run_path(str(R / 'retry_session.py'))
+approved = json.loads((R / 'authorization.template.json').read_bytes())
+approved.update(CurrentOwnerApproved=True, OwnerInstruction='OFFLINE TEST VALUE ONLY')
+approved.update({flag: True for flag in module['FLAGS']})
+module['authorize'](approved)
+refusals = []
+for key, value in [('CurrentOwnerApproved', False), ('Serial', 'WRONG'), ('CanonicalSha256', '0' * 64),
+                   ('SourceSha256', '0' * 64), ('OwnerInstruction', ''), ('FaultClearAuthorized', True),
+                   ('ClockSetAuthorized', True), *((flag, False) for flag in module['FLAGS'])]:
+    altered = copy.deepcopy(approved)
+    altered[key] = value
+    try:
+        module['authorize'](altered)
+    except ValueError:
+        refusals.append(key)
+    else:
+        raise AssertionError('authorization accepted ' + key)
+assert not (R / 'authorization.json').exists()
+cli = subprocess.run([sys.executable, str(R / 'retry_session.py')], capture_output=True, text=True)
+assert cli.returncode != 0 and 'authorization.json' in cli.stderr and 'FileNotFoundError' in cli.stderr
+assert not (R / 'session_started.json').exists()
+with (W / 'retry_no_approval_02.log').open('x') as out:
+    out.write('EXPECTED OFFLINE REFUSAL: no controller access before authorization\n' + cli.stdout + cli.stderr)
+cs = (R / 'session/Program.cs').read_text()
+assert 'const string root="' + R.as_posix() + '";' in cs
+assert 'const string scripts="' + (R / 'scripts').as_posix() + '";' in cs
+assert 'await Python(root+"/pre_restore_guard.py")' in cs
+assert "OUT=Path('" + R.as_posix() + "')" in (R / 'scripts/preflight.py').read_text()
+for name in ('ensure_manual_baseline.py', 'ensure_manual_candidate.py'):
+    assert "str(W/'scripts/guard_echo.py')" in (R / name).read_text()
+
+docs = json.loads((W.parent / 'download_01/preflight_final_01_exit.json').read_bytes())
+assert docs['exitCode'] == 0
+prior = Path('C:/work/fraktal-ab-s3j-20261024/prepare_d93d8292dbb4425d9eba04ba75cd110c/preflight.json')
+documents = json.loads(prior.read_bytes())['documents']
+app = candidate.application()
+assert app.records == baseline.application().records
+rows = []
+for name, records in documents.items():
+    revisions = {records[0]['configRev'], *(record['rev'] for record in records[1:])}
+    assert revisions == {manifest.config_revision(baseline.application())}
+    for revision in revisions:
+        controller = st.Controller(dict(Revision=revision, Rejected=0))
+        controller.run('Rejected := ' + sets.revision_rejected(app, 'Revision') + ';')
+        assert not controller.tags['Rejected']
+    rows.append(dict(document=name, records=len(records)-1, revisions=sorted(revisions), revisionGuardAccepted=True))
+result = dict(passed=True, controllerOperations=0, authorizationNegativeCases=len(refusals),
+              refusedFields=refusals, noApprovalCliRefusedBeforeControllerAccess=True,
+              helperPathsChecked=True, documents=rows, configurationRecordsIdentical=True,
+              preparedAcdSha256=hashlib.sha256((R/'s3k_command_a.ACD').read_bytes()).hexdigest().upper())
+with (W / 'retry_checks_02.json').open('x') as out:
+    json.dump(result, out, indent=2)
+print(json.dumps(result))

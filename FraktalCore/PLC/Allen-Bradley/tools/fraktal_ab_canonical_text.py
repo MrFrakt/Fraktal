@@ -42,6 +42,11 @@ def texts(app):
     result = list(access.literals(app))
     if app.canonical_publication_stage >= 8:
         result += config.literals(app)
+    if app.canonical_publication_stage >= 13:
+        import fraktal_ab_canonical_mailbox as mailbox
+        result += mailbox.literals(app)
+        import fraktal_ab_canonical_commands as commands
+        result += commands.literals(app)
     return result
 
 

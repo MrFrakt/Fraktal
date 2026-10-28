@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 
 import '../localization/localized_text.dart';
 import '../state/app_state.dart';
+import '../data/plc_repository.dart';
 import 'touch_text_field.dart';
 
 Future<void> showLoginDialog(BuildContext context, AppState app) async {
+  if (app.repo.readOnly) return;
   final loggedIn = await showDialog<bool>(
     context: context,
     builder: (_) => _LoginDialog(app: app),

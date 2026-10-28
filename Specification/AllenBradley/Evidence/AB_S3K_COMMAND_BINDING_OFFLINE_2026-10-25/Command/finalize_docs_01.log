@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-s3k-20261025\command_a_02\finalize_docs.py", line 16, in <module>
+    tests = int(re.search(r'^Ran (\d+) tests', gate('ab_suite_01'), re.M).group(1))
+                                               ~~~~^^^^^^^^^^^^^^^
+  File "C:\work\fraktal-ab-s3k-20261025\command_a_02\finalize_docs.py", line 13, in gate
+    return (W/(label+'.log')).read_text(encoding='utf-8')
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 788, in read_text
+    return f.read()
+           ~~~~~~^^
+  File "<frozen codecs>", line 325, in decode
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xa7 in position 14094: invalid start byte

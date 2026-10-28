@@ -16,9 +16,9 @@ UNKNOWN_USER='fraktal_s3e_no_user'
 NEGATIVE_SECRET='denied_fixture'
 
 
-def paired_run(destination,*,gate=None,prefix='s3e'):
+def paired_run(destination,*,gate=None,prefix='s3e',base=None):
     selected=equivalence.run if gate is None else gate
-    parent=previous.paired_run(destination,gate=selected,prefix=prefix)
+    parent=previous.paired_run(destination,gate=selected,prefix=prefix,base=base)
     class AccessRun(parent):
         def access_pair(self,phase):
             return capture.capture_pair(self,destination,

@@ -139,6 +139,8 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(actual['annotations']['Mixer/Duration']['logicalType'],'DURATION')
         with self.assertRaisesRegex(ValueError,'ambiguous'):
             wire.read_manifest(comm,symbols+[dict(symbols[0],name='Duplicate')],templates)
+        # V6.6 discovery appends the atomic command commit, which has no Template handle.
+        self.assertEqual(wire.read_manifest(comm,symbols+[dict(name='AnyCommit',atomic=0xC4,arrayRank=0)],templates),actual)
 
     def test_changed_row_hash_count_version_type_and_private_access_fail_closed(self):
         edits=[lambda r:r.update(Magic=0),lambda r:r.update(SchemaMajor=5),

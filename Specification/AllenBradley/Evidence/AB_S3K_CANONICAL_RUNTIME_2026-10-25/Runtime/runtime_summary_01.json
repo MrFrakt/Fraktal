@@ -1,0 +1,291 @@
+{
+  "passed": true,
+  "candidatePassed": true,
+  "candidateError": null,
+  "caseGroups": {
+    "rows": {
+      "count": 31,
+      "passed": 31
+    },
+    "s3kAccessPairs": {
+      "count": 6,
+      "passed": 6
+    },
+    "s3kAccessRows": {
+      "count": 2,
+      "passed": 2
+    },
+    "s3kConfigPairs": {
+      "count": 37,
+      "passed": 37
+    },
+    "s3kConfigRows": {
+      "count": 8,
+      "passed": 8
+    },
+    "s3kTypedRows": {
+      "count": 14,
+      "passed": 14
+    },
+    "s3kConditionPairs": {
+      "count": 14,
+      "passed": 14
+    },
+    "s3kResetPairs": {
+      "count": 8,
+      "passed": 8
+    },
+    "s3kDecisionPairs": {
+      "count": 4,
+      "passed": 4
+    },
+    "s3kSequencePairs": {
+      "count": 21,
+      "passed": 21
+    }
+  },
+  "typedCases": [
+    {
+      "case": "query_accepted",
+      "passed": true,
+      "kind": 23,
+      "token": 1,
+      "accepted": true,
+      "refusalKey": null,
+      "serialBefore": 0,
+      "serialAfter": 1,
+      "wiped": true
+    },
+    {
+      "case": "release_report_accepted",
+      "passed": true,
+      "kind": 15,
+      "token": 2,
+      "accepted": true,
+      "refusalKey": null,
+      "serialBefore": 1,
+      "serialAfter": 2,
+      "wiped": true
+    },
+    {
+      "case": "backward_serial_stale",
+      "passed": true,
+      "kind": 23,
+      "token": 1,
+      "accepted": false,
+      "refusalKey": "project.mailbox.refused.command_sequence_stale",
+      "serialBefore": 2,
+      "serialAfter": 2,
+      "wiped": true
+    },
+    {
+      "case": "staged_sequence_mismatch",
+      "passed": true,
+      "kind": 23,
+      "token": 4,
+      "accepted": false,
+      "refusalKey": "project.mailbox.refused.command_payload_invalid",
+      "serialBefore": 2,
+      "serialAfter": 4,
+      "wiped": true
+    },
+    {
+      "case": "stale_revision",
+      "passed": true,
+      "kind": 19,
+      "token": 5,
+      "accepted": false,
+      "refusalKey": "project.mailbox.refused.config_revision_stale",
+      "serialBefore": 4,
+      "serialAfter": 5,
+      "wiped": true
+    },
+    {
+      "case": "foreign_root",
+      "passed": true,
+      "kind": 19,
+      "token": 6,
+      "accepted": false,
+      "refusalKey": "project.mailbox.refused.target_not_addressable",
+      "serialBefore": 5,
+      "serialAfter": 6,
+      "wiped": true
+    },
+    {
+      "case": "unknown_key_refused_by_owner",
+      "passed": true,
+      "kind": 19,
+      "token": 7,
+      "accepted": false,
+      "refusalKey": "project.mailbox.refused.config_key_unknown",
+      "serialBefore": 6,
+      "serialAfter": 7,
+      "wiped": true
+    },
+    {
+      "case": "fractional_value_invalid",
+      "passed": true,
+      "kind": 19,
+      "token": 8,
+      "accepted": false,
+      "refusalKey": "project.mailbox.refused.command_payload_invalid",
+      "serialBefore": 7,
+      "serialAfter": 8,
+      "wiped": true
+    },
+    {
+      "case": "config_write_accepted",
+      "passed": true,
+      "kind": 19,
+      "token": 9,
+      "accepted": true,
+      "refusalKey": null,
+      "serialBefore": 8,
+      "serialAfter": 9,
+      "wiped": true
+    },
+    {
+      "case": "config_write_restored",
+      "passed": true,
+      "kind": 19,
+      "token": 10,
+      "accepted": true,
+      "refusalKey": null,
+      "serialBefore": 9,
+      "serialAfter": 10,
+      "wiped": true
+    },
+    {
+      "case": "logout_accepted",
+      "passed": true,
+      "kind": 2,
+      "token": 11,
+      "accepted": true,
+      "refusalKey": null,
+      "serialBefore": 10,
+      "serialAfter": 11,
+      "wiped": true
+    },
+    {
+      "case": "login_accepted",
+      "passed": true,
+      "kind": 1,
+      "token": 12,
+      "accepted": true,
+      "refusalKey": null,
+      "serialBefore": 11,
+      "serialAfter": 12,
+      "wiped": true
+    },
+    {
+      "case": "legacy_after_typed",
+      "passed": true,
+      "typedAck": 12
+    },
+    {
+      "case": "collision_observed",
+      "passed": true,
+      "outcome": "collision_refused",
+      "typedToken": 13,
+      "legacySequence": 51
+    }
+  ],
+  "typedLoginCompleted": true,
+  "generic": {
+    "values": 4428,
+    "modules": 7,
+    "replayPassed": true
+  },
+  "timing": {
+    "candidate_timing": {
+      "measured": true,
+      "unit": "microseconds",
+      "samples": 20,
+      "fields": {
+        "FRK_Press_HealthProbe.Samples": {
+          "minimum": 21732,
+          "median": 21781.5,
+          "maximum": 21831
+        },
+        "FRK_Press_HealthProbe.TaskLastScanUs": {
+          "minimum": 965,
+          "median": 965.0,
+          "maximum": 1027
+        },
+        "FRK_Press_HealthProbe.TaskMaxScanUs": {
+          "minimum": 8969,
+          "median": 8969.0,
+          "maximum": 8969
+        },
+        "FRK_Press_HealthProbe.TaskOverlapCount": {
+          "minimum": 0,
+          "median": 0.0,
+          "maximum": 0
+        },
+        "FRK_Press_CanonicalTiming.Scan": {
+          "minimum": 21732,
+          "median": 21781.5,
+          "maximum": 21831
+        },
+        "FRK_Press_CanonicalTiming.LastScanUs": {
+          "minimum": 965,
+          "median": 965.0,
+          "maximum": 1027
+        },
+        "FRK_Press_CanonicalTiming.MaxScanUs": {
+          "minimum": 8969,
+          "median": 8969.0,
+          "maximum": 8969
+        },
+        "FRK_Press_CanonicalTiming.OverlapCount": {
+          "minimum": 0,
+          "median": 0.0,
+          "maximum": 0
+        }
+      }
+    },
+    "baseline_timing": {
+      "measured": true,
+      "unit": "microseconds",
+      "samples": 20,
+      "fields": {
+        "FRK_Press_HealthProbe.Samples": {
+          "minimum": 8307,
+          "median": 8355.5,
+          "maximum": 8405
+        },
+        "FRK_Press_HealthProbe.TaskLastScanUs": {
+          "minimum": 99,
+          "median": 99.0,
+          "maximum": 100
+        },
+        "FRK_Press_HealthProbe.TaskMaxScanUs": {
+          "minimum": 1166,
+          "median": 1166.0,
+          "maximum": 1166
+        },
+        "FRK_Press_HealthProbe.TaskOverlapCount": {
+          "minimum": 0,
+          "median": 0.0,
+          "maximum": 0
+        }
+      }
+    }
+  },
+  "genealogyRestored": true,
+  "baselineChecks": 31,
+  "finalChecks": {
+    "scanAdvancing": true,
+    "manual": true,
+    "idle": true,
+    "loggedOut": true,
+    "notRestoring": true,
+    "savedEqualsLive": true,
+    "policyRestored": true
+  },
+  "nativeSourcesUnchanged": true,
+  "boundFiles": 405,
+  "authorizationConsumed": true,
+  "exactAcdSha256": "AA4239C636647527CC37F3B3F18206821FBEE108D3315C5087DC0DCD1653BBDF",
+  "baselineAcdSha256": "D67561C4A30002E89B7D3F2973633D794239C5890221FF02319C5CFB93ED4084"
+}

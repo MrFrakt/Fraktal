@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "tagAndTypeLayoutsIdentical": true,
+  "manifestAndInitializersIdentical": true,
+  "oldStLines": 13999,
+  "newStLines": 14000,
+  "diff": [
+    "--- qualified",
+    "+++ cold-deferred",
+    "@@ -7327,7 +7327,8 @@",
+    "         END_FOR;",
+    "     END_IF;",
+    " END_IF;",
+    "-IF (FRK_Press_CanonicalConfigWork.LastCatalogCount < 0) OR (FRK_Press_CanonicalConfigWork.LastCatalogCount > 8) THEN",
+    "+IF (FRK_Press_CanonicalConfigWork.LastCatalogCount < 0) OR (FRK_Press_CanonicalConfigWork.LastCatalogCount > 8)",
+    "+    OR ((FRK_Press_ConfigReadWork.Initialized = 0) AND S:FS) THEN",
+    "     FRK_Press_CanonicalManifest.Valid := 0;",
+    "     FRK_Press_ConfigRead.ValueCount := 0;",
+    "     FOR FRK_Press_ConfigReadWork.ValueIndex := 0 TO 61 DO"
+  ]
+}

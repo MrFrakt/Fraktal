@@ -67,7 +67,12 @@ enum _HmiRequestKind {
 /// Direct native OPC UA repository for Dart-native Flutter platforms. The
 /// client browses the Fraktal contract generically; no module type or station
 /// screen is compiled into this adapter.
-class OpcUaRepository implements PlcRepository {
+class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
+  @override
+  bool get readOnly =>
+      _client is OpcUaWritePolicyClient &&
+      (_client as OpcUaWritePolicyClient).readOnly;
+  List<Map<String, Object?>> _readServices = [];
   final OpcUaSessionClient _client;
   final OpcUaSnapshotMapper _mapper;
   final Duration refreshInterval;
@@ -169,8 +174,7 @@ class OpcUaRepository implements PlcRepository {
       // and expose history before its consuming view opens.
       if (client is OpcUaPathDiscoveryClient &&
           client is OpcUaTieredReadClient) {
-        repository._discoveredPaths =
-            await client.discoverPaths();
+        repository._discoveredPaths = await client.discoverPaths();
         repository._maybeUpdatePathTiers();
         await repository._tierUpdate;
       }
@@ -266,14 +270,22 @@ class OpcUaRepository implements PlcRepository {
       final started = _clock.elapsed;
       _refreshStarted = started;
       var document = await _client.snapshot();
+      final snapshotReturned = _clock.elapsed;
+      _readServices = [
+        for (final row in document['readServices'] as List? ?? const [])
+          Map<String, Object?>.from(row as Map)
+      ];
       if (_disposed) return;
+      final validationStarted = _clock.elapsed;
       validateCompleteOpcUaSnapshot(document);
+      final validationFinished = _clock.elapsed;
       final freshness = OpcUaFreshnessBudget.parse(document);
       if (_freshness != null && freshness == null) {
         throw const FormatException('Freshness budget disappeared.');
       }
+      final rpcElapsed = _clock.elapsed - started;
       final transitAge =
-          freshness?.transitAllowance(document, _clock.elapsed - started) ??
+          freshness?.transitAllowance(document, rpcElapsed) ??
               Duration.zero;
       final receivedAge = freshness == null
           ? Duration.zero
@@ -306,7 +318,20 @@ class OpcUaRepository implements PlcRepository {
         _freshness = freshness;
         _sampleTick = receivedTick;
         _receivedAge = receivedAge;
-        if (_sampleAge >= freshness.fastGood) {
+        final effectiveAge = _sampleAge;
+        if (effectiveAge >= freshness.fastGood) {
+          debugPrint('[Fraktal/Freshness] stage=complete-sample-rejected '
+              'snapshotAwaitUs=${(snapshotReturned - started).inMicroseconds} '
+              'serviceDecodeUs=${(validationStarted - snapshotReturned).inMicroseconds} '
+              'validationUs=${(validationFinished - validationStarted).inMicroseconds} '
+              'sourceAgeUs=${OpcUaFreshnessBudget.age(document['sampleAgeMs']).inMicroseconds} '
+              'rpcUs=${rpcElapsed.inMicroseconds} '
+              'responseProcessingMs=${document['responseProcessingMs']} '
+              'transitUs=${transitAge.inMicroseconds} '
+              'receivedAgeUs=${receivedAge.inMicroseconds} '
+              'localProcessingUs=${(effectiveAge - receivedAge).inMicroseconds} '
+              'effectiveAgeUs=${effectiveAge.inMicroseconds} '
+              'fastGoodUs=${freshness.fastGood.inMicroseconds}');
           _checkFreshness();
           throw const FormatException(
               'Complete station sample is late or expired.');
@@ -804,14 +829,25 @@ class OpcUaRepository implements PlcRepository {
       // RPCs. A fast sweep still respects the declared slow period. Failure
       // keeps the existing complete-refresh retry cadence.
       if (completed && !_disposed && generation == _onDemandGeneration) {
-        final remaining =
-            _freshness!.slowPeriod - (_clock.elapsed - sweepStarted);
+        final due = sweepStarted + _freshness!.slowPeriod;
         _onDemandContinuation?.cancel();
-        _onDemandContinuation =
-            Timer(remaining > Duration.zero ? remaining : Duration.zero, () {
+        void continueWhenDue() {
+          if (_disposed || generation != _onDemandGeneration) return;
+          final remaining = due - _clock.elapsed;
+          if (remaining > Duration.zero) {
+            // Timer durations have millisecond resolution. Round up and
+            // recheck the monotonic deadline instead of starting a sweep early.
+            _onDemandContinuation = Timer(
+                Duration(
+                    milliseconds: (remaining.inMicroseconds + 999) ~/ 1000),
+                continueWhenDue);
+            return;
+          }
           _onDemandContinuation = null;
           unawaited(_readBudgetedOnDemand());
-        });
+        }
+
+        _onDemandContinuation = Timer(Duration.zero, continueWhenDue);
       }
     }
   }
@@ -828,6 +864,7 @@ class OpcUaRepository implements PlcRepository {
   // changes, and re-activation, so PLC restarts and config edits both refetch;
   // a reconnect alone keeps the still-valid manifest.
   void _maybeFetchConfigManifest() {
+    if (readOnly && _readServices.isEmpty) return;
     if (_disposed || _manifestFetchInFlight || _projection.forest.isEmpty) {
       return;
     }
@@ -878,6 +915,16 @@ class OpcUaRepository implements PlcRepository {
       final base = _browseBase(root.path);
       if (base == null) continue;
       final pageBase = '$base/HmiResponse/ConfigPage';
+      if (readOnly) {
+        final view = await _readConfigurationView(root.path);
+        if (view == null) {
+          _manifestRetryAfter = DateTime.now().add(const Duration(seconds: 5));
+          return;
+        }
+        entries.addAll(_readConfigPage(pageBase,
+            {for (final e in view.entries) '$pageBase/${e.key}': e.value}));
+        continue;
+      }
       var page = 0;
       var pageCount = 1;
       while (page < pageCount) {
@@ -915,6 +962,15 @@ class OpcUaRepository implements PlcRepository {
     final base = _browseBase(rootPath);
     if (base == null || modelIndex < 0) return null;
     final pageBase = '$base/HmiResponse/ConfigPage';
+    if (readOnly) {
+      final view =
+          await _readConfigurationView(rootPath, modelOrdinal: modelIndex);
+      if (view == null) return null;
+      final entries = _readConfigPage(pageBase, {
+        for (final e in view.entries) '$pageBase/${e.key}': e.value
+      }).where((e) => e.scope == rootPath && e.modelScoped).toList();
+      return configFieldsFromManifest(entries)[rootPath] ?? const [];
+    }
     final entries = <ConfigManifestEntry>[];
     var page = 0;
     var pageCount = 1;
@@ -928,6 +984,23 @@ class OpcUaRepository implements PlcRepository {
       page++;
     }
     return configFieldsFromManifest(entries)[rootPath] ?? const [];
+  }
+
+  Future<Map<String, Object?>?> _readConfigurationView(String root,
+      {int modelOrdinal = 0}) async {
+    final services = _readServices
+        .where((s) =>
+            s['Kind'] == 1 && s['Version'] == 1 && s['RootSymbol'] == root)
+        .toList();
+    final client = _client;
+    if (services.length != 1 || client is! OpcUaReadOnlyConfigurationClient)
+      return null;
+    try {
+      return await (client as OpcUaReadOnlyConfigurationClient)
+          .readConfigurationPage(root, modelOrdinal);
+    } on Object {
+      return null;
+    }
   }
 
   /// Capture this query's page before cleanup or a cyclic snapshot can replace
@@ -1117,6 +1190,7 @@ class OpcUaRepository implements PlcRepository {
       _projection.browsePathByModulePath[modulePath];
 
   Future<bool> _write(String path, OpcUaWriteType type, Object value) async {
+    if (readOnly) return false;
     _checkFreshness();
     if (_link != LinkState.live) return false;
     try {
@@ -1133,6 +1207,7 @@ class OpcUaRepository implements PlcRepository {
   }
 
   Future<bool> _writeBatch(List<OpcUaWrite> writes) async {
+    if (readOnly) return false;
     _checkFreshness();
     if (_link != LinkState.live) return false;
     try {
@@ -1165,6 +1240,7 @@ class OpcUaRepository implements PlcRepository {
     void Function(int)? onSequenceReserved,
     void Function(Map<String, Object?>)? onResponseValues,
   }) {
+    if (readOnly) return Future.value(false);
     Future<bool> perform() => _performRequest(
           unitPath,
           kind,
@@ -1349,6 +1425,7 @@ class OpcUaRepository implements PlcRepository {
 
   @override
   Future<bool> login(String rootPath, String user, String secret) async {
+    if (readOnly) return false;
     // A LOGIN mailbox acknowledgement means the PLC consumed the request; it
     // does not mean the access provider accepted the credentials. The access
     // manager publishes the authoritative outcome. A bounded asynchronous

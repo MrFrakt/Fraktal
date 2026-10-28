@@ -144,7 +144,7 @@ def query(app):
     w=state_tag(app);q=mb.request_tag_name(app)
     # A query chooses the bounded window; only the owning mailbox acknowledges.
     return [f'{w}.PageIndex := {q}.IntValue;',f'IF {w}.PageIndex < 0 THEN {w}.PageIndex := 0; END_IF;',
-        f'{w}.ModelIndex := {q}.DurationMs;',f'{w}.QuerySequence := {q}.Sequence;',f'{w}.PageBuilt := 0;']
+        f'{w}.ModelIndex := {q}.DurationMs;',f'{w}.QuerySequence := {mb.committed_sequence(app)};',f'{w}.PageBuilt := 0;']
 
 
 def pending_stamp(app):
@@ -193,7 +193,15 @@ def cyclic(app):
             f'{p}.LastSetName.LEN := {staged}.NameLength;','END_IF;','END_IF;',f'{p}.LastSetRecords := 0;',
             f'IF ({s}.Count >= 0) AND ({s}.Count <= {sets.MAX_RECORDS}) THEN {p}.LastSetRecords := {s}.Count; END_IF;',
             f'{w}.LastSetSequence := {s}.Sequence;','END_IF;']
-    lines += [f'IF {w}.PageBuilt = 0 THEN',f'JSR({page_routine(app)},0);','END_IF;']
+    if app.canonical_config_read_view:
+        from fraktal_ab_config_read_view import work_tag as read_work
+        clean=read_work(app)+'.CleanText';slot=w+'.Slot'
+        lines += [f'IF {w}.PageBuilt = 0 THEN',f'FOR {slot} := 0 TO {PAGE_SIZE-1} DO',
+                  f'CPS({clean},{root}.HmiResponse.ConfigPage.Entries[{slot}].ValueText,1);',
+                  f'{root}.HmiResponse.ConfigPage.Entries[{slot}].Readable := 0;','END_FOR;',
+                  f'JSR({page_routine(app)},0);','END_IF;']
+    else:
+        lines += [f'IF {w}.PageBuilt = 0 THEN',f'JSR({page_routine(app)},0);','END_IF;']
     return lines
 
 
@@ -233,6 +241,10 @@ def table_page_logic(app):
         f'{w}.Number := {w}.ValueCache[{cache}];',
         f'{w}.Render.LEN := 0;',f'JSR({number_routine(app)},0);',f'CPS({w}.Render,{row}.ValueText,1);','END_IF;',
         f'{target}.EntryCount := {target}.EntryCount + 1;','END_IF;','END_IF;','END_FOR;','END_IF;']
+    if app.canonical_config_read_view:
+        from fraktal_ab_config_read_view import work_tag as read_work
+        # Old formatter scratch can contain a longer, previously readable value.
+        lines=[f'CPS({read_work(app)}.CleanText,{w}.Render,1);' if line==f'{w}.Render.LEN := 0;' else line for line in lines]
     status=query_status_tag(app)
     return lines+[f'IF ({w}.ModelIndex < 0) OR ({w}.ModelIndex > {w}.LastCatalogCount) THEN {target}.EntryCount := 0; END_IF;',
         f'{w}.PageBuilt := 1;',f'{status}.PageIndex := {w}.PageIndex;',f'{status}.ModelIndex := {w}.ModelIndex;',

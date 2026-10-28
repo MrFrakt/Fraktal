@@ -9,9 +9,9 @@ import fraktal_ab_s3c_fixture_execute as previous
 import fraktal_ab_s3d_equivalence as equivalence
 
 
-def paired_run(destination,*,gate=None,prefix='s3d'):
+def paired_run(destination,*,gate=None,prefix='s3d',base=None):
     selected=equivalence.run if gate is None else gate
-    parent=previous.paired_run(destination,gate=selected,prefix=prefix)
+    parent=previous.paired_run(destination,gate=selected,prefix=prefix,base=base)
     class AlarmRun(parent):
         def command(self,kind,**arguments):
             before=False

@@ -1,0 +1,246 @@
+/// The shrinkable left tree (Core 3.13): walks the forest, expands/collapses,
+/// and implements the EVENT PATH HIGHLIGHT — every ancestor from the root down
+/// to the event's source tints with the subtree's highest-severity active event
+/// (error > warning > info); the source node renders strongest.
+library;
+
+import 'dart:math' as math;
+
+import '../localization/localized_text.dart';
+import 'package:flutter/material.dart';
+import '../domain/module_node.dart';
+import '../state/app_state.dart';
+import 'app_theme.dart';
+import 'theme_chrome.dart';
+import 'hmi_icons.dart';
+
+class TreeMenu extends StatelessWidget {
+  final AppState app;
+  const TreeMenu({super.key, required this.app});
+
+  @override
+  Widget build(BuildContext context) {
+    final chrome = FraktalChromeTheme.of(context);
+    if (chrome != null && Theme.of(context).brightness != Brightness.dark) {
+      return Theme(data: chrome.navigationTheme(Theme.of(context)),
+        child: TreeMenu(app: app));
+    }
+    final collapsed = app.railCollapsed;
+    // The collapsed rail must hold the toggle at the ACTIVE size preset: a
+    // fixed 64 px rail overflowed the 62/76 px touch targets of the medium
+    // and large presets (the expand button itself). Never narrower than 64.
+    final collapsedWidth =
+        math.max(64.0, ControlScaleScope.of(context).touchTarget + 16);
+    return ClipRect(
+      child: AnimatedContainer(
+        key: const Key('navigation-tree-animated-width'),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        width: collapsed ? collapsedWidth : chrome?.navigationWidth ?? 300,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // During the width tween the target state changes immediately.
+            // Render from the width actually available so the expanded header
+            // and indented rows are never laid out inside the 64 px rail.
+            final compact = constraints.maxWidth < 180;
+            return Material(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              child: Column(
+                children: [
+                  _header(context, compact),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      children: [
+                        for (final root in app.visibleRoots)
+                          ..._nodeTiles(context, root, 0, compact),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _header(BuildContext context, bool compact) {
+    return Row(children: [
+      IconButton(
+        key: const Key('navigation-tree-toggle'),
+        tooltip:
+            context.tr(app.railCollapsed ? 'Expand menu' : 'Collapse menu'),
+        icon:
+            Icon(app.railCollapsed ? Icons.chevron_right : Icons.chevron_left),
+        onPressed: app.toggleRail,
+      ),
+      if (!compact)
+        Expanded(
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              isExpanded: true,
+              value: app.scopedRoot,
+              items: [
+                const DropdownMenuItem(
+                    value: null, child: LText('All stations')),
+                for (final r in app.forest)
+                  DropdownMenuItem(
+                      value: r.path,
+                      child: LText(r.displayNameKey.isEmpty
+                          ? r.name
+                          : r.displayNameKey)),
+              ],
+              onChanged: app.scopeTo, // forest vs single-root scope (Core 3.1a)
+            ),
+          ),
+        ),
+    ]);
+  }
+
+  List<Widget> _nodeTiles(
+      BuildContext context, ModuleNode n, int depth, bool compact) {
+    final sev = n.effectiveSeverity; // subtree max -> ancestor tint (Core 3.13)
+    final own = n.ownSeverity; // the source itself -> strongest render
+    final selected = app.selectedPath == n.path;
+    final hasKids = n.children.isNotEmpty;
+    final open = app.expanded.contains(n.path) || depth == 0;
+    final cs = Theme.of(context).colorScheme;
+    final chrome = FraktalChromeTheme.of(context);
+    final tintColor = sev == null ? null : severityColor(context, sev);
+    // The row as painted: the severity tint over the tree's own surface. Every
+    // glyph on a tinted row is paired with THIS, not with the bare tint - a
+    // light hue at 28% over a dark surface is a mid-tone the hue itself only
+    // reaches at ~3:1 against.
+    final rowFill = tintColor == null
+        ? null
+        : Color.alphaBlend(
+            tintColor.withValues(alpha: own != null ? 0.28 : 0.10),
+            cs.surfaceContainerLow);
+    final tiles = <Widget>[
+      InkWell(
+        onTap: () => app.select(n.path),
+        child: Container(
+          // Every tree row is a tap target, so it follows the size preset.
+          height: math.max(ControlScaleScope.of(context).treeRowHeight,
+              chrome?.rowHeight ?? 0),
+          padding: chrome == null ? null : EdgeInsets.only(left: depth * 8),
+          margin: chrome != null ? EdgeInsets.zero : EdgeInsets.only(
+              left: compact ? 4 : 4.0 + depth * 14, right: 4, bottom: 2),
+          decoration: BoxDecoration(
+            color: own != null
+                ? tintColor!.withValues(alpha: 0.28) // event SOURCE: strongest
+                : sev != null
+                    ? tintColor!
+                        .withValues(alpha: 0.10) // ancestor on the path: tint
+                    : selected
+                        ? cs.secondaryContainer
+                        : null,
+            borderRadius: BorderRadius.circular(chrome == null ? 10 : 0),
+            border: Border(
+              left: BorderSide(
+                width: 4,
+                color:
+                    tintColor ?? (selected ? cs.primary : Colors.transparent),
+              ),
+            ),
+          ),
+          child: Row(
+              mainAxisAlignment:
+                  compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+              children: [
+                if (!compact && hasKids)
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
+                    iconSize: 18,
+                    // Same pairing rule as the label and the type icon beside
+                    // it: a selected row is filled with secondaryContainer, so
+                    // the chevron must use onSecondaryContainer. Inheriting
+                    // onSurface is invisible on the high-contrast themes, where
+                    // that container role inverts to a DARK fill (2.33:1 light,
+                    // 1.77:1 dark).
+                    color: (selected && sev == null)
+                        ? cs.onSecondaryContainer
+                        : rowFill == null
+                            ? null
+                            : legibleOn(cs.onSurfaceVariant, rowFill),
+                    icon: Icon(open ? Icons.expand_more : Icons.chevron_right),
+                    onPressed: () => app.toggleExpand(n.path),
+                  )
+                else if (!compact)
+                  const SizedBox(width: 28),
+                _typeIcon(context, n,
+                    rowFill == null ? null : legibleOn(tintColor!, rowFill),
+                    selected: selected && sev == null),
+                if (!compact) ...[
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: LText(
+                      n.displayNameKey.isEmpty ? n.name : n.displayNameKey,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: selected || own != null
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        // A selected row is filled with secondaryContainer, so
+                        // its label MUST use the matching onSecondaryContainer.
+                        // Leaving it null inherits onSurface, which happens to
+                        // work on the normal themes but collapses to 1.8:1 on
+                        // the high-contrast ones — where that fill is dark.
+                        color: own != null
+                            ? (chrome == null
+                                ? legibleOn(tintColor!, rowFill!)
+                                : cs.onSurface)
+                            : (selected && sev == null
+                                ? cs.onSecondaryContainer
+                                : null),
+                      ),
+                    ),
+                  ),
+                  _stateDot(context, n),
+                  const SizedBox(width: 8),
+                ],
+              ]),
+        ),
+      ),
+    ];
+    if (hasKids && open) {
+      for (final c in n.children.where((c) => c.tileEnable)) {
+        tiles.addAll(_nodeTiles(context, c, depth + 1, compact));
+      }
+    }
+    return tiles;
+  }
+
+  Widget _typeIcon(BuildContext context, ModuleNode n, Color? tint,
+      {bool selected = false}) {
+
+    // Same pairing rule as the label: on a selected (secondaryContainer) row the
+    // icon must use onSecondaryContainer, not the inherited onSurface.
+    return ModuleIcon(node: n,
+        size: ControlScaleScope.of(context).iconSize,
+        color: tint ??
+            (selected
+                ? Theme.of(context).colorScheme.onSecondaryContainer
+                : null));
+  }
+
+  Widget _stateDot(BuildContext context, ModuleNode n) {
+    final dot = Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+            color: stateColor(context, n.state), shape: BoxShape.circle),
+      );
+    final chrome = FraktalChromeTheme.of(context);
+    // Keep every status shade on the dark ground even in a cyan selected row.
+    return chrome == null ? dot : DecoratedBox(
+      decoration: BoxDecoration(color: chrome.navigation, shape: BoxShape.circle),
+      child: Padding(padding: const EdgeInsets.all(2), child: dot),
+    );
+  }
+}

@@ -3,10 +3,11 @@ library;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:fraktal_opcua_client/fraktal_opcua_client.dart'
+    show CipSessionClient;
 
 import '../domain/connection_settings.dart';
 import 'ads_session_client.dart';
-import 'cip/cip_session_client.dart';
 import 'opcua_gateway_client_io.dart';
 import 'opcua_native_client.dart';
 import 'opcua_repository.dart';
@@ -51,18 +52,28 @@ Future<PlcRepository> createExternalRepository(
     );
     return OpcUaRepository.connectWithClient(client);
   }
-  // Direct EtherNet/IP (CIP): cip://<controller ip>:<port>, slot on the query
-  // string is not supported — the controller is expected in slot 0. Spike
-  // transport: serves the manifest-derived core surface; the CIP gateway
-  // remains the supported production path with the complete projection.
+  // Direct unsecured CIP is a canonical, read-only desktop connection.
   if (endpoint.scheme == 'cip') {
+    if (endpoint.host.isEmpty ||
+        endpoint.userInfo.isNotEmpty ||
+        endpoint.fragment.isNotEmpty ||
+        endpoint.path.isNotEmpty && endpoint.path != '/' ||
+        endpoint.queryParametersAll.entries.any((e) =>
+            !const {'slot', 'serial'}.contains(e.key) || e.value.length != 1))
+      throw const FormatException('Invalid CIP endpoint.');
+    final slot = int.tryParse(endpoint.queryParameters['slot'] ?? '0');
+    if (slot == null || slot < 0 || slot > 255)
+      throw const FormatException('Invalid CIP slot.');
     final port = endpoint.hasPort ? endpoint.port : 44818;
     debugPrint('[Fraktal/Connection] stage=cip-connect host=${endpoint.host} '
         'port=$port');
-    final client = await CipSessionClient.connect(
-      host: endpoint.host,
-      port: port,
-    );
+    final client = await ReconnectingOpcUaSessionClient.connect(
+        factory: () => CipSessionClient.connect(
+            host: endpoint.host,
+            port: port,
+            slot: slot,
+            expectSerial: endpoint.queryParameters['serial']),
+        log: debugPrint);
     return OpcUaRepository.connectWithClient(client);
   }
   if (endpoint.scheme != 'opc.tcp') {

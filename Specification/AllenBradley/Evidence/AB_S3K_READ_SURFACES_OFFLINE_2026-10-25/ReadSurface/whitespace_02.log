@@ -1,0 +1,2038 @@
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:593: trailing whitespace.
++    records.append(decl.Record(release_report_name(app), release_report_members(app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:609: trailing whitespace.
++    if app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:610: trailing whitespace.
++        import fraktal_ab_mailbox_dispatch as routes
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:611: trailing whitespace.
++        records.extend(routes.records(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1656: trailing whitespace.
++    if app.canonical_publication_stage>=12:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1657: trailing whitespace.
++        import fraktal_ab_canonical_fieldbus as fieldbus
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1658: trailing whitespace.
++        return fieldbus.forcing(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1998: trailing whitespace.
++def release_capacity(app=None) -> int:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1999: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2000: trailing whitespace.
++        from fraktal_ab_canonical_unit_core import core_limit
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2001: trailing whitespace.
++        return core_limit("MAX_RELEASE_REASONS")
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2002: trailing whitespace.
++    return RELEASE_CAPACITY
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2003: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2004: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2005: trailing whitespace.
++def release_report_members(app=None) -> tuple[decl.Member, ...]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2009: trailing whitespace.
++    n = release_capacity(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2017: trailing whitespace.
++        *((decl.boolean("Overflow", "complete report capacity was exceeded"),)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2018: trailing whitespace.
++          if app is not None and app.canonical_publication_stage >= 13 else ()),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2023: trailing whitespace.
++    return f"FRK_T_{app.name}ReleaseReport" + ("V2" if app.canonical_publication_stage >= 13 else "")
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2040: trailing whitespace.
++def report_open(tag: str, *, app=None) -> list[str]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2041: trailing whitespace.
++    lines = [f"{tag}.Count := 0;", f"{tag}.Released := 0;"]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2042: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2043: trailing whitespace.
++        lines.append(f"{tag}.Overflow := 0;")
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2044: trailing whitespace.
++    return lines
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2048: trailing whitespace.
++               portable: str = "", *, app=None) -> list[str]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2051: trailing whitespace.
++    guard = f"{tag}.Count < {release_capacity(app)}"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2052: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2053: trailing whitespace.
++        guard = f"({tag}.Count >= 0) AND ({guard})"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2054: trailing whitespace.
++    lines = [f"IF {guard} THEN",
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2061: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2062: trailing whitespace.
++        lines[-1:-1] = ["ELSE", f"{tag}.Overflow := 1;"]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2063: trailing whitespace.
++    return lines
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2066: trailing whitespace.
++def report_close(tag: str, *, app=None) -> list[str]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2067: trailing whitespace.
++    complete = f" AND ({tag}.Overflow = 0)" if app is not None and app.canonical_publication_stage >= 13 else ""
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2068: trailing whitespace.
++    condition = f"({tag}.Count = 0){complete}" if complete else f"{tag}.Count = 0"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2069: trailing whitespace.
++    return [f"IF {condition} THEN {tag}.Released := 1; "
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2077: trailing whitespace.
++            *(([f"{target}.Overflow := {source}.Overflow;"]) if app.canonical_publication_stage >= 13 else []),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2078: trailing whitespace.
++            f"FOR {i} := 0 TO {release_capacity(app) - 1} DO",
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2123: trailing whitespace.
++             *report_open(tag, app=app)]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2130: trailing whitespace.
++                              "MODE", mailbox.MANUAL_HAS_NO_SEQUENCE_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2135: trailing whitespace.
++                          UNIT_NOT_READY_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2138: trailing whitespace.
++              *report_add(tag, keys[MANUAL_RESET_KEY], 0, 0, "ALARM", MANUAL_RESET_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2143: trailing whitespace.
++                              CONFIG_RESTORING_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2150: trailing whitespace.
++                              0, "INTERLOCK", permit.key, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2152: trailing whitespace.
++    return lines + report_close(tag, app=app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3311: trailing whitespace.
++                               release_report_members(app=app)))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3313: trailing whitespace.
++                               release_report_members(app=app)))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3389: trailing whitespace.
++    if app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3390: trailing whitespace.
++        import fraktal_ab_mailbox_dispatch as routes
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3391: trailing whitespace.
++        tags.extend(routes.tags(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4686: trailing whitespace.
++        if app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4687: trailing whitespace.
++            import fraktal_ab_mailbox_dispatch as routes
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4688: trailing whitespace.
++            modules += routes.apply(app, module)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4788: trailing whitespace.
++    if app.canonical_publication_stage>=12:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4789: trailing whitespace.
++        import fraktal_ab_canonical_fieldbus as fieldbus
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4790: trailing whitespace.
++        result += fieldbus.routines(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4791: trailing whitespace.
++    if app.canonical_publication_stage>=13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4792: trailing whitespace.
++        import fraktal_ab_canonical_mailbox as mailbox_publication
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4793: trailing whitespace.
++        result += mailbox_publication.routines(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4814: trailing whitespace.
++        + ([st_program_routine(name, body) for name, body in __import__("fraktal_ab_mailbox_dispatch").routines(app)]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4815: trailing whitespace.
++           if app.canonical_publication_stage >= 13 else [])
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:5040: trailing whitespace.
++        "PhysicalIoReferences": 0 if app.canonical_publication_stage>=12 else sum(len(m.channels) for m in app.io_modules),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:5043: trailing whitespace.
++        "TaskOutputUpdatesDisabled": app.canonical_publication_stage>=12 or not app.io_modules,
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:34: trailing whitespace.
++    for module in projection.modules(rows,app=app):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:40: trailing whitespace.
++        detail=(projection.unit_status(unit,None,app=app) if module['type']==1 else
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:168: trailing whitespace.
++    projection.validate(header,app=app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:286: trailing whitespace.
++    return dict(schema='fraktal.ab.'+{2:'s2',3:'s3a',4:'s3b',5:'s3c',6:'s3d',7:'s3e',8:'s3f',9:'s3g',10:'s3h',11:'s3i',12:'s3j',13:'s3k'}[app.canonical_publication_stage]+'-equivalence',schemaVersion=1,readOnly=True,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:214: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:215: trailing whitespace.
++## Approved V6.4 type-scoped manifest (offline, 2026-10-24)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:216: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:217: trailing whitespace.
++The owner approved [R1's finite wire change](AB_CANONICAL_MANIFEST_V64_CONTRACT_REVIEW_2026-10-24.md).
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:218: trailing whitespace.
++With the declaration opt-in `canonical_type_manifest`, SchemaMinor=4 replaces
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:219: trailing whitespace.
++Fields with TypeAnnotations and PathExceptions. TypeAnnotations names the
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:220: trailing whitespace.
++owning Template type and member, logical type, logical bound/count, sibling
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:221: trailing whitespace.
++CountMember and effective access; empty type/access means the native mapping
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:222: trailing whitespace.
++and Read Only. The sparse exception table names explicit index selections.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:223: trailing whitespace.
++Bindings/services retain their meanings. ContentHash includes both new tables;
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:224: trailing whitespace.
++ConfigRevision derives from it. A zero-count table omits its physical array.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:225: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:226: trailing whitespace.
++The generic reader resolves every type fact through the discovered Template
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:227: trailing whitespace.
++name/member, then applies the path exceptions. Every physical array needs an
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:228: trailing whitespace.
++extent, including arrays below empty views. Counts refer to an integer sibling
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:229: trailing whitespace.
++in the assembled logical tree, including bound metadata records. Missing,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:230: trailing whitespace.
++ambiguous or conflicting facts fail closed. Unsupported per-instance facts
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:231: trailing whitespace.
++and non-sibling count exceptions are refused by generation.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:232: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:233: trailing whitespace.
++V6.0?6.3 readers/captures and released images remain supported. Canonical
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:234: trailing whitespace.
++paths, values, logical types, selections and occupied counts are unchanged;
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:235: trailing whitespace.
++only the configuration identity changes. This is an inactive V2 draft,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:236: trailing whitespace.
++not native acceptance or a direct-write exception to D9.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:237: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:238: trailing whitespace.
++## Approved S3j fieldbus product (offline, 2026-10-24)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:239: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:240: trailing whitespace.
++The [approved S3j review](AB_CANONICAL_PUBLICATION_S3J_CONTRACT_REVIEW_2026-10-24.md)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:241: trailing whitespace.
++adds a separate PLC-owned ST_FieldbusTopology product. Its
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:242: trailing whitespace.
++[V6.5 wire draft](AB_CANONICAL_PUBLICATION_S3J_WIRE_DRAFT_2026-10-24.md)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:243: trailing whitespace.
++retains V6.4 type annotations and adds the DataProducts binding table.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:244: trailing whitespace.
++Identity is on demand, state per row/group; clients infer no station facts.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:245: trailing whitespace.
++Declared counts stay inside Core's ceilings, with process-word child nodes
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:246: trailing whitespace.
++for the reviewed over-bound catalog. Node and channel counts/indices are INT,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:247: trailing whitespace.
++AnalogValue REAL, flags BOOL and strings at Core widths. Missing sampled words
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:248: trailing whitespace.
++fail closed. A mapping error is visible. Force capability remains absent
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:249: trailing whitespace.
++without a registered OUTPUT_FORCING gate. This inactive draft does not grant
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:250: trailing whitespace.
++controller writes or physical/security acceptance.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:57: trailing whitespace.
++**Latest, 2026-10-25: S3k read surfaces and R4 pass offline; command ABI choice pending.**
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:58: trailing whitespace.
++The approved 133 read paths, versioned 24-reason owner and table-driven manual
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:59: trailing whitespace.
++dispatcher compile/read back on both v38 targets; effective access passes.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:60: trailing whitespace.
++All 2,264 AB and 74 root tests pass. Twelve accepted image pins regenerate
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:61: trailing whitespace.
++byte-identically and all 1,385 prior captures replay. The incomplete offline
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:62: trailing whitespace.
++image uses 1,807,120 / 3,145,728 Blocks (57% displayed), +64,040 versus S3j.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:63: trailing whitespace.
++No S3k download, native regression or scan measurement has occurred.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:64: trailing whitespace.
++The [command ABI review](AB_CANONICAL_PUBLICATION_S3K_COMMAND_BINDING_REVIEW_2026-10-25.md)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:65: trailing whitespace.
++asks A (typed Core payload and temporary legacy adapter, one owner) or B
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:66: trailing whitespace.
++(frozen Frame with published encoding/lookups). The whole legacy request also
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:67: trailing whitespace.
++embeds staged services and cannot simply become one bounded payload. Dependent
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:68: trailing whitespace.
++command binding waits for this choice; the semantic contract is already approved.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:69: trailing whitespace.
++Next: chosen command binding, secret exclusion and service discovery, complete
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:70: trailing whitespace.
++offline gates, then separately authorized exact-image native acceptance. Genealogy
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:71: trailing whitespace.
++is unchanged, V2 inactive, no commit/push. Read [offline evidence](Evidence/AB_S3K_READ_SURFACES_OFFLINE_2026-10-25.md)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:72: trailing whitespace.
++and [engineering notes](AB_CANONICAL_PUBLICATION_S3K_NOTES_2026-10-25.md).
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md:73: trailing whitespace.
++
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:1: trailing whitespace.
++{
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:2: trailing whitespace.
++  "schema": "fraktal.ab.frozen-contracts",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:3: trailing whitespace.
++  "schemaVersion": 2,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:4: trailing whitespace.
++  "status": "owner-approved-target",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:5: trailing whitespace.
++  "active": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:6: trailing whitespace.
++  "note": "Owner-approved target contract for canonical publication. Part III and V1 remain authoritative for the shipping implementation until the staged implementation gates pass. Approval does not assert that the generator or any runtime client implements V2.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:7: trailing whitespace.
++  "evidence": "Evidence/AB_S0_CANONICAL_TYPES_2026-10-20.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:8: trailing whitespace.
++  "baseline": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:9: trailing whitespace.
++    "referenceFamilies": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:10: trailing whitespace.
++      "CIP Security-capable CompactLogix 5380",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:11: trailing whitespace.
++      "CIP Security-capable ControlLogix 5580"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:12: trailing whitespace.
++    ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:13: trailing whitespace.
++    "minimumFirmwareMajor": 37,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:14: trailing whitespace.
++    "developmentBench": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:15: trailing whitespace.
++      "controller": "1756-L81E",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:16: trailing whitespace.
++      "runtime": "FactoryTalk Logix Echo",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:17: trailing whitespace.
++      "firmware": "38.011",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:18: trailing whitespace.
++      "serial": "601FC87B",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:19: trailing whitespace.
++      "simulation": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:20: trailing whitespace.
++      "cipSecurityAvailable": false
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:21: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:22: trailing whitespace.
++    "retiredReferenceController": "1769-L24ER-QB1B / v33",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:23: trailing whitespace.
++    "evidenceTransfer": "A different family or revision requires its own applicable type, compiler, transport and runtime gates. Echo acceptance is not physical acceptance."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:24: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:25: trailing whitespace.
++  "logicalTypes": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:26: trailing whitespace.
++    "unchangedFromV1": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:27: trailing whitespace.
++      "source": "AB_FROZEN_CONTRACTS_V1.json",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:28: trailing whitespace.
++      "types": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:29: trailing whitespace.
++        "int8",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:30: trailing whitespace.
++        "int16",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:31: trailing whitespace.
++        "int32",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:32: trailing whitespace.
++        "float32",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:33: trailing whitespace.
++        "bitstring32",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:34: trailing whitespace.
++        "enum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:35: trailing whitespace.
++        "composite",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:36: trailing whitespace.
++        "declared"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:37: trailing whitespace.
++      ]
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:38: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:39: trailing whitespace.
++    "bool": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:40: trailing whitespace.
++      "logix": "BOOL",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:41: trailing whitespace.
++      "available": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:42: trailing whitespace.
++      "decoding": "Use the template's byte offset and bit information. Do not assume packed or byte-per-member storage.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:43: trailing whitespace.
++      "arrays": "Template DWORD storage is expanded to logical Boolean elements only with the manifest's logical type, lower bound and element count."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:44: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:45: trailing whitespace.
++    "int64": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:46: trailing whitespace.
++      "logix": "LINT",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:47: trailing whitespace.
++      "available": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:48: trailing whitespace.
++      "arithmetic": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:49: trailing whitespace.
++      "transportType": "Int64",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:50: trailing whitespace.
++      "jsonEncoding": "exact decimal string; never a floating-point intermediate"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:51: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:52: trailing whitespace.
++    "float64": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:53: trailing whitespace.
++      "logix": "LREAL",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:54: trailing whitespace.
++      "available": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:55: trailing whitespace.
++      "transportType": "Double",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:56: trailing whitespace.
++      "literalRule": "Use an L-suffixed ST literal or typed Decorated LREAL initial data; never widen an untyped REAL-rounded literal as a full-precision initializer.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:57: trailing whitespace.
++      "qualifiedInitializerEvidence": "Evidence/AB_S0_SUPPLEMENTARY_RUNTIME_2026-10-21.md: pi and 1.0000000000000002 exact on Echo v38."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:58: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:59: trailing whitespace.
++    "duration_ms": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:60: trailing whitespace.
++      "decision": "D6",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:61: trailing whitespace.
++      "logix": "DINT",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:62: trailing whitespace.
++      "available": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:63: trailing whitespace.
++      "manifestLogicalType": "DURATION",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:64: trailing whitespace.
++      "wireOrdinal": 3,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:65: trailing whitespace.
++      "transportType": "Int32",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:66: trailing whitespace.
++      "unit": "millisecond",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:67: trailing whitespace.
++      "rangeChecked": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:68: trailing whitespace.
++      "reason": "Matches Core's width and units directly. Native TIME32 is microseconds with insufficient range; native TIME is 64-bit microseconds and requires normalization and wider published storage.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:69: trailing whitespace.
++      "rule": "No client may infer duration from a DINT member name; the PLC manifest supplies its logical type."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:70: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:71: trailing whitespace.
++    "string": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:72: trailing whitespace.
++      "logix": "StringFamily with LEN DINT and DATA SINT[n]",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:73: trailing whitespace.
++      "available": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:74: trailing whitespace.
++      "widthSource": "the owning Core or application declaration; no binding-wide narrowing",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:75: trailing whitespace.
++      "encoding": "UTF-8",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:76: trailing whitespace.
++      "lengthUnit": "bytes",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:77: trailing whitespace.
++      "recognition": "template shape, not a type-name prefix",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:78: trailing whitespace.
++      "validation": "Reject invalid LEN or UTF-8. Reject generated literals exceeding the declared byte capacity."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:79: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:80: trailing whitespace.
++    "uint16": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:81: trailing whitespace.
++      "logix": "DINT",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:82: trailing whitespace.
++      "available": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:83: trailing whitespace.
++      "manifestLogicalType": "UINT16",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:84: trailing whitespace.
++      "transportType": "UInt16",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:85: trailing whitespace.
++      "range": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:86: trailing whitespace.
++        0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:87: trailing whitespace.
++        65535
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:88: trailing whitespace.
++      ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:89: trailing whitespace.
++      "rule": "S3f SetSchema preserves the owning Core UINT domain; reject an out-of-range native value. Requires manifest V6.3."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:90: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:91: trailing whitespace.
++    "timestamp": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:92: trailing whitespace.
++      "decision": "D7",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:93: trailing whitespace.
++      "logix": "LDT",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:94: trailing whitespace.
++      "available": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:95: trailing whitespace.
++      "nativeTypeCode": "0xCC",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:96: trailing whitespace.
++      "storage": "64-bit Unix nanoseconds",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:97: trailing whitespace.
++      "transportType": "DateTime",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:98: trailing whitespace.
++      "transportEncoding": "ISO UTC with three to nine fractional digits, preserving exact nanoseconds and the existing millisecond spelling; numeric zero for unset",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:99: trailing whitespace.
++      "zeroMeansUnset": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:100: trailing whitespace.
++      "rule": "Convert a microsecond wall-clock source to nanoseconds once in its owning provider. LINT-to-LDT assignment consumes a nanosecond value. Never assign a microsecond LINT directly as a timestamp."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:101: trailing whitespace.
++    }
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:102: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:103: trailing whitespace.
++  "publication": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:104: trailing whitespace.
++    "root": "One controller-scope tag per deployed root, named exactly as its local browse name.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:105: trailing whitespace.
++    "module": "A record declaring the standard Status contract; children are members named as their local schematic/instance names.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:106: trailing whitespace.
++    "discovery": "Symbol object 0x6B, Template object 0x6C, and a validated PLC-resident manifest. No runtime station declaration or client-owned projection.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:107: trailing whitespace.
++    "templateReferences": "Honor the structure bit and complete 12-bit template handle even when its low byte matches an atomic code.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:108: trailing whitespace.
++    "manifestMajor": 6,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:109: trailing whitespace.
++    "manifestAnnotations": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:110: trailing whitespace.
++      "logical value type",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:111: trailing whitespace.
++      "logical array lower bound",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:112: trailing whitespace.
++      "logical array element count",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:113: trailing whitespace.
++      "logical array selections and live count references in V6.1",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:114: trailing whitespace.
++      "effective member access where native Template metadata cannot express it",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:115: trailing whitespace.
++      "separate PLC data-record bindings and cached-definition revision in V6.2"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:116: trailing whitespace.
++    ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:117: trailing whitespace.
++    "annotationRule": "The generator derives annotations from the same declarations as the UDTs. Physical storage extent is not a logical BOOL-array extent.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:118: trailing whitespace.
++    "readAccess": "Effective access to published values is Read Only.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:119: trailing whitespace.
++    "writeAccess": "Only HmiRequest is effectively Read/Write.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:120: trailing whitespace.
++    "privateAccess": "None",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:121: trailing whitespace.
++    "physicalAccessEncoding": "Read/Write on every ancestor of HmiRequest; other public branches Read Only. No None member inside a record read whole. Private working storage stays outside those records. Effective member access is published in the manifest because the measured Template metadata does not distinguish it.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:122: trailing whitespace.
++    "physicalManifestLayout": "S2 implemented in fraktal_ab_canonical_manifest.py; see AB_CANONICAL_PUBLICATION_S2_WIRE_DRAFT_2026-10-21.md and Evidence/AB_S2_CANONICAL_RUNTIME_2026-10-21.md. Separate V6 canonical header/Fields coexist with V5 only for the migration oracle. S2 runtime/Capacity/scan gates pass at the explicit 46-path Echo scope. The owner selected logical array views for S3a; additive V6.1 is documented in AB_CANONICAL_PUBLICATION_S3A_WIRE_DRAFT_2026-10-21.md. S3a runtime passes at 94 paths. S3b runtime passes at 304 paths, four decisions and held/fault coverage across ST/SFC/LD, with 31 candidate and 31 restored-baseline regressions. Automatic Studio Capacity is 991,612 used / 3,145,728 total Blocks. Later surfaces and shipping activation remain open. S3c runtime passes at 647 paths with additive V6.2 PLC record bindings and live FragmentRevision for cached step definitions (AB_CANONICAL_PUBLICATION_S3C_WIRE_DRAFT_2026-10-22.md): four decisions, 14 held/fault pairs, 21 sequence pairs across ST/SFC/LD and both 31-row matrices; measured Capacity 1,107,552 / 3,145,728 Blocks (35%). Genealogy and corrected MANUAL=1 readiness are restored. Later surfaces and shipping activation remain open. S3d offline preparation passes at 2,125 paths with the same V6.2 reader and a second binding for alarm metadata. The PLC remains the sole alarm append/reset and state-flag owner. Native compiler/read-back/access and measured Capacity (1,290,016 / 3,145,728 Blocks, 41%) pass. S3d runtime passes at 2,125 paths: 31 candidate/31 restored-baseline rows; 48 paired captures including idle; four decisions, 14 held/fault, 21 sequence and eight reset captures across ST/SFC/LD. Active/closed alarms, ring wrap, flag transitions and Blocking release are observed; WAIT_RESET remains model-only coverage. Two failed read-plan attempts retain 34 extra regression rows. The oracle now uses revision-cached metadata plus two guarded read-only connections inside the unchanged scan proof (1-8 attempts); the generic reader and approved image are unchanged. Native root/definition/alarm-metadata payloads are 77,304/7,308/16,616 bytes. Scan median/max is 437/3,111 us with zero overlaps. Genealogy and MANUAL=1 readiness are restored; see Evidence/AB_S3D_CANONICAL_RUNTIME_2026-10-22.md. Later surfaces and shipping activation remain open. S3e offline preparation passes at 2,154 paths: 29 Access/data-policy paths and in-place audit enrichment on the existing ring. The generic BITSTRING32 rule preserves unsigned result words; all prior images/replays remain unchanged. Both v38 builds/read-back/access and 2,078 AB tests pass; measured Capacity is 1,568,852 / 3,145,728 Blocks (49%). S3e runtime passes at 2,154 paths: 31 inherited candidate rows plus two Access checks, 54 replayed paired captures including idle, six Access phases and 31 restored-baseline rows. A corrected owner-derived audit uses MANUAL gate 2; its initial wrong-index audit and a partial repeat with three extra rows remain archived. All 76 prepared root sources match again, with no PLC/image/proof change. Native payloads total 101,780 bytes; candidate median/max is 817/4,033 us with zero overlaps. Genealogy, MANUAL=1 readiness, five documents, original policy and preflight are restored. See Evidence/AB_S3E_CANONICAL_RUNTIME_2026-10-22.md. S3e approval is consumed; later surfaces and shipping activation remain open. See AB_CANONICAL_PUBLICATION_S3E_NOTES_2026-10-22.md."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:123: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:124: trailing whitespace.
++  "arrayBounds": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:125: trailing whitespace.
++    "rule": "canonical index = physical element index + declared Core lower bound; packed BOOL arrays expand logical bits before applying that bound",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:126: trailing whitespace.
++    "correctionsFromV1": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:127: trailing whitespace.
++      {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:128: trailing whitespace.
++        "path": "<Unit>/ActiveSteps",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:129: trailing whitespace.
++        "oldLowerBound": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:130: trailing whitespace.
++        "lowerBound": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:131: trailing whitespace.
++        "extentSource": "Core FB_UnitBase.ActiveSteps"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:132: trailing whitespace.
++      },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:133: trailing whitespace.
++      {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:134: trailing whitespace.
++        "path": "<Unit>/ModePolicy",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:135: trailing whitespace.
++        "oldLowerBound": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:136: trailing whitespace.
++        "lowerBound": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:137: trailing whitespace.
++        "extentSource": "Core FB_UnitBase.ModePolicy"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:138: trailing whitespace.
++      },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:139: trailing whitespace.
++      {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:140: trailing whitespace.
++        "path": "<Unit>/SupportedModesPublished",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:141: trailing whitespace.
++        "oldLowerBound": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:142: trailing whitespace.
++        "lowerBound": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:143: trailing whitespace.
++        "extentSource": "Core FB_UnitBase.SupportedModesPublished"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:144: trailing whitespace.
++      },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:145: trailing whitespace.
++      {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:146: trailing whitespace.
++        "path": "<Unit>/SupportedRunStylesPublished",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:147: trailing whitespace.
++        "oldLowerBound": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:148: trailing whitespace.
++        "lowerBound": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:149: trailing whitespace.
++        "extentSource": "Core FB_UnitBase.SupportedRunStylesPublished"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:150: trailing whitespace.
++      },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:151: trailing whitespace.
++      {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:152: trailing whitespace.
++        "path": "<Unit>/Access/Policy/Required",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:153: trailing whitespace.
++        "oldLowerBound": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:154: trailing whitespace.
++        "lowerBound": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:155: trailing whitespace.
++        "extentSource": "Core ST_AccessPolicy.Required"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:156: trailing whitespace.
++      }
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:157: trailing whitespace.
++    ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:158: trailing whitespace.
++    "otherArrays": "Retain their declared Core bounds. These five corrections are the complete array-bound allow-list; the separately approved S3f configuration corrections do not change it."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:159: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:160: trailing whitespace.
++  "transport": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:161: trailing whitespace.
++    "snapshot": "fraktal.opcua.snapshot.v1",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:162: trailing whitespace.
++    "sourceTime": "CIP provides no sample source timestamp; record receipt time without claiming clock synchronization.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:163: trailing whitespace.
++    "desktop": "Generic CipSessionClient selected by cip://; read-only until a commissioned CIP Security session is proved.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:164: trailing whitespace.
++    "web": "The same session client behind the Dart gateway; write-enabled deployments require recorded owner choice, authenticated principals, TLS and existing write-root/mailbox gates.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:165: trailing whitespace.
++    "mailbox": "Serialize transactions; confirm all argument writes before a separate Sequence commit; require exact acknowledgement; never replay after timeout or reconnect."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:166: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:167: trailing whitespace.
++  "unchangedLogicalContracts": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:168: trailing whitespace.
++    "source": "AB_FROZEN_CONTRACTS_V1.json",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:169: trailing whitespace.
++    "contracts": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:170: trailing whitespace.
++      "registry",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:171: trailing whitespace.
++      "valueEnvelope",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:172: trailing whitespace.
++      "mailbox",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:173: trailing whitespace.
++      "repositoryNegotiation",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:174: trailing whitespace.
++      "hostEvents"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:175: trailing whitespace.
++    ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:176: trailing whitespace.
++    "scope": "Logical semantics only. No legacy generated context or physical row layout becomes part of the canonical client contract by this reference."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:177: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:178: trailing whitespace.
++  "approvedConfigurationCorrection": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:179: trailing whitespace.
++    "stage": "S3f",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:180: trailing whitespace.
++    "approvalQuestion": "call_eead11c567404709986d61b2907a3d61:0",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:181: trailing whitespace.
++    "answer": "Approve the proposed correction (recommended)",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:182: trailing whitespace.
++    "scope": "Contract/offline implementation only; no controller-changing authorization.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:183: trailing whitespace.
++    "contractReview": "AB_CANONICAL_PUBLICATION_S3F_CONTRACT_REVIEW_2026-10-22.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:184: trailing whitespace.
++    "enumeratedInventory": "AB_CANONICAL_PUBLICATION_S3F_INVENTORY_2026-10-22.json",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:185: trailing whitespace.
++    "wireDraft": "AB_CANONICAL_PUBLICATION_S3F_WIRE_DRAFT_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:186: trailing whitespace.
++    "notes": "AB_CANONICAL_PUBLICATION_S3F_NOTES_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:187: trailing whitespace.
++    "rule": "Only the enumerated Core types, bounded page windows, 12 missing Core fields, PLC-owned revision/timestamps and validated PLC-held provider responses amend the oracle. Preserve exact values; no general numeric coercion or tolerance.",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:188: trailing whitespace.
++    "runtimeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:189: trailing whitespace.
++    "runtimeAcceptedAtRecordedScope": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:190: trailing whitespace.
++    "runtimeEvidence": "Evidence/AB_S3F_CANONICAL_REVISION_RUNTIME_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:191: trailing whitespace.
++    "remainingNativeGates": [],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:192: trailing whitespace.
++    "previousRuntimeEvidence": "Evidence/AB_S3F_CANONICAL_RUNTIME_2026-10-23.md"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:193: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:194: trailing whitespace.
++  "openGates": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:195: trailing whitespace.
++    "Capacity Estimate and native scan-time evidence for each canonical surface",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:196: trailing whitespace.
++    "S2-S6 implementation and path/type/value equivalence",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:197: trailing whitespace.
++    "Physical controller and commissioned CIP Security acceptance at S7"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:198: trailing whitespace.
++  ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:199: trailing whitespace.
++  "approval": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:200: trailing whitespace.
++    "date": "2026-10-20",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:201: trailing whitespace.
++    "answer": "Approve drafts and proceed to S1",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:202: trailing whitespace.
++    "scope": "V2 target contract and Part III amendment; S1 implementation. No additional controller-changing operation authorized."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:203: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:204: trailing whitespace.
++  "supplementaryQualification": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:205: trailing whitespace.
++    "date": "2026-10-21",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:206: trailing whitespace.
++    "evidence": "Evidence/AB_S0_SUPPLEMENTARY_RUNTIME_2026-10-21.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:207: trailing whitespace.
++    "scope": "Local Echo 601FC87B v38; 2 MiB fragmented reads, browse-name root, effective access and full-precision LREAL. No physical/CIP Security acceptance."
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:208: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:209: trailing whitespace.
++  "approvedMetricsCorrection": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:210: trailing whitespace.
++    "stage": "S3g",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:211: trailing whitespace.
++    "approvalQuestion": "call_98e771c35eec48548b860bd7ad211932:0",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:212: trailing whitespace.
++    "answer": "Approve S3g corrections and offline work",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:213: trailing whitespace.
++    "scope": "200 enumerated Core numeric corrections including exact Float32 arithmetic and UInt32 bucket wrap; contract and offline work only",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:214: trailing whitespace.
++    "contractReview": "AB_CANONICAL_PUBLICATION_S3G_CONTRACT_REVIEW_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:215: trailing whitespace.
++    "enumeratedInventory": "AB_CANONICAL_PUBLICATION_S3G_INVENTORY_2026-10-23.json",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:216: trailing whitespace.
++    "typeCorrections": 200,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:217: trailing whitespace.
++    "typeChangeCounts": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:218: trailing whitespace.
++      "Double->Float": 64,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:219: trailing whitespace.
++      "Int32->UInt32": 101,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:220: trailing whitespace.
++      "Int32->Int16": 35
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:221: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:222: trailing whitespace.
++    "runtimeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:223: trailing whitespace.
++    "controllerChangesAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:224: trailing whitespace.
++    "dependentValuesReview": "AB_CANONICAL_PUBLICATION_S3G_DEPENDENT_VALUES_REVIEW_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:225: trailing whitespace.
++    "dependentValuesApproved": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:226: trailing whitespace.
++    "schemaQualifiedOffline": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:227: trailing whitespace.
++    "fullCandidatePrepared": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:228: trailing whitespace.
++    "dependentValuePaths": 224,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:229: trailing whitespace.
++    "dependentValuesApprovalQuestion": "call_43d1f40d2efb4ab69d699df590f3c0bc:0",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:230: trailing whitespace.
++    "dependentValuesAnswer": "Approve dependent values and offline work",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:231: trailing whitespace.
++    "totalAffectedPaths": 424,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:232: trailing whitespace.
++    "preparationEvidence": "Evidence/AB_S3G_CANONICAL_PREPARATION_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:233: trailing whitespace.
++    "sourceBindings": 151,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:234: trailing whitespace.
++    "abTests": 2127,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:235: trailing whitespace.
++    "rootTests": 74,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:236: trailing whitespace.
++    "preparedAcdSha256": "CCE00F97A6868F823881A5A9316067834FE2B411F9F98DACE891A71C1B4A6331",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:237: trailing whitespace.
++    "sourceSha256": "50E0F8977D975A14C5CD6F86A42AE56B8D4F995CD6A2AA52E071C252104DAE91",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:238: trailing whitespace.
++    "measuredCapacityBlocks": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:239: trailing whitespace.
++      "used": 2407200,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:240: trailing whitespace.
++      "available": 738528,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:241: trailing whitespace.
++      "total": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:242: trailing whitespace.
++      "percent": 76,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:243: trailing whitespace.
++      "deltaFromAcceptedS3f": 108752
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:244: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:245: trailing whitespace.
++    "nativeChecksPrepared": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:246: trailing whitespace.
++      "oeeVectors": 9,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:247: trailing whitespace.
++      "profilerHighBitVectors": 2,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:248: trailing whitespace.
++      "fixedProfilerCellsSavedRestored": 6
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:249: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:250: trailing whitespace.
++    "remainingNativeGates": [],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:251: trailing whitespace.
++    "dependentValueInventory": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:252: trailing whitespace.
++      "Press/Oee/AvailValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:253: trailing whitespace.
++      "Press/Oee/PerfValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:254: trailing whitespace.
++      "Press/Oee/QualValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:255: trailing whitespace.
++      "Press/Oee/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:256: trailing whitespace.
++      "Press/OeeTrend[1]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:257: trailing whitespace.
++      "Press/OeeTrend[2]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:258: trailing whitespace.
++      "Press/OeeTrend[3]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:259: trailing whitespace.
++      "Press/OeeTrend[4]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:260: trailing whitespace.
++      "Press/OeeTrend[5]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:261: trailing whitespace.
++      "Press/OeeTrend[6]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:262: trailing whitespace.
++      "Press/OeeTrend[7]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:263: trailing whitespace.
++      "Press/OeeTrend[8]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:264: trailing whitespace.
++      "Press/OeeTrend[9]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:265: trailing whitespace.
++      "Press/OeeTrend[10]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:266: trailing whitespace.
++      "Press/OeeTrend[11]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:267: trailing whitespace.
++      "Press/OeeTrend[12]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:268: trailing whitespace.
++      "Press/OeeTrend[13]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:269: trailing whitespace.
++      "Press/OeeTrend[14]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:270: trailing whitespace.
++      "Press/OeeTrend[15]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:271: trailing whitespace.
++      "Press/OeeTrend[16]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:272: trailing whitespace.
++      "Press/OeeTrend[17]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:273: trailing whitespace.
++      "Press/OeeTrend[18]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:274: trailing whitespace.
++      "Press/OeeTrend[19]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:275: trailing whitespace.
++      "Press/OeeTrend[20]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:276: trailing whitespace.
++      "Press/OeeTrend[21]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:277: trailing whitespace.
++      "Press/OeeTrend[22]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:278: trailing whitespace.
++      "Press/OeeTrend[23]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:279: trailing whitespace.
++      "Press/OeeTrend[24]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:280: trailing whitespace.
++      "Press/OeeTrend[25]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:281: trailing whitespace.
++      "Press/OeeTrend[26]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:282: trailing whitespace.
++      "Press/OeeTrend[27]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:283: trailing whitespace.
++      "Press/OeeTrend[28]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:284: trailing whitespace.
++      "Press/OeeTrend[29]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:285: trailing whitespace.
++      "Press/OeeTrend[30]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:286: trailing whitespace.
++      "Press/OeeTrend[31]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:287: trailing whitespace.
++      "Press/OeeTrend[32]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:288: trailing whitespace.
++      "Press/OeeTrend[33]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:289: trailing whitespace.
++      "Press/OeeTrend[34]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:290: trailing whitespace.
++      "Press/OeeTrend[35]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:291: trailing whitespace.
++      "Press/OeeTrend[36]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:292: trailing whitespace.
++      "Press/OeeTrend[37]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:293: trailing whitespace.
++      "Press/OeeTrend[38]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:294: trailing whitespace.
++      "Press/OeeTrend[39]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:295: trailing whitespace.
++      "Press/OeeTrend[40]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:296: trailing whitespace.
++      "Press/OeeTrend[41]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:297: trailing whitespace.
++      "Press/OeeTrend[42]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:298: trailing whitespace.
++      "Press/OeeTrend[43]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:299: trailing whitespace.
++      "Press/OeeTrend[44]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:300: trailing whitespace.
++      "Press/OeeTrend[45]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:301: trailing whitespace.
++      "Press/OeeTrend[46]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:302: trailing whitespace.
++      "Press/OeeTrend[47]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:303: trailing whitespace.
++      "Press/OeeTrend[48]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:304: trailing whitespace.
++      "Press/OeeTrend[49]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:305: trailing whitespace.
++      "Press/OeeTrend[50]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:306: trailing whitespace.
++      "Press/OeeTrend[51]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:307: trailing whitespace.
++      "Press/OeeTrend[52]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:308: trailing whitespace.
++      "Press/OeeTrend[53]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:309: trailing whitespace.
++      "Press/OeeTrend[54]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:310: trailing whitespace.
++      "Press/OeeTrend[55]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:311: trailing whitespace.
++      "Press/OeeTrend[56]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:312: trailing whitespace.
++      "Press/OeeTrend[57]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:313: trailing whitespace.
++      "Press/OeeTrend[58]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:314: trailing whitespace.
++      "Press/OeeTrend[59]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:315: trailing whitespace.
++      "Press/OeeTrend[60]/OeeValid",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:316: trailing whitespace.
++      "Press/Profiler/StepStats[1]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:317: trailing whitespace.
++      "Press/Profiler/StepStats[1]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:318: trailing whitespace.
++      "Press/Profiler/StepStats[1]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:319: trailing whitespace.
++      "Press/Profiler/StepStats[1]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:320: trailing whitespace.
++      "Press/Profiler/StepStats[1]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:321: trailing whitespace.
++      "Press/Profiler/StepStats[2]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:322: trailing whitespace.
++      "Press/Profiler/StepStats[2]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:323: trailing whitespace.
++      "Press/Profiler/StepStats[2]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:324: trailing whitespace.
++      "Press/Profiler/StepStats[2]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:325: trailing whitespace.
++      "Press/Profiler/StepStats[2]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:326: trailing whitespace.
++      "Press/Profiler/StepStats[3]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:327: trailing whitespace.
++      "Press/Profiler/StepStats[3]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:328: trailing whitespace.
++      "Press/Profiler/StepStats[3]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:329: trailing whitespace.
++      "Press/Profiler/StepStats[3]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:330: trailing whitespace.
++      "Press/Profiler/StepStats[3]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:331: trailing whitespace.
++      "Press/Profiler/StepStats[4]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:332: trailing whitespace.
++      "Press/Profiler/StepStats[4]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:333: trailing whitespace.
++      "Press/Profiler/StepStats[4]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:334: trailing whitespace.
++      "Press/Profiler/StepStats[4]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:335: trailing whitespace.
++      "Press/Profiler/StepStats[4]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:336: trailing whitespace.
++      "Press/Profiler/StepStats[5]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:337: trailing whitespace.
++      "Press/Profiler/StepStats[5]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:338: trailing whitespace.
++      "Press/Profiler/StepStats[5]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:339: trailing whitespace.
++      "Press/Profiler/StepStats[5]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:340: trailing whitespace.
++      "Press/Profiler/StepStats[5]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:341: trailing whitespace.
++      "Press/Profiler/StepStats[6]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:342: trailing whitespace.
++      "Press/Profiler/StepStats[6]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:343: trailing whitespace.
++      "Press/Profiler/StepStats[6]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:344: trailing whitespace.
++      "Press/Profiler/StepStats[6]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:345: trailing whitespace.
++      "Press/Profiler/StepStats[6]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:346: trailing whitespace.
++      "Press/Profiler/StepStats[7]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:347: trailing whitespace.
++      "Press/Profiler/StepStats[7]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:348: trailing whitespace.
++      "Press/Profiler/StepStats[7]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:349: trailing whitespace.
++      "Press/Profiler/StepStats[7]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:350: trailing whitespace.
++      "Press/Profiler/StepStats[7]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:351: trailing whitespace.
++      "Press/Profiler/StepStats[8]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:352: trailing whitespace.
++      "Press/Profiler/StepStats[8]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:353: trailing whitespace.
++      "Press/Profiler/StepStats[8]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:354: trailing whitespace.
++      "Press/Profiler/StepStats[8]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:355: trailing whitespace.
++      "Press/Profiler/StepStats[8]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:356: trailing whitespace.
++      "Press/Profiler/StepStats[9]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:357: trailing whitespace.
++      "Press/Profiler/StepStats[9]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:358: trailing whitespace.
++      "Press/Profiler/StepStats[9]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:359: trailing whitespace.
++      "Press/Profiler/StepStats[9]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:360: trailing whitespace.
++      "Press/Profiler/StepStats[9]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:361: trailing whitespace.
++      "Press/Profiler/StepStats[10]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:362: trailing whitespace.
++      "Press/Profiler/StepStats[10]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:363: trailing whitespace.
++      "Press/Profiler/StepStats[10]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:364: trailing whitespace.
++      "Press/Profiler/StepStats[10]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:365: trailing whitespace.
++      "Press/Profiler/StepStats[10]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:366: trailing whitespace.
++      "Press/Profiler/StepStats[11]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:367: trailing whitespace.
++      "Press/Profiler/StepStats[11]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:368: trailing whitespace.
++      "Press/Profiler/StepStats[11]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:369: trailing whitespace.
++      "Press/Profiler/StepStats[11]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:370: trailing whitespace.
++      "Press/Profiler/StepStats[11]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:371: trailing whitespace.
++      "Press/Profiler/StepStats[12]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:372: trailing whitespace.
++      "Press/Profiler/StepStats[12]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:373: trailing whitespace.
++      "Press/Profiler/StepStats[12]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:374: trailing whitespace.
++      "Press/Profiler/StepStats[12]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:375: trailing whitespace.
++      "Press/Profiler/StepStats[12]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:376: trailing whitespace.
++      "Press/Profiler/StepStats[13]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:377: trailing whitespace.
++      "Press/Profiler/StepStats[13]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:378: trailing whitespace.
++      "Press/Profiler/StepStats[13]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:379: trailing whitespace.
++      "Press/Profiler/StepStats[13]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:380: trailing whitespace.
++      "Press/Profiler/StepStats[13]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:381: trailing whitespace.
++      "Press/Profiler/StepStats[14]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:382: trailing whitespace.
++      "Press/Profiler/StepStats[14]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:383: trailing whitespace.
++      "Press/Profiler/StepStats[14]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:384: trailing whitespace.
++      "Press/Profiler/StepStats[14]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:385: trailing whitespace.
++      "Press/Profiler/StepStats[14]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:386: trailing whitespace.
++      "Press/Profiler/StepStats[15]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:387: trailing whitespace.
++      "Press/Profiler/StepStats[15]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:388: trailing whitespace.
++      "Press/Profiler/StepStats[15]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:389: trailing whitespace.
++      "Press/Profiler/StepStats[15]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:390: trailing whitespace.
++      "Press/Profiler/StepStats[15]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:391: trailing whitespace.
++      "Press/Profiler/StepStats[16]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:392: trailing whitespace.
++      "Press/Profiler/StepStats[16]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:393: trailing whitespace.
++      "Press/Profiler/StepStats[16]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:394: trailing whitespace.
++      "Press/Profiler/StepStats[16]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:395: trailing whitespace.
++      "Press/Profiler/StepStats[16]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:396: trailing whitespace.
++      "Press/Profiler/StepStats[17]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:397: trailing whitespace.
++      "Press/Profiler/StepStats[17]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:398: trailing whitespace.
++      "Press/Profiler/StepStats[17]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:399: trailing whitespace.
++      "Press/Profiler/StepStats[17]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:400: trailing whitespace.
++      "Press/Profiler/StepStats[17]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:401: trailing whitespace.
++      "Press/Profiler/StepStats[18]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:402: trailing whitespace.
++      "Press/Profiler/StepStats[18]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:403: trailing whitespace.
++      "Press/Profiler/StepStats[18]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:404: trailing whitespace.
++      "Press/Profiler/StepStats[18]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:405: trailing whitespace.
++      "Press/Profiler/StepStats[18]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:406: trailing whitespace.
++      "Press/Profiler/StepStats[19]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:407: trailing whitespace.
++      "Press/Profiler/StepStats[19]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:408: trailing whitespace.
++      "Press/Profiler/StepStats[19]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:409: trailing whitespace.
++      "Press/Profiler/StepStats[19]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:410: trailing whitespace.
++      "Press/Profiler/StepStats[19]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:411: trailing whitespace.
++      "Press/Profiler/StepStats[20]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:412: trailing whitespace.
++      "Press/Profiler/StepStats[20]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:413: trailing whitespace.
++      "Press/Profiler/StepStats[20]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:414: trailing whitespace.
++      "Press/Profiler/StepStats[20]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:415: trailing whitespace.
++      "Press/Profiler/StepStats[20]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:416: trailing whitespace.
++      "Press/Profiler/StepStats[21]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:417: trailing whitespace.
++      "Press/Profiler/StepStats[21]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:418: trailing whitespace.
++      "Press/Profiler/StepStats[21]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:419: trailing whitespace.
++      "Press/Profiler/StepStats[21]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:420: trailing whitespace.
++      "Press/Profiler/StepStats[21]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:421: trailing whitespace.
++      "Press/Profiler/StepStats[22]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:422: trailing whitespace.
++      "Press/Profiler/StepStats[22]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:423: trailing whitespace.
++      "Press/Profiler/StepStats[22]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:424: trailing whitespace.
++      "Press/Profiler/StepStats[22]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:425: trailing whitespace.
++      "Press/Profiler/StepStats[22]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:426: trailing whitespace.
++      "Press/Profiler/StepStats[23]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:427: trailing whitespace.
++      "Press/Profiler/StepStats[23]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:428: trailing whitespace.
++      "Press/Profiler/StepStats[23]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:429: trailing whitespace.
++      "Press/Profiler/StepStats[23]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:430: trailing whitespace.
++      "Press/Profiler/StepStats[23]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:431: trailing whitespace.
++      "Press/Profiler/StepStats[24]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:432: trailing whitespace.
++      "Press/Profiler/StepStats[24]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:433: trailing whitespace.
++      "Press/Profiler/StepStats[24]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:434: trailing whitespace.
++      "Press/Profiler/StepStats[24]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:435: trailing whitespace.
++      "Press/Profiler/StepStats[24]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:436: trailing whitespace.
++      "Press/Profiler/StepStats[25]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:437: trailing whitespace.
++      "Press/Profiler/StepStats[25]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:438: trailing whitespace.
++      "Press/Profiler/StepStats[25]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:439: trailing whitespace.
++      "Press/Profiler/StepStats[25]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:440: trailing whitespace.
++      "Press/Profiler/StepStats[25]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:441: trailing whitespace.
++      "Press/Profiler/StepStats[26]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:442: trailing whitespace.
++      "Press/Profiler/StepStats[26]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:443: trailing whitespace.
++      "Press/Profiler/StepStats[26]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:444: trailing whitespace.
++      "Press/Profiler/StepStats[26]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:445: trailing whitespace.
++      "Press/Profiler/StepStats[26]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:446: trailing whitespace.
++      "Press/Profiler/StepStats[27]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:447: trailing whitespace.
++      "Press/Profiler/StepStats[27]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:448: trailing whitespace.
++      "Press/Profiler/StepStats[27]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:449: trailing whitespace.
++      "Press/Profiler/StepStats[27]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:450: trailing whitespace.
++      "Press/Profiler/StepStats[27]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:451: trailing whitespace.
++      "Press/Profiler/StepStats[28]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:452: trailing whitespace.
++      "Press/Profiler/StepStats[28]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:453: trailing whitespace.
++      "Press/Profiler/StepStats[28]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:454: trailing whitespace.
++      "Press/Profiler/StepStats[28]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:455: trailing whitespace.
++      "Press/Profiler/StepStats[28]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:456: trailing whitespace.
++      "Press/Profiler/StepStats[29]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:457: trailing whitespace.
++      "Press/Profiler/StepStats[29]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:458: trailing whitespace.
++      "Press/Profiler/StepStats[29]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:459: trailing whitespace.
++      "Press/Profiler/StepStats[29]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:460: trailing whitespace.
++      "Press/Profiler/StepStats[29]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:461: trailing whitespace.
++      "Press/Profiler/StepStats[30]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:462: trailing whitespace.
++      "Press/Profiler/StepStats[30]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:463: trailing whitespace.
++      "Press/Profiler/StepStats[30]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:464: trailing whitespace.
++      "Press/Profiler/StepStats[30]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:465: trailing whitespace.
++      "Press/Profiler/StepStats[30]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:466: trailing whitespace.
++      "Press/Profiler/StepStats[31]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:467: trailing whitespace.
++      "Press/Profiler/StepStats[31]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:468: trailing whitespace.
++      "Press/Profiler/StepStats[31]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:469: trailing whitespace.
++      "Press/Profiler/StepStats[31]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:470: trailing whitespace.
++      "Press/Profiler/StepStats[31]/Maximum",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:471: trailing whitespace.
++      "Press/Profiler/StepStats[32]/Id",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:472: trailing whitespace.
++      "Press/Profiler/StepStats[32]/Label",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:473: trailing whitespace.
++      "Press/Profiler/StepStats[32]/TimeClass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:474: trailing whitespace.
++      "Press/Profiler/StepStats[32]/Avg",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:475: trailing whitespace.
++      "Press/Profiler/StepStats[32]/Maximum"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:476: trailing whitespace.
++    ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:477: trailing whitespace.
++    "runtimeAcceptedAtRecordedScope": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:478: trailing whitespace.
++    "runtimeEvidence": "Evidence/AB_S3G_CANONICAL_RUNTIME_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:479: trailing whitespace.
++    "runtimeScope": "Local Echo 601FC87B genealogy fixture; physical/CIP Security and later stages remain open",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:480: trailing whitespace.
++    "sessionAuthorizationConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:481: trailing whitespace.
++    "runtimeChecks": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:482: trailing whitespace.
++      "candidate": 41,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:483: trailing whitespace.
++      "nativeVectors": 11,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:484: trailing whitespace.
++      "baseline": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:485: trailing whitespace.
++      "total": 83
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:486: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:487: trailing whitespace.
++    "pairedCaptures": 88,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:488: trailing whitespace.
++    "nativePayloadBytes": 145084,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:489: trailing whitespace.
++    "nativeRecordBytes": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:490: trailing whitespace.
++      121160,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:491: trailing whitespace.
++      7308,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:492: trailing whitespace.
++      16616
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:493: trailing whitespace.
++    ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:494: trailing whitespace.
++    "timingUs": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:495: trailing whitespace.
++      "candidate": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:496: trailing whitespace.
++        "samples": 20,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:497: trailing whitespace.
++        "medianUs": 868.0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:498: trailing whitespace.
++        "minimumUs": 867,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:499: trailing whitespace.
++        "maximumLastUs": 869,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:500: trailing whitespace.
++        "cumulativeMaximumUs": 5273,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:501: trailing whitespace.
++        "overlaps": 0
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:502: trailing whitespace.
++      },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:503: trailing whitespace.
++      "baseline": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:504: trailing whitespace.
++        "samples": 20,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:505: trailing whitespace.
++        "medianUs": 99.0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:506: trailing whitespace.
++        "minimumUs": 99,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:507: trailing whitespace.
++        "maximumLastUs": 100,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:508: trailing whitespace.
++        "cumulativeMaximumUs": 1168,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:509: trailing whitespace.
++        "overlaps": 0
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:510: trailing whitespace.
++      }
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:511: trailing whitespace.
++    }
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:512: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:513: trailing whitespace.
++  "approvedTraceabilityCorrection": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:514: trailing whitespace.
++    "stage": "S3h",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:515: trailing whitespace.
++    "approvalQuestion": "call_f7da50b3655c43e4be6d7145b8b02c9b:0",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:516: trailing whitespace.
++    "answer": "Approve S3h corrections and offline work",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:517: trailing whitespace.
++    "scope": "36 enumerated Core type corrections and unset Part stamp empty string to zero; other 242 added paths exact; dependent offline work only",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:518: trailing whitespace.
++    "contractReview": "AB_CANONICAL_PUBLICATION_S3H_CONTRACT_REVIEW_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:519: trailing whitespace.
++    "enumeratedInventory": "AB_CANONICAL_PUBLICATION_S3H_INVENTORY_2026-10-23.json",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:520: trailing whitespace.
++    "typeCorrections": 36,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:521: trailing whitespace.
++    "typeChangeCounts": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:522: trailing whitespace.
++      "Int32->UInt32": 16,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:523: trailing whitespace.
++      "Int32->Int16": 3,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:524: trailing whitespace.
++      "String->DateTime": 17
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:525: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:526: trailing whitespace.
++    "unsetPartStamp": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:527: trailing whitespace.
++      "before": "",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:528: trailing whitespace.
++      "after": 0
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:529: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:530: trailing whitespace.
++    "unchangedAddedPaths": 242,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:531: trailing whitespace.
++    "runtimeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:532: trailing whitespace.
++    "controllerChangesAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:533: trailing whitespace.
++    "schemaQualifiedOffline": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:534: trailing whitespace.
++    "fullCandidatePrepared": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:535: trailing whitespace.
++    "preparationEvidence": "Evidence/AB_S3H_CANONICAL_PREPARATION_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:536: trailing whitespace.
++    "sourceBindings": 159,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:537: trailing whitespace.
++    "abTests": 2149,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:538: trailing whitespace.
++    "rootTests": 74,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:539: trailing whitespace.
++    "focusedTests": 13,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:540: trailing whitespace.
++    "preparedAcdSha256": "C6B42327BA819D6D79BB4618DCE70555F9DA305DCF0715BE2FCD2B9685D7D9DC",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:541: trailing whitespace.
++    "sourceSha256": "E83B9A2CD9593718026528CCDBD83A1EAD6C8A52948FC6616006DAFFB0567315",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:542: trailing whitespace.
++    "measuredCapacityBlocks": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:543: trailing whitespace.
++      "used": 2501720,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:544: trailing whitespace.
++      "available": 644008,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:545: trailing whitespace.
++      "total": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:546: trailing whitespace.
++      "percent": 79,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:547: trailing whitespace.
++      "deltaFromAcceptedS3g": 94520
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:548: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:549: trailing whitespace.
++    "remainingNativeGates": [],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:550: trailing whitespace.
++    "sessionAuthorizationConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:551: trailing whitespace.
++    "lastNativeAttempt": "Evidence/AB_S3H_CANONICAL_PACED_RETRY_ATTEMPT_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:552: trailing whitespace.
++    "lastNativeAttemptPassed": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:553: trailing whitespace.
++    "partialPairedCaptures": 39,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:554: trailing whitespace.
++    "baselineRestored": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:555: trailing whitespace.
++    "retryPrepared": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:556: trailing whitespace.
++    "retryPreparationEvidence": "Evidence/AB_S3H_CANONICAL_PACED_RETRY_PREPARATION_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:557: trailing whitespace.
++    "retrySourceBindings": 159,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:558: trailing whitespace.
++    "readTransport": "four sockets, one outstanding read each, single multiplex owner",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:559: trailing whitespace.
++    "freshCompletedGenerationScheduling": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:560: trailing whitespace.
++    "allWaitingPollsWithinOriginalBudget": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:561: trailing whitespace.
++    "retrySessionConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:562: trailing whitespace.
++    "unchangedEvenWaitSeconds": 0.001,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:563: trailing whitespace.
++    "qualifiedBaselineProxyCaptures": 1000,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:564: trailing whitespace.
++    "retryWorkspace": "C:/work/fraktal-ab-s3h-20261023/retry_fc306d330cc642499a52abbb53bae945",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:565: trailing whitespace.
++    "independentPartialReplays": 64,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:566: trailing whitespace.
++    "diagnosticPrepared": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:567: trailing whitespace.
++    "diagnosticPreparationEvidence": "Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_PREPARATION_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:568: trailing whitespace.
++    "diagnosticWorkspace": "C:/work/fraktal-ab-s3h-20261023/diagnostic_0b74f072e0d74c7c97531e07dec70898",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:569: trailing whitespace.
++    "diagnosticControllerChangesAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:570: trailing whitespace.
++    "diagnosticWrapperTests": 4,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:571: trailing whitespace.
++    "diagnosticScope": "unchanged fixture/proof plus wire timing and eight read-only TASK mirrors after failure; not a transport fix or acceptance claim",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:572: trailing whitespace.
++    "diagnosticSessionApprovalRecorded": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:573: trailing whitespace.
++    "diagnosticSessionApprovalQuestion": "call_b76d12f2f038411386f83c339fcd94e0:0",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:574: trailing whitespace.
++    "diagnosticNativeDownloadAttempted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:575: trailing whitespace.
++    "diagnosticBlockedByServiceStopped": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:576: trailing whitespace.
++    "diagnosticSessionApprovalConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:577: trailing whitespace.
++    "diagnosticPreflightEvidence": "Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_SERVICE_PREFLIGHT_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:578: trailing whitespace.
++    "diagnosticBlockedByClosedExternally": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:579: trailing whitespace.
++    "echoRestartPrepared": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:580: trailing whitespace.
++    "echoRestartAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:581: trailing whitespace.
++    "echoRestartPreparationEvidence": "Evidence/AB_S3H_CANONICAL_ECHO_RESTART_PREPARATION_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:582: trailing whitespace.
++    "echoRestartApprovalConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:583: trailing whitespace.
++    "echoRestartPassed": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:584: trailing whitespace.
++    "echoRestartEvidence": "Evidence/AB_S3H_CANONICAL_ECHO_RESTART_2026-10-23.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:585: trailing whitespace.
++    "diagnosticBlockedByEmulatorStartupCrash": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:586: trailing whitespace.
++    "windowsRebootObserved": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:587: trailing whitespace.
++    "windowsRebootRecoveredController": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:588: trailing whitespace.
++    "postRebootEvidence": "Evidence/AB_S3H_CANONICAL_ECHO_POST_REBOOT_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:589: trailing whitespace.
++    "currentBaselineReadinessVerified": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:590: trailing whitespace.
++    "controllerRecoveredAfterExternalColdBoot": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:591: trailing whitespace.
++    "diagnosticRuntimeEvidence": "Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_RUNTIME_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:592: trailing whitespace.
++    "diagnosticCandidateDownloadSucceeded": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:593: trailing whitespace.
++    "diagnosticCandidateChecksPassed": 30,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:594: trailing whitespace.
++    "diagnosticCandidateChecksFailed": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:595: trailing whitespace.
++    "diagnosticCandidateChecksNotReached": 10,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:596: trailing whitespace.
++    "diagnosticFailure": "SFC abort acquisition: unchanged 100-poll same-scan gate",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:597: trailing whitespace.
++    "initialRecoveryBaselineChecks": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:598: trailing whitespace.
++    "diagnosticRollbackBaselineChecks": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:599: trailing whitespace.
++    "diagnosticNewNativeDumps": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:600: trailing whitespace.
++    "diagnosticCoherenceGatePassed": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:601: trailing whitespace.
++    "reverseEngineeringReport": "Evidence/AB_S3H_CANONICAL_DIAGNOSTIC_RUNTIME_2026-10-24/Recovery/Reference/echo_crash_re_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:602: trailing whitespace.
++    "observationFrameDecision": "Part III 3.13: PLC-latched paired records every five scans; owner delegated the decision against Core 1.1 objectives on 2026-10-24",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:603: trailing whitespace.
++    "observationFramePrepared": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:604: trailing whitespace.
++    "observationFramePreparationEvidence": "Evidence/AB_S3H_CANONICAL_OBSERVATION_FRAME_PREPARATION_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:605: trailing whitespace.
++    "observationFramePeriodMs": 50,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:606: trailing whitespace.
++    "observationFrameSources": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:607: trailing whitespace.
++    "observationFrameSourceSha256": "BF456BCA68745C39D0903D0DE96B9B8AD4EC9DC502E809F38DA82599D2EFB1F2",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:608: trailing whitespace.
++    "observationFrameAcdSha256": "E07C419651A2C6A785D150CAA0BB1894A57CB4453036A0CC2EF2FA8413649745",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:609: trailing whitespace.
++    "observationFrameOffReproducesSourceSha256": "E83B9A2CD9593718026528CCDBD83A1EAD6C8A52948FC6616006DAFFB0567315",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:610: trailing whitespace.
++    "observationFrameCapacityBlocks": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:611: trailing whitespace.
++      "used": 2680132,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:612: trailing whitespace.
++      "available": 465596,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:613: trailing whitespace.
++      "total": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:614: trailing whitespace.
++      "percent": 85,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:615: trailing whitespace.
++      "deltaFromC6": 178412
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:616: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:617: trailing whitespace.
++    "observationFrameSourceBindings": 162,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:618: trailing whitespace.
++    "observationFrameAbTests": 2158,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:619: trailing whitespace.
++    "observationFrameRootTests": 74,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:620: trailing whitespace.
++    "observationFrameUnchangedProof": "stable_scan_pair 100 polls/five seconds, fresh start, four sockets, one outstanding read",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:621: trailing whitespace.
++    "observationFrameControllerChangesAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:622: trailing whitespace.
++    "runtimeAcceptedAtRecordedScope": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:623: trailing whitespace.
++    "runtimeEvidence": "Evidence/AB_S3H_CANONICAL_OBSERVATION_FRAME_RUNTIME_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:624: trailing whitespace.
++    "runtimeScope": "Local Echo 601FC87B genealogy fixture through the migration-only observation frame; physical/CIP Security, remaining inventory and later stages remain open",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:625: trailing whitespace.
++    "runtimeChecks": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:626: trailing whitespace.
++      "candidate": 41,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:627: trailing whitespace.
++      "baseline": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:628: trailing whitespace.
++      "total": 72,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:629: trailing whitespace.
++      "pairedCaptures": 88
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:630: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:631: trailing whitespace.
++    "acceptedAcdSha256": "E07C419651A2C6A785D150CAA0BB1894A57CB4453036A0CC2EF2FA8413649745",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:632: trailing whitespace.
++    "acceptedSourceSha256": "BF456BCA68745C39D0903D0DE96B9B8AD4EC9DC502E809F38DA82599D2EFB1F2",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:633: trailing whitespace.
++    "nativePayloadBytes": 157668,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:634: trailing whitespace.
++    "nativeRecordBytes": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:635: trailing whitespace.
++      133744,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:636: trailing whitespace.
++      7308,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:637: trailing whitespace.
++      16616
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:638: trailing whitespace.
++    ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:639: trailing whitespace.
++    "observationFrameBytes": 172088,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:640: trailing whitespace.
++    "observationFrameSessionApprovalConsumed": true
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:641: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:642: trailing whitespace.
++  "approvedRemainingSurfaceCorrection": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:643: trailing whitespace.
++    "ownerApproved": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:644: trailing whitespace.
++    "status": "approved-for-offline-implementation",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:645: trailing whitespace.
++    "approvalQuestion": "call_2e1575c86f2947c59925e347cd3d0109:0",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:646: trailing whitespace.
++    "approvalAnswer": "Approve contract and offline work (recommended)",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:647: trailing whitespace.
++    "approvalEvidence": "Evidence/AB_S3I_CANONICAL_INVENTORY_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:648: trailing whitespace.
++    "reviewedContractSha256": "4ea79acad61f70ce9d087d4fb4ae7bea1debe9afed366789ff0c058fca52831a",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:649: trailing whitespace.
++    "inventory": "AB_CANONICAL_PUBLICATION_REMAINING_S3_INVENTORY_2026-10-24.json",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:650: trailing whitespace.
++    "inventorySha256": "1d7d46b876da9d3b011dba7f559d41911b6b8b22ba3d002cae085d1693cfc4ed",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:651: trailing whitespace.
++    "frozenPaths": 149,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:652: trailing whitespace.
++    "pathSpellings": 122,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:653: trailing whitespace.
++    "frozenTypeCorrections": 13,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:654: trailing whitespace.
++    "additionalStaticCorePaths": 11,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:655: trailing whitespace.
++    "dynamicShiftHistoryCapacity": 8,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:656: trailing whitespace.
++    "dynamicShiftTypeCorrections": 112,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:657: trailing whitespace.
++    "dynamicShiftDependentValidityPaths": 32,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:658: trailing whitespace.
++    "releaseReasonCapacity": 24,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:659: trailing whitespace.
++    "controllerChangesAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:660: trailing whitespace.
++    "runtimeAccepted": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:661: trailing whitespace.
++    "stageStatus": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:662: trailing whitespace.
++      "S3i": "native-publication-calendar-retained-cycle-pass",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:663: trailing whitespace.
++      "S3j": "native-sampled-word-fixture-pass-hardware-io-open",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:664: trailing whitespace.
++      "S3k": "read-surfaces-r4-offline-pass-command-abi-choice-pending"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:665: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:666: trailing whitespace.
++    "s3iPreparationEvidence": "Evidence/AB_S3I_CANONICAL_PREPARATION_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:667: trailing whitespace.
++    "s3iPublicationRuntime": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:668: trailing whitespace.
++      "publicationAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:669: trailing whitespace.
++      "stageExitPassed": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:670: trailing whitespace.
++      "evidence": "Evidence/AB_S3I_CANONICAL_RUNTIME_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:671: trailing whitespace.
++      "preparedAcdSha256": "A5FAFA46CB5DECCF2EF2C5D6B069B19CB772A42B876A70CFA2E73506B7E36C42",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:672: trailing whitespace.
++      "candidateChecks": 41,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:673: trailing whitespace.
++      "nativePublicationVectors": 8,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:674: trailing whitespace.
++      "baselineChecks": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:675: trailing whitespace.
++      "pairedReplays": 88,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:676: trailing whitespace.
++      "idlePaths": 3968,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:677: trailing whitespace.
++      "nativeRootBytes": 134720,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:678: trailing whitespace.
++      "observationFrameBytes": 173792,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:679: trailing whitespace.
++      "usedStandardBlocks": 2763512,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:680: trailing whitespace.
++      "availableBlocks": 382216,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:681: trailing whitespace.
++      "totalBlocks": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:682: trailing whitespace.
++      "observedLiveShiftHistoryCounts": [
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:683: trailing whitespace.
++        0
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:684: trailing whitespace.
++      ],
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:685: trailing whitespace.
++      "calendarProducerLifetimeAccepted": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:686: trailing whitespace.
++      "sessionApprovalConsumed": true
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:687: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:688: trailing whitespace.
++    "s3iLifetimePreparation": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:689: trailing whitespace.
++      "evidence": "Evidence/AB_S3I_CANONICAL_LIFETIME_PREPARATION_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:690: trailing whitespace.
++      "currentSessionApproved": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:691: trailing whitespace.
++      "plcImageChanged": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:692: trailing whitespace.
++      "preparedAcdSha256": "A5FAFA46CB5DECCF2EF2C5D6B069B19CB772A42B876A70CFA2E73506B7E36C42",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:693: trailing whitespace.
++      "maxCalendarCommits": 64,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:694: trailing whitespace.
++      "normalCalendarCommits": 38,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:695: trailing whitespace.
++      "retainedProgramRunCycles": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:696: trailing whitespace.
++      "privateClockAccess": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:697: trailing whitespace.
++      "clockSet": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:698: trailing whitespace.
++      "abTests": 2189,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:699: trailing whitespace.
++      "rootTests": 74,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:700: trailing whitespace.
++      "nativeAccepted": false
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:701: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:702: trailing whitespace.
++    "s3iLifetimeAttempt": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:703: trailing whitespace.
++      "evidence": "Evidence/AB_S3I_CANONICAL_LIFETIME_ATTEMPT_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:704: trailing whitespace.
++      "passed": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:705: trailing whitespace.
++      "failedStage": "calendar_01",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:706: trailing whitespace.
++      "failedPhase": "original_empty_profile",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:707: trailing whitespace.
++      "calendarWrites": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:708: trailing whitespace.
++      "candidateChecks": 41,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:709: trailing whitespace.
++      "baselineChecks": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:710: trailing whitespace.
++      "acceptedFixturePairsReplayed": 87,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:711: trailing whitespace.
++      "retainedCycleReached": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:712: trailing whitespace.
++      "genealogyRestored": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:713: trailing whitespace.
++      "sessionApprovalConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:714: trailing whitespace.
++      "cause": "mailbox writer at 500 bytes passed to the frame oracle"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:715: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:716: trailing whitespace.
++    "s3iLifetimeRetryPreparation": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:717: trailing whitespace.
++      "evidence": "Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_PREPARATION_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:718: trailing whitespace.
++      "currentSessionApproved": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:719: trailing whitespace.
++      "plcImageChanged": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:720: trailing whitespace.
++      "preparedAcdSha256": "A5FAFA46CB5DECCF2EF2C5D6B069B19CB772A42B876A70CFA2E73506B7E36C42",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:721: trailing whitespace.
++      "sourceBindings": 172,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:722: trailing whitespace.
++      "changedBindings": 4,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:723: trailing whitespace.
++      "abTests": 2191,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:724: trailing whitespace.
++      "rootTests": 74,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:725: trailing whitespace.
++      "nativeAccepted": false
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:726: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:727: trailing whitespace.
++    "s3iLifetimeRetryAttempt": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:728: trailing whitespace.
++      "evidence": "Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY_ATTEMPT_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:729: trailing whitespace.
++      "passed": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:730: trailing whitespace.
++      "refusedBeforeDownload": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:731: trailing whitespace.
++      "controllerChanges": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:732: trailing whitespace.
++      "cause": "retry setup rewrote CRLF line ends of hash-bound Capacity evidence",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:733: trailing whitespace.
++      "sessionApprovalConsumed": true
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:734: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:735: trailing whitespace.
++    "s3iLifetimeRetry2Preparation": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:736: trailing whitespace.
++      "evidence": "Evidence/AB_S3I_CANONICAL_LIFETIME_RETRY2_PREPARATION_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:737: trailing whitespace.
++      "currentSessionApproved": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:738: trailing whitespace.
++      "plcImageChanged": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:739: trailing whitespace.
++      "byteExactWorkspace": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:740: trailing whitespace.
++      "downloadGateDryCheck": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:741: trailing whitespace.
++      "preparedAcdSha256": "A5FAFA46CB5DECCF2EF2C5D6B069B19CB772A42B876A70CFA2E73506B7E36C42",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:742: trailing whitespace.
++      "nativeAccepted": false
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:743: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:744: trailing whitespace.
++    "s3iLifetimeRuntime": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:745: trailing whitespace.
++      "evidence": "Evidence/AB_S3I_CANONICAL_LIFETIME_RUNTIME_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:746: trailing whitespace.
++      "passed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:747: trailing whitespace.
++      "calendarLifetimeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:748: trailing whitespace.
++      "retentionAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:749: trailing whitespace.
++      "s3iStageExitPassed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:750: trailing whitespace.
++      "scope": "Local Echo 601FC87B genealogy fixture; physical power retention, press renditions, S3j/S3k and S4-S7 remain",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:751: trailing whitespace.
++      "candidateChecks": 41,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:752: trailing whitespace.
++      "calendarRows": 7,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:753: trailing whitespace.
++      "calendarCommits": 38,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:754: trailing whitespace.
++      "retainedProgramRunCycles": 1,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:755: trailing whitespace.
++      "downloadInCycle": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:756: trailing whitespace.
++      "nativeFirstScanVectors": 8,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:757: trailing whitespace.
++      "idlePaths": 4010,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:758: trailing whitespace.
++      "pairedReplays": 97,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:759: trailing whitespace.
++      "baselineChecks": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:760: trailing whitespace.
++      "candidateCumulativeMaxScanUs": 9206,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:761: trailing whitespace.
++      "preparedAcdSha256": "A5FAFA46CB5DECCF2EF2C5D6B069B19CB772A42B876A70CFA2E73506B7E36C42",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:762: trailing whitespace.
++      "sessionApprovalConsumed": true
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:763: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:764: trailing whitespace.
++    "s3jContract": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:765: trailing whitespace.
++      "review": "AB_CANONICAL_PUBLICATION_S3J_CONTRACT_REVIEW_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:766: trailing whitespace.
++      "inventory": "AB_CANONICAL_PUBLICATION_S3J_INVENTORY_2026-10-24.json",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:767: trailing whitespace.
++      "approved": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:768: trailing whitespace.
++      "approvalSource": "owner chat reply 2026-10-24 \"all of them approved\"",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:769: trailing whitespace.
++      "decisions": "D-1..D-5; D-6 (a) now, (b) at S3 final",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:770: trailing whitespace.
++      "offlineOnly": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:771: trailing whitespace.
++      "implemented": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:772: trailing whitespace.
++      "implementedOffline": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:773: trailing whitespace.
++      "nativeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:774: trailing whitespace.
++      "wireDraft": "AB_CANONICAL_PUBLICATION_S3J_WIRE_DRAFT_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:775: trailing whitespace.
++      "nativeEvidence": "Evidence/AB_S3J_CANONICAL_RUNTIME_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:776: trailing whitespace.
++      "nativeScope": "Local Echo sampled-word genealogy fixture; real-module and electrical acceptance remain open"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:777: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:778: trailing whitespace.
++    "s3kOfflineReadSurfaces": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:779: trailing whitespace.
++      "evidence": "Evidence/AB_S3K_READ_SURFACES_OFFLINE_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:780: trailing whitespace.
++      "readPaths": 133,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:781: trailing whitespace.
++      "releaseReasonCapacity": 24,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:782: trailing whitespace.
++      "tableDrivenManualDispatch": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:783: trailing whitespace.
++      "fullCommandBindingImplemented": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:784: trailing whitespace.
++      "commandBindingChoicePending": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:785: trailing whitespace.
++      "commandBindingReview": "AB_CANONICAL_PUBLICATION_S3K_COMMAND_BINDING_REVIEW_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:786: trailing whitespace.
++      "nativeAccepted": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:787: trailing whitespace.
++      "controllerChangesAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:788: trailing whitespace.
++      "controllerChangesPerformed": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:789: trailing whitespace.
++      "sourceSha256": "ADA479ACA4305DD07E512ABDDC16446E9FDB220562A641FC0E6F026C201FD515",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:790: trailing whitespace.
++      "offlineAcdSha256": "CB180CDD8F6ED31380C3D288B13FA746313BC8A5E1F1677CBF3630FEAF6F0ED6",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:791: trailing whitespace.
++      "abTests": 2264,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:792: trailing whitespace.
++      "rootTests": 74,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:793: trailing whitespace.
++      "acceptedImagesByteIdentical": 12,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:794: trailing whitespace.
++      "priorCapturesReplayed": 1385,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:795: trailing whitespace.
++      "usedStandardBlocks": 1807120,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:796: trailing whitespace.
++      "availableBlocks": 1338608,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:797: trailing whitespace.
++      "totalBlocks": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:798: trailing whitespace.
++      "displayedUsagePercent": 57,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:799: trailing whitespace.
++      "deltaUsedVsS3jBlocks": 64040,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:800: trailing whitespace.
++      "scanMeasured": false
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:801: trailing whitespace.
++    }
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:802: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:803: trailing whitespace.
++  "approvedManifestV64": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:804: trailing whitespace.
++    "review": "AB_CANONICAL_MANIFEST_V64_CONTRACT_REVIEW_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:805: trailing whitespace.
++    "approved": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:806: trailing whitespace.
++    "approvalSource": "owner chat reply 2026-10-24 \"all of them approved\"",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:807: trailing whitespace.
++    "scope": "type-scoped TypeAnnotations plus sparse PathExceptions; opt-in per declaration; identical generic snapshot",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:808: trailing whitespace.
++    "offlineOnly": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:809: trailing whitespace.
++    "implemented": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:810: trailing whitespace.
++    "implementedOffline": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:811: trailing whitespace.
++    "optIn": "canonical_type_manifest",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:812: trailing whitespace.
++    "nativeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:813: trailing whitespace.
++    "measuredS3iBenchWithR2": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:814: trailing whitespace.
++      "used": 1653432,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:815: trailing whitespace.
++      "available": 1492296,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:816: trailing whitespace.
++      "total": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:817: trailing whitespace.
++      "displayedPercent": 52,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:818: trailing whitespace.
++      "freedBeyondR2": 360600,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:819: trailing whitespace.
++      "freedVersusAcceptedS3i": 1110080
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:820: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:821: trailing whitespace.
++    "typeAnnotations": 137,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:822: trailing whitespace.
++    "pathExceptions": 2,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:823: trailing whitespace.
++    "preparation": "Evidence/AB_R1_R2_CANONICAL_PREPARATION_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:824: trailing whitespace.
++    "nativeEvidence": "Evidence/AB_R1_R2_CANONICAL_RUNTIME_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:825: trailing whitespace.
++    "nativeScope": "Local Echo 601FC87B genealogy fixture through migration observation frame",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:826: trailing whitespace.
++    "sessionApprovalConsumed": true
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:827: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:828: trailing whitespace.
++  "capacityReductionR2": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:829: trailing whitespace.
++    "plan": "AB_CAPACITY_BUDGET_AND_REDUCTION_PLAN_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:830: trailing whitespace.
++    "implementedOffline": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:831: trailing whitespace.
++    "optIn": "canonical_table_driven",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:832: trailing whitespace.
++    "measuredS3iBench": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:833: trailing whitespace.
++      "used": 2014032,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:834: trailing whitespace.
++      "available": 1131696,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:835: trailing whitespace.
++      "total": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:836: trailing whitespace.
++      "percent": 64,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:837: trailing whitespace.
++      "freedVersusAcceptedS3i": 749480
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:838: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:839: trailing whitespace.
++    "nativeSessionApprovedInPrinciple": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:840: trailing whitespace.
++    "nativeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:841: trailing whitespace.
++    "nativeEvidence": "Evidence/AB_R1_R2_CANONICAL_RUNTIME_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:842: trailing whitespace.
++    "nativeScope": "Local Echo 601FC87B genealogy fixture through migration observation frame",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:843: trailing whitespace.
++    "sessionApprovalConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:844: trailing whitespace.
++    "nativeTiming": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:845: trailing whitespace.
++      "lastScanMedianUs": 874,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:846: trailing whitespace.
++      "cumulativeMaxScanUs": 9829,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:847: trailing whitespace.
++      "periodUs": 10000,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:848: trailing whitespace.
++      "overlaps": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:849: trailing whitespace.
++      "marginUs": 171
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:850: trailing whitespace.
++    }
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:851: trailing whitespace.
++  },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:852: trailing whitespace.
++  "manifestV65": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:853: trailing whitespace.
++    "schemaMajor": 6,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:854: trailing whitespace.
++    "schemaMinor": 5,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:855: trailing whitespace.
++    "publicationStage": 12,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:856: trailing whitespace.
++    "approvedBy": "AB_CANONICAL_PUBLICATION_S3J_CONTRACT_REVIEW_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:857: trailing whitespace.
++    "wireDraft": "AB_CANONICAL_PUBLICATION_S3J_WIRE_DRAFT_2026-10-24.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:858: trailing whitespace.
++    "dataProductColumns": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:859: trailing whitespace.
++      "SourceSymbol": "STRING(40)",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:860: trailing whitespace.
++      "CoreType": "STRING(40)",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:861: trailing whitespace.
++      "CanonicalRoot": "STRING(255)"
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:862: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:863: trailing whitespace.
++    "fixturePaths": 327,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:864: trailing whitespace.
++    "nativeAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:865: trailing whitespace.
++    "measuredCapacity": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:866: trailing whitespace.
++      "used": 1743080,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:867: trailing whitespace.
++      "available": 1402648,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:868: trailing whitespace.
++      "total": 3145728,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:869: trailing whitespace.
++      "displayedPercent": 55
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:870: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:871: trailing whitespace.
++    "preparedAcdSha256": "285BF972C5FD781C315F670CFEEED8AC01D566791DB84E4B17125CC9B8CC3212",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:872: trailing whitespace.
++    "sourceSha256": "2F0B2CE73C2ECB69B1DD7F32BB1AE1D66550811A0EF49C1D65E9AE2C7A753EEA",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:873: trailing whitespace.
++    "preparation": "Evidence/AB_S3J_CANONICAL_PREPARATION_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:874: trailing whitespace.
++    "lastAttempt": "Evidence/AB_S3J_CANONICAL_RUNTIME_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:875: trailing whitespace.
++    "lastAttemptAccepted": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:876: trailing whitespace.
++    "earlierFailedAttempt": "Evidence/AB_S3J_CANONICAL_ATTEMPT_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:877: trailing whitespace.
++    "lastSessionApprovalConsumed": true,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:878: trailing whitespace.
++    "rootReferenceDeclarationCorrection": "Explicit candidate declaration; PLC bytes and contract unchanged",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:879: trailing whitespace.
++    "retryPreparation": "Evidence/AB_S3J_CANONICAL_RETRY_PREPARATION_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:880: trailing whitespace.
++    "retryNativeSessionAuthorized": false,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:881: trailing whitespace.
++    "nativeEvidence": "Evidence/AB_S3J_CANONICAL_RUNTIME_2026-10-25.md",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:882: trailing whitespace.
++    "nativeScope": "Local Echo 601FC87B sampled-word genealogy fixture through migration frame",
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:883: trailing whitespace.
++    "candidateChecks": 41,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:884: trailing whitespace.
++    "ioVectorCases": 9,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:885: trailing whitespace.
++    "ioSourceWritesIncludingRestoration": 80,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:886: trailing whitespace.
++    "pairedCapturesReplayed": 98,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:887: trailing whitespace.
++    "baselineChecks": 31,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:888: trailing whitespace.
++    "nativeIdleTypedPaths": 4295,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:889: trailing whitespace.
++    "nativeTiming": {
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:890: trailing whitespace.
++      "lastScanMedianUs": 937,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:891: trailing whitespace.
++      "cumulativeMaxScanUs": 8466,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:892: trailing whitespace.
++      "periodUs": 10000,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:893: trailing whitespace.
++      "overlaps": 0,
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:894: trailing whitespace.
++      "marginUs": 1534
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:895: trailing whitespace.
++    },
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:896: trailing whitespace.
++    "sessionApprovalConsumed": true
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:897: trailing whitespace.
++  }
+Specification/AllenBradley/AB_FROZEN_CONTRACTS_V2.json:898: trailing whitespace.
++}

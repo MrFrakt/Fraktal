@@ -1,0 +1,66 @@
+# S4b desktop/scan readiness continuation — 2026-10-26
+
+**The pre-download readiness race is corrected and gated. This continues the
+same current owner-approved image/write scope, which has not been exercised.**
+The owner instruction is “Approve guarded S4b desktop/scan session”,
+`call_6c35ecad4ba84714a17ec9b7b68f5ad4:0`, for the
+[original package](AB_S4B_DESKTOP_SCAN_PREPARATION_2026-10-26.md).
+The [failed attempt](AB_S4B_DESKTOP_SCAN_PREFLIGHT_ATTEMPT_2026-10-26.md)
+completed its backup, then stopped before download with zero controller writes.
+Fresh read-only guard/preflight rechecks confirm unchanged genealogy. Its
+single-use attempt metadata is retained, not rewritten or bypassed.
+
+## Correction and proof
+
+An existing ready file did not imply its writer had finished. A delayed-write
+regression reproduces the failure against the original parent. One shared
+wait helper now accepts only complete, exactly typed and target-matching JSON,
+with a live child process. Partial/missing messages wait within the original
+10-second monitor and 90-second observer deadlines; wrong/dead helpers fail
+closed. Both existing handoffs use it. No deadline, PLC safety guard, source
+freshness/coherence rule, tag vector, mailbox scope or scan limit increases.
+
+Eight workflow/native-read tests and six readiness tests pass. They cover the
+actual delayed-file counterexample, cleanup after desktop/monitor errors,
+readiness refusal before download, transient reads, permanent truncation,
+wrong target/types and exited helpers. The before-fix failure is retained.
+Sixteen authorization refusals and missing-approval CLI/SDK checks pass; a
+dynamic test-loader import-path failure and its corrected passing run are
+retained. The SDK helper builds with zero warnings/errors. No controller
+access is made by these offline tests.
+
+## Current authorization and unchanged scope
+
+The current explicit owner instruction still authorizes the unexecuted
+Program/download/Run, 41 candidate cases and 31 rollback baseline cases for
+the same image. The continuation authorization will record that instruction,
+its original approval/preparation hashes and this corrected package hash
+before any controller-changing step. This is completion of that unfinished
+instruction, not a historical grant inferred for new work. No extra permission
+or broader hardware scope is claimed.
+
+- Echo **601FC87B**, 1756-L81E v38.011, 127.0.0.1 slot 0.
+- ACD `7D75E86E9315E0383EDE0C4588A6D327848F54C8A6DBB26B987CCB36DEF056BF`; source `C4D0E14475AADB651A6C7DA23F63ABD6A10F2A11698E629A828CDD67F38C1C6F`.
+- Capacity **65%**, 2,066,100 /3,145,728 Blocks, unchanged both-target v38
+  build/read-back/access proofs. Shipping HMI/PLC sources are unchanged.
+- Fresh workspace: `C:/work/fraktal-ab-s4b-20261025/desktop_scan_continue_01/`.
+
+Fresh guards/backup, MANUAL normalization if needed, Program/download/Run;
+the same five-document restore/41 cases and Dart observation; the same
+100 ms read-only TASK monitor and live read-only desktop checks; configuration
+and detail, equivalence/acquisition/scan; then genealogy rollback, exact
+original documents, 31 baseline cases, cleanup/final checks. All existing
+exclusions remain, including TASK counter/fault clears, clock changes,
+power/vendor-state operations and Echo hard kills. No additional PLC writes.
+
+The original 31-view desktop fixture/analyzer and 647-test Flutter 3.47.5 /
+Dart 3.13.4 result (12 skips), Windows and locked dependencies transfer by
+unchanged source bindings, including the isolated mirror/package map.
+**373 PLC/gate files** retain 2,336 AB tests. Original root gates
+and 74 tests are unchanged. **86 seals /26949 artifacts** verify.
+No new approval file or session marker exists at sealing; current-instruction
+authorization is recorded next. Credentials and ACD binaries are excluded.
+
+The prior reader's 902 entirely Good samples and four exact pages remain
+functional proof. Desktop live acceptance and the one-overlap scan finding
+remain open until measured. V2/Part III stay inactive. Nothing committed/pushed.

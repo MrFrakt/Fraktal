@@ -30,8 +30,9 @@ def capture_pair(run,destination,gate,*,key='s3aDecisionPairs',kind='decision',p
     return report
 
 
-def paired_run(destination,*,gate=None,key='s3aDecisionPairs'):
-    class PairedRun(genealogy.GenealogyRun):
+def paired_run(destination,*,gate=None,key='s3aDecisionPairs',base=None):
+    # base: the declaration's machine run; the genealogy bench by default.
+    class PairedRun(base or genealogy.GenealogyRun):
         def command(self, kind, **arguments):
             if kind == mailbox.DECISION_ANSWER:
                 capture_pair(self,destination,gate or equivalence.run,key=key,prompt=True)

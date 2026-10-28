@@ -112,6 +112,18 @@ generations and their logs).
 
 ## 4. Progress
 
+**Latest: R1/R2 native acceptance passes (2026-10-24).** The exact combined
+D170F1E3?33FF906C image passed 41 candidate cases, seven calendar rows,
+retained Program/Run, 4,010 typed paths and 97 independent replays. Rollback,
+31 baseline cases and final state pass; genealogy is restored and approval
+consumed. Capacity remains 52% displayed. Steady LastScan median is 874 ?s;
+cumulative max is **9,829 ?s**, zero overlaps, only **171 ?s below the 10 ms
+period**. This includes startup/retained cycle and does not isolate R2 cost.
+Future reductions/stages must retain measured scan gates alongside memory.
+Read [runtime evidence](Evidence/AB_R1_R2_CANONICAL_RUNTIME_2026-10-24.md).
+The offline history below remains the preparation record; R1/R2 are accepted
+only at this genealogy/Echo migration-frame scope. S3j is next.
+
 **R2, offline, measured.** The configuration page and access audit now have
 a table-driven form behind the declaration opt-in `canonical_table_driven`:
 - every literal stored once in a constant private SINT pool (2,504 bytes);
@@ -148,3 +160,17 @@ and regressions on Echo) is approved in principle. Its exact image still has
 to be prepared, sealed and confirmed with the owner immediately before
 download (AGENTS.md §3a). S3j D-1 to D-6 are approved, and this work is
 committed.
+
+**R1, offline, measured (2026-10-24).** The `canonical_type_manifest` opt-in
+emits 137 type-scoped annotations and two exceptions. Its combined R1+R2 S3i
+bench measures 1,653,432 used / 1,492,296 available / 3,145,728 total Blocks
+(52% displayed), saving 360,600 beyond R2 and 1,110,080 from accepted S3i.
+Both v38 compile/read-back/access gates pass. Existing image bytes and generic
+snapshot values/types/views are preserved. The estimated 136 annotations missed
+the second UDT owning the same logical SequenceSteps path. Native scan and
+regressions still require a separately confirmed exact-image session.
+Work: `C:/work/fraktal-ab-s3j-20261024/r1_01/`.
+
+The combined image and guarded native apparatus are bound by the
+[R1/R2 preparation](Evidence/AB_R1_R2_CANONICAL_PREPARATION_2026-10-24.md).
+Current exact-image session confirmation is still required.

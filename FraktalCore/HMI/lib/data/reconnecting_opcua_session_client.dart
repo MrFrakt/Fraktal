@@ -19,6 +19,8 @@ class ReconnectingOpcUaSessionClient
         OpcUaBatchSessionClient,
         OpcUaBulkReadClient,
         OpcUaDataValueReadClient,
+        OpcUaWritePolicyClient,
+        OpcUaReadOnlyConfigurationClient,
         OpcUaPathDiscoveryClient,
         OpcUaTieredReadClient {
   final OpcUaSessionFactory _factory;
@@ -36,6 +38,19 @@ class ReconnectingOpcUaSessionClient
   int _consecutiveFailures = 0;
   int _generation = 1;
   bool _closed = false;
+  @override
+  bool get readOnly =>
+      _active == null ||
+      _active is OpcUaWritePolicyClient &&
+          (_active as OpcUaWritePolicyClient).readOnly;
+  @override
+  Future<Map<String, Object?>?> readConfigurationPage(
+      String root, int modelOrdinal) async {
+    final session = _active;
+    if (_closed || session is! OpcUaReadOnlyConfigurationClient) return null;
+    return (session as OpcUaReadOnlyConfigurationClient)
+        .readConfigurationPage(root, modelOrdinal);
+  }
 
   ReconnectingOpcUaSessionClient._({
     required OpcUaSessionFactory factory,
@@ -128,10 +143,14 @@ class ReconnectingOpcUaSessionClient
     }
     try {
       if (session is OpcUaDataValueReadClient) {
-        return await (session as OpcUaDataValueReadClient).readDataValues(browsePaths);
+        return await (session as OpcUaDataValueReadClient)
+            .readDataValues(browsePaths);
       }
       if (session is! OpcUaBulkReadClient) {
-        return {'values': <String, Object?>{}, 'dataValues': <String, Object?>{}};
+        return {
+          'values': <String, Object?>{},
+          'dataValues': <String, Object?>{}
+        };
       }
       return decodeTargetedDataValues(await session.readValues(browsePaths));
     } on OpcUaTransportException catch (error) {

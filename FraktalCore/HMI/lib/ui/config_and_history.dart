@@ -2,6 +2,7 @@
 library;
 
 import '../localization/localized_text.dart';
+import '../data/plc_repository.dart';
 import 'package:flutter/material.dart';
 import 'theme_surfaces.dart';
 import '../domain/module_node.dart';
@@ -118,8 +119,9 @@ class _ConfigEditorState extends State<ConfigEditor> {
     // Another model's record is not the running recipe: READY does not apply.
     final rootReady = _model != 0 || root?.state == ExecState.ready;
     final fields = _fields;
-    final anyEditable = fields
-        .any((f) => f.hasWriteCapability && f.canReadIn(s) && f.canWriteIn(s));
+    final anyEditable = !app.repo.readOnly &&
+        fields.any(
+            (f) => f.hasWriteCapability && f.canReadIn(s) && f.canWriteIn(s));
     final classes = <String>[];
     for (final f in fields) {
       if (!classes.contains(f.classId)) classes.add(f.classId);
@@ -144,9 +146,12 @@ class _ConfigEditorState extends State<ConfigEditor> {
               IconButton(
                 tooltip: context.tr('Parameter sets'),
                 icon: const Icon(Icons.inventory_2_outlined),
-                onPressed: () => showConfigSetsDialog(context, app, root.path),
+                onPressed: app.repo.readOnly
+                    ? null
+                    : () => showConfigSetsDialog(context, app, root.path),
               ),
             if (root != null &&
+                !app.repo.readOnly &&
                 root.exportCurrentConfigEnabled &&
                 s.permits(GatedAction.configSet))
               IconButton(
@@ -235,7 +240,8 @@ class _ConfigEditorState extends State<ConfigEditor> {
           OutlinedButton.icon(
               icon: const Icon(Icons.add),
               label: const LText('New model'),
-              onPressed: _node.availableModels.length < _node.modelCapacity &&
+              onPressed: !widget.app.repo.readOnly &&
+                      _node.availableModels.length < _node.modelCapacity &&
                       widget.app.session.permits(GatedAction.configSet) &&
                       widget.app.session.permits(GatedAction.dataWrite)
                   ? () => showModelCreationDialog(context, widget.app, _node,
@@ -292,10 +298,14 @@ class _ConfigEditorState extends State<ConfigEditor> {
       );
     }
     final levelOk = f.canWriteIn(s);
-    final fieldCanWrite =
-        f.hasWriteCapability && levelOk && (!f.requiresReady || rootReady);
+    final fieldCanWrite = !widget.app.repo.readOnly &&
+        f.hasWriteCapability &&
+        levelOk &&
+        (!f.requiresReady || rootReady);
     final String? helper;
-    if (!f.writable) {
+    if (widget.app.repo.readOnly) {
+      helper = context.tr('read-only');
+    } else if (!f.writable) {
       helper = context.tr('Mirrored line config - edit it at the line owner');
     } else if (!levelOk) {
       helper = f.writeLevel == null

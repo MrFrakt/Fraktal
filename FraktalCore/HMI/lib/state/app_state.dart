@@ -100,6 +100,9 @@ class AppState extends ChangeNotifier {
   /// [HmiConfig.manualMinLevel]). Because both must pass, an HMI-local setting
   /// can never grant something the PLC denies.
   bool permitsLocal(GatedAction action, {AccessSession? forSession}) {
+    if (repo.readOnly &&
+        action != GatedAction.dataRead &&
+        action != GatedAction.alarmHistory) return false;
     final active = forSession ?? session;
     if (!active.permits(action)) return false;
     final floor = config.localFloor(action);

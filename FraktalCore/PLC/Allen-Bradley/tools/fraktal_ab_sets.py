@@ -114,6 +114,12 @@ def revision_rejected(app, value):
         variants += [resources.without_text(item) for item in (app,*variants)]
     if resources.enabled(app):
         variants += [resources.without(item) for item in (app,*variants)]
+    if app.canonical_publication_stage == 13:
+        # S3k versions the release-report owner and localization catalogue,
+        # changing publication identity without changing configuration Records.
+        # Derive the exact predecessor from this declaration; a foreign station
+        # or changed value schema still has a different revision and refuses.
+        variants.append(dataclasses.replace(app, canonical_publication_stage=12))
     revisions.update(mf.config_revision(item) for item in variants)
     terms = [f'({value} <> {revision})' for revision in sorted(revisions)]
     if len(terms) <= 5:
@@ -125,6 +131,15 @@ def revision_rejected(app, value):
 def range_rejected(member, value):
     """One range predicate for ordinary writes, capture and set validation."""
     return f'({value} < {member.minimum}) OR ({value} > {member.maximum})'
+
+
+def revision_guard(app, value, reason, reject):
+    # S3k's predecessor adds one exact revision. Repeating an array-member
+    # operand in every comparison exceeds the native compiler's operand limit.
+    # This scratch is free here and the following duplicate loop initializes it.
+    target=scratch_names(app)[1] if app.canonical_publication_stage==13 else value
+    prefix=[f'{target} := {value};'] if target!=value else []
+    return prefix+[f'IF {revision_rejected(app,target)} THEN {reason} := {reject}; END_IF;']
 
 
 def cyclic(app):
@@ -149,7 +164,7 @@ def cyclic(app):
             f'{s}.AuditAccepted[{s}.PendingSlot] := 0;', f'{s}.AuditReason[{s}.PendingSlot] := {failure};', 'END_IF;',
             f'{unit}.ReportedReason := {app.reasons["CONFIG_PERSIST_FAILED"]};',
             f'{unit}.ReportedSource := 0;', f'{unit}.ReportedCount := {unit}.ReportedCount + 1;',
-            f'IF {response}.AckSequence = {s}.PendingSequence THEN',
+            f'IF {mb.acknowledged_sequence(app)} = {s}.PendingSequence THEN',
             f'{response}.Accepted := 0;', f'{response}.DiagnosticKey := {failure};', 'END_IF;',
             'END_IF;', 'END_IF;']
 
@@ -208,7 +223,7 @@ def dispatch_logic(app):
              f'IF ({q}.Operation = {mb.SAVE_CONFIG_SET}) OR ({q}.Operation = {mb.LOAD_CONFIG_SET}) OR ({q}.Operation = {mb.EXPORT_CONFIG_SET}) OR ({q}.Operation = {mb.CREATE_MODEL}) OR ({q}.Operation = {mb.EXPORT_CURRENT_CONFIG}) THEN',
              f'IF {q}.RootId <> 1 THEN {s}.Reason := {reject}; END_IF;',
              f'IF {q}.SetSchema <> 1 THEN {s}.Reason := {reject}; END_IF;',
-             f'IF {revision_rejected(app, q + ".ConfigRev")} THEN {s}.Reason := {reject}; END_IF;',
+             *revision_guard(app,q+'.ConfigRev',s+'.Reason',reject),
              f'IF ({q}.Kind < 0) OR ({q}.Kind > {2 if app.line is not None else 1}) THEN {s}.Reason := {reject}; END_IF;',
              'END_IF;',
              f'IF ({q}.Operation = {mb.LOAD_CONFIG_SET}) OR ({q}.Operation = {mb.EXPORT_CONFIG_SET}) OR (({q}.Operation = {mb.CREATE_MODEL}) AND ({req}.BoolValue <> 0)) THEN',
@@ -221,7 +236,7 @@ def dispatch_logic(app):
              f'IF {s}.Reason = 0 THEN',
              f'FOR {i} := 0 TO {q}.Count - 1 DO',
              f'IF {s}.Reason = 0 THEN',
-             f'IF {revision_rejected(app, q + ".Revision[" + i + "]")} THEN {s}.Reason := {reject}; END_IF;',
+             *revision_guard(app,q+'.Revision['+i+']',s+'.Reason',reject),
              # Repeated addresses cannot silently overwrite a value twice.
              f'FOR {j} := 0 TO {i} - 1 DO',
              f'IF {q}.Ordinal[{i}] = {q}.Ordinal[{j}] THEN {s}.Reason := {reject}; END_IF;',

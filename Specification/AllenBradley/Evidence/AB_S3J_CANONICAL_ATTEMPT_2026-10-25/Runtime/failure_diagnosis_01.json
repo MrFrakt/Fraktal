@@ -1,0 +1,63 @@
+{
+  "passed": true,
+  "readOnly": true,
+  "controllerAccess": false,
+  "unchangedSourceBindings": 368,
+  "baselineRows": 31,
+  "finalChecks": {
+    "scanAdvancing": true,
+    "manual": true,
+    "idle": true,
+    "loggedOut": true,
+    "notRestoring": true,
+    "savedEqualsLive": true,
+    "policyRestored": true
+  },
+  "approvalConsumed": true,
+  "candidateCapturesPassed": 40,
+  "candidateCapturesFailed": 1,
+  "failedCapture": "candidate_regressions_01_condition_02.json.gz",
+  "comparisonDifferences": [
+    {
+      "path": "Press/Status/Diagnostic/IoAddress",
+      "projectionPath": "Press/Status/Diagnostic/IoAddress",
+      "kind": "value",
+      "projection": "",
+      "canonical": "Local:1:I.0"
+    },
+    {
+      "path": "Press/Status/Diagnostic/IoTag",
+      "projectionPath": "Press/Status/Diagnostic/IoTag",
+      "kind": "value",
+      "projection": "",
+      "canonical": "_101B301A"
+    }
+  ],
+  "oracleBoundApp": {
+    "name": "Press",
+    "ioModules": 0
+  },
+  "candidateApp": {
+    "name": "Press",
+    "ioModules": 1
+  },
+  "unitDiagnostic": {
+    "Error": 1,
+    "ErrorSource": 3,
+    "DiagReason": 10101,
+    "DiagIoRoles": 2
+  },
+  "legacyRootUsingGlobalApp": {
+    "Status/Diagnostic/IoTag": "",
+    "Status/Diagnostic/IoAddress": ""
+  },
+  "legacyRootUsingCandidateApp": {
+    "Status/Diagnostic/IoTag": "_101B301A",
+    "Status/Diagnostic/IoAddress": "Local:1:I.0"
+  },
+  "canonicalRoot": {
+    "Status/Diagnostic/IoTag": "_101B301A",
+    "Status/Diagnostic/IoAddress": "Local:1:I.0"
+  },
+  "hypothesis": "Root oracle unit_status uses global genealogy APP without I/O catalog; child oracle already accepts the candidate declaration"
+}

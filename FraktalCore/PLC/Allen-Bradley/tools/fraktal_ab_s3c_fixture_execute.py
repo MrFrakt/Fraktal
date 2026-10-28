@@ -5,9 +5,9 @@ import fraktal_ab_s3b_fixture_execute as previous
 import fraktal_ab_s3c_equivalence as equivalence
 
 
-def paired_run(destination,*,gate=None,prefix='s3c'):
+def paired_run(destination,*,gate=None,prefix='s3c',base=None):
     selected=equivalence.run if gate is None else gate
-    parent=previous.paired_run(destination,gate=selected,prefix=prefix)
+    parent=previous.paired_run(destination,gate=selected,prefix=prefix,base=base)
     class SequenceRun(parent):
         def record(self,language,case,*args,**kwargs):
             row=super().record(language,case,*args,**kwargs)

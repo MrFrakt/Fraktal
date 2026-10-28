@@ -24,7 +24,8 @@ class GenealogyRun(text.TextResourceRun):
         return row
 
 
-def main(argv=None, *, run_type_factory=None, schema='fraktal.ab.genealogy-live-fixture'):
+def main(argv=None, *, run_type_factory=None, schema='fraktal.ab.genealogy-live-fixture',
+         expected_declaration='fraktal_ab_genealogy_demo', exercise_rows=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--execute-fixture',action='store_true')
     parser.add_argument('--expect-serial',required=True)
@@ -32,7 +33,7 @@ def main(argv=None, *, run_type_factory=None, schema='fraktal.ab.genealogy-live-
     parser.add_argument('--output',type=Path,required=True)
     args = parser.parse_args(argv)
     if (not args.execute_fixture or args.expect_serial.upper() != '601FC87B'
-            or station.module_name() != 'fraktal_ab_genealogy_demo'):
+            or station.module_name() != expected_declaration):
         parser.error('explicit arm, exact genealogy declaration and local serial 601FC87B required')
     if args.output.exists():
         parser.error('refusing existing evidence output')
@@ -42,7 +43,9 @@ def main(argv=None, *, run_type_factory=None, schema='fraktal.ab.genealogy-live-
         parser.error('credential file does not name a fixture account')
     args.core_regressions = True
     run_type=run_type_factory(args.output) if run_type_factory else GenealogyRun
-    return tower.execute_fixture(args,app,account,run_type=run_type,schema=schema)
+    # exercise_rows: the declaration's own leading rows; the tower bench's by default.
+    return tower.execute_fixture(args,app,account,run_type=run_type,schema=schema,
+                                 **({} if exercise_rows is None else dict(exercise_rows=exercise_rows)))
 
 
 if __name__=='__main__': raise SystemExit(main())

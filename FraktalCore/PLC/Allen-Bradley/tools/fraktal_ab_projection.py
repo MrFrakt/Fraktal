@@ -87,15 +87,16 @@ class ReadFailed(Exception):
     """A controller read returned nothing, so there is no state to project."""
 
 
-def validate(header: dict[str, Any]) -> None:
+def validate(header: dict[str, Any], *, app: decl.Application | None = None) -> None:
     """Core §3.10: partial discovery is not a degraded conformance mode."""
+    app = APP if app is None else app
     reasons: list[str] = []
     if header.get("Magic") != manifest.MANIFEST_MAGIC:
         reasons.append("the manifest magic is wrong; this is not a Fraktal manifest")
-    if header.get("SchemaMajor") != manifest.schema_major(APP):
+    if header.get("SchemaMajor") != manifest.schema_major(app):
         reasons.append(
             f"manifest schema major {header.get('SchemaMajor')} is not "
-            f"{manifest.schema_major(APP)}")
+            f"{manifest.schema_major(app)}")
     if header.get("Valid") != 1:
         reasons.append("the controller reports the manifest is not valid")
     if header.get("Truncated") != 0:
@@ -104,14 +105,14 @@ def validate(header: dict[str, Any]) -> None:
     # builds of one declaration with different table sizes share it. A table
     # sized for another build is read at the wrong size, so it is refused by
     # name - before a single table is read, not after a slow fallback.
-    for table in manifest.tables(APP):
+    for table in manifest.tables(app):
         published = header.get(f"{table.name}Capacity")
         if published != table.capacity:
             reasons.append(
                 f"{table.name} holds {published} rows on the controller and "
                 f"{table.capacity} in the declaration; it was built from another "
                 f"declaration")
-    declared = manifest.content_hash(APP)
+    declared = manifest.content_hash(app)
     if header.get("ContentHash") != declared:
         reasons.append(
             f"content hash {header.get('ContentHash')!r} does not match the "
@@ -131,13 +132,14 @@ def browse_path(identity: str) -> str:
     return identity.replace(".", "/")
 
 
-def modules(rows: dict[str, Any]) -> list[dict[str, Any]]:
+def modules(rows: dict[str, Any], *, app: decl.Application | None = None) -> list[dict[str, Any]]:
     """Identity, browse path and module type for every published module."""
+    app = APP if app is None else app
     keys = {row["NumericKey"]: row["PortableKey"]
             for row in rows["Localization"]}
     # §7.1 type keys come from the declaration, the one source the manifest is
     # also generated from; the controller carries no copy to drift.
-    type_keys = {module.name: module.type_key for module in APP.modules}
+    type_keys = {module.name: module.type_key for module in app.modules}
     out = []
     for row in rows["Modules"]:
         identity = keys.get(row["CanonicalPathKey"], "")
@@ -150,7 +152,7 @@ def modules(rows: dict[str, Any]) -> list[dict[str, Any]]:
             "type": (MODULE_TYPE_UNIT if row["Tier"] == manifest.TIER_ROOT
                      else MODULE_TYPE_CONTROL),
             "displayNameKey": keys.get(row["LocalNameKey"], ""),
-            "typeKey": (APP.type_key if row["Tier"] == manifest.TIER_ROOT
+            "typeKey": (app.type_key if row["Tier"] == manifest.TIER_ROOT
                         else type_keys.get(identity.split(".")[-1], "")),
         })
     return out
@@ -304,8 +306,10 @@ def command_timing(app, name: str, context: dict[str, Any]) -> dict[str, Any]:
     return values
 
 
-def unit_status(unit: dict[str, int], chart: dict[str, Any] | None) -> dict[str, Any]:
+def unit_status(unit: dict[str, int], chart: dict[str, Any] | None, *,
+                app: decl.Application | None = None) -> dict[str, Any]:
     """The root Unit's own members, beyond the Status every module carries."""
+    app = APP if app is None else app
     values: dict[str, Any] = {
         "Status/State": (gen.STATE_ERROR if unit["Error"] else
                          gen.STATE_BUSY if unit["Running"] else
@@ -326,12 +330,12 @@ def unit_status(unit: dict[str, int], chart: dict[str, Any] | None) -> dict[str,
     # stamped there; the adopted child's implicated I/O came with it.
     reason = unit.get("DiagReason", 0)
     stamped = unit.get("DiagStamped") == reason
-    source = _module_path(APP, unit.get("ErrorSource", 0) + 1).rsplit(".", 1)[-1]
+    source = _module_path(app, unit.get("ErrorSource", 0) + 1).rsplit(".", 1)[-1]
     values.update(diagnostic(
-        APP, reason,
+        app, reason,
         unit.get("DiagSinceDate", 0) if stamped else 0,
         unit.get("DiagSinceTime", 0) if stamped else 0,
-        io_join(APP, source, unit.get("DiagIoRoles", 0)) if unit.get("Error")
+        io_join(app, source, unit.get("DiagIoRoles", 0)) if unit.get("Error")
         else ("", "")))
     if chart is not None:
         values["CurrentStepElapsed"] = chart["CurrentStepMs"]
@@ -402,7 +406,7 @@ def release_report_values(app, report: dict[str, Any] | None,
     text resolved through this controller's own catalogue, its owner as the
     module's qualified identity (TC3's SourcePath)."""
     report = report or {}
-    count = min(report.get("Count", 0), gen.RELEASE_CAPACITY)
+    count = min(report.get("Count", 0), gen.release_capacity(app))
     values: dict[str, Any] = {
         f"{REPORT_BASE}/Released": report.get("Released", 0) != 0,
         f"{REPORT_BASE}/Count": count,
@@ -430,7 +434,7 @@ def release_report_values(app, report: dict[str, Any] | None,
 
 def mailbox_values(rows: dict[str, Any], response: dict[str, int],
                    request_sequence: int,
-                   report: dict[str, Any] | None = None) -> dict[str, Any]:
+                   report: dict[str, Any] | None = None, *, app: decl.Application | None = None) -> dict[str, Any]:
     """The command mailbox as the HMI's repository reads it.
 
     ``opcua_repository.dart`` writes ``HmiRequest/*`` and then polls
@@ -445,6 +449,7 @@ def mailbox_values(rows: dict[str, Any], response: dict[str, int],
     resolving it from anywhere else would be reading this controller's answer
     through another build's catalogue.
     """
+    app = APP if app is None else app
     import fraktal_ab_mailbox as mailbox
 
     catalogue = {row["NumericKey"]: row["PortableKey"]
@@ -459,7 +464,7 @@ def mailbox_values(rows: dict[str, Any], response: dict[str, int],
         "HmiResponse/Diagnostic": (
             "" if key == 0
             else catalogue.get(key, f"{mailbox.UNKNOWN_KEY}#{key}")),
-        **release_report_values(APP, report, catalogue),
+        **release_report_values(app, report, catalogue),
     }
 
 

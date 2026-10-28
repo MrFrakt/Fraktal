@@ -458,7 +458,7 @@ def content(app: decl.Application) -> dict[str, object]:
             "WriteCapabilityIndex": 0,
         })
     # TC3's HmiResponse.Report: the answer to a release query, and to START.
-    for member in gen.release_report_members():
+    for member in gen.release_report_members(app=app):
         fields.append({
             "ModuleId": unit_id,
             "PathKey": keys.key(f"HmiResponse.Report.{member.name}"),
@@ -534,7 +534,7 @@ def content(app: decl.Application) -> dict[str, object]:
     # the numbering is a function of the declaration, not of import order.
     import fraktal_ab_mailbox as mailbox
 
-    for portable in mailbox.localization_keys():
+    for portable in mailbox.localization_keys(app):
         keys.key(portable)
     if app.line is not None:
         import fraktal_ab_line as line

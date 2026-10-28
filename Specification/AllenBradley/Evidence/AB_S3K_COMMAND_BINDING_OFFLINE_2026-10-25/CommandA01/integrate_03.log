@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-s3k-20261025\command_a_01\integrate_02.py", line 9, in <module>
+    edit('fraktal_ab_canonical_manifest.py',[
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     ('PRODUCT_MINOR = 5','PRODUCT_MINOR = 5\nCOMMAND_MINOR = 6'),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<21 lines>...
+     ("**({'products':products} if minor>=PRODUCT_MINOR else {}))", "**({'products':products} if minor>=PRODUCT_MINOR else {}),\n            **({'commands':commands} if minor>=COMMAND_MINOR else {}))"),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     ("    if minor>=PRODUCT_MINOR:result['dataProducts']=products\n    return result", "    if minor>=PRODUCT_MINOR:result['dataProducts']=products\n    if minor>=COMMAND_MINOR:result['commandBindings']=commands\n    return result")])
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\work\fraktal-ab-s3k-20261025\command_a_01\integrate_02.py", line 6, in edit
+    assert s.count(old)==1,(name,old[:90],s.count(old))
+           ^^^^^^^^^^^^^^^
+AssertionError: ('fraktal_ab_canonical_manifest.py', "    if minor>=PRODUCT_MINOR:result['dataProducts']=products", 2)

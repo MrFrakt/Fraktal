@@ -1,0 +1,67 @@
+E.E......
+======================================================================
+ERROR: setUpClass (test_fraktal_ab_canonical_mailbox.MailboxPublicationTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_mailbox.py", line 28, in setUpClass
+    cls.app=demo.application();cls.keys=publication.catalogue(cls.app)
+                                        ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "<string>", line 68, in __hash__
+TypeError: unhashable type: 'dict'
+
+======================================================================
+ERROR: test_generation_wires_the_same_scan_queue_automatically (test_fraktal_ab_mailbox_dispatch.DispatchTests.test_generation_wires_the_same_scan_queue_automatically)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_mailbox_dispatch.py", line 98, in test_generation_wires_the_same_scan_queue_automatically
+    code='\n'.join(gen.routine_logic(self.app,use_routines=True))
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4753, in routine_logic
+    for name, body in scan_sections(app):
+                      ~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4746, in scan_sections
+    add('Canonical', canonical.cyclic(app))
+                     ~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_publication.py", line 592, in cyclic
+    return lines + observation.cyclic(app)
+                   ~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_observation.py", line 169, in cyclic
+    for name, (unused, count) in _declared(app).items():
+                                 ~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_observation.py", line 123, in _declared
+    tags = {tag.get("Name"): tag for tag in ET.fromstring(gen.controller_tags(app)).findall("Tag")}
+                                                          ~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 3395, in controller_tags
+    tags.extend(canonical.tags(app))
+                ~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_publication.py", line 501, in tags
+    *(config.tags(app,tag) if app.canonical_publication_stage>=8 else []),
+      ~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_config.py", line 138, in tags
+    if text.enabled(app):result.append(serialize(defs_tag(app),DEF,def_rows(app),access='None',array=True))
+                                                                   ~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_config.py", line 56, in def_rows
+    rows.append(dict(**{name:text.slice_value(app,texts[name]) for name,_ in TEXT_FIELDS},
+                             ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_text.py", line 74, in slice_value
+    offset, length = slice_of(app, text)
+                     ~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_text.py", line 70, in slice_of
+    return layout(app)[1][text]
+           ~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_text.py", line 66, in layout
+    return _layout(tuple(texts(app)))
+                         ~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_text.py", line 47, in texts
+    result += mailbox.literals(app)
+              ~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_mailbox.py", line 40, in literals
+    def literals(app):return [*catalogue(app).values(),*sources(app).values(),mailbox.UNKNOWN_KEY+'#']
+                               ~~~~~~~~~^^^^^
+  File "<string>", line 68, in __hash__
+TypeError: unhashable type: 'dict'
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.493s
+
+FAILED (errors=2)

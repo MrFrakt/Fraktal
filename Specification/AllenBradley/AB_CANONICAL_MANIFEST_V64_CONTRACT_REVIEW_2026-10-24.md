@@ -1,6 +1,6 @@
 # Canonical manifest V6.4 — type-scoped annotations (contract review draft)
 
-**Owner-approved for offline implementation behind a declaration opt-in on 2026-10-24** (chat reply “all of them approved”). Not yet implemented; native acceptance keeps its own authorization. This is capacity plan R1
+**Owner-approved for offline implementation behind a declaration opt-in on 2026-10-24** (chat reply “all of them approved”). Implemented offline behind `canonical_type_manifest`; native acceptance keeps its own authorization. This is capacity plan R1
 ([plan](AB_CAPACITY_BUDGET_AND_REDUCTION_PLAN_2026-10-24.md)). It changes the
 PLC manifest's wire layout, so it needs approval like every other contract
 step. Published canonical paths, values and types do not change, and the
@@ -88,3 +88,38 @@ now satisfied per type.
 Approve the V6.4 type-scoped manifest as a finite contract change, and
 offline implementation behind a declaration opt-in. Native acceptance keeps
 its own authorization.
+
+## Offline implementation ? 2026-10-24
+
+The implementation emits **137 type annotations and two path exceptions** for
+S3i. The review's 136-pair estimate deduplicated the logical `SequenceSteps`
+path before counting types: its live root and definition fragment have separate
+owning UDTs. Both need the annotation. No published path is added.
+
+Empty tables have Count=Capacity=0 and omit the physical array, since Logix
+has no zero-length UDT array. Nonempty tables allocate exactly their row count.
+V6.4 always states the binding/service counts and FragmentRevision; stages
+without those products use zero counts/revision. Every row is hash-covered.
+A sibling count may be supplied by a bound fragment at the same logical parent;
+the reader validates disjoint leaves and matching containers before lookup.
+The two-column PathExceptions format represents index selections only. A
+non-sibling count or conflicting type fact is refused; encoding such exceptions
+would require an explicit wire amendment.
+
+Both v38 targets compile and read back equivalently; effective access passes.
+The combined R1+R2 S3i bench measures **1,653,432 used / 1,492,296 available /
+3,145,728 total Blocks** (52% displayed). R1 frees 360,600 Blocks beyond R2,
+and together they free 1,110,080 versus accepted S3i. All ten accepted images
+stay byte-identical with both opt-ins off. Every sealed V6.0?6.3 capture
+replays and has an identical snapshot with type-scoped metadata. The native
+session remains unaccepted and needs exact-image current owner confirmation.
+
+## Native acceptance ? 2026-10-24
+
+The owner confirmed the exact combined R1/R2 image and the guarded session
+passed at the genealogy/Echo scope: 41 candidate cases, calendar lifetime,
+retained Program/Run, 4,010-path equivalence and all 97 independent native
+replays. Genealogy is restored; authorization is consumed. Read
+[runtime evidence](Evidence/AB_R1_R2_CANONICAL_RUNTIME_2026-10-24.md).
+This supersedes the earlier pending-session status. V2 remains inactive;
+Dart, press and physical/security acceptance remain separate gates.

@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-s4b-20261025\offline_01\compatibility_generated_01.py", line 51, in <module>
+    rows.append(dict(stage='press',pin='6FD00A4825A2ADFA0BE9E662446905B53461C17CE40A50C1DE02733F530FBB02',actual=sha(output)))
+                                                                                                                 ~~~^^^^^^^^
+  File "C:\work\fraktal-ab-s4b-20261025\offline_01\compatibility_generated_01.py", line 15, in <lambda>
+    sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest().upper()
+                                   ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 777, in read_bytes
+    with self.open(mode='rb', buffering=0) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\work\\fraktal-ab-s4b-20261025\\offline_01\\compat_current_press.L5X'

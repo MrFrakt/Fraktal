@@ -1,0 +1,41 @@
+E...........................................E.............................
+======================================================================
+ERROR: test_every_stage_preserves_all_path_facts (test_fraktal_ab_canonical_type_manifest.TypeEngineeringTests.test_every_stage_preserves_all_path_facts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_type_manifest.py", line 190, in test_every_stage_preserves_all_path_facts
+    header=ET.fromstring(pub.tags(current)[1])
+                         ~~~~~~~~^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_publication.py", line 461, in tags
+    *(sequence.tags(app,tag) if app.canonical_publication_stage>=5 else []),
+      ^^^^^^^^
+NameError: name 'sequence' is not defined
+
+======================================================================
+ERROR: test_disabled_declarations_emit_no_table_text (test_fraktal_ab_canonical_text.PoolTests.test_disabled_declarations_emit_no_table_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_text.py", line 116, in test_disabled_declarations_emit_no_table_text
+    emitted = '\n'.join([*pub.data_types(app), *pub.tags(app)])
+                          ~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_publication.py", line 305, in data_types
+    return out+observation.data_types(app)
+               ~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_observation.py", line 134, in data_types
+    for name, (kind, count) in _declared(app).items():
+                               ~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_observation.py", line 116, in _declared
+    tags = {tag.get("Name"): tag for tag in ET.fromstring(gen.controller_tags(app)).findall("Tag")}
+                                                          ~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 3365, in controller_tags
+    tags.extend(canonical.tags(app))
+                ~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_publication.py", line 461, in tags
+    *(sequence.tags(app,tag) if app.canonical_publication_stage>=5 else []),
+      ^^^^^^^^
+NameError: name 'sequence' is not defined
+
+----------------------------------------------------------------------
+Ran 74 tests in 28.448s
+
+FAILED (errors=2)

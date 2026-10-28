@@ -19,6 +19,184 @@ all 631 other S3g values/types stay exact. The [plan §1](AB_CANONICAL_PUBLICATI
 links the enumerations. This records the approved target, without activating
 Part III/V2 or establishing runtime acceptance.
 
+## AB §3.13 — discoverable per-row/group coherence (S4 target extension)
+
+Owner-approved on 2026-10-25: **“A — publish existing counter bindings
+(Recommended)”**. The [S4 coherence review](AB_CANONICAL_PUBLICATION_S4_COHERENCE_REVIEW_2026-10-25.md)
+defines V6.7's exact hash-covered `ReadCoherenceBindings` columns and validation.
+It exposes the existing scan guard rather than adding a cyclic publication
+owner. Every root/data-product prefix has a published revision symbol, protocol
+and mutation interval. Clients derive none of them from station knowledge.
+
+Coherence is per consumed row/group and tier. Equal even counters enclose each
+bounded native acquisition, including its first counter request; the window
+must be shorter than the published interval. A session establishes progress
+before claiming fresh scanning data. Failed acquisition degrades quality and
+does not retain mixed bytes as a Good value. No whole-document same-scan claim
+or dependency on the migration observation frame is introduced.
+
+The opt-in V6.7 image is implemented, compiled and qualified on Echo at S4a's
+initial module Status/product-row scope; see the
+[runtime evidence](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md).
+S4b full desktop/tier and active-workload acceptance remain open. This extension
+does not activate Part III/V2 or authorize another controller session.
+
+## AB §3.10.2 — read-only configuration service (S4b target extension)
+
+The owner selected option A in the
+[S4b review](AB_CANONICAL_PUBLICATION_S4B_READONLY_CONFIG_REVIEW_2026-10-25.md).
+V6.8 adds hash-covered `ReadServices` rows with `Kind`, `Version`, `RootSymbol`
+and `CanonicalRoot`; counts/capacities are exact. Kind 1/version 1 refers to an
+explicit data product, never a type-name or station-name convention.
+
+That product publishes SchemaVersion, RootIdentity, Revision, definition and
+value counts/capacities, Definitions and Values. Definitions extend the existing
+configuration-entry metadata with DefinitionIndex and omit ValueText/Readable.
+Each value row publishes DefinitionIndex, ModelOrdinal, ModelCode, ValueText,
+Readable and Revision. Ordinal zero is live; occupied banks use positive
+ordinals. Logical extents/count references are PLC-published and validated.
+
+The existing configuration owner remains authoritative. Publication is derived
+on change and applies the same formatting, access masking and revision. A read
+level drop clears every unreadable ValueText buffer across its full width;
+unused rows cannot retain plaintext. Unmasked caches stay private. Clients
+reject incomplete references, duplicate rows, invalid banks, mixed revisions
+and mismatched capacities. Configuration reads do not renew station liveness.
+They yield between bounded worker requests, fetch consumed definitions and
+selected-bank values, and perform no mailbox/provider write on unsecured CIP.
+
+This additive target has an independent oracle for the new path family. It
+does not relax the existing frozen-path comparison. The opt-in image is
+compiled/read-back and measures 65% offline Capacity; native S4b qualification
+and desktop acceptance remain pending. The first S4b attempt stopped in Template
+discovery before candidate writes and rolled back with 31/31 baseline checks;
+the parser correction then passed discovery in the approved retry. That retry
+refused its first root sample before candidate writes and again restored
+genealogy with 31/31 baseline/final checks. The following diagnostic session
+retained the rejected snapshot: correct identity and 976 Good values, but oldest
+fast-row age 2,065.752 ms. It completed rollback after a retained 22-check baseline
+failure, residual cleanup and one unchanged 31/31 retry. The offline client
+lookup correction preserves all reads and production guards; native S4b remains
+open. See the [diagnostic attempt](Evidence/AB_S4B_ROOT_DIAGNOSTIC_ATTEMPT_2026-10-26.md)
+and [lookup retry preparation](Evidence/AB_S4B_LOOKUP_RETRY_PREPARATION_2026-10-26.md).
+V2/Part III remain inactive; no new session is authorized by the contract choice.
+
+The lookup retry then passed 41 candidate cases and 87 raw-read replays.
+Dart met the original freshness limit for 140 snapshots, then stopped on a
+payload-free Uncertain root Status row. Genealogy and 31 baseline/final checks
+were restored. The [sealed attempt](Evidence/AB_S4B_LOOKUP_RETRY_ATTEMPT_2026-10-26.md)
+claims no native S4b or desktop acceptance. A bounded pacing correction and
+failed-attempt metadata are [prepared offline](Evidence/AB_S4B_COHERENCE_RETRY_PREPARATION_2026-10-26.md),
+with the same attempt/deadline/quality rules and strict root qualification.
+
+The paced attempt then passed 41 cases/87 replays and reached 587 non-Bad
+cyclic rows before one Bad value. The strict observer stopped; genealogy and
+31 baseline/final checks were restored. The [sealed run](Evidence/AB_S4B_COHERENCE_RETRY_ATTEMPT_2026-10-26.md)
+records the missing Bad-branch snapshot explicitly. A verified slow-expiry
+implementation mismatch (10 seconds versus the published 15) is corrected
+offline using one unchanged profile for aging and its envelope. Rejected Bad
+snapshots are now retained. See the [freshness preparation](Evidence/AB_S4B_FRESHNESS_RETRY_PREPARATION_2026-10-26.md).
+No publication contract or advertised budget is changed; native/desktop
+acceptance remains open and V2/Part III remain inactive.
+
+The [freshness run](Evidence/AB_S4B_FRESHNESS_RETRY_ATTEMPT_2026-10-26.md)
+then passed 41 cases/87 replays and 884 completed cyclic samples without Bad
+values, before a root-coherence refusal. Its recorded three attempts ended
+after 6,237 us within one publication phase. Genealogy and all 31 baseline
+and final checks are restored. The [prepared reader correction](Evidence/AB_S4B_READER_RETRY_PREPARATION_2026-10-26.md)
+allows the desktop plan 20 attempts instead of three, retaining its one-second
+deadline and every per-row proof/freshness condition. Source age starts before
+accepted pre-counter I/O; the processing bracket ends before age calculation.
+These are client policy/bookkeeping changes, not a publication ABI amendment
+or acceptance claim. Native pages, detail, acquisition/scan and desktop
+acceptance remain open; no new controller session is authorized here.
+
+The [bounded reader run](Evidence/AB_S4B_READER_RUNTIME_2026-10-26.md)
+passes 41 cases/87 replays, 902 entirely Good cyclic samples, four configuration
+pages (1,100 exact oracle scalar/type comparisons), targeted details and
+5,407-path idle/generic acquisition. Genealogy and all 31 baseline/final checks
+are restored. This is functional native proof, with desktop and scan review
+still open: cumulative native maximum 10,033 us and one overlap on a 10 ms
+task, already present at the earliest paired capture. The cause is unproven;
+no limit is widened or counter cleared. V2/Part III remain inactive.
+
+The [desktop/scan diagnostic run](Evidence/AB_S4B_DESKTOP_SCAN_RUNTIME_2026-10-26.md)
+repeats functional proof with 41 cases/87 replays and 895 entirely Good Dart
+samples. It first observes the one overlap between probe observations 1 and
+17, before the observer/desktop; scalar polling does not identify the exact
+scan or cause. The desktop helper's success is rejected: its native result
+contains zero modules and two screenshots, including a stale/empty overview.
+Genealogy, the original documents and 31 baseline/final checks are restored.
+
+The [new offline preparation](Evidence/AB_S4B_COLD_DESKTOP_PREPARATION_2026-10-26.md)
+withholds the uninitialized read-only view on the cold first Run scan, clears
+all value buffers and starts normal formatting next scan. Retained initialized
+first scans still mask access immediately. No wire type, tags or initializer
+change. The strict desktop qualification now requires LIVE, complete nonempty
+coverage at every capture, with parent semantic validation and refresh/forest
+diagnostics. These corrections pass 2,339 AB tests, both v38 builds/read-backs,
+65% Capacity and the standalone desktop positive/stale-refusal checks. No
+native timing improvement or live desktop acceptance is claimed. This image
+requires fresh exact-image authorization; V2/Part III remain inactive.
+
+The [2026-10-27 cold-image attempt](Evidence/AB_S4B_COLD_DESKTOP_ATTEMPT_2026-10-27.md)
+passes 41 cases/87 replays and records zero TASK overlaps with a 9,002 us
+maximum through the candidate fixture. The Dart observer refuses a root Status
+at 1,035.46 ms after 68 Good samples; its payload stays withheld. Desktop and
+later acquisition/final timing are skipped, and genealogy/31 baseline/final
+checks are restored. The same-image [offline retry](Evidence/AB_S4B_STATUS_ORDER_PREPARATION_2026-10-27.md)
+schedules discovered module Status groups at the end of cyclic walks, retaining
+all reads, values/types, targeted semantics, row proofs and freshness limits.
+The regression, 648 HMI tests (12 skipped), analyzer, Windows and lockfile gates
+pass. No native improvement is claimed before a new authorized qualification.
+V2/Part III remain inactive.
+
+The [Status-order qualification](Evidence/AB_S4B_STATUS_ORDER_ATTEMPT_2026-10-27.md) remains open at the recorded
+read-only desktop Echo scope: 41 cases /87
+replays /910 Dart samples, 0 live desktop views,
+0 generic values. Reader remains open, desktop
+remains open, scan remains open. Genealogy,
+the original documents and 31 baseline/final checks are restored. The correction
+changes only cyclic group order; wire reads, values/types, row proofs and freshness
+limits remain unchanged. V2/Part III remain inactive pending later gates; this
+evidence grants no physical, retained-power or CIP Security acceptance.
+
+The [startup diagnostic](Evidence/AB_S4B_STARTUP_DIAGNOSTIC_ATTEMPT_2026-10-27.md) completes 41 cases/87 replays and 906
+entirely Good observer samples, but the initial desktop complete sample is
+refused at 1,003.130 ms: 982.641 ms source +16.992 ms transit +3.497 ms local
+processing. Zero live views are accepted. The preserved primary exception
+has no secondary null assertion. TASK trace maximum is 8,937 us /zero overlaps;
+remaining acquisition/final timing are skipped. Genealogy, the exact original
+documents and 31 baseline/final checks are restored.
+
+The [parallel-reader attempt](Evidence/AB_S4B_PARALLEL_READER_ATTEMPT_2026-10-27.md) adds a bounded pool of four
+serial-pinned read-only connections, keeping a full row proof on one connection
+and at most one request outstanding per socket. Count barriers and revision
+ordering protect out-of-order replies. It records 1,288 entirely Good samples,
+295.514 ms median /493.517 ms maximum age and 25/41 fixture cases, with 53 exact
+raw-record replays. The legacy Part reader refuses its three bounded reads at
+the SFC adopted-fault record; desktop/full acquisition/final timing are not
+reached. TASK trace maximum is 8,994 us /zero overlaps. Genealogy, original
+documents and 31 baseline/final checks are restored. Full S4b acceptance is open.
+
+The [Part-read diagnostic](Evidence/AB_S4B_PART_READ_DIAGNOSTIC_ATTEMPT_2026-10-27.md) completes 41 cases/87 exact replays
+and 1,991 entirely Good observer samples. All 218 traced Part calls succeed;
+the earlier exhausted refusal is not reproduced or explained. Desktop reaches
+LIVE with all seven modules, then fails the overview freshness gate at
+1,233.352 ms. Zero views are accepted; full acquisition/final timing are skipped.
+TASK trace maximum is 9,002 us /zero overlaps. Genealogy, original documents
+and all 31 baseline/final checks are restored.
+
+The [body-packet attempt](Evidence/AB_S4B_MSP_ATTEMPT_2026-10-27.md) passes 41 cases/87 exact replays, the
+busy witness and 2,851 entirely Good Dart samples. Strict desktop initially LIVE
+then STALE at **1,051.723 ms** against 1,000 ms; later acquisition/final timing
+skipped. TASK maximum 9,002 us /zero overlaps. Genealogy/31 baseline/final checks
+pass; approval consumed. Counts/body batch between separate completed counters;
+all value/type/proof/freshness/read-only rules remain. Offline acquisition/
+delivery reduction is next; no subsequent controller change is authorized.
+685 HMI/12 skips, 73 focused, analyzer/Windows/locked dependencies and 74 root
+tests pass. No PLC/layout/Capacity change; V2/Part III remain inactive.
+
 ## AB §1, §2.1 and §4.1 — reference profile
 
 The reference profile is a CIP Security-capable CompactLogix 5380 or
@@ -211,3 +389,40 @@ measurement scaling occurs in LREAL before publication. Nameplate facts are
 initialized by the PLC declaration. S3h offline gates pass; native session,
 scan and rollback remain open. These finite lists add no general coercion,
 tolerance, ignored path or direct-write exception to D9.
+
+## Approved V6.4 type-scoped manifest (offline, 2026-10-24)
+
+The owner approved [R1's finite wire change](AB_CANONICAL_MANIFEST_V64_CONTRACT_REVIEW_2026-10-24.md).
+With the declaration opt-in `canonical_type_manifest`, SchemaMinor=4 replaces
+Fields with TypeAnnotations and PathExceptions. TypeAnnotations names the
+owning Template type and member, logical type, logical bound/count, sibling
+CountMember and effective access; empty type/access means the native mapping
+and Read Only. The sparse exception table names explicit index selections.
+Bindings/services retain their meanings. ContentHash includes both new tables;
+ConfigRevision derives from it. A zero-count table omits its physical array.
+
+The generic reader resolves every type fact through the discovered Template
+name/member, then applies the path exceptions. Every physical array needs an
+extent, including arrays below empty views. Counts refer to an integer sibling
+in the assembled logical tree, including bound metadata records. Missing,
+ambiguous or conflicting facts fail closed. Unsupported per-instance facts
+and non-sibling count exceptions are refused by generation.
+
+V6.0?6.3 readers/captures and released images remain supported. Canonical
+paths, values, logical types, selections and occupied counts are unchanged;
+only the configuration identity changes. This is an inactive V2 draft,
+not native acceptance or a direct-write exception to D9.
+
+## Approved S3j fieldbus product (offline, 2026-10-24)
+
+The [approved S3j review](AB_CANONICAL_PUBLICATION_S3J_CONTRACT_REVIEW_2026-10-24.md)
+adds a separate PLC-owned ST_FieldbusTopology product. Its
+[V6.5 wire draft](AB_CANONICAL_PUBLICATION_S3J_WIRE_DRAFT_2026-10-24.md)
+retains V6.4 type annotations and adds the DataProducts binding table.
+Identity is on demand, state per row/group; clients infer no station facts.
+Declared counts stay inside Core's ceilings, with process-word child nodes
+for the reviewed over-bound catalog. Node and channel counts/indices are INT,
+AnalogValue REAL, flags BOOL and strings at Core widths. Missing sampled words
+fail closed. A mapping error is visible. Force capability remains absent
+without a registered OUTPUT_FORCING gate. This inactive draft does not grant
+controller writes or physical/security acceptance.

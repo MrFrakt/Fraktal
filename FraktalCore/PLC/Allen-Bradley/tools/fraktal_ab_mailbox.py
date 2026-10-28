@@ -668,7 +668,7 @@ def _record_xml(app, type_name: str, members, access: str, comment: str) -> str:
                      else "DINT")
         write_only = (type_name == request_type_name(app)
                       and name != 'Sequence')
-        if write_only and getattr(app, 'simulation_mailbox_rw', False):
+        if write_only and getattr(app, 'simulation_mailbox_rw', False) and app.canonical_publication_stage<13:
             # The Logix Echo silently drops writes to None members; a
             # simulation build keeps the mailbox commandable by declaring
             # the argument members Read/Write (bench builds keep None).
@@ -799,6 +799,20 @@ def routine_name(app) -> str:
 
 def _request(app, member: str) -> str:
     return f"{request_tag_name(app)}.{member}"
+
+
+def committed_sequence(app):
+    if app.canonical_publication_stage>=13:
+        from fraktal_ab_canonical_commands import work_tag
+        return work_tag(app)+".OwnerSequence"
+    return _request(app,"Sequence")
+
+
+def acknowledged_sequence(app):
+    if app.canonical_publication_stage>=13:
+        from fraktal_ab_canonical_commands import work_tag
+        return work_tag(app)+'.OwnerAck'
+    return _response(app,'AckSequence')
 
 
 def _response(app, member: str) -> str:
@@ -1136,18 +1150,21 @@ def manual_report_lines(app) -> list[str]:
     the direction's missing permit (which would hold it). The same tests the
     gate and the routine make, from the same declaration."""
     import fraktal_ab_generate as gen
+    if app.canonical_publication_stage >= 13:
+        import fraktal_ab_mailbox_dispatch as routes
+        return routes.manual_report(app)
 
     n = app.name
     report = gen.release_report_tag(app)
     target, value = _request(app, MANUAL_TARGET_MEMBER), _request(app, "IntValue")
-    lines = gen.report_open(report)
+    lines = gen.report_open(report, app=app)
     if app.access_users is not None:
         import fraktal_ab_access as access
         lines += access.report(app, report, '2')
     if app.manual_mode is not None:
         lines += [f"IF FRK_{n}_Unit.Mode <> {app.manual_mode} THEN",
                   *gen.report_add(report, _key(app, MANUAL_MODE_REQUIRED_KEY), 0, 0,
-                                  "MODE", MANUAL_MODE_REQUIRED_KEY),
+                                  "MODE", MANUAL_MODE_REQUIRED_KEY, app=app),
                   "END_IF;"]
     unsupported = app.reasons.get("UNSUPPORTED_COMMAND", 0)
     held = app.reasons.get("INTERLOCK_DROPPED", 0)
@@ -1160,23 +1177,23 @@ def manual_report_lines(app) -> list[str]:
         lines += [f"{ordinal}: (* {module.name} *)",
                   f"IF NOT ({allowed}) THEN",
                   *gen.report_add(report, _key(app, MANUAL_COMMAND_UNKNOWN_KEY), unsupported,
-                                  ordinal, "INTERLOCK", MANUAL_COMMAND_UNKNOWN_KEY),
+                                  ordinal, "INTERLOCK", MANUAL_COMMAND_UNKNOWN_KEY, app=app),
                   "ELSE",
                   f"IF {ctx}.Busy <> 0 THEN",
                   *gen.report_add(report, _key(app, MANUAL_BUSY_KEY), 0, ordinal,
-                                  "OTHER", MANUAL_BUSY_KEY),
+                                  "OTHER", MANUAL_BUSY_KEY, app=app),
                   "END_IF;",
                   *gen.permit_chain(
                       app, module, value,
                       lambda permit, o=ordinal: gen.report_add(
-                          report, _key(app, permit.key), held, o, "INTERLOCK", permit.key),
+                          report, _key(app, permit.key), held, o, "INTERLOCK", permit.key, app=app),
                       []),
                   "END_IF;"]
     lines += ["ELSE",
               *gen.report_add(report, _key(app, TARGET_KEY), unsupported, 0, "OTHER",
-                              TARGET_KEY),
+                              TARGET_KEY, app=app),
               "END_CASE;"]
-    return lines + gen.report_close(report)
+    return lines + gen.report_close(report, app=app)
 
 
 def action_report_lines(app) -> list[str]:
@@ -1189,7 +1206,7 @@ def action_report_lines(app) -> list[str]:
     import fraktal_ab_generate as gen
 
     report = gen.release_report_tag(app)
-    lines = gen.report_open(report)
+    lines = gen.report_open(report, app=app)
     if app.access_users is not None:
         import fraktal_ab_access as access
         lines += access.report(app, report, _request(app, 'IntValue'))
@@ -1197,9 +1214,9 @@ def action_report_lines(app) -> list[str]:
             f"IF ({_request(app, 'IntValue')} = {gen.GATED_ALARM_RESET}) AND "
             f"({gen.alarm_active_tag(app)}.Blocking = 0) THEN",
             *gen.report_add(report, _key(app, gen.NO_BLOCKING_ALARM_KEY), 0, 0,
-                            "OTHER", gen.NO_BLOCKING_ALARM_KEY),
+                            "OTHER", gen.NO_BLOCKING_ALARM_KEY, app=app),
             "END_IF;",
-            *gen.report_close(report)]
+            *gen.report_close(report, app=app)]
 
 
 def manual_command_dispatch(app) -> list[str]:
@@ -1210,6 +1227,9 @@ def manual_command_dispatch(app) -> list[str]:
     previous manual command left is released by the same drop."""
     import fraktal_ab_generate as gen
 
+    if app.canonical_publication_stage >= 13:
+        import fraktal_ab_mailbox_dispatch as routes
+        return routes.manual_dispatch(app)
     n = app.name
     lines = [f"{MANUAL_COMMAND}: (* MANUAL_COMMAND *)"]
     commandable = [(ordinal, module) for ordinal, module in
@@ -1277,8 +1297,8 @@ def handler_logic(app, *, use_routines=False) -> tuple[str, ...]:
         "   goes low - so STOP lowers it explicitly instead. *)",
         "",
         "(* Core 3.10/14: consume one committed request exactly once. *)",
-        f"IF {_request(app, 'Sequence')} <> FRK_{n}_HmiLastSequence THEN",
-        f"FRK_{n}_HmiLastSequence := {_request(app, 'Sequence')};",
+        (f"IF {__import__('fraktal_ab_canonical_commands').work_tag(app)}.Pending <> 0 THEN" if app.canonical_publication_stage>=13 else f"IF {_request(app, 'Sequence')} <> FRK_{n}_HmiLastSequence THEN"),
+        f"FRK_{n}_HmiLastSequence := {committed_sequence(app)};",
         "",
         "(* Clear the answer before dispatch: no part of the previous one may",
         "   be read as part of this one. *)",
@@ -1286,6 +1306,9 @@ def handler_logic(app, *, use_routines=False) -> tuple[str, ...]:
         f"{_response(app, 'DiagnosticKey')} := 0;",
         "",
     ]
+    if app.canonical_publication_stage>=13:
+        import fraktal_ab_canonical_commands as commands
+        lines += [f"IF {commands.work_tag(app)}.Error <> 0 THEN",*commands.refusal(app),"ELSE"]
     if enabled:
         import fraktal_ab_generate as gen
         lines += [f"IF {_request(app, 'Kind')} <> {LOGIN} THEN", *access.wipe_secret(app), "END_IF;"]
@@ -1294,14 +1317,18 @@ def handler_logic(app, *, use_routines=False) -> tuple[str, ...]:
         lines += access.check(app)
         lines += [f"IF {access.tag(app, 'Work')}.Permitted = 0 THEN",
                   *_refuse(app, access.DENIED),
-                  *gen.report_open(gen.release_report_tag(app)),
-                  *gen.report_add(gen.release_report_tag(app), _key(app, access.DENIED), 0, 0, 'ACCESS', access.DENIED),
-                  *gen.report_close(gen.release_report_tag(app)), "ELSE"]
+                  *gen.report_open(gen.release_report_tag(app), app=app),
+                  *gen.report_add(gen.release_report_tag(app), _key(app, access.DENIED), 0, 0, 'ACCESS', access.DENIED, app=app),
+                  *gen.report_close(gen.release_report_tag(app), app=app), "ELSE"]
+    if app.canonical_publication_stage >= 13:
+        import fraktal_ab_mailbox_dispatch as routes
+        lines += [f"JSR({routes.cache_routine(app)},0);"]
     lines += [f"CASE {_request(app, 'Kind')} OF"]
     lines.extend(_dispatch(app, use_routines=use_routines))
     lines.extend([
         "END_CASE;",
         *(["END_IF;", *access.after(app), f'JSR({data.tag(app, "RefreshLevels")},0);'] if enabled else []),
+        *(["END_IF;"] if app.canonical_publication_stage>=13 else []),
         "",
         "(* A refusal that named no reason would be indistinguishable from a",
         "   command that silently did nothing. *)",
@@ -1321,6 +1348,7 @@ def handler_logic(app, *, use_routines=False) -> tuple[str, ...]:
         f"{_response(app, 'AckSequence')} := FRK_{n}_HmiLastSequence;",
         "END_IF;",
     ])
+    if app.canonical_publication_stage>=13:lines+=commands.after_owner(app)
     return tuple(lines)
 
 
@@ -1352,7 +1380,7 @@ STEP_REFUSED_KEY = "project.mailbox.refused.step_needs_running_single_step"
 HOLD_RUN_REFUSED_KEY = "project.mailbox.refused.hold_needs_running_hold_to_run"
 
 
-def localization_keys() -> tuple[str, ...]:
+def localization_keys(app=None) -> tuple[str, ...]:
     """Every key the handler can write, sorted so the numbering is stable."""
     import fraktal_ab_config as config
     import fraktal_ab_sets as sets
@@ -1367,6 +1395,9 @@ def localization_keys() -> tuple[str, ...]:
              MANUAL_MODE_REQUIRED_KEY, MANUAL_COMMAND_UNKNOWN_KEY,
              MANUAL_BUSY_KEY, RUN_STYLE_REFUSED_KEY, STEP_REFUSED_KEY,
              HOLD_RUN_REFUSED_KEY}
+    if app is not None and app.canonical_publication_stage>=13:
+        from fraktal_ab_canonical_commands import KEYS
+        extra.update(KEYS)
     return tuple(sorted(set(REFUSED.values()) | extra | set(sets.KEYS) | set(shelving.KEYS)))
 
 

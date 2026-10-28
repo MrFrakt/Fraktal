@@ -25,20 +25,28 @@ class Member:
     extent: int = 0
     count_path: str = ""
     indices: tuple[int, ...] | None = None
+    access: str = ""
 
 
 def enabled(app):
-    return app.canonical_publication_stage in (wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+    return app.canonical_publication_stage in (wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
 
 
 def validate(app):
     stage = app.canonical_publication_stage
-    if type(stage) is not int or stage not in (0, wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10, 11):
-        return ["canonical publication supports only disabled, S2, S3a, S3b, S3c, S3d, S3e, S3f, S3g, S3h or S3i"]
+    if type(stage) is not int or stage not in (0, wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13):
+        return ["canonical publication supports only disabled, S2 through S3j"]
     import fraktal_ab_canonical_observation as observation
     findings = observation.validate(app)
     import fraktal_ab_canonical_text as text
     findings += text.validate(app)
+    import fraktal_ab_canonical_type_manifest as type_manifest
+    findings += type_manifest.validate(app)
+    import fraktal_ab_read_coherence as read_coherence
+    findings += read_coherence.validate(app)
+    findings += __import__("fraktal_ab_config_read_view").validate(app)
+    import fraktal_ab_canonical_fieldbus as fieldbus
+    findings += fieldbus.validate(app)
     if not stage:
         return findings
     if app.major_revision < 37 or not app.controller.startswith(("1756-L8", "5069-L")):
@@ -50,6 +58,7 @@ def validate(app):
         reserved.update(('AlarmLog','StateFlags','StateFlagCount','SequenceSteps','SequenceAnnotations','ActiveSteps','SequenceViewEnabled','SequenceStepCount','SequenceAnnotationCount','CurrentStepElapsed','CurrentStepTimedOut'))
     if stage>=7:reserved.add('Access')
     if stage>=8:reserved.update(('HmiResponse','ConfigPersist','ConfigSets','ConfigSetCount','ConfigSetDocument','ConfigSetDocumentLine','ConfigSetDocumentLines'))
+    if stage>=13:reserved.update(("HmiRequest","GoodCount","NokCount","ReworkCount","Starved","Blocked","Features"))
     if stage>=9:reserved.update(('Oee','OeeTrend','OeeTrendHead','Profiler','SystemHealth'))
     if stage>=10:reserved.update(('Part','HostEvents','Nameplate','SignalTower','MachineState'))
     if stage>=11:reserved.update(('Line','CurrentShift','ShiftStartedAt','ShiftEndsAt','ShiftProductionTarget',
@@ -83,10 +92,15 @@ def validate(app):
     if stage>=11:
         import fraktal_ab_canonical_line as line
         findings.extend(line.validate(app))
+    if stage>=13:
+        import fraktal_ab_canonical_mailbox as mailbox
+        findings += mailbox.validate(app)
     return findings
 
 
 def root_type(app):
+    if app.canonical_publication_stage==13:return f"FRK_T_{app.name}CanonicalRootS3kV66"
+    if app.canonical_publication_stage==12:return f"FRK_T_{app.name}CanonicalRootS3jV65"
     if app.canonical_publication_stage==11:return f"FRK_T_{app.name}CanonicalRootS3iV63"
     if app.canonical_publication_stage==10:return f"FRK_T_{app.name}CanonicalRootS3hV63"
     if app.canonical_publication_stage==9:return f"FRK_T_{app.name}CanonicalRootS3gV63"
@@ -99,6 +113,11 @@ def root_type(app):
 
 
 def header_type(app):
+    if app.canonical_config_read_view:return f"FRK_T_{app.name}CanonicalManifestV68"
+    if app.canonical_read_coherence:return f"FRK_T_{app.name}CanonicalManifestV67"
+    if app.canonical_publication_stage>=13:return f"FRK_T_{app.name}CanonicalManifestV66"
+    if app.canonical_publication_stage>=12:return f"FRK_T_{app.name}CanonicalManifestV65"
+    if app.canonical_type_manifest:return f"FRK_T_{app.name}CanonicalManifestV64"
     if app.canonical_publication_stage==11:return f"FRK_T_{app.name}CanonicalManifestS3iV63"
     if app.canonical_publication_stage==10:return f"FRK_T_{app.name}CanonicalManifestS3hV63"
     if app.canonical_publication_stage==9:return f"FRK_T_{app.name}CanonicalManifestS3gV63"
@@ -108,6 +127,12 @@ def header_type(app):
     if app.canonical_publication_stage == 5:return f"FRK_T_{app.name}CanonicalManifestS3cV62"
     if app.canonical_publication_stage == 4:return f"FRK_T_{app.name}CanonicalManifestS3bV61"
     return f"FRK_T_{app.name}CanonicalManifestV6" + ('1' if app.canonical_publication_stage == 3 else '')
+
+
+def products(app):
+    from fraktal_ab_canonical_fieldbus import products as fieldbus_products
+    from fraktal_ab_config_read_view import products as config_products
+    return fieldbus_products(app)+config_products(app)
 
 
 def header_tag(app):
@@ -190,6 +215,57 @@ def schema(app):
     if app.canonical_publication_stage>=11:
         import fraktal_ab_canonical_line as line
         line.augment(app,result)
+    if app.canonical_publication_stage>=12:
+        import fraktal_ab_canonical_fieldbus as fieldbus
+        fieldbus.augment(app,result)
+    if app.canonical_publication_stage>=13:
+        import fraktal_ab_canonical_mailbox as mailbox
+        mailbox.augment(app,result)
+        import fraktal_ab_canonical_commands as commands
+        commands.augment(app,result)
+    __import__("fraktal_ab_config_read_view").augment(app,result)
+    if app.canonical_type_manifest:
+        import fraktal_ab_canonical_type_manifest as type_manifest
+        manifest_members = type_manifest.augment(app, result)
+    else:
+        manifest_members = path_manifest_members(app, result)
+    result[header_type(app)] = (
+        *(Member(name, "DINT") for name in ("Magic", "SchemaMajor", "SchemaMinor", "PublicationStage")),
+        Member("Valid", "BOOL"), Member("Truncated", "BOOL"),
+        Member("ContentHash", string_type(80)), Member("ConfigRevision", "DINT"),
+        Member("LegacyContentHash", string_type(80)), *manifest_members,
+    )
+    if app.canonical_type_manifest and app.canonical_publication_stage<5:
+        result[header_type(app)] += (Member('FragmentRevision','DINT'),Member('BindingsCount','DINT'),Member('BindingsCapacity','DINT'))
+    if app.canonical_publication_stage>=5:
+        result[PREFIX+'BindingV62']=(Member('SourceSymbol',string_type(80)),Member('TargetRoot',string_type(80)))
+        result[header_type(app)] += (Member('FragmentRevision','DINT'),Member('BindingsCount','DINT'),
+            Member('BindingsCapacity','DINT'),Member('Bindings',PREFIX+'BindingV62',count=len(publication_bindings(app))))
+    if app.canonical_type_manifest and app.canonical_publication_stage<8:
+        result[header_type(app)] += (Member('ServicesCount','DINT'),Member('ServicesCapacity','DINT'))
+    if app.canonical_publication_stage>=8:
+        import fraktal_ab_config_provider as provider
+        result[PREFIX+'ServiceV63']=(Member('Kind','DINT'),Member('Version','DINT'),Member('BuildRevision','DINT'),
+            Member('RequestSymbol',string_type(80)),Member('RequestMember',string_type(80)),Member('ResponseSymbol',string_type(80)))
+        result[header_type(app)]+=(Member('ServicesCount','DINT'),Member('ServicesCapacity','DINT'),
+            Member('Services',PREFIX+'ServiceV63',count=len(provider.services(app))))
+    if app.canonical_publication_stage>=12:
+        product_rows=products(app)
+        result[header_type(app)]+=(Member('DataProductsCount','DINT'),Member('DataProductsCapacity','DINT'))
+        if product_rows:
+            result[PREFIX+'DataProductV65']=(Member('SourceSymbol',string_type(40)),Member('CoreType',string_type(40)),Member('CanonicalRoot',string_type(255)))
+            result[header_type(app)]+=(Member('DataProducts',PREFIX+'DataProductV65',count=len(product_rows)),)
+    if app.canonical_publication_stage>=13:
+        result[header_type(app)]+=commands.manifest_members()
+    if app.canonical_read_coherence:
+        __import__('fraktal_ab_read_coherence').augment(app,result)
+    __import__('fraktal_ab_config_read_view').augment_manifest(app,result)
+    result[PREFIX+"TimingV6"] = tuple(Member(name, "DINT") for name in
+                                      ("Scan", "LastScanUs", "MaxScanUs", "OverlapCount"))
+    return result
+
+
+def path_manifest_members(app, result):
     field_type = PREFIX + ('FieldV61' if app.canonical_publication_stage >= 3 else 'FieldV6')
     result[field_type] = (
         Member("CanonicalPath", string_type(wire.PATH_WIDTH)),
@@ -199,27 +275,10 @@ def schema(app):
           if app.canonical_publication_stage >= 3 else ()),
     )
     fields = field_rows(app, result)
-    result[header_type(app)] = (
-        *(Member(name, "DINT") for name in ("Magic", "SchemaMajor", "SchemaMinor", "PublicationStage")),
-        Member("Valid", "BOOL"), Member("Truncated", "BOOL"),
-        Member("ContentHash", string_type(80)), Member("ConfigRevision", "DINT"),
-        Member("LegacyContentHash", string_type(80)),
+    return (
         Member("FieldsCount", "DINT"), Member("FieldsCapacity", "DINT"),
         Member("Fields", field_type, count=len(fields)),
     )
-    if app.canonical_publication_stage>=5:
-        result[PREFIX+'BindingV62']=(Member('SourceSymbol',string_type(80)),Member('TargetRoot',string_type(80)))
-        result[header_type(app)] += (Member('FragmentRevision','DINT'),Member('BindingsCount','DINT'),
-            Member('BindingsCapacity','DINT'),Member('Bindings',PREFIX+'BindingV62',count=len(publication_bindings(app))))
-    if app.canonical_publication_stage>=8:
-        import fraktal_ab_config_provider as provider
-        result[PREFIX+'ServiceV63']=(Member('Kind','DINT'),Member('Version','DINT'),Member('BuildRevision','DINT'),
-            Member('RequestSymbol',string_type(80)),Member('RequestMember',string_type(80)),Member('ResponseSymbol',string_type(80)))
-        result[header_type(app)]+=(Member('ServicesCount','DINT'),Member('ServicesCapacity','DINT'),
-            Member('Services',PREFIX+'ServiceV63',count=len(provider.services(app))))
-    result[PREFIX+"TimingV6"] = tuple(Member(name, "DINT") for name in
-                                      ("Scan", "LastScanUs", "MaxScanUs", "OverlapCount"))
-    return result
 
 
 def field_rows(app, definitions=None):
@@ -256,11 +315,17 @@ def field_rows(app, definitions=None):
             if key in unique and unique[key]!=row:raise ValueError('conflicting canonical fragment annotation: '+key)
             unique[key]=row
         rows=list(unique.values())
+    if app.canonical_publication_stage>=12:
+        import fraktal_ab_canonical_fieldbus as fieldbus
+        if fieldbus.enabled(app):walk(fieldbus.TOPOLOGY,fieldbus.canonical_root(app))
     return rows
 
 
 def string_width(kind):
-    return int(kind.removeprefix(PREFIX+"String").removesuffix("V6"))
+    import re
+    match=re.fullmatch(PREFIX+r"String(\d+)(?:V6|CmdV66)",kind)
+    if not match:raise ValueError("not a canonical StringFamily: "+kind)
+    return int(match[1])
 
 
 def data_types(app):
@@ -275,13 +340,18 @@ def data_types(app):
             ET.SubElement(members,"Member",Name=name,DataType=kind,Dimension=str(count),
                           Radix=radix,Hidden="false",ExternalAccess="Read Only")
         out.append(ET.tostring(node,encoding="unicode"))
+    if app.canonical_publication_stage>=13:
+        from fraktal_ab_canonical_commands import string_data_types
+        out+=string_data_types()
     for kind, fields in definitions.items():
         node = ET.Element("DataType", Name=kind, Family="NoFamily", Class="User")
         members = ET.SubElement(node,"Members")
         for member in fields:
             ET.SubElement(members,"Member",Name=member.name,DataType=member.kind,
                           Dimension=str(member.count),Radix="Float" if member.kind in ("REAL","LREAL") else "Decimal" if member.kind in ("SINT","INT","DINT","BOOL","LINT","LDT") else "NullType",
-                          Hidden="false",ExternalAccess="Read/Write" if kind=="FRK_T_ConfigProviderRequestV1" else "Read Only")
+                          Hidden="false",ExternalAccess=member.access or ("Read/Write" if kind=="FRK_T_ConfigProviderRequestV1" else "Read Only"))
+        if app.canonical_io_fixture and kind==PREFIX+'IoSampleV65':
+            for member in members:member.set('ExternalAccess','Read/Write')
         out.append(ET.tostring(node,encoding="unicode"))
     import fraktal_ab_canonical_observation as observation
     # Last: the frame nests the root and legacy owner types declared before it.
@@ -331,7 +401,68 @@ def initial(app):
     if app.canonical_publication_stage>=11:
         import fraktal_ab_canonical_line as line
         line.initialize(app,result)
+    if app.canonical_publication_stage>=13:
+        import fraktal_ab_canonical_mailbox as mailbox
+        mailbox.initialize(app,result)
     return result
+
+
+def manifest_values(app, definitions=None):
+    """Authoritative physical header values, shared with exact-image fixtures."""
+    import fraktal_ab_manifest as legacy
+    if app.canonical_publication_stage>=8:
+        import fraktal_ab_config_provider as provider
+    if definitions is None:definitions=schema(app)
+    fields, old_hash = field_rows(app,definitions), legacy.content_hash(app)
+    minor = wire.SERVICE_MINOR if app.canonical_publication_stage>=8 else wire.FRAGMENT_MINOR if app.canonical_publication_stage>=5 else wire.VIEW_MINOR if app.canonical_publication_stage >= 3 else wire.MINOR
+    if app.canonical_type_manifest:minor=wire.TYPE_MINOR
+    if app.canonical_publication_stage>=12:minor=wire.PRODUCT_MINOR
+    if app.canonical_publication_stage>=13:minor=wire.COMMAND_MINOR
+    if app.canonical_read_coherence:minor=__import__('fraktal_ab_read_coherence').MINOR
+    if app.canonical_config_read_view:minor=__import__('fraktal_ab_config_read_view').MINOR
+    binding_rows=[]
+    if app.canonical_publication_stage>=5:
+        import fraktal_ab_canonical_sequence as sequence
+        binding_rows=publication_bindings(app)
+    type_metadata = {}
+    if app.canonical_type_manifest:
+        from fraktal_ab_canonical_type_manifest import tables
+        type_rows, exceptions = tables(app, definitions)
+        type_metadata = dict(type_annotations=type_rows,path_exceptions=exceptions)
+    service_rows=provider.services(app) if app.canonical_publication_stage>=8 else []
+    product_metadata={}
+    if minor>=wire.PRODUCT_MINOR:
+        product_rows=products(app);product_metadata=dict(products=product_rows)
+    command_metadata={}
+    if minor>=wire.COMMAND_MINOR:
+        from fraktal_ab_canonical_commands import descriptors,operations
+        command_rows=descriptors(app);command_operations=operations(app);command_metadata=dict(commands=command_rows,operations=command_operations)
+    coherence_metadata={}
+    if app.canonical_read_coherence:
+        coherence_rows=__import__('fraktal_ab_read_coherence').rows(app)
+        coherence_metadata=dict(read_coherence_bindings=coherence_rows)
+    read_services=__import__('fraktal_ab_config_read_view').descriptors(app)
+    digest = wire.content_hash(fields,old_hash,app.canonical_publication_stage,minor=minor,
+        **(dict(read_services=read_services) if app.canonical_config_read_view else {}),
+        **({'bindings':binding_rows} if minor>=wire.FRAGMENT_MINOR else {}),
+        **({'services':service_rows} if minor>=wire.SERVICE_MINOR else {}), **type_metadata, **product_metadata, **command_metadata, **coherence_metadata)
+    header = dict(Magic=wire.MAGIC,SchemaMajor=wire.MAJOR,SchemaMinor=minor,
+                  PublicationStage=app.canonical_publication_stage,Valid=True,Truncated=False,ContentHash=digest,
+                  ConfigRevision=wire.revision(digest),LegacyContentHash=old_hash,
+                  FieldsCount=len(fields),FieldsCapacity=len(fields),Fields=fields)
+    if app.canonical_type_manifest:
+        for name in ('FieldsCount','FieldsCapacity','Fields'):del header[name]
+        header.update(TypeAnnotationsCount=len(type_rows),TypeAnnotationsCapacity=len(type_rows),TypeAnnotations=type_rows,
+                      PathExceptionsCount=len(exceptions),PathExceptionsCapacity=len(exceptions),PathExceptions=exceptions,
+                      FragmentRevision=0,BindingsCount=0,BindingsCapacity=0,ServicesCount=0,ServicesCapacity=0)
+    if app.canonical_publication_stage>=5:
+        header.update(FragmentRevision=0,BindingsCount=len(binding_rows),BindingsCapacity=len(binding_rows),Bindings=binding_rows)
+    if app.canonical_publication_stage>=8:header.update(ServicesCount=len(provider.services(app)),ServicesCapacity=len(provider.services(app)),Services=provider.services(app))
+    if minor>=wire.PRODUCT_MINOR:header.update(DataProductsCount=len(product_rows),DataProductsCapacity=len(product_rows),DataProducts=product_rows)
+    if minor>=wire.COMMAND_MINOR:header.update(CommandBindingsCount=len(command_rows),CommandBindingsCapacity=len(command_rows),CommandBindings=command_rows,CommandOperationsCount=len(command_operations),CommandOperationsCapacity=len(command_operations),CommandOperations=command_operations)
+    if app.canonical_read_coherence:header.update(ReadCoherenceBindingsCount=len(coherence_rows),ReadCoherenceBindingsCapacity=len(coherence_rows),ReadCoherenceBindings=coherence_rows)
+    if app.canonical_config_read_view:header.update(ReadServicesCount=len(read_services),ReadServicesCapacity=len(read_services),ReadServices=read_services)
+    return header
 
 
 def tags(app):
@@ -388,22 +519,9 @@ def tags(app):
         import fraktal_ab_canonical_config as config
     if app.canonical_publication_stage>=9:
         import fraktal_ab_canonical_metrics as metrics
-    fields, old_hash = field_rows(app,definitions), legacy.content_hash(app)
-    minor = wire.SERVICE_MINOR if app.canonical_publication_stage>=8 else wire.FRAGMENT_MINOR if app.canonical_publication_stage>=5 else wire.VIEW_MINOR if app.canonical_publication_stage >= 3 else wire.MINOR
-    binding_rows=[]
+    header = manifest_values(app, definitions)
     if app.canonical_publication_stage>=5:
         import fraktal_ab_canonical_sequence as sequence
-        binding_rows=publication_bindings(app)
-    digest = wire.content_hash(fields,old_hash,app.canonical_publication_stage,minor=minor,
-        **({'bindings':binding_rows} if minor>=wire.FRAGMENT_MINOR else {}),
-        **({'services':provider.services(app)} if minor>=wire.SERVICE_MINOR else {}))
-    header = dict(Magic=wire.MAGIC,SchemaMajor=wire.MAJOR,SchemaMinor=minor,
-                  PublicationStage=app.canonical_publication_stage,Valid=True,Truncated=False,ContentHash=digest,
-                  ConfigRevision=wire.revision(digest),LegacyContentHash=old_hash,
-                  FieldsCount=len(fields),FieldsCapacity=len(fields),Fields=fields)
-    if app.canonical_publication_stage>=5:
-        header.update(FragmentRevision=0,BindingsCount=len(binding_rows),BindingsCapacity=len(binding_rows),Bindings=binding_rows)
-    if app.canonical_publication_stage>=8:header.update(ServicesCount=len(provider.services(app)),ServicesCapacity=len(provider.services(app)),Services=provider.services(app))
     if app.canonical_publication_stage >= 4:
         import fraktal_ab_canonical_status as status
     if app.canonical_publication_stage >= 6:
@@ -428,6 +546,10 @@ def tags(app):
             *(metrics.tags(app,tag) if app.canonical_publication_stage>=9 else []),
             *(__import__("fraktal_ab_canonical_traceability").tags(app,tag) if app.canonical_publication_stage>=10 else []),
             *(__import__("fraktal_ab_canonical_line").tags(app,tag) if app.canonical_publication_stage>=11 else []),
+            *(__import__("fraktal_ab_canonical_fieldbus").tags(app,tag) if app.canonical_publication_stage>=12 else []),
+            *(__import__("fraktal_ab_canonical_mailbox").tags(app,tag) if app.canonical_publication_stage>=13 else []),
+            *(__import__("fraktal_ab_canonical_commands").tags(app,tag) if app.canonical_publication_stage>=13 else []),
+            *__import__('fraktal_ab_config_read_view').tags(app,tag),
             f'<Tag Name="{generation_tag(app)}" TagType="Base" DataType="DINT" Radix="Decimal" ExternalAccess="Read Only"/>',
             tag(f'FRK_{app.name}_CanonicalTiming',PREFIX+"TimingV6",{}),
             *__import__("fraktal_ab_canonical_observation").tags(app)]
@@ -498,6 +620,13 @@ def cyclic(app):
     if app.canonical_publication_stage>=11:
         import fraktal_ab_canonical_line as line
         lines += line.cyclic(app)
+    if app.canonical_publication_stage>=12:
+        import fraktal_ab_canonical_fieldbus as fieldbus
+        lines += fieldbus.cyclic(app)
+    if app.canonical_publication_stage>=13:
+        import fraktal_ab_canonical_mailbox as mailbox
+        lines += mailbox.cyclic(app)
+    lines += __import__('fraktal_ab_config_read_view').cyclic(app)
     timing = f'FRK_{app.name}_CanonicalTiming'
     lines += [f'{timing}.Scan := FRK_{app.name}_ScanCount;',
               f'GSV(TASK,{app.task_name},LastScanTime,{timing}.LastScanUs);',

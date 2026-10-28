@@ -1,0 +1,408 @@
+FraktalCore/HMI/lib/ui/facet_cards.dart:568: trailing whitespace.
++          Wrap(
+FraktalCore/HMI/lib/ui/facet_cards.dart:569: trailing whitespace.
++            alignment: WrapAlignment.spaceBetween,
+FraktalCore/HMI/lib/ui/facet_cards.dart:570: trailing whitespace.
++            crossAxisAlignment: WrapCrossAlignment.center,
+FraktalCore/HMI/lib/ui/facet_cards.dart:571: trailing whitespace.
++            spacing: kInlineItemGap,
+FraktalCore/HMI/lib/ui/facet_cards.dart:572: trailing whitespace.
++            runSpacing: kInlineItemGap,
+FraktalCore/HMI/lib/ui/facet_cards.dart:573: trailing whitespace.
++            children: [
+FraktalCore/HMI/lib/ui/facet_cards.dart:574: trailing whitespace.
++              Row(mainAxisSize: MainAxisSize.min, children: [
+FraktalCore/HMI/lib/ui/facet_cards.dart:575: trailing whitespace.
++                const Icon(Icons.schedule_outlined),
+FraktalCore/HMI/lib/ui/facet_cards.dart:576: trailing whitespace.
++                const SizedBox(width: kInlineItemGap),
+FraktalCore/HMI/lib/ui/facet_cards.dart:577: trailing whitespace.
++                LText('Shifts', style: theme.textTheme.titleMedium),
+FraktalCore/HMI/lib/ui/facet_cards.dart:578: trailing whitespace.
++              ]),
+FraktalCore/HMI/lib/ui/facet_cards.dart:579: trailing whitespace.
++              Text(
+FraktalCore/HMI/lib/ui/facet_cards.dart:580: trailing whitespace.
++                  '${_name(context, shift.currentShift)} · '
+FraktalCore/HMI/lib/ui/facet_cards.dart:581: trailing whitespace.
++                  '${context.tr('since')} ${_time(shift.startedAt)}',
+FraktalCore/HMI/lib/ui/facet_cards.dart:582: trailing whitespace.
++                  style: theme.textTheme.titleSmall),
+FraktalCore/HMI/lib/ui/facet_cards.dart:583: trailing whitespace.
++            ],
+FraktalCore/HMI/lib/ui/facet_cards.dart:584: trailing whitespace.
++          ),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:593: trailing whitespace.
++    records.append(decl.Record(release_report_name(app), release_report_members(app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:609: trailing whitespace.
++    if app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:610: trailing whitespace.
++        import fraktal_ab_mailbox_dispatch as routes
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:611: trailing whitespace.
++        records.extend(routes.records(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1656: trailing whitespace.
++    if app.canonical_publication_stage>=12:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1657: trailing whitespace.
++        import fraktal_ab_canonical_fieldbus as fieldbus
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1658: trailing whitespace.
++        return fieldbus.forcing(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1998: trailing whitespace.
++def release_capacity(app=None) -> int:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:1999: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2000: trailing whitespace.
++        from fraktal_ab_canonical_unit_core import core_limit
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2001: trailing whitespace.
++        return core_limit("MAX_RELEASE_REASONS")
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2002: trailing whitespace.
++    return RELEASE_CAPACITY
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2003: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2004: trailing whitespace.
++
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2005: trailing whitespace.
++def release_report_members(app=None) -> tuple[decl.Member, ...]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2009: trailing whitespace.
++    n = release_capacity(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2017: trailing whitespace.
++        *((decl.boolean("Overflow", "complete report capacity was exceeded"),)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2018: trailing whitespace.
++          if app is not None and app.canonical_publication_stage >= 13 else ()),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2023: trailing whitespace.
++    return f"FRK_T_{app.name}ReleaseReport" + ("V2" if app.canonical_publication_stage >= 13 else "")
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2040: trailing whitespace.
++def report_open(tag: str, *, app=None) -> list[str]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2041: trailing whitespace.
++    lines = [f"{tag}.Count := 0;", f"{tag}.Released := 0;"]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2042: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2043: trailing whitespace.
++        lines.append(f"{tag}.Overflow := 0;")
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2044: trailing whitespace.
++    return lines
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2048: trailing whitespace.
++               portable: str = "", *, app=None) -> list[str]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2051: trailing whitespace.
++    guard = f"{tag}.Count < {release_capacity(app)}"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2052: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2053: trailing whitespace.
++        guard = f"({tag}.Count >= 0) AND ({guard})"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2054: trailing whitespace.
++    lines = [f"IF {guard} THEN",
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2061: trailing whitespace.
++    if app is not None and app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2062: trailing whitespace.
++        lines[-1:-1] = ["ELSE", f"{tag}.Overflow := 1;"]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2063: trailing whitespace.
++    return lines
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2066: trailing whitespace.
++def report_close(tag: str, *, app=None) -> list[str]:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2067: trailing whitespace.
++    complete = f" AND ({tag}.Overflow = 0)" if app is not None and app.canonical_publication_stage >= 13 else ""
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2068: trailing whitespace.
++    condition = f"({tag}.Count = 0){complete}" if complete else f"{tag}.Count = 0"
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2069: trailing whitespace.
++    return [f"IF {condition} THEN {tag}.Released := 1; "
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2077: trailing whitespace.
++            *(([f"{target}.Overflow := {source}.Overflow;"]) if app.canonical_publication_stage >= 13 else []),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2078: trailing whitespace.
++            f"FOR {i} := 0 TO {release_capacity(app) - 1} DO",
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2123: trailing whitespace.
++             *report_open(tag, app=app)]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2130: trailing whitespace.
++                              "MODE", mailbox.MANUAL_HAS_NO_SEQUENCE_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2135: trailing whitespace.
++                          UNIT_NOT_READY_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2138: trailing whitespace.
++              *report_add(tag, keys[MANUAL_RESET_KEY], 0, 0, "ALARM", MANUAL_RESET_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2143: trailing whitespace.
++                              CONFIG_RESTORING_KEY, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2150: trailing whitespace.
++                              0, "INTERLOCK", permit.key, app=app),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:2152: trailing whitespace.
++    return lines + report_close(tag, app=app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3311: trailing whitespace.
++                               release_report_members(app=app)))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3313: trailing whitespace.
++                               release_report_members(app=app)))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3389: trailing whitespace.
++    if app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3390: trailing whitespace.
++        import fraktal_ab_mailbox_dispatch as routes
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:3391: trailing whitespace.
++        tags.extend(routes.tags(app))
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4686: trailing whitespace.
++        if app.canonical_publication_stage >= 13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4687: trailing whitespace.
++            import fraktal_ab_mailbox_dispatch as routes
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4688: trailing whitespace.
++            modules += routes.apply(app, module)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4788: trailing whitespace.
++    if app.canonical_publication_stage>=12:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4789: trailing whitespace.
++        import fraktal_ab_canonical_fieldbus as fieldbus
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4790: trailing whitespace.
++        result += fieldbus.routines(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4791: trailing whitespace.
++    if app.canonical_publication_stage>=13:
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4792: trailing whitespace.
++        import fraktal_ab_canonical_mailbox as mailbox_publication
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4793: trailing whitespace.
++        result += mailbox_publication.routines(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4794: trailing whitespace.
++        import fraktal_ab_canonical_commands as commands
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4795: trailing whitespace.
++        result += commands.routines(app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4816: trailing whitespace.
++        + ([st_program_routine(name, body) for name, body in __import__("fraktal_ab_mailbox_dispatch").routines(app)]
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:4817: trailing whitespace.
++           if app.canonical_publication_stage >= 13 else [])
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:5042: trailing whitespace.
++        "PhysicalIoReferences": 0 if app.canonical_publication_stage>=12 else sum(len(m.channels) for m in app.io_modules),
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_generate.py:5045: trailing whitespace.
++        "TaskOutputUpdatesDisabled": app.canonical_publication_stage>=12 or not app.io_modules,
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:12: trailing whitespace.
++import sys
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:35: trailing whitespace.
++    for module in projection.modules(rows,app=app):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:41: trailing whitespace.
++        detail=(projection.unit_status(unit,None,app=app) if module['type']==1 else
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:144: trailing whitespace.
++        additional_inputs=None, oracle_declaration='fraktal_ab_genealogy_demo'):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:146: trailing whitespace.
++    os.environ['FRAKTAL_AB_DECLARATION']=oracle_declaration
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:147: trailing whitespace.
++    import importlib
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:148: trailing whitespace.
++    imported=sys.modules.get('fraktal_ab_projection')
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:158: trailing whitespace.
++    # A walk binds the candidate first (its guard needs the exact legacy manifest);
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:159: trailing whitespace.
++    # anything else already bound would be a silently wrong oracle.
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:160: trailing whitespace.
++    if imported is not None and imported.APP not in (importlib.import_module(oracle_declaration).application(), app):
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:161: trailing whitespace.
++        raise ValueError('legacy oracle already bound to another declaration in this process')
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:175: trailing whitespace.
++    projection.validate(header,app=app)
+FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_s2_equivalence.py:293: trailing whitespace.
++    return dict(schema='fraktal.ab.'+{2:'s2',3:'s3a',4:'s3b',5:'s3c',6:'s3d',7:'s3e',8:'s3f',9:'s3g',10:'s3h',11:'s3i',12:'s3j',13:'s3k'}[app.canonical_publication_stage]+'-equivalence',schemaVersion=1,readOnly=True,
+FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_canonical_publication.py:142: trailing whitespace.
++        # V6.6 discovery appends the atomic command commit, which has no Template handle.
+FraktalCore/PLC/Allen-Bradley/tools/test_fraktal_ab_canonical_publication.py:143: trailing whitespace.
++        self.assertEqual(wire.read_manifest(comm,symbols+[dict(name='AnyCommit',atomic=0xC4,arrayRank=0)],templates),actual)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:3: trailing whitespace.
++Non-normative design note, 2026-10-19, continued through 2026-10-26. Status:
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:4: trailing whitespace.
++**S3's Echo exit and S4a's initial small-group qualification pass. S4b's generic
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:5: trailing whitespace.
++desktop client and the owner-approved V6.8 read-only configuration view are
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:6: trailing whitespace.
++implemented offline; native S4b and desktop acceptance remain pending.** The new
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:7: trailing whitespace.
++image builds/read-backs on both v38 targets and fits at 65% measured offline
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:8: trailing whitespace.
++Capacity. The existing shipping path has not been retired or replaced. V2 and
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:9: trailing whitespace.
++the Part III amendment remain inactive target drafts. See the
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:10: trailing whitespace.
++[plan](AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md) and
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:11: trailing whitespace.
++[S4b preparation](Evidence/AB_S4B_CANONICAL_PREPARATION_2026-10-26.md).
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:15: trailing whitespace.
++- **Read-only configuration discovery:** the owner selected option A in the
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:16: trailing whitespace.
++  [S4b review](AB_CANONICAL_PUBLICATION_S4B_READONLY_CONFIG_REVIEW_2026-10-25.md).
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:17: trailing whitespace.
++  V6.8 publishes a versioned definition/value view, including occupied model
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:18: trailing whitespace.
++  banks and access masking, from the existing configuration owner. Direct
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:19: trailing whitespace.
++  unsecured CIP never uses a mailbox query to select a page or bank. This
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:20: trailing whitespace.
++  approves the contract and offline work; the exact new image/session requires
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:21: trailing whitespace.
++  separate current authorization.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md:22: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:22: trailing whitespace.
++## AB §3.13 — discoverable per-row/group coherence (S4 target extension)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:23: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:24: trailing whitespace.
++Owner-approved on 2026-10-25: **“A — publish existing counter bindings
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:25: trailing whitespace.
++(Recommended)”**. The [S4 coherence review](AB_CANONICAL_PUBLICATION_S4_COHERENCE_REVIEW_2026-10-25.md)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:26: trailing whitespace.
++defines V6.7's exact hash-covered `ReadCoherenceBindings` columns and validation.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:27: trailing whitespace.
++It exposes the existing scan guard rather than adding a cyclic publication
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:28: trailing whitespace.
++owner. Every root/data-product prefix has a published revision symbol, protocol
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:29: trailing whitespace.
++and mutation interval. Clients derive none of them from station knowledge.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:30: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:31: trailing whitespace.
++Coherence is per consumed row/group and tier. Equal even counters enclose each
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:32: trailing whitespace.
++bounded native acquisition, including its first counter request; the window
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:33: trailing whitespace.
++must be shorter than the published interval. A session establishes progress
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:34: trailing whitespace.
++before claiming fresh scanning data. Failed acquisition degrades quality and
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:35: trailing whitespace.
++does not retain mixed bytes as a Good value. No whole-document same-scan claim
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:36: trailing whitespace.
++or dependency on the migration observation frame is introduced.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:37: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:38: trailing whitespace.
++The opt-in V6.7 image is implemented, compiled and qualified on Echo at S4a's
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:39: trailing whitespace.
++initial module Status/product-row scope; see the
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:40: trailing whitespace.
++[runtime evidence](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md).
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:41: trailing whitespace.
++S4b full desktop/tier and active-workload acceptance remain open. This extension
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:42: trailing whitespace.
++does not activate Part III/V2 or authorize another controller session.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:43: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:44: trailing whitespace.
++## AB §3.10.2 — read-only configuration service (S4b target extension)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:45: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:46: trailing whitespace.
++The owner selected option A in the
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:47: trailing whitespace.
++[S4b review](AB_CANONICAL_PUBLICATION_S4B_READONLY_CONFIG_REVIEW_2026-10-25.md).
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:48: trailing whitespace.
++V6.8 adds hash-covered `ReadServices` rows with `Kind`, `Version`, `RootSymbol`
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:49: trailing whitespace.
++and `CanonicalRoot`; counts/capacities are exact. Kind 1/version 1 refers to an
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:50: trailing whitespace.
++explicit data product, never a type-name or station-name convention.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:51: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:52: trailing whitespace.
++That product publishes SchemaVersion, RootIdentity, Revision, definition and
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:53: trailing whitespace.
++value counts/capacities, Definitions and Values. Definitions extend the existing
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:54: trailing whitespace.
++configuration-entry metadata with DefinitionIndex and omit ValueText/Readable.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:55: trailing whitespace.
++Each value row publishes DefinitionIndex, ModelOrdinal, ModelCode, ValueText,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:56: trailing whitespace.
++Readable and Revision. Ordinal zero is live; occupied banks use positive
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:57: trailing whitespace.
++ordinals. Logical extents/count references are PLC-published and validated.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:58: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:59: trailing whitespace.
++The existing configuration owner remains authoritative. Publication is derived
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:60: trailing whitespace.
++on change and applies the same formatting, access masking and revision. A read
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:61: trailing whitespace.
++level drop clears every unreadable ValueText buffer across its full width;
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:62: trailing whitespace.
++unused rows cannot retain plaintext. Unmasked caches stay private. Clients
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:63: trailing whitespace.
++reject incomplete references, duplicate rows, invalid banks, mixed revisions
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:64: trailing whitespace.
++and mismatched capacities. Configuration reads do not renew station liveness.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:65: trailing whitespace.
++They yield between bounded worker requests, fetch consumed definitions and
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:66: trailing whitespace.
++selected-bank values, and perform no mailbox/provider write on unsecured CIP.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:67: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:68: trailing whitespace.
++This additive target has an independent oracle for the new path family. It
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:69: trailing whitespace.
++does not relax the existing frozen-path comparison. The opt-in image is
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:70: trailing whitespace.
++compiled/read-back and measures 65% offline Capacity; native S4b qualification
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:71: trailing whitespace.
++and desktop acceptance remain pending. See the
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:72: trailing whitespace.
++[preparation](Evidence/AB_S4B_CANONICAL_PREPARATION_2026-10-26.md). V2/Part III
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:73: trailing whitespace.
++remain inactive; no download is authorized by the contract choice.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:74: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:267: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:268: trailing whitespace.
++## Approved V6.4 type-scoped manifest (offline, 2026-10-24)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:269: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:270: trailing whitespace.
++The owner approved [R1's finite wire change](AB_CANONICAL_MANIFEST_V64_CONTRACT_REVIEW_2026-10-24.md).
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:271: trailing whitespace.
++With the declaration opt-in `canonical_type_manifest`, SchemaMinor=4 replaces
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:272: trailing whitespace.
++Fields with TypeAnnotations and PathExceptions. TypeAnnotations names the
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:273: trailing whitespace.
++owning Template type and member, logical type, logical bound/count, sibling
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:274: trailing whitespace.
++CountMember and effective access; empty type/access means the native mapping
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:275: trailing whitespace.
++and Read Only. The sparse exception table names explicit index selections.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:276: trailing whitespace.
++Bindings/services retain their meanings. ContentHash includes both new tables;
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:277: trailing whitespace.
++ConfigRevision derives from it. A zero-count table omits its physical array.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:278: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:279: trailing whitespace.
++The generic reader resolves every type fact through the discovered Template
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:280: trailing whitespace.
++name/member, then applies the path exceptions. Every physical array needs an
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:281: trailing whitespace.
++extent, including arrays below empty views. Counts refer to an integer sibling
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:282: trailing whitespace.
++in the assembled logical tree, including bound metadata records. Missing,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:283: trailing whitespace.
++ambiguous or conflicting facts fail closed. Unsupported per-instance facts
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:284: trailing whitespace.
++and non-sibling count exceptions are refused by generation.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:285: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:286: trailing whitespace.
++V6.0?6.3 readers/captures and released images remain supported. Canonical
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:287: trailing whitespace.
++paths, values, logical types, selections and occupied counts are unchanged;
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:288: trailing whitespace.
++only the configuration identity changes. This is an inactive V2 draft,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:289: trailing whitespace.
++not native acceptance or a direct-write exception to D9.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:290: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:291: trailing whitespace.
++## Approved S3j fieldbus product (offline, 2026-10-24)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:292: trailing whitespace.
++
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:293: trailing whitespace.
++The [approved S3j review](AB_CANONICAL_PUBLICATION_S3J_CONTRACT_REVIEW_2026-10-24.md)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:294: trailing whitespace.
++adds a separate PLC-owned ST_FieldbusTopology product. Its
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:295: trailing whitespace.
++[V6.5 wire draft](AB_CANONICAL_PUBLICATION_S3J_WIRE_DRAFT_2026-10-24.md)
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:296: trailing whitespace.
++retains V6.4 type annotations and adds the DataProducts binding table.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:297: trailing whitespace.
++Identity is on demand, state per row/group; clients infer no station facts.
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:298: trailing whitespace.
++Declared counts stay inside Core's ceilings, with process-word child nodes
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:299: trailing whitespace.
++for the reviewed over-bound catalog. Node and channel counts/indices are INT,
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:300: trailing whitespace.
++AnalogValue REAL, flags BOOL and strings at Core widths. Missing sampled words
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:301: trailing whitespace.
++fail closed. A mapping error is visible. Force capability remains absent
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:302: trailing whitespace.
++without a registered OUTPUT_FORCING gate. This inactive draft does not grant
+Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PART_III_AMENDMENT_DRAFT_2026-10-20.md:303: trailing whitespace.
++controller writes or physical/security acceptance.

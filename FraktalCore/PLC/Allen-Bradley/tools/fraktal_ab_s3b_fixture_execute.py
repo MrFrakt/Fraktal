@@ -19,9 +19,9 @@ def capture_gate(writer,gate=None):
         return report
 
 
-def paired_run(destination,*,gate=None,prefix='s3b'):
+def paired_run(destination,*,gate=None,prefix='s3b',base=None):
     def observer(writer):return capture_gate(writer) if gate is None else capture_gate(writer,gate)
-    parent=shared.paired_run(destination,gate=observer,key=prefix+'DecisionPairs')
+    parent=shared.paired_run(destination,gate=observer,key=prefix+'DecisionPairs',base=base)
     class PairedRun(parent):
         def set(self,tag,value):
             observed={execute.HOLD['PressRam']:('held','PressRam'),

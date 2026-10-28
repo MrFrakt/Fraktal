@@ -1,0 +1,30 @@
+{
+  "schema": "fraktal.ab.s3k-download-session-summary",
+  "date": "2026-10-25",
+  "authorization": "authorization.json (owner: \"go ahead an download on echo\"; download plus read-only checks only)",
+  "target": {"serial": "601FC87B", "revision": "38.11", "product": "Emulate 5580 Controller", "address": "127.0.0.1"},
+  "downloadedCanonicalSha256": "5B62CAC28C8EB5A819850D49FC854123C0B0B00449E2E8663FAC08B96C3000F6",
+  "sourceSha256": "426289A5E71CDEC1DBC5A4C5C7FBCDE4E706676B311362A12A91CFD36083EE78",
+  "downloadedCopyAfterSaveSha256": "37BD69BFDE7050DFBBDA65AA2B5BD4D429E292FBB348CEFADC949FBCC34BD438",
+  "backupAcdSha256": "59516E7601DCE49DDB4297917CE4C6BFA51149F92C1D94DB5F93511C0F4EC3BC",
+  "controllerOperations": ["upload backup (read)", "Run->Program", "download", "Program->Run"],
+  "mailboxOrTagWrites": 0,
+  "restoreGenealogy": "not run; not authorized",
+  "gates": {
+    "guard_initial_01": "pass", "preflight_initial_01": "pass (genealogy baseline, 5 saved documents)",
+    "backup_01": "pass", "backup_log_audit_01": "clean", "backup_access_01": "conforms; exact reference tag access equal",
+    "deploy_01": "pass; final mode Run", "deploy_log_audit_01": "clean", "deploy_readback_01": "equivalent",
+    "deploy_access_01": "pass, 122 types, no findings", "guard_candidate_01": "pass",
+    "generic_acquire_01": "FAILED: client manifest reader KeyError 'handle' on the handle-less V6.6 commit Symbol",
+    "generic_acquire_02": "pass after reader fix: 4,220 values, 7 modules, 9 command arguments, 1 command binding",
+    "idle_equivalence_01": "FAILED: run without FRAKTAL_AB_DECLARATION; oracle imported the default station (no part carrier)",
+    "idle_equivalence_02": "pass with FRAKTAL_AB_DECLARATION=fraktal_ab_genealogy_demo, as the accepted S3j session ran",
+    "candidate_timing_01": "20 samples: LastScan median 945 us (max 1,007 us), cumulative MaxScan 7,607 us, 0 overlaps, 10 ms period",
+    "guard_final_01": "pass; not faulted"
+  },
+  "nativeCommandTemplate": {"payloadTemplateBytes": 784, "maximumPayloadBytes": 1024, "structureHandleAttribute1": 41413},
+  "captureRecords": ["FRK_Press_AlarmMetadata", "FRK_Press_SequenceDefinitions", "FRK_Press_Topology_58beeb34a53312b5", "Press"],
+  "commandStorageInCapture": false,
+  "controllerDumps": 0,
+  "notRun": ["typed/legacy request cases (mailbox writes)", "one-packet write proof", "secret wipe on controller", "inherited write regressions", "genealogy restore and final baseline checks"]
+}

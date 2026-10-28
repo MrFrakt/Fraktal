@@ -116,7 +116,10 @@ def tags(app):
               for n in ('Cursor', 'Word', 'Byte', 'Valid', 'Field'))]
 
 
-def logic(app):
+def logic(app, *, legacy=False):
+    if app.canonical_publication_stage>=13 and not legacy:
+        from fraktal_ab_canonical_commands import ingress
+        return tuple(ingress(app))
     import fraktal_ab_mailbox as mb
     q, sample = mb.request_tag_name(app), sample_tag(app)
     words, i = sample + '.Words', f'FRK_{app.name}_HmiWipe'

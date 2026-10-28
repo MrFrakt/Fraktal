@@ -28,7 +28,13 @@ def snapshot(comm, app):
     return tower.project(raw)
 
 
-def exercise(run):
+def exercise_common(run):
+    """Rows every declaration has: configuration restore/preservation and the logged-out refusal.
+
+    LAMP_TEST is the probe because its gate is checked before dispatch; a
+    declaration without a tower refuses it for access first, like any other.
+    Returns the row recorder and the refusal probe for the declaration's own rows.
+    """
     comm,app,evidence = run.comm,run.app,run.evidence
     def record(case, **values):
         evidence['rows'].append(dict(case=case,passed=True,**values))
@@ -56,6 +62,12 @@ def exercise(run):
     refused('logged_out_manual_refusal',access.DENIED)
     run.login()
     run.command(mb.SET_ACCESS_LEVEL,IntValue=2,TextValue='0')
+    return record, refused
+
+
+def exercise(run):
+    comm,app = run.comm,run.app
+    record, refused = exercise_common(run)
     run.command(mb.SET_ACCESS_LEVEL,IntValue=10,TextValue='4')
     run.command(mb.LOGOUT)
     # Request arguments cannot replace the configured bounded native timer.
@@ -126,7 +138,7 @@ def main(argv=None):
 
 
 def execute_fixture(args, app, account, *, run_type=fixture.Run,
-                    schema='fraktal.ab.tower-live-fixture'):
+                    schema='fraktal.ab.tower-live-fixture', exercise_rows=exercise):
     """Shared exact-target deployment regressions and restoration owner."""
     if not args.execute_fixture or args.output.exists():
         raise fixture.FixtureRefused('explicit arm and new evidence output required')
@@ -150,7 +162,7 @@ def execute_fixture(args, app, account, *, run_type=fixture.Run,
             raise fixture.FixtureRefused('another controller session is active')
         run=run_type(comm,app,account,evidence)
         try:
-            exercise(run)
+            exercise_rows(run)
             if args.core_regressions:
                 for language in decl.RENDITIONS:
                     run.idle()
@@ -176,12 +188,14 @@ def execute_fixture(args, app, account, *, run_type=fixture.Run,
                 for gate in (2,10):
                     run.command(mb.SET_ACCESS_LEVEL,IntValue=gate,TextValue=str(original_policy[gate]))
                 run.command(mb.LOGOUT)
-                run.wait(lambda:not snapshot(comm,app)['SignalTower/TestActive'],'test expiry during cleanup',timeout=35)
-                final=snapshot(comm,app)
+                final=None
+                if app.signal_tower is not None:
+                    run.wait(lambda:not snapshot(comm,app)['SignalTower/TestActive'],'test expiry during cleanup',timeout=35)
+                    final=snapshot(comm,app)
                 u=run.unit()
                 evidence['final']=dict(tower=final,unit={k:u[k] for k in ('Mode','Running','Error','ErrorID','Aborted')})
                 evidence['restored']=(u['Running']==u['Error']==u['Aborted']==0
-                    and not final['SignalTower/TestActive']
+                    and (final is None or not final['SignalTower/TestActive'])
                     and all(px.read_scalar(comm,k)==v for k,v in original.items())
                     and projection.read_access(comm)['CurrentLevel']==0
                     and projection.read_access(comm)['Required']==original_policy)

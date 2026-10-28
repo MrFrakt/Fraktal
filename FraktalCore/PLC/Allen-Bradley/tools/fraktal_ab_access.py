@@ -462,7 +462,10 @@ def login(app):
     import fraktal_ab_mailbox as mb
     s, w, users, q = tag(app, 'State'), tag(app, 'Work'), tag(app, 'Users'), tag(app, 'LoginRequest')
     i, j = w + '.Index', w + '.ByteIndex'
-    lines = [f'CPS({mb.request_tag_name(app)},{q},1);', *wipe_login(app),
+    # The private snapshot carries the owner token; the external legacy commit
+    # stays independent when typed ingress owns this request.
+    sequence = [f'{q}.Sequence := {mb.committed_sequence(app)};'] if app.canonical_publication_stage >= 13 else []
+    lines = [f'CPS({mb.request_tag_name(app)},{q},1);', *sequence, *wipe_login(app),
              f'{w}.Sequence := FRK_{app.name}_HmiLastSequence;', f'{w}.Hit := -1;', f'{w}.LoginValid := 1;',
              f'{w}.Profile := {q}.IntValue;',
              f'IF {q}.Sequence <> {w}.Sequence THEN {w}.LoginValid := 0; END_IF;',
@@ -612,7 +615,7 @@ def report(app, report_tag, gate):
     lines = [f'{w}.Permitted := 0;', f'IF ({gate} >= 0) AND ({gate} < {GATE_COUNT}) THEN',
              f'IF {permits(app, gate)} THEN {w}.Permitted := 1; END_IF;', 'END_IF;',
              f'IF {w}.Permitted = 0 THEN',
-             *gen.report_add(report_tag, mf.numeric_key(app, DENIED), 0, 0, 'ACCESS', DENIED), 'END_IF;']
+             *gen.report_add(report_tag, mf.numeric_key(app, DENIED), 0, 0, 'ACCESS', DENIED, app=app), 'END_IF;']
     return lines
 
 

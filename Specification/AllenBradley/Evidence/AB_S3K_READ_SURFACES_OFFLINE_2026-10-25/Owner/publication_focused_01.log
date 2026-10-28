@@ -1,0 +1,25 @@
+.E...........
+======================================================================
+ERROR: test_counters_keep_every_uint32_bit_and_waits_are_derived_each_scan (test_fraktal_ab_canonical_mailbox.MailboxPublicationTests.test_counters_keep_every_uint32_bit_and_waits_are_derived_each_scan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_mailbox.py", line 107, in test_counters_keep_every_uint32_bit_and_waits_are_derived_each_scan
+    self.plc.run(self.cyclic)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 467, in _exec
+    self.write(stmt[1], self.eval(stmt[2]))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 394, in write
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: Press.GoodCount: no member GoodCount
+
+----------------------------------------------------------------------
+Ran 13 tests in 104.263s
+
+FAILED (errors=1)

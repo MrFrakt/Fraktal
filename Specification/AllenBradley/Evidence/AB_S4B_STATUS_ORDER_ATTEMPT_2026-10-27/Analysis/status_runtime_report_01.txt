@@ -1,0 +1,101 @@
+report=f'''# S4b Status-order qualification — {stamp}
+
+**Native acceptance: {flag(q['nativeAccepted'])}. Genealogy is restored.**
+The owner approved the [sealed Status-order package](AB_S4B_STATUS_ORDER_PREPARATION_2026-10-27.md):
+“Approve guarded S4b Status-order retry”, question
+`call_e167e16df752449e8bbb27e2ef44e6b7:0`. Its approval is now consumed.
+
+## Target, image and bindings
+
+- Local Echo **601FC87B**, 1756-L81E **v38.011**, 127.0.0.1 slot 0.
+- ACD `{q['canonicalSha256']}`.
+- Generated PLC source `{q['sourceSha256']}`.
+- Exact-image offline Capacity: **2,066,212 used /1,079,516 available /
+  3,145,728 total Blocks (65%)**.
+- **{q['sourceBindingsVerified']} source/gate/image bindings** matched before
+  execution. Post-run verification permits only the SDK-saved working ACD to
+  differ. The original prepared image and pinned genealogy ACD remain unchanged.
+
+The generic client schedules discovered module Status groups near the end of
+full cyclic walks, including leaf modules already fitting one guarded group.
+The prepared comparison proves identical wire-read multisets and projected
+values/types. Targeted reads, tiers, source ages, row proofs and all freshness,
+attempt and deadline limits are unchanged. Late rows still withhold payload.
+The migration observation frame is used only by the independent Python oracle;
+the shipping desktop client discovers and reads canonical rows directly.
+
+## Actual outcome
+
+| Gate | Recorded result |
+|---|---|
+| Fixture | {q['candidateCases']} passed cases |
+| Independent replay from raw controller bytes | {q['pairedCapturesReplayed']} pairs |
+| Concurrent Dart observer | {flag(q['observerPassed'])}; {q['observerSamples']} samples |
+| Quality | {q['allGoodSamples']} entirely Good; {q['samplesWithUncertainRows']} with Uncertain; {q['samplesWithBadRows']} with Bad |
+| Full reader/configuration/acquisition scope | {flag(q['nativeReaderPassed'])} |
+| Read-only configuration | {q['configurationPages']} pages /{q['configurationScalarComparisons']} exact oracle scalar/type comparisons |
+| Idle equivalence | {q['idlePaths']} paths; {flag(q['idlePassed'])} |
+| Generic acquisition | {q['genericValues']} values /{q['genericModules']} modules |
+| Strict live desktop | {flag(q['desktopAccepted'])}; {coverage['modules']} modules /{coverage['fieldbusNodes']} bus nodes /{coverage['views']} views |
+| Startup/workload/desktop/final scan | {flag(q['scanReviewPassed'])} |
+| Genealogy rollback | **31/31 baseline**, original documents, all final checks and preflight passed |
+
+Sample ages (ms): `{json.dumps(age)}`. Accepted row windows (us):
+`{json.dumps(window)}`. The observer retains any refused snapshot and checks
+strict root identity and the existing one-second fast Good boundary. A global
+Good-sample aggregate does not authorize an older root or another late row.
+Configuration pages are compared against the independent post-fixture oracle.
+No torn row, missing identity or late payload is promoted to Good.
+
+Observer error, if any: `{q['observerError']}`.
+Parent failure, if any: `{q['sessionCandidateError']}`.
+The bounded writer fixture joins the observer at completion; a failed observer
+does not establish concurrent acceptance merely because fixture cases finish.
+Later stages skipped after failure are not inferred successful from prior runs.
+Full stage exits and raw records are retained.
+
+## TASK and desktop evidence
+
+{scan_text} {trace_text}
+The fixed read-only TASK monitor starts before download, polls at nominal
+100 ms and stops before rollback. Download read errors are retained. Separate
+scalar reads and polling bound observations; they do not isolate an exact
+offending scan, routine or host cause. No TASK counter is cleared. The PLC's
+cold first-scan view deferral remains the identical previously qualified image.
+Retained-mode/power/physical acceptance is not established here.
+
+Desktop uses the real production factory/repository/UI and genuine source
+quality/age. The helper requires LIVE, complete nonempty module coverage,
+selected tabs and 31 views before success. The parent independently checks
+semantic coverage. Screenshots, native test stdout/stderr, refresh and forest
+diagnostics, and any failure record remain archived. Captured-fixture
+substitutions are disabled in live mode. Local start/login calls must be refused
+by the read-only repository; this does not create a native packet-write counter.
+
+Desktop detail: `{json.dumps(coverage,ensure_ascii=False)}`.
+
+## Restoration, gates and remaining work
+
+The runner downloads a hash-checked copy of genealogy
+`D67561C4A30002E89B7D3F2973633D794239C5890221FF02319C5CFB93ED4084`,
+restores the five exact original host documents, runs 31 baseline cases,
+restores policy, normalizes MANUAL/idle/logout and passes final checks/preflight.
+Baseline timing: `{json.dumps(q['baselineScan'])}`. The original genealogy
+ACD is never opened. No dumps, fault/TASK-counter clears, clock changes,
+power/vendor-state operations or Echo hard kills occur.
+
+Preparation binds **648 HMI tests passed /12 skipped**, pinned Flutter
+3.47.5 /Dart 3.13.4, analyzer, Windows debug build and enforced lockfile.
+All 12 read-plan tests and the independent traffic/value comparison pass.
+The identical PLC source/image preserves **2,339 AB tests**, both v38
+build/read-back/access/SDK gates, 15 prior byte-identical images and 65%
+Capacity. Root spec/contracts/strict consistency and 74 tests pass.
+Credentials and ACD/SDK binaries are excluded from the archive; binary inputs
+are hash-bound. No shipping source changes during runtime.
+
+S4 is accepted only at the actual scope recorded above. Remaining stages are
+S5 Dart gateway/Web/installer, S6 classified legacy-reader migration/retirement,
+persistence/event ownership and capacity work, and S7 physical/CIP Security,
+including real I/O. V2/Part III stay inactive until their remaining gates.
+Nothing is committed or pushed. No later controller session is authorized.
+'''

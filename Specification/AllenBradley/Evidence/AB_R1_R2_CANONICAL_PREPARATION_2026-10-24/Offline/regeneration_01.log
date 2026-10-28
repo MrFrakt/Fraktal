@@ -1,0 +1,33 @@
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-s3j-20261024\r1_01\regenerate_01.py", line 11, in <module>
+    report=native.generate(Path('C:/work/echo38_5580_seed.L5X'),W/'s3i_r1_r2_regen_01.L5X')
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s3i_native_checks.py", line 116, in generate
+    return gen.generate(app,seed,output)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4894, in generate
+    logic = all_generated_logic(app)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4849, in all_generated_logic
+    parts.extend(routine_logic(app))
+                 ~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4718, in routine_logic
+    for name, body in scan_sections(app):
+                      ~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 4711, in scan_sections
+    add('Canonical', canonical.cyclic(app))
+                     ~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_publication.py", line 547, in cyclic
+    return lines + observation.cyclic(app)
+                   ~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_observation.py", line 162, in cyclic
+    for name, (unused, count) in _declared(app).items():
+                                 ~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_observation.py", line 116, in _declared
+    tags = {tag.get("Name"): tag for tag in ET.fromstring(gen.controller_tags(app)).findall("Tag")}
+                                                          ~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 3365, in controller_tags
+    tags.extend(canonical.tags(app))
+                ~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_publication.py", line 461, in tags
+    *(sequence.tags(app,tag) if app.canonical_publication_stage>=5 else []),
+      ^^^^^^^^
+NameError: name 'sequence' is not defined

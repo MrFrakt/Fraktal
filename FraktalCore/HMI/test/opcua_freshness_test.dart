@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/data/opcua_freshness.dart';
 import 'package:fraktal_hmi/data/opcua_repository.dart';
@@ -54,6 +55,20 @@ void main() {
     expect(received['values'], {'detail': 1});
     final expired = profile.ageDocument(received, const Duration(milliseconds: 120));
     expect(expired['values'], isEmpty);
+    // A server's serialized queue precedes data acquisition. Its processing
+    // bracket covers queue + read; the source age already covers the read.
+    final queuedSample = {
+      'values': {'queued': 1},
+      'dataValues': {'queued': {'value': 1, 'status': 0, 'tier': 'fast', 'ageMs': 100}},
+    };
+    const queuedRpc = Duration(milliseconds: 205);
+    final queueAndRead = profile.ageDocument(queuedSample,
+        profile.transitAllowance({'responseProcessingMs': 200}, queuedRpc));
+    expect(queueAndRead['values'], {'queued': 1});
+    final readOnlyBracket = profile.ageDocument(queuedSample,
+        profile.transitAllowance({'responseProcessingMs': 100}, queuedRpc));
+    expect(readOnlyBracket['values'], isEmpty);
+    expect(((readOnlyBracket['dataValues'] as Map)['queued'] as Map)['status'], 0x40000000);
   });
 
   test('budgeted tiers stream only visible detail without targeted sweeps',
@@ -400,9 +415,37 @@ void main() {
 
   test('server-aged first frame is refused before connecting', () async {
     final client = _Client()..serverAge = 160;
-    await expectLater(
-        OpcUaRepository.connectWithClient(client), throwsFormatException);
+    final messages = <String>[];
+    final previousPrint = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) messages.add(message);
+    };
+    try {
+      await expectLater(
+          OpcUaRepository.connectWithClient(client), throwsFormatException);
+    } finally {
+      debugPrint = previousPrint;
+    }
     expect(client.closed, isTrue);
+    expect(client.snapshotCalls, 1);
+    expect(client.writes, isEmpty);
+    final message = messages.singleWhere(
+        (line) => line.contains('stage=complete-sample-rejected'));
+    final fields = {
+      for (final match in RegExp(r'(\w+Us)=(\d+)').allMatches(message))
+        match[1]!: int.parse(match[2]!),
+    };
+    expect(fields['sourceAgeUs'], 160000);
+    expect(fields['snapshotAwaitUs'], greaterThanOrEqualTo(0));
+    expect(fields['serviceDecodeUs'], greaterThanOrEqualTo(0));
+    expect(fields['validationUs'], greaterThanOrEqualTo(0));
+    expect(fields['rpcUs'], greaterThanOrEqualTo(fields['snapshotAwaitUs']! +
+        fields['serviceDecodeUs']! + fields['validationUs']!));
+    expect(fields['fastGoodUs'], 150000);
+    expect(fields['receivedAgeUs'], fields['sourceAgeUs']! + fields['transitUs']!);
+    expect(fields['effectiveAgeUs'],
+        fields['receivedAgeUs']! + fields['localProcessingUs']!);
+    expect(fields['effectiveAgeUs'], greaterThanOrEqualTo(fields['fastGoodUs']!));
   });
 
   test('a present malformed profile cannot fall back to a legacy live frame',

@@ -565,16 +565,23 @@ class ShiftCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.schedule_outlined),
-            const SizedBox(width: kInlineItemGap),
-            LText('Shifts', style: theme.textTheme.titleMedium),
-            const Spacer(),
-            Text(
-                '${_name(context, shift.currentShift)} · '
-                '${context.tr('since')} ${_time(shift.startedAt)}',
-                style: theme.textTheme.titleSmall),
-          ]),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: kInlineItemGap,
+            runSpacing: kInlineItemGap,
+            children: [
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.schedule_outlined),
+                const SizedBox(width: kInlineItemGap),
+                LText('Shifts', style: theme.textTheme.titleMedium),
+              ]),
+              Text(
+                  '${_name(context, shift.currentShift)} · '
+                  '${context.tr('since')} ${_time(shift.startedAt)}',
+                  style: theme.textTheme.titleSmall),
+            ],
+          ),
           if (shift.endsAt != null)
             LText('std.shift.endsAt', args: {'time': _time(shift.endsAt)}),
           if (shift.timeSynchronized &&

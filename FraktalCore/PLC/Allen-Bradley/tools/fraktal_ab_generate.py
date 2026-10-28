@@ -590,7 +590,7 @@ def data_types(app: decl.Application) -> str:
                                "Core §8.3 closed alarm history"))
     import fraktal_ab_shelving as shelving
     records.append(shelving.record())
-    records.append(decl.Record(release_report_name(app), release_report_members(),
+    records.append(decl.Record(release_report_name(app), release_report_members(app=app),
                                "Core §7.8 release report"))
     records.append(decl.Record(oee_name(), oee_members(),
                                "Core §8.5.1 OEE time accounting and trend"))
@@ -606,6 +606,9 @@ def data_types(app: decl.Application) -> str:
                                    "Core §8.12 health thresholds"))
         records.append(decl.Record(system_health_name(), system_health_members(),
                                    "Core §8.12 system health"))
+    if app.canonical_publication_stage >= 13:
+        import fraktal_ab_mailbox_dispatch as routes
+        records.extend(routes.records(app))
     for record in records:
         members = "\n".join(_member_xml(m) for m in record.members)
         description = ""
@@ -1650,6 +1653,9 @@ def force_logic(app: decl.Application) -> list[str]:
     """
     if not app.io_modules:
         return []
+    if app.canonical_publication_stage>=12:
+        import fraktal_ab_canonical_fieldbus as fieldbus
+        return fieldbus.forcing(app)
     n = app.name
     module = app.io_modules[0]
     manual = app.manual_mode
@@ -1989,11 +1995,18 @@ CONFIG_RESTORING_KEY = "std.release.configRestoring"
 GATED_ALARM_RESET = 7                       # Core E_GatedAction.ALARM_RESET
 
 
-def release_report_members() -> tuple[decl.Member, ...]:
+def release_capacity(app=None) -> int:
+    if app is not None and app.canonical_publication_stage >= 13:
+        from fraktal_ab_canonical_unit_core import core_limit
+        return core_limit("MAX_RELEASE_REASONS")
+    return RELEASE_CAPACITY
+
+
+def release_report_members(app=None) -> tuple[decl.Member, ...]:
     """TC3's ST_ReleaseReport in DINTs: each reason as its numeric text key,
     its reason code, the module that owns it (0 is the Unit, n the n-th
     declared module) and its E_ReleaseKind."""
-    n = RELEASE_CAPACITY
+    n = release_capacity(app)
     return (
         decl.boolean("Released", "nothing blocks: Count = 0"),
         decl.scalar("Count", "reasons listed"),
@@ -2001,11 +2014,13 @@ def release_report_members() -> tuple[decl.Member, ...]:
         decl.reason("Reason", "each reason's code", dimension=n),
         decl.scalar("Source", "who owns it: 0 the Unit, n the n-th module", dimension=n),
         decl.scalar("Kind", "Core E_ReleaseKind", dimension=n),
+        *((decl.boolean("Overflow", "complete report capacity was exceeded"),)
+          if app is not None and app.canonical_publication_stage >= 13 else ()),
     )
 
 
 def release_report_name(app: decl.Application) -> str:
-    return f"FRK_T_{app.name}ReleaseReport"
+    return f"FRK_T_{app.name}ReleaseReport" + ("V2" if app.canonical_publication_stage >= 13 else "")
 
 
 def start_release_tag(app: decl.Application) -> str:
@@ -2022,25 +2037,36 @@ def release_index_tag(app: decl.Application) -> str:
     return f"FRK_{app.name}_ReleaseIndex"
 
 
-def report_open(tag: str) -> list[str]:
-    return [f"{tag}.Count := 0;", f"{tag}.Released := 0;"]
+def report_open(tag: str, *, app=None) -> list[str]:
+    lines = [f"{tag}.Count := 0;", f"{tag}.Released := 0;"]
+    if app is not None and app.canonical_publication_stage >= 13:
+        lines.append(f"{tag}.Overflow := 0;")
+    return lines
 
 
 def report_add(tag: str, key: int, reason: int, source: int, kind: str,
-               portable: str = "") -> list[str]:
+               portable: str = "", *, app=None) -> list[str]:
     """One reason, appended while the report has room - TC3's _M_AddReason."""
     note = f" (* {portable} *)" if portable else ""
-    return [f"IF {tag}.Count < {RELEASE_CAPACITY} THEN",
+    guard = f"{tag}.Count < {release_capacity(app)}"
+    if app is not None and app.canonical_publication_stage >= 13:
+        guard = f"({tag}.Count >= 0) AND ({guard})"
+    lines = [f"IF {guard} THEN",
             f"{tag}.Key[{tag}.Count] := {key};{note}",
             f"{tag}.Reason[{tag}.Count] := {reason};",
             f"{tag}.Source[{tag}.Count] := {source};",
             f"{tag}.Kind[{tag}.Count] := {RELEASE_KINDS[kind]};",
             f"{tag}.Count := {tag}.Count + 1;",
             "END_IF;"]
+    if app is not None and app.canonical_publication_stage >= 13:
+        lines[-1:-1] = ["ELSE", f"{tag}.Overflow := 1;"]
+    return lines
 
 
-def report_close(tag: str) -> list[str]:
-    return [f"IF {tag}.Count = 0 THEN {tag}.Released := 1; "
+def report_close(tag: str, *, app=None) -> list[str]:
+    complete = f" AND ({tag}.Overflow = 0)" if app is not None and app.canonical_publication_stage >= 13 else ""
+    condition = f"({tag}.Count = 0){complete}" if complete else f"{tag}.Count = 0"
+    return [f"IF {condition} THEN {tag}.Released := 1; "
             f"ELSE {tag}.Released := 0; END_IF;"]
 
 
@@ -2048,7 +2074,8 @@ def report_copy(app: decl.Application, source: str, target: str) -> list[str]:
     i = release_index_tag(app)
     return [f"{target}.Released := {source}.Released;",
             f"{target}.Count := {source}.Count;",
-            f"FOR {i} := 0 TO {RELEASE_CAPACITY - 1} DO",
+            *(([f"{target}.Overflow := {source}.Overflow;"]) if app.canonical_publication_stage >= 13 else []),
+            f"FOR {i} := 0 TO {release_capacity(app) - 1} DO",
             *(f"{target}.{m}[{i}] := {source}.{m}[{i}];"
               for m in ("Key", "Reason", "Source", "Kind")),
             "END_FOR;"]
@@ -2093,36 +2120,36 @@ def start_release_logic(app: decl.Application) -> list[str]:
     tag, u = start_release_tag(app), f"FRK_{app.name}_Unit"
     lines = ["", "(* Core 7.8: why START would be refused right now (TC3's *)",
              "(* ReleaseReportStart), the one rule a START and a physical start read *)",
-             *report_open(tag)]
+             *report_open(tag, app=app)]
     if app.access_users is not None:
         import fraktal_ab_access as access
         lines += access.report(app, tag, '5')
     if app.manual_mode is not None:
         lines += [f"IF {u}.Mode = {app.manual_mode} THEN",
                   *report_add(tag, keys[mailbox.MANUAL_HAS_NO_SEQUENCE_KEY], 0, 0,
-                              "MODE", mailbox.MANUAL_HAS_NO_SEQUENCE_KEY),
+                              "MODE", mailbox.MANUAL_HAS_NO_SEQUENCE_KEY, app=app),
                   "END_IF;"]
     lines += [f"IF ({u}.Running <> 0) OR ({u}.Error <> 0) OR ({u}.Complete <> 0) "
               f"OR ({u}.Aborted <> 0) THEN",
               *report_add(tag, keys[UNIT_NOT_READY_KEY], 0, 0, "MODE",
-                          UNIT_NOT_READY_KEY),
+                          UNIT_NOT_READY_KEY, app=app),
               "END_IF;",
               f"IF {alarm_active_tag(app)}.Blocking <> 0 THEN",
-              *report_add(tag, keys[MANUAL_RESET_KEY], 0, 0, "ALARM", MANUAL_RESET_KEY),
+              *report_add(tag, keys[MANUAL_RESET_KEY], 0, 0, "ALARM", MANUAL_RESET_KEY, app=app),
               "END_IF;"]
     if decl.live_documents(app):
         lines += [f"IF {config_restoring(app)} THEN",
                   *report_add(tag, keys[CONFIG_RESTORING_KEY], 0, 0, "OTHER",
-                              CONFIG_RESTORING_KEY),
+                              CONFIG_RESTORING_KEY, app=app),
                   "END_IF;"]
     for permit in app.start_permits:
         scope = " OR ".join(f"({u}.Mode = {m})" for m in permit.modes)
         guard = f"({scope}) AND " if scope else ""
         lines += [f"IF {guard}NOT ({conds_st(permit.conditions, names)}) THEN",
                   *report_add(tag, keys[permit.key], app.reasons["PERMISSIVE_NOT_MET"],
-                              0, "INTERLOCK", permit.key),
+                              0, "INTERLOCK", permit.key, app=app),
                   "END_IF;"]
-    return lines + report_close(tag)
+    return lines + report_close(tag, app=app)
 
 
 def run_style_logic(app: decl.Application) -> list[str]:
@@ -3281,9 +3308,9 @@ def controller_tags(app: decl.Application) -> str:
                                    system_health_members()))
     # Core 7.8: the report START reads, and the one the mailbox answers with.
     tags.append(_structure_tag(start_release_tag(app), release_report_name(app),
-                               release_report_members()))
+                               release_report_members(app=app)))
     tags.append(_structure_tag(release_report_tag(app), release_report_name(app),
-                               release_report_members()))
+                               release_report_members(app=app)))
     for name, dimension in {**clock_tags(app), **alarm_scratch_tags(app),
                             diagnostic_scratch_tag(app): 0,
                             stall_limit_tag(app): 0,
@@ -3359,6 +3386,9 @@ def controller_tags(app: decl.Application) -> str:
     # client is given. It ships with the application because a mailbox that
     # appeared only once something wrote to it could not be discovered.
     tags.extend(mailbox.tags(app))
+    if app.canonical_publication_stage >= 13:
+        import fraktal_ab_mailbox_dispatch as routes
+        tags.extend(routes.tags(app))
     tags.extend(manifest.tags(app, app.controller_identity or CONTROLLER_IDENTITY))
     if app.canonical_publication_stage:
         import fraktal_ab_canonical_publication as canonical
@@ -4653,6 +4683,9 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
     keys = localization_numbers(app)
     for module in ordered:
         ctx = ctx_tag_for(app, module.name)
+        if app.canonical_publication_stage >= 13:
+            import fraktal_ab_mailbox_dispatch as routes
+            modules += routes.apply(app, module)
         modules += [
             *module_setup_lines(app, module, keys),
             f"{module_aoi_name(app, module)}(FRK_{n}_Inst{module.name},{ctx},FRK_{n}_ScanCount);",
@@ -4752,6 +4785,14 @@ def canonical_routines(app):
     if app.canonical_publication_stage>=11:
         import fraktal_ab_canonical_line as line
         result += line.routines(app)
+    if app.canonical_publication_stage>=12:
+        import fraktal_ab_canonical_fieldbus as fieldbus
+        result += fieldbus.routines(app)
+    if app.canonical_publication_stage>=13:
+        import fraktal_ab_canonical_mailbox as mailbox_publication
+        result += mailbox_publication.routines(app)
+        import fraktal_ab_canonical_commands as commands
+        result += commands.routines(app)
     return result
 
 
@@ -4772,6 +4813,8 @@ def programs(app: decl.Application) -> str:
         + ([st_program_routine(sets.routine_name(app), sets.dispatch_logic(app))]
            if app.config_sets else [])
         + ([st_program_routine(name, body) for name, body in canonical_routines(app)])
+        + ([st_program_routine(name, body) for name, body in __import__("fraktal_ab_mailbox_dispatch").routines(app)]
+           if app.canonical_publication_stage >= 13 else [])
         + chain_routines(app)
         + [st_program_routine(name, body) for name, body in alarm_service_routines(app)]
         + ([st_program_routine(step_mark_routine_name(app), step_mark_logic(app))]
@@ -4996,10 +5039,10 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
         "TaskName": app.task_name,
         "TaskPeriodMs": app.task_period_ms,
         "WatchdogMs": app.watchdog_ms,
-        "PhysicalIoReferences": sum(len(m.channels) for m in app.io_modules),
+        "PhysicalIoReferences": 0 if app.canonical_publication_stage>=12 else sum(len(m.channels) for m in app.io_modules),
         "EmbeddedIoModuleInSeed": embedded_io_in_seed,
         "EmbeddedIoInhibited": (not app.io_modules) if embedded_io_in_seed else None,
-        "TaskOutputUpdatesDisabled": not app.io_modules,
+        "TaskOutputUpdatesDisabled": app.canonical_publication_stage>=12 or not app.io_modules,
         "ForceableOutputs": bin(force_output_mask(app)).count("1"),
         "BoolMembersInPublicUdt": len(emitted.findall('./Controller/DataTypes/DataType/Members/Member[@DataType="BOOL"]')),
         "ContractRecords": [r.name for r in app.records],

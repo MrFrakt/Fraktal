@@ -27,10 +27,15 @@ def services(app):
     import fraktal_ab_mailbox as mailbox
     import fraktal_ab_canonical_config as config
     import fraktal_ab_manifest as manifest
-    return [dict(Kind=SERVICE_KIND,Version=VERSION,BuildRevision=manifest.config_revision(app),RequestSymbol=request_symbol(app),
+    rows=[dict(Kind=SERVICE_KIND,Version=VERSION,BuildRevision=manifest.config_revision(app),RequestSymbol=request_symbol(app),
         RequestMember='ConfigProvider',ResponseSymbol=ack_tag(app)),
         dict(Kind=QUERY_KIND,Version=VERSION,BuildRevision=manifest.config_revision(app),RequestSymbol=request_symbol(app),
         RequestMember='Frame',ResponseSymbol=config.query_status_tag(app))]
+    if app.canonical_publication_stage>=13 and app.config_sets:
+        from fraktal_ab_canonical_commands import set_status_tag
+        rows.append(dict(Kind=3,Version=1,BuildRevision=manifest.config_revision(app),RequestSymbol=request_symbol(app),
+            RequestMember='ConfigSet',ResponseSymbol=set_status_tag(app)))
+    return rows
 
 
 def members():
@@ -81,7 +86,7 @@ def logic(app):
         f'IF ({w}.LastCommit <> 0) AND (({w}.Prior = 0) OR ({w}.Prior > 1073741823)) THEN {w}.Valid := 0;',
         f'ELSE {w}.LastCommit := {s}.Commit; END_IF;','END_IF;',
         f'IF ({s}.SchemaVersion <> {VERSION}) OR ({s}.Sequence <> {s}.Commit) THEN {w}.Valid := 0; END_IF;',
-        f'IF ({s}.RequestSequence <> {owner}.Sequence) OR ({s}.RequestSequence <> {mailbox.response_tag_name(app)}.AckSequence) THEN {w}.Valid := 0; END_IF;',
+        f'IF ({s}.RequestSequence <> {owner}.Sequence) OR ({s}.RequestSequence <> {mailbox.acknowledged_sequence(app)}) THEN {w}.Valid := 0; END_IF;',
         f'IF ({s}.BuildRevision <> {manifest.config_revision(app)}) OR ({s}.Operation <> {command}.Operation) THEN {w}.Valid := 0; END_IF;',
         f'IF ({s}.Flags < 0) OR ({s}.Flags > 7) OR ({s}.Count < 0) OR ({s}.Count > {MAX_SETS}) THEN {w}.Valid := 0; END_IF;',
         f'IF ({s}.DocumentLine < -1) OR ({s}.DocumentLine > {sets.MAX_RECORDS}) OR ({s}.DocumentLines < 0) OR ({s}.DocumentLines > {sets.MAX_RECORDS}) THEN {w}.Valid := 0; END_IF;']

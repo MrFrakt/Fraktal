@@ -44,15 +44,22 @@ def additional_inputs(reader):
     import fraktal_ab_press_execute as execute
     import fraktal_ab_models as models
     result=previous.additional_inputs(reader);app=projection.APP
-    result.update(part=part.read(reader,app),host=host.read(reader,app,models.read(reader,app)),
-        tower=execute.read_layout(reader,tower.tag(app),tower.members()))
-    if result['tower'] is None:raise ValueError('S3h signal tower owner read failed')
+    # Owners exist only where the declaration places them (the press has none).
+    result.update(part=part.read(reader,app) if app.part_carrier is not None else None,
+        host=host.read(reader,app,models.read(reader,app)),
+        tower=execute.read_layout(reader,tower.tag(app),tower.members()) if app.signal_tower is not None else None)
+    if app.signal_tower is not None and result['tower'] is None:raise ValueError('S3h signal tower owner read failed')
     return result
 
 
 def extra_values(app,unit,additional,*,page=0,model=0,provider_state=None):
     result=previous.extra_values(app,unit,additional,page=page,model=model,provider_state=provider_state)
     extra=reference.values(app,additional['part'],additional['host'],additional['tower'])
+    if app.signal_tower is None:
+        # Without a tower the PLC classifies MachineState itself, from the Unit
+        # and the alarm log's Blocking, through the same fraktal_ab_machine_state.
+        import fraktal_ab_projection as projection
+        extra.update(projection.machine_state(app,unit,additional['alarmActive']))
     result.update({app.name+'/'+p:v for p,v in extra.items()})
     return result
 
