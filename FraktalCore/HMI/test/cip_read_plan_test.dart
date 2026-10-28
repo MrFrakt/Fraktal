@@ -18,8 +18,8 @@ class CaptureWire implements CipReadTransport {
   final List<String> reads = [];
   final Map<String, int> ticks = {};
   bool closed = false, frozen = false, torn = false;
-  CaptureWire(this.capture)
-      : raw = golden.records(capture),
+  CaptureWire(this.capture, {Map<String, Uint8List> extraRecords = const {}})
+      : raw = {...golden.records(capture), ...extraRecords},
         templates = {
           for (final t in capture['templates'] as List)
             t['handle'] as int: t as Map
@@ -159,12 +159,13 @@ class PublishingCaptureWire extends CaptureWire {
 
 class TimedCaptureWire extends CaptureWire {
   int nowUs = 0;
-  TimedCaptureWire(super.capture);
+  final int stepUs;
+  TimedCaptureWire(super.capture, {super.extraRecords, this.stepUs = 100});
 
   @override
   Future<CipReply> request(int service, Uint8List encoded,
       [Uint8List? data]) async {
-    nowUs += 100;
+    nowUs += stepUs;
     return super.request(service, encoded, data);
   }
 }
@@ -193,15 +194,19 @@ void main() {
     await plan.acquire();
     expect(wire.nowUs, greaterThan(1000000));
     final result = plan.snapshot(), samples = result['dataValues'] as Map;
-    final names = samples.keys.cast<String>()
-        .where((p) => p.endsWith('/Status/Name')).toList();
+    final names = samples.keys
+        .cast<String>()
+        .where((p) => p.endsWith('/Status/Name'))
+        .toList();
     expect(names.length, greaterThan(1));
     for (final name in names) {
       final row = samples[name] as Map;
       expect(row['status'], 0, reason: name);
       expect(row['ageMs'], lessThan(1000), reason: name);
-      expect((result['values'] as Map)[name],
-          name.substring(0, name.length - '/Status/Name'.length)
+      expect(
+          (result['values'] as Map)[name],
+          name
+              .substring(0, name.length - '/Status/Name'.length)
               .replaceAll('/', '.'));
       expect(row['acceptedWindowUs'], lessThan(10000));
     }
@@ -474,5 +479,117 @@ void main() {
         ((plan.snapshot()['dataValues'] as Map)[selected] as Map)['ageMs'];
     expect(before, 1000);
     expect(wire.reads, isEmpty);
+  });
+
+  test(
+      'a slow-due walk reads slow groups first with an unchanged request multiset',
+      () async {
+    final fixture = golden.fixtures().last, capture = fixture['capture'] as Map;
+    final pub = golden.publication(capture), root = pub.roots.first;
+    final slowScope = '$root/CurrentStep';
+    bool inScope(String p) =>
+        p == slowScope ||
+        p.startsWith('$slowScope/') ||
+        p.startsWith('$slowScope[');
+    bool module(String p) => pub.fields
+        .containsKey(p.endsWith('/Status') ? '$p/Name' : '$p/Status/Name');
+
+    // The phased walk: one millisecond per request separates the phases. A
+    // first due walk seeds the revision baseline; the measured walk below is
+    // the next due walk, which phases (the engine always proves progress
+    // before its first walk, so it phases from the first due walk).
+    final wireA = TimedCaptureWire(capture, stepUs: 1000);
+    final planA = CipReadPlan(pub, wireA,
+        clockUs: () => wireA.nowUs,
+        guard: CipReadCoherenceGuard(clockUs: () => wireA.nowUs));
+    planA.slowPaths = {slowScope};
+    await planA.acquire();
+    wireA.reads.clear();
+    final seeded = planA.acquisitions.length;
+    wireA.nowUs += 6 << 20;
+    await planA.acquire();
+    final readsA = List<String>.of(wireA.reads)..sort();
+    final groupsA = [
+      for (final g in planA.acquisitions.skip(seeded)) g['path'] as String
+    ];
+
+    // The reference walk: no slow tier, so one walk in schema order — the
+    // order the interleaved due walk produced before the phases existed.
+    final wireB = TimedCaptureWire(capture, stepUs: 1000);
+    final planB = CipReadPlan(pub, wireB,
+        clockUs: () => wireB.nowUs,
+        guard: CipReadCoherenceGuard(clockUs: () => wireB.nowUs));
+    await planB.acquire();
+    wireB.reads.clear();
+    final seededB = planB.acquisitions.length;
+    wireB.nowUs += 6 << 20;
+    await planB.acquire();
+    final readsB = List<String>.of(wireB.reads)..sort();
+    final groupsB = [
+      for (final g in planB.acquisitions.skip(seededB)) g['path'] as String
+    ];
+
+    // Same request multiset, same group coverage: only the order changes.
+    expect(readsA, readsB);
+    expect(groupsA.toSet(), groupsB.toSet());
+
+    // The slow groups complete before any fast leaf group starts, and module
+    // identity keeps its deferred place at the end (the Status phase).
+    final slowGroups = groupsA.where(inScope).toSet();
+    expect(slowGroups, isNotEmpty);
+    expect(groupsA.any((p) => !inScope(p) && !module(p)), isTrue);
+    expect(groupsA.lastIndexWhere(inScope),
+        lessThan(groupsA.indexWhere((p) => !inScope(p) && !module(p))));
+    expect(groupsA.lastIndexWhere((p) => !module(p)),
+        lessThan(groupsA.indexWhere(module)));
+
+    // Fast rows age only behind fast and Status work: the improvement over
+    // the schema-order reference is at least the slow phase's own duration.
+    double maxFastAge(CipReadPlan plan) =>
+        ((plan.snapshot()['dataValues'] as Map)
+            .values
+            .cast<Map>()
+            .where((row) => row['tier'] == 'fast')
+            .map((row) => (row['ageMs'] as num).toDouble())
+            .reduce((a, b) => a > b ? a : b));
+    final maxFastA = maxFastAge(planA), maxFastB = maxFastAge(planB);
+    final slowPhaseMs = planA.acquisitions
+        .skip(seeded)
+        .where((g) => inScope(g['path'] as String))
+        .map((g) => (g['acquisitionUs'] as num) / 1000)
+        .fold<num>(0, (a, b) => a + b);
+    expect(maxFastA, lessThan(maxFastB));
+    expect(maxFastB - maxFastA, greaterThanOrEqualTo(0.9 * slowPhaseMs));
+
+    // A later non-due walk skips the slow groups entirely and is deterministic.
+    final afterPhased = seeded + groupsA.length;
+    wireA.reads.clear();
+    wireA.nowUs += 250000;
+    await planA.acquire();
+    final readsNonDue = List<String>.of(wireA.reads);
+    final groupsNonDue = [
+      for (final g in planA.acquisitions.skip(afterPhased)) g['path'] as String
+    ];
+    expect(groupsNonDue.toSet(), groupsB.toSet().difference(slowGroups));
+    wireA.reads.clear();
+    wireA.nowUs += 250000;
+    await planA.acquire();
+    expect(wireA.reads, readsNonDue);
+  });
+
+  test('a phased slow-due walk reproduces the oracle values and types',
+      () async {
+    final fixture = golden.fixtures().last, capture = fixture['capture'] as Map;
+    final pub = golden.publication(capture);
+    var now = 0;
+    final wire = CaptureWire(capture);
+    final plan = CipReadPlan(pub, wire,
+        clockUs: () => now++, guard: CipReadCoherenceGuard(clockUs: () => 0));
+    plan.slowPaths = {'${pub.roots.first}/CurrentStep'};
+    await plan.acquire();
+    await plan.acquire();
+    final result = plan.snapshot(), expected = fixture['expected'] as Map;
+    expect(result['values'], expected['values']);
+    expect(result['types'], expected['types']);
   });
 }

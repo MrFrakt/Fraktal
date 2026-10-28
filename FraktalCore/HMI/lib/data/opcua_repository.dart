@@ -331,7 +331,9 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
               'receivedAgeUs=${receivedAge.inMicroseconds} '
               'localProcessingUs=${(effectiveAge - receivedAge).inMicroseconds} '
               'effectiveAgeUs=${effectiveAge.inMicroseconds} '
-              'fastGoodUs=${freshness.fastGood.inMicroseconds}');
+              'fastGoodUs=${freshness.fastGood.inMicroseconds}'
+              '${document['requestDelayUs'] is int ? ' requestDelayUs=${document['requestDelayUs']}' : ''}'
+              '${document['replyWaitUs'] is int ? ' replyWaitUs=${document['replyWaitUs']}' : ''}');
           _checkFreshness();
           throw const FormatException(
               'Complete station sample is late or expired.');

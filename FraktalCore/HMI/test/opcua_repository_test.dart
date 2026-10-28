@@ -16,6 +16,31 @@ void main() {
     expect(await repository.forest().first, hasLength(1));
     expect(client.fullTreeAcquired, isFalse);
   });
+  test(
+      'a later empty paths vector keeps the discovered set, its tiers and scopes',
+      () async {
+    final client = _OncePathsClient();
+    final repository = await OpcUaRepository.connectWithClient(client,
+        refreshInterval: const Duration(milliseconds: 20));
+    addTearDown(repository.dispose);
+    expect(await repository.forest().first, hasLength(1));
+    // The transport contract sends the discovered vector once per discovery
+    // and later snapshots carry an empty list (the CIP engine since WP4b.1).
+    // The repository keeps the last non-empty set, so the classification it
+    // feeds — excluded tiers and the fieldbus on-demand scope — stays intact.
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(client.snapshots, greaterThan(3));
+    expect(
+        client.excludedPaths,
+        allOf(
+            contains(
+                '${_DiscoveryBeforeReadClient.bulk}/SequenceSteps[1]/Visited'),
+            contains(_channelValuePath)));
+    repository.setFieldbusViewActive(true);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(client.readValuesCalls, greaterThan(0));
+    expect(client.lastReadPaths, contains(_channelValuePath));
+  });
   test('an interrupted export never sends its remaining lines', () async {
     final client = _BlockingSetClient(32);
     final repository = await OpcUaRepository.connectWithClient(client,
@@ -307,7 +332,8 @@ void main() {
     await expectLater(repository.login('PneumaticPress', 'admin1', 'sampled'),
         throwsA(isA<TimeoutException>()));
     expect(client.expiredResultReported, isTrue,
-        reason: 'the completed correlated result was observed without a session');
+        reason:
+            'the completed correlated result was observed without a session');
   });
 
   test('pending login timeout is unavailable rather than invalid credentials',
@@ -621,6 +647,23 @@ class _DiscoveryBeforeReadClient extends _OnDemandFieldbusClient
     if (fullTreeAcquired) throw StateError('startup full-tree acquisition');
     final document = await super.snapshot();
     return {...document, 'paths': await discoverPaths()};
+  }
+}
+
+/// The transport contract sends the discovered path vector once per
+/// discovery; subsequent snapshots carry an empty list.
+class _OncePathsClient extends _DiscoveryBeforeReadClient {
+  int snapshots = 0;
+
+  @override
+  Future<Map<String, Object?>> snapshot() async {
+    final document = await super.snapshot();
+    return {
+      ...document,
+      'paths': snapshots++ == 0
+          ? [...(document['paths'] as List), _channelValuePath]
+          : const <String>[]
+    };
   }
 }
 
@@ -1017,8 +1060,10 @@ class _CorrelatedLoginClient extends _PendingLoginClient {
   final bool sessionExpires;
   bool expiredResultReported = false;
   _CorrelatedLoginClient({this.sessionExpires = false})
-      : super(loginSucceeds: true, pendingReads: sessionExpires ? 1 : 3,
-          loginTimeoutMs: sessionExpires ? 180 : null);
+      : super(
+            loginSucceeds: true,
+            pendingReads: sessionExpires ? 1 : 3,
+            loginTimeoutMs: sessionExpires ? 180 : null);
 
   @override
   Future<Map<String, Object?>> snapshot() async {

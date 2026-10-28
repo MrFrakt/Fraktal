@@ -1919,3 +1919,58 @@ The owner settled the three decisions left open by the morning batch:
 
 All seven owner decisions (O1–O7) are now settled. No controller access
 occurred in this entry.
+
+## S4b offline work packages WP4b.1–4b.4 — 2026-10-27
+
+The first four S4b work packages are implemented in the repository, all
+offline; no Echo session was needed or run.
+
+- **WP4b.1 — path vector once per discovery.** `CipSessionEngine` sends
+  `discoverPaths()` only on the first snapshot after discovery and `[]`
+  afterwards; a new engine (what every reconnect builds) sends it again. The
+  snapshot trace records `pathExpansionUs`/`pathCount` only on the sending
+  snapshot. The repository side already kept the last non-empty vector; a
+  regression test now pins that the later empty vector leaves tiers and the
+  fieldbus on-demand scope intact. The engine gained an offline replay seam,
+  `CipSessionEngine.fromCapture`, which seeds discovery from a captured
+  publication the way `CipNamespace.fromCapture` does — used by the new
+  engine tests and available to WP4b.5 rehearsal tooling.
+- **WP4b.2 — slow-due rows before fast rows.** On a due walk with a non-empty
+  slow set and an observed revision baseline, `CipReadPlan.acquire` walks in
+  two phases with a drain between them: all-slow leaf groups first, then
+  every group with a fast leaf; the Status phase stays last. A plan with no
+  revision baseline yet walks unphased, so the first acquisition's progress
+  proof can never strand a slow group Uncertain for a slow interval. Tests
+  prove the request multiset is unchanged, the group coverage is unchanged,
+  slow groups complete before fast groups start, module identity stays in the
+  Status phase, the maximum fast age improves by at least the slow phase's
+  own duration, non-due walks skip the slow groups deterministically, and
+  the phased walk reproduces the 4428-path oracle values and types.
+- **WP4b.3 — trace-only measurement.** Under `--dart-define=fraktal.cip.trace`
+  only: the plan records per-walk `due`, per-phase group counts and durations
+  and the multi-attempt group count (`lastWalkTrace`, surfaced as `walk` in
+  the snapshot trace); the worker stamps `workerReceivedTimelineUs`/
+  `workerSentTimelineUs` (`dart:developer` `Timeline.now`, one monotonic
+  clock across isolates) and the client derives `requestDelayUs`/
+  `replyWaitUs`, which the repository logs beside its existing
+  `stage=complete-sample-rejected` line. Default builds are unchanged.
+  `FraktalCore/HMI/tool/host_cpu_monitor.ps1` is the read-only per-process
+  CPU sampler for the native session.
+- **WP4b.4 — desktop acceptance on the shipped build.** The session's
+  `desktop_diagnostic_qualification_test.dart` moved into
+  `integration_test/ab_desktop_acceptance_test.dart` on
+  `IntegrationTestWidgetsFlutterBinding`, with driver
+  `test_driver/integration_test.dart` and the SDK `integration_test` dev
+  dependency. The live endpoint and output come from
+  `--dart-define=fraktal.ab.desktop.endpoint|output` (the drive command in
+  the plan header); captured-fixture mode keeps its env-var inputs and its
+  rendering-proof-only role. Verified in fixture mode from this repository
+  tree on the real Windows runner: 7 modules, 3 bus nodes, 31 views, 2
+  refused actions, zero client writes.
+
+Gates at this tree: HMI analyzer clean; the full HMI suite and the
+profile-build gate run with this entry (results recorded in the commit); no
+PLC image, AB tool, TwinCAT or specification change is involved.
+
+WP4b.5 (rehearsal peer and its gate) is next; nothing here changes any
+limit, budget, rule or policy.

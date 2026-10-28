@@ -2,12 +2,14 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:isolate';
 
 import 'cip_manifest.dart';
 import 'cip_config_read_view.dart';
 import 'cip_namespace.dart';
 import 'cip_publication.dart';
+import 'cip_read_coherence.dart';
 import 'cip_read_plan.dart';
 import 'cip_read_pool.dart';
 import 'cip_transport.dart';
@@ -102,8 +104,21 @@ final class CipSessionClient
   }
 
   @override
-  Future<Map<String, Object?>> snapshot() async =>
-      Map<String, Object?>.from(await _call('snapshot') as Map);
+  Future<Map<String, Object?>> snapshot() async {
+    final sentUs = _traceCipTiming ? Timeline.now : null;
+    final document = Map<String, Object?>.from(await _call('snapshot') as Map);
+    // Trace-only delivery brackets (WP4b.3). Timeline.now is one monotonic
+    // clock across isolates, so the differences need no offset handshake.
+    if (sentUs != null) {
+      final received = document['workerReceivedTimelineUs'],
+          workerSent = document['workerSentTimelineUs'];
+      if (received is int && workerSent is int) {
+        document['requestDelayUs'] = received - sentUs;
+        document['replyWaitUs'] = Timeline.now - workerSent;
+      }
+    }
+    return document;
+  }
   @override
   Future<Map<String, Object?>> readValues(List<String> browsePaths) async =>
       Map<String, Object?>.from(
@@ -184,8 +199,43 @@ final class CipSessionEngine {
   final String manifestSymbol;
   final int manifestHandle;
   bool _progressProved = false;
+  // The transport contract sends the discovered path vector once per
+  // discovery (OPCUA_TRANSPORT.md); later snapshots carry an empty list and
+  // the repository keeps the last non-empty set. A new engine — what every
+  // reconnect builds through discover() — starts unsent.
+  bool _pathsSent = false;
   CipSessionEngine._(
       this.wire, this.plan, this.manifestSymbol, this.manifestHandle);
+  /// Offline replay seam mirroring [discover] for a captured publication (as
+  /// [CipNamespace.fromCapture] shapes it): the manifest comes from the
+  /// capture's decoded manifest instead of the wire, and the wire serves tag
+  /// reads exactly as a live one does. Replay tests and rehearsal tooling use
+  /// this; a live client always goes through [discover].
+  static CipSessionEngine fromCapture(Map capture, CipReadTransport wire,
+      {int Function()? clockUs, CipReadCoherenceGuard? guard}) {
+    final namespace = CipNamespace.fromCapture(capture);
+    final candidates = namespace.symbols.values
+        .where((s) =>
+            s.structured &&
+            s.rank == 0 &&
+            CipManifest.looksLike(namespace.templates[s.handle]!.members
+                .map((m) => m['name'] as String)
+                .toSet()))
+        .toList();
+    if (candidates.length != 1)
+      throw const FormatException(
+          'Exactly one canonical publication manifest is required.');
+    final symbol = candidates.single;
+    final manifest = CipManifest.fromNormalized(
+        Map<String, Object?>.from(capture['manifest'] as Map));
+    final publication = CipPublication(namespace, manifest),
+        plan = CipReadPlan(publication, wire, clockUs: clockUs, guard: guard);
+    plan.excludedPaths = {
+      for (final s in manifest.rows('readServices'))
+        s['CanonicalRoot'] as String
+    };
+    return CipSessionEngine._(wire, plan, symbol.name, symbol.handle);
+  }
   static Future<CipSessionEngine> discover(CipReadTransport wire) async {
     try {
       final namespace = await CipNamespace.discover(wire);
@@ -271,7 +321,8 @@ final class CipSessionEngine {
     if (fastAges.isEmpty)
       throw const FormatException('No Good cyclic CIP sample.');
     final agesSelectedUs = timer.elapsedMicroseconds;
-    final paths = plan.publication.discoverPaths();
+    final paths =
+        _pathsSent ? const <String>[] : plan.publication.discoverPaths();
     final pathsExpandedUs = timer.elapsedMicroseconds;
     final document = <String, Object?>{
       ...result,
@@ -298,15 +349,17 @@ final class CipSessionEngine {
         'manifestAfterUs': checkedAfterUs - acquiredUs,
         'projectionUs': projectedUs - checkedAfterUs,
         'ageSelectionUs': agesSelectedUs - projectedUs,
-        'pathExpansionUs': pathsExpandedUs - agesSelectedUs,
+        if (!_pathsSent) 'pathExpansionUs': pathsExpandedUs - agesSelectedUs,
         'assemblyUs': timer.elapsedMicroseconds - pathsExpandedUs,
         'groups': groups.length,
         'groupHistoryTruncated':
             previousAcquisition != null && previousIndex < 0,
         'slowestGroups': slowest.take(8).toList(),
-        'pathCount': paths.length,
+        if (!_pathsSent) 'pathCount': paths.length,
+        if (plan.lastWalkTrace != null) 'walk': plan.lastWalkTrace!,
       });
     }
+    _pathsSent = paths.isNotEmpty;
     return document;
   }
 
@@ -360,6 +413,8 @@ void _cipWorker(SendPort owner) async {
       if (message is! List || message.length != 3) return;
       final id = message[0], operation = message[1], argument = message[2];
       final queueUs = requestClock.elapsedMicroseconds;
+      final receivedTimelineUs =
+          _traceCipTiming && operation == 'snapshot' ? Timeline.now : null;
       try {
         Object? result;
         if (operation == 'connect') {
@@ -430,6 +485,11 @@ void _cipWorker(SendPort owner) async {
         final deliveryClock = _traceCipTiming && operation == 'snapshot'
             ? (Stopwatch()..start())
             : null;
+        if (_traceCipTiming && result is Map) {
+          result['workerSentTimelineUs'] = Timeline.now;
+          if (receivedTimelineUs != null)
+            result['workerReceivedTimelineUs'] = receivedTimelineUs;
+        }
         owner.send([id, true, result]);
         if (deliveryClock != null) {
           // Opt-in qualification stdout; normal builds omit it.

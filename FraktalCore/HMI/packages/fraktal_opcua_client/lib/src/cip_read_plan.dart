@@ -91,6 +91,10 @@ final class CipReadPlan {
   Set<String> slowPaths = {}, excludedPaths = {};
   int _lastSlow = -1000000000;
   bool _refreshSlow = true;
+  // Trace-only walk summary (WP4b.3): per-phase group counts and durations of
+  // the last full acquire, consumed by the engine's snapshot trace.
+  String? _phaseLabel;
+  Map<String, Object?>? lastWalkTrace;
   static const _pollPeriodMs = 250;
   static const _fastGoodMs = 1000, _fastExpiryMs = 3000;
   static const _slowPeriodMs = 5000, _slowGoodMs = 7500, _slowExpiryMs = 15000;
@@ -477,7 +481,8 @@ final class CipReadPlan {
       'quality': sample.quality.name,
       'reason': sample.reason,
       'attempts': sample.attempts,
-      'acquisitionUs': sample.acquisitionUs
+      'acquisitionUs': sample.acquisitionUs,
+      if (_phaseLabel != null) 'phase': _phaseLabel
     });
     if (acquisitions.length > 10000) acquisitions.removeAt(0);
     if (sample.quality == CipSampleQuality.bad) {
@@ -569,9 +574,14 @@ final class CipReadPlan {
 
   Future<void> acquire({Set<String>? paths}) async {
     final due = _refreshSlow || _clockUs() - _lastSlow >= slowIntervalUs;
+    final walkStart = acquisitions.length;
     final seenCounts = <String>{};
     final statuses = <(CipPublishedField, String, bool)>[];
     var statusPhase = false;
+    // On a slow-due walk the phases split the leaf groups: all-slow groups
+    // first, then every group with a fast leaf, so fast rows do not age
+    // behind slow I/O. Null outside those phases; see acquire() below.
+    bool? slowOnlyPhase;
     final grouped = wire;
     final concurrency = paths == null && grouped is CipGroupedReadTransport
         ? grouped.groupConcurrency
@@ -672,7 +682,9 @@ final class CipReadPlan {
           m.isStructure &&
           publication.fields.containsKey('$statusPrefix/Name') &&
           publication.fields.containsKey('$statusPrefix/ModuleType')) {
-        statuses.add((field, concrete, element));
+        // Both phases of a due walk defer module identity the same way.
+        if (!statuses.contains((field, concrete, element)))
+          statuses.add((field, concrete, element));
         return;
       }
       if (hasArrays) {
@@ -703,7 +715,16 @@ final class CipReadPlan {
         final consumed =
             paths == null ? leaves.where((p) => !_excluded(p)).toSet() : leaves;
         if (paths == null && consumed.isEmpty) return;
-        if (paths == null && !due && consumed.every(_slow)) return;
+        final allSlow = consumed.every(_slow);
+        if (paths == null && !due && allSlow) return;
+        // A slow-due walk reads all-slow groups in the slow phase and every
+        // other group in the fast phase; the request multiset is unchanged.
+        if (paths == null &&
+            due &&
+            slowOnlyPhase != null &&
+            slowOnlyPhase != allSlow) {
+          return;
+        }
         final selection =
             paths ?? (consumed.length != leaves.length ? consumed : null);
         if (selection?.isEmpty == true) return;
@@ -712,23 +733,49 @@ final class CipReadPlan {
       }
     }
 
-    try {
+    Future<void> walkRecords() async {
       for (final target in publication.records
           .where((r) => !r.fragment)
           .map((r) => r.target)) {
         for (final child in _children(target))
           await visit(child, '$target/${child.member.name}');
       }
-      await flush();
+    }
+
+    try {
+      if (paths == null && due && slowPaths.isNotEmpty && _tokens.isNotEmpty) {
+        // The slow phase completes (and its requests drain) before any fast
+        // group starts, so the oldest fast row ages only behind fast and
+        // Status work. Count reads stay once per walk through seenCounts.
+        // A plan with no observed revision yet walks unphased: the first
+        // acquisition of a walk proves progress, and a slow group would
+        // otherwise carry that Uncertainty for a whole slow interval.
+        slowOnlyPhase = true;
+        _phaseLabel = 'slow';
+        await walkRecords();
+        await flush();
+        slowOnlyPhase = false;
+        _phaseLabel = 'fast';
+        await walkRecords();
+        await flush();
+        slowOnlyPhase = null;
+        _phaseLabel = null;
+      } else {
+        await walkRecords();
+        await flush();
+      }
       statusPhase = true;
+      _phaseLabel = 'status';
       for (final status in statuses)
         await visit(status.$1, status.$2, element: status.$3);
       await flush();
     } on Object {
       // No started row may outlive a refused walk or its connection owner.
+      _phaseLabel = null;
       await Future.wait(active.toList());
       rethrow;
     }
+    _phaseLabel = null;
     // A parent count can shrink between independently coherent rows. Remove
     // departed rows, rather than retaining stale data at now-ineligible paths.
     for (final entry in _counts.entries) {
@@ -756,6 +803,30 @@ final class CipReadPlan {
     if (paths == null && due) {
       _lastSlow = _clockUs();
       _refreshSlow = false;
+    }
+    if (paths == null) {
+      final walk = acquisitions.skip(walkStart).toList();
+      Map<String, Object?> phase(String? label) {
+        final rows = walk.where((g) =>
+            g['phase'] == label ||
+            (label == null && !g.containsKey('phase')));
+        return {
+          'groups': rows.length,
+          'us': rows.fold<int>(0, (a, g) => a + (g['acquisitionUs'] as int))
+        };
+      }
+      final phased = walk.any((g) => g['phase'] == 'slow');
+      lastWalkTrace = {
+        'due': due,
+        'phases': {
+          if (phased) 'slow': phase('slow'),
+          if (phased) 'fast': phase('fast'),
+          if (!phased) 'main': phase(null),
+          'status': phase('status'),
+        },
+        'multiAttemptGroups':
+            walk.where((g) => (g['attempts'] as int) > 2).length
+      };
     }
   }
 
