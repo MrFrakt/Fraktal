@@ -1,0 +1,138 @@
+library;
+
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'cip_transport.dart';
+import 'opcua_session_client.dart';
+
+/// Optional capability: a complete guarded row owns one read-only connection.
+/// Transports without this capability retain their serial behavior.
+abstract interface class CipGroupedReadTransport implements CipReadTransport {
+  int get groupConcurrency;
+  Future<T> withGroup<T>(Future<T> Function(CipReadTransport) work);
+}
+
+/// Optional capacity for combining bounded rows on one leased connection.
+/// Null preserves the original reader when any connection lacks read batching.
+abstract interface class CipBatchedGroupReadTransport
+    implements CipGroupedReadTransport {
+  int? get groupBatchBytes;
+}
+
+final class CipReadPool implements CipBatchedGroupReadTransport {
+  static const _maximumConnections = 4;
+  final List<CipReadTransport> _transports;
+  final List<CipReadTransport> _available;
+  final List<Completer<CipReadTransport>> _waiting = [];
+  bool _closed = false;
+
+  CipReadPool.fromConnected(List<CipReadTransport> transports)
+      : _transports = List.unmodifiable(transports),
+        _available = List.of(transports) {
+    if (transports.isEmpty ||
+        transports.length > _maximumConnections ||
+        transports.toSet().length != transports.length) {
+      throw ArgumentError('One to four distinct read transports required.');
+    }
+  }
+
+  static Future<CipReadPool> connect(
+      {required String host,
+      int port = 44818,
+      int slot = 0,
+      String? expectSerial}) async {
+    // A controller can serialize communication across TCP connections. Keep
+    // live proof windows independent of other in-flight row bodies; batching
+    // still amortizes reads within each proven window. Supplied transports may
+    // retain bounded parallelism when their backend supports it.
+    return CipReadPool.fromConnected([
+      await CipSocketTransport.connect(
+          host: host, port: port, slot: slot, expectSerial: expectSerial)
+    ]);
+  }
+
+  @override
+  int get groupConcurrency => _transports.length;
+
+  @override
+  int? get groupBatchBytes {
+    int? capacity;
+    for (final transport in _transports) {
+      if (transport is! CipBatchReadTransport) return null;
+      final bytes = transport.readBatchBytes;
+      if (capacity == null || bytes < capacity) capacity = bytes;
+    }
+    return capacity;
+  }
+
+  @override
+  Future<T> withGroup<T>(Future<T> Function(CipReadTransport) work) async {
+    if (_closed) throw const OpcUaTransportException('CIP read pool closed.');
+    late CipReadTransport transport;
+    if (_available.isNotEmpty) {
+      transport = _available.removeAt(0);
+    } else {
+      if (_waiting.length >= 64) {
+        throw const OpcUaTransportException('CIP read queue exceeded.');
+      }
+      final waiter = Completer<CipReadTransport>();
+      _waiting.add(waiter);
+      transport = await waiter.future;
+    }
+    try {
+      if (_closed) throw const OpcUaTransportException('CIP read pool closed.');
+      final result = await work(transport);
+      if (_closed) throw const OpcUaTransportException('CIP read pool closed.');
+      return result;
+    } finally {
+      if (!_closed) {
+        if (_waiting.isNotEmpty) {
+          _waiting.removeAt(0).complete(transport);
+        } else {
+          _available.add(transport);
+        }
+      }
+    }
+  }
+
+  @override
+  Future<CipReply> request(int service, Uint8List path, [Uint8List? data]) {
+    if (path.length > 510 || (data?.length ?? 0) > 4000)
+      return Future.error(
+          const FormatException('CIP read request exceeds bounds.'));
+    path = Uint8List.fromList(path);
+    data = data == null ? null : Uint8List.fromList(data);
+    if (!cipReadRequestAllowed(service, path, data)) {
+      return Future.error(const FormatException(
+          'Only bounded CIP read services are available.'));
+    }
+    return withGroup((transport) => transport.request(service, path, data));
+  }
+
+  void _stop() {
+    _closed = true;
+    _available.clear();
+    for (final waiter in _waiting) {
+      waiter.completeError(
+          const OpcUaTransportException('CIP read pool closed.'));
+    }
+    _waiting.clear();
+  }
+
+  @override
+  void abort() {
+    if (_closed) return;
+    _stop();
+    for (final transport in _transports) {
+      transport.abort();
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    if (_closed) return;
+    _stop();
+    await Future.wait(_transports.map((transport) => transport.close()));
+  }
+}

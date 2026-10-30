@@ -1,17 +1,22 @@
 # Fraktal/AB canonical publication — one architecture across bindings
 
-Non-normative design note, 2026-10-19, continued through 2026-10-27. Status:
-**S3 Echo exit and S4a pass; S4b remains open.** The [body-packet attempt](Evidence/AB_S4B_MSP_ATTEMPT_2026-10-27.md)
-passes 41 cases/87 exact replays, the busy witness and 2,851 entirely Good Dart
-samples, median age 209.959 ms. Counts/body are batched between separate completed
-counter reads; no MSP ordering/atomicity assumption. Strict desktop initially
-LIVE then STALE after overview at **1,051.723 ms** against 1,000 ms. Precise delay
-cause remains unisolated; later acquisition/final timing skipped. TASK maximum
-9,002 us /zero overlaps; genealogy/31 baseline/final checks pass. Approval consumed.
-Offline acquisition/delivery reduction is next, preserving proofs/freshness.
-685 HMI/12 skips, 73 focused and 74 root tests pass; unchanged 373 PLC/gate
-bindings retain 2,339 AB tests/65% Capacity by hashes. V2/Part III inactive;
-S5-S7/physical I/O remain. See the [plan](AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md).
+Non-normative design note, 2026-10-19, continued through 2026-10-29. Status:
+**S3 Echo exit, S4a and S4b pass.** The [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md)
+passes E1–E9 in one session: 41 candidate cases, 87 exact replays, 2,538 observer
+samples/zero Bad, four configuration pages/1,100 exact scalars, 5,407-path
+equivalence/acquisition, and 31 LIVE desktop views/seven modules/three bus nodes.
+Maximum mapped age is 255.856 ms. Capacity 66%; TASK median 966 µs, cumulative
+maximum 8,974 µs/zero overlaps. Genealogy, five original documents, 31 baseline
+cases and every final check pass. No dumps or excluded operations.
+
+O9 adds PLC-owned revisions for 29 existing header leaves and the configuration
+view, plus independent scan progress. Only protocol 2 gains its declared
+one-second proof bound; protocol 1 retains its strict scan-period window.
+Core values/types, freshness, tiers and D9 remain. Final AB 2,356/HMI 759 passed
+(12 HMI skips), both v38 builds/read-backs/access/SDK audits and 74 root tests.
+Earlier failed sessions stay sealed. V2/Part III remain inactive until S6.
+Next is S5, then S6; physical/CIP Security S7 is deferred under O2. See the
+[plan](AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md).
 
 ## Owner decisions
 

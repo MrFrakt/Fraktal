@@ -138,13 +138,14 @@ def snapshot(capture):
             or manifest.get("truncated") is not False:
         raise ValueError("unsupported, invalid or truncated canonical manifest")
     minor = manifest.get('schemaMinor', 0)
-    if type(minor) is not int or minor not in (0, 1, 2, 3, 4, 5, 6, 7, 8):
+    if type(minor) is not int or minor not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10):
         raise ValueError('unsupported canonical manifest minor version')
     if minor<2 and any(key in manifest for key in ('bindings','fragmentRevision')):
         raise ValueError('record bindings require manifest V6.2')
     if minor<5 and 'dataProducts' in manifest:raise ValueError('data products require manifest V6.5')
     if minor<6 and 'commandBindings' in manifest:raise ValueError('command bindings require V6.6')
     if minor<7 and 'readCoherenceBindings' in manifest:raise ValueError('read-coherence bindings require V6.7')
+    if minor<10 and 'ownerReadBindings' in manifest:raise ValueError('owner-read bindings require V6.10')
     token = tuple(coherence_token(manifest))
     if not isinstance(token[0], str) or not token[0] or type(token[1]) is not int:
         raise ValueError("invalid manifest coherence token")
@@ -243,6 +244,15 @@ def snapshot(capture):
             if view.get('SchemaVersion')!=1 or not identity.get('string') \
                     or bytes.fromhex(identity['bytes']).decode('utf-8')!=descriptor['RootSymbol']:
                 raise ValueError('read-service view version/identity differs')
+    if minor>=10:
+        from fraktal_ab_owner_read_bindings import validate_rows as validate_owners
+        owner_rows=validate_owners(manifest.get('ownerReadBindings'),
+            read_services=manifest['readServices'],base_bindings=manifest['readCoherenceBindings'])
+        for binding in owner_rows:
+            for name in ('RevisionSymbol','ProgressSymbol'):
+                symbol=symbols.get(binding[name])
+                if not symbol or symbol.get('atomic')!=0xC4 or symbol.get('arrayRank',0):
+                    raise ValueError('owner revision/progress Symbol is not a DINT scalar')
     fragments=[]
     if minor>=2:
         bindings=manifest.get('bindings')
@@ -497,13 +507,27 @@ def snapshot(capture):
     for target,handle,value in fragments:walk_struct(target,value,handle,0)
     if not minor and set(annotations) != used:
         raise ValueError("manifest contains annotations for paths absent from acquired roots")
+    if minor>=10:
+        from fraktal_ab_owner_read_bindings import HEADER_MEMBERS
+        modules={p[:-len('/Name')] for p in values if p.endswith('/Status/Name')
+                 and p[:-len('Name')]+'ModuleType' in values}
+        views={s['CanonicalRoot'] for s in manifest['readServices']}
+        if len(owner_rows)!=len(modules)+len(views) or {b['CanonicalPrefix'] for b in owner_rows}!=modules|views:
+            raise ValueError('owner scopes do not cover module headers/views')
+        for binding in owner_rows:
+            members=json.loads(binding['MembersJson'])
+            prefix=binding['CanonicalPrefix']
+            if members and (prefix not in modules or set(members)!={m for m in HEADER_MEMBERS
+                                                                 if prefix+'/'+m in values}):
+                raise ValueError('owner header differs from the discovered schema')
     return dict(schema=SNAPSHOT, schemaVersion=1, values=values, types=types,
                 nodeCount=len(values), moduleCount=sum(p.endswith("/Status/Name") for p in values),
                 contentHash=token[0], configRevision=token[1], truncated=False,
                 dataValues={p: dict(value=v, type=types[p], status=0) for p, v in values.items()},
                 **(dict(commandBindings=commands,commandArguments=command_arguments) if minor>=6 else {}),
                 **(dict(readCoherenceBindings=manifest['readCoherenceBindings']) if minor>=7 else {}),
-                **(dict(readServices=manifest['readServices']) if minor>=8 else {}))
+                **(dict(readServices=manifest['readServices']) if minor>=8 else {}),
+                **(dict(ownerReadBindings=owner_rows) if minor>=10 else {}))
 
 
 def template_byte_size(comm, handle):
@@ -577,7 +601,11 @@ def read_document(comm, manifest_reader=None, *, expect_serial):
                 raise ValueError('command commit Symbol is not a DINT scalar')
             symbols.append(dict(name=name,atomic=0xC4,arrayRank=0))
     if before.get('schemaMinor',0)>=7:
-        for name in sorted({b['RevisionSymbol'] for b in before['readCoherenceBindings']}):
+        counters={b['RevisionSymbol'] for b in before['readCoherenceBindings']}
+        if before.get('schemaMinor',0)>=10:
+            counters.update(b[k] for b in before['ownerReadBindings']
+                            for k in ('RevisionSymbol','ProgressSymbol'))
+        for name in sorted(counters):
             matches=[t for t in reply.Value if t.TagName==name]
             if len(matches)!=1 or matches[0].Struct or matches[0].Array or matches[0].DataTypeValue!=0xC4:
                 raise ValueError('read-coherence revision Symbol is not a DINT scalar')

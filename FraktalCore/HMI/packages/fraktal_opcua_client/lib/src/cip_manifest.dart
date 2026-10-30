@@ -57,6 +57,15 @@ const _coherenceColumns = {
   'MutationPeriodUs'
 };
 const _readServiceColumns = {'Kind', 'Version', 'RootSymbol', 'CanonicalRoot'};
+const _ownerColumns = {
+  'CanonicalPrefix',
+  'MembersJson',
+  'RevisionSymbol',
+  'ProgressSymbol',
+  'Protocol',
+  'MinimumUpdateIntervalUs',
+  'MaximumProofWindowUs'
+};
 const _logical = {
   '',
   'BOOL',
@@ -88,7 +97,7 @@ Object? _freeze(Object? value) {
   return value;
 }
 
-/// Exact validated V6.4–V6.8 wire metadata. A live session additionally requires
+/// Exact validated V6.4–V6.8/V6.10 wire metadata. A live session additionally requires
 /// V6.7; older recorded captures are supported only for logical replay tests.
 final class CipManifest {
   final Map<String, Object?> document;
@@ -101,11 +110,31 @@ final class CipManifest {
         for (final row in document[name] as List? ?? const [])
           Map<String, Object?>.from(row as Map)
       ];
-  List<CipReadCoherenceBinding> get coherence => [
-        for (final row in rows('readCoherenceBindings'))
-          CipReadCoherenceBinding(row['CanonicalPrefix'] as String,
-              row['RevisionSymbol'] as String, row['MutationPeriodUs'] as int)
-      ];
+  late final List<CipReadCoherenceBinding> coherence = List.unmodifiable([
+    for (final row in rows('readCoherenceBindings'))
+      CipReadCoherenceBinding(row['CanonicalPrefix'] as String,
+          row['RevisionSymbol'] as String, row['MutationPeriodUs'] as int)
+  ]);
+  late final List<CipReadCoherenceBinding> ownerCoherence = List.unmodifiable([
+    for (final row in rows('ownerReadBindings'))
+      CipReadCoherenceBinding(
+          row['CanonicalPrefix'] as String,
+          row['RevisionSymbol'] as String,
+          row['MinimumUpdateIntervalUs'] as int,
+          protocol: 2,
+          progressSymbol: row['ProgressSymbol'] as String,
+          proofWindowUs: row['MaximumProofWindowUs'] as int,
+          members: List<String>.from(
+              jsonDecode(row['MembersJson'] as String) as List))
+  ]);
+
+  CipReadCoherenceBinding bindingFor(String path) {
+    final owners = ownerCoherence.where((b) => b.covers(path)).toList();
+    if (owners.length > 1)
+      throw const FormatException('Conflicting owner-read selection.');
+    if (owners.isNotEmpty) return owners.single;
+    return coherence.singleWhere((b) => b.covers(path));
+  }
 
   static bool looksLike(Set<String> names) => names.containsAll({
         'Magic',
@@ -123,7 +152,9 @@ final class CipManifest {
 
   factory CipManifest.fromPhysical(Map<String, Object?> record) {
     final minor = record['SchemaMinor'];
-    _require(_int(minor, 4, 8) && record['Magic'] == 0x46524b36,
+    _require(
+        (const {4, 5, 6, 7, 8, 10}.contains(minor) && minor is int) &&
+            record['Magic'] == 0x46524b36,
         'Unsupported canonical manifest.');
     final version = minor as int;
     final expected = <String>{
@@ -187,6 +218,9 @@ final class CipManifest {
       if (version >= 8)
         'readServices':
             table('ReadServices', _readServiceColumns, 1, 1024, always: true),
+      if (version >= 10)
+        'ownerReadBindings':
+            table('OwnerReadBindings', _ownerColumns, 1, 1024, always: true),
     };
     _require(
         _sameKeys(record, expected), 'Unexpected canonical manifest member.');
@@ -199,7 +233,8 @@ final class CipManifest {
     final minor = d['schemaMinor'];
     _require(
         d['schemaMajor'] == 6 &&
-            _int(minor, 4, 8) &&
+            minor is int &&
+            const {4, 5, 6, 7, 8, 10}.contains(minor) &&
             d['valid'] == true &&
             d['truncated'] == false &&
             _int(d['publicationStage'], 2, 0x7fffffff) &&
@@ -223,7 +258,8 @@ final class CipManifest {
       if (version >= 5) 'dataProducts',
       if (version >= 6) ...['commandBindings', 'commandOperations'],
       if (version >= 7) 'readCoherenceBindings',
-      if (version >= 8) 'readServices'
+      if (version >= 8) 'readServices',
+      if (version >= 10) 'ownerReadBindings'
     };
     _require(_sameKeys(d, keys), 'Unexpected normalized manifest field.');
     List<Map> table(String key, Set<String> columns, int minimum, int maximum) {
@@ -411,6 +447,74 @@ final class CipManifest {
             'Invalid read service descriptor.');
       }
     }
+    if (version >= 10) {
+      final selected = <String>[], revisions = <String>{};
+      final views = {
+        for (final r in d['readServices'] as List)
+          (r as Map)['CanonicalRoot'] as String
+      };
+      for (final row in table('ownerReadBindings', _ownerColumns, 1, 1024)) {
+        _require(
+            row['CanonicalPrefix'] is String &&
+                utf8.encode(row['CanonicalPrefix'] as String).length <= 255 &&
+                row['MembersJson'] is String &&
+                utf8.encode(row['MembersJson'] as String).length <= 255 &&
+                _name(row['RevisionSymbol']) &&
+                _name(row['ProgressSymbol']) &&
+                row['Protocol'] is int &&
+                row['Protocol'] == 2 &&
+                row['MinimumUpdateIntervalUs'] is int &&
+                row['MaximumProofWindowUs'] is int &&
+                revisions.add(row['RevisionSymbol'] as String),
+            'Invalid owner-read descriptor.');
+        final members = jsonDecode(row['MembersJson'] as String);
+        _require(
+            members is List &&
+                members.every((m) => m is String) &&
+                members.length == members.toSet().length,
+            'Invalid owner member selection.');
+        final names = Set<String>.from(members as List);
+        final prefix = row['CanonicalPrefix'] as String;
+        _require(
+            names.isEmpty
+                ? views.contains(prefix)
+                : prefix.endsWith('/Status') &&
+                    names.containsAll({'Name', 'ModuleType', 'State'}) &&
+                    names.every(cipHeaderCoherenceMembers.contains),
+            'Owner selection exceeds its declared scope.');
+        final binding = CipReadCoherenceBinding(
+            prefix,
+            row['RevisionSymbol'] as String,
+            row['MinimumUpdateIntervalUs'] as int,
+            protocol: 2,
+            progressSymbol: row['ProgressSymbol'] as String,
+            proofWindowUs: row['MaximumProofWindowUs'] as int,
+            members: names);
+        final parents = (d['readCoherenceBindings'] as List)
+            .cast<Map>()
+            .where((p) =>
+                prefix == p['CanonicalPrefix'] ||
+                prefix.startsWith('${p['CanonicalPrefix']}/'))
+            .toList();
+        _require(
+            parents.length == 1 &&
+                !(d['readCoherenceBindings'] as List).cast<Map>().any(
+                    (p) => p['RevisionSymbol'] == binding.revisionSymbol) &&
+                binding.progressSymbol == parents.single['RevisionSymbol'] &&
+                binding.mutationPeriodUs == parents.single['MutationPeriodUs'],
+            'Owner progress/period differs from its scan-bound parent.');
+        for (final path
+            in names.isEmpty ? [prefix] : names.map((m) => '$prefix/$m')) {
+          _require(
+              !selected.any((old) =>
+                  path == old ||
+                  path.startsWith('$old/') ||
+                  old.startsWith('$path/')),
+              'Overlapping owner-read selection.');
+          selected.add(path);
+        }
+      }
+    }
     final body = <String, Object?>{
       'schemaMajor': 6,
       'schemaMinor': version,
@@ -424,7 +528,8 @@ final class CipManifest {
       if (version >= 6) 'commandBindings': d['commandBindings'],
       if (version >= 6) 'commandOperations': d['commandOperations'],
       if (version >= 7) 'readCoherenceBindings': d['readCoherenceBindings'],
-      if (version >= 8) 'readServices': d['readServices']
+      if (version >= 8) 'readServices': d['readServices'],
+      if (version >= 10) 'ownerReadBindings': d['ownerReadBindings']
     };
     final legacy = d['legacyContentHash'], digest = d['contentHash'];
     _require(

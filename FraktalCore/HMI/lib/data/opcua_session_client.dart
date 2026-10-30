@@ -14,6 +14,8 @@ export 'package:fraktal_opcua_client/opcua_session_client.dart'
         OpcUaSessionClientTiering,
         OpcUaSnapshotException,
         OpcUaTieredReadClient,
+        OpcUaReadTierBatchClient,
+        OpcUaConfigurationReadPolicyClient,
         OpcUaTransportException,
         OpcUaWrite,
         OpcUaWriteType,

@@ -18,6 +18,7 @@ SERVICE='FRK_T_ReadServiceV68'
 
 
 def enabled(app):return app.canonical_config_read_view
+def work_type(app):return 'FRK_T_ConfigReadWorkV610' if app.canonical_owner_revisions else WORK
 def _name(app,suffix):
     value=f'FRK_{app.name}_{suffix}'
     return value if len(value)<=40 else value[:23]+'_'+hashlib.sha256(value.encode()).hexdigest()[:16]
@@ -76,7 +77,8 @@ def augment(app,schema):
         M('Definitions',DEFINITION,count=definitions,lower=0,count_path=root+'/DefinitionCount'),
         M('ValueCount','DINT'),M('ValueCapacity','DINT'),
         M('Values',VALUE,count=values,lower=0,count_path=root+'/ValueCount'))
-    schema[WORK]=tuple(M(n,'DINT') for n in ('Initialized','LastRevision','DefinitionIndex','ValueIndex','ModelIndex','DataIndex'))+(M('CleanText',S(255)),)
+    schema[work_type(app)]=tuple(M(n,'DINT') for n in ('Initialized','LastRevision','DefinitionIndex','ValueIndex','ModelIndex','DataIndex'))+(M('CleanText',S(255)),)
+    if app.canonical_owner_revisions:schema[work_type(app)]+=(M('LastInvalid','DINT'),)
 
 
 def manifest_members():
@@ -96,7 +98,7 @@ def tags(app,serialize):
     definitions,values=capacities(app)
     return [serialize(tag(app),VIEW,dict(SchemaVersion=1,RootIdentity=app.name,DefinitionCount=definitions,
                                       DefinitionCapacity=definitions,ValueCapacity=values)),
-            serialize(work_tag(app),WORK,{},access='None')]
+            serialize(work_tag(app),work_type(app),{},access='None')]
 
 
 def cyclic(app):
@@ -106,6 +108,7 @@ def cyclic(app):
     import fraktal_ab_data_access as access
     import fraktal_ab_generate as gen
     import fraktal_ab_manifest as manifest
+    import fraktal_ab_owner_read_bindings as publication
     definitions,capacity=capacities(app)
     v=tag(app);w=work_tag(app);source=owner.state_tag(app)
     index=w+'.DefinitionIndex';position=w+'.ValueIndex';model=w+'.ModelIndex'
@@ -117,10 +120,17 @@ def cyclic(app):
     # withholds the manifest and clears every value buffer, including unused
     # tails. Retained views still rebuild/mask immediately on access changes.
     lines=[f'IF ({source}.LastCatalogCount < 0) OR ({source}.LastCatalogCount > {maximum_banks}) OR (({w}.Initialized = 0) AND S:FS) THEN',
-           f'{__import__("fraktal_ab_canonical_publication").header_tag(app)}.Valid := 0;',
-           f'{v}.ValueCount := 0;',f'FOR {position} := 0 TO {capacity-1} DO',
-           f'CPS({clean},{row}.ValueText,1);',f'{row}.Readable := 0;','END_FOR;','ELSE',
-           f'IF ({w}.Initialized = 0) OR ({w}.LastRevision <> {source}.Revision) THEN',
+           f'{__import__("fraktal_ab_canonical_publication").header_tag(app)}.Valid := 0;']
+    if publication.enabled(app):
+        lines += [f'IF ({w}.LastInvalid = 0) OR S:FS THEN']+publication.begin(publication.view_revision(app))
+    lines += [f'{v}.ValueCount := 0;',f'FOR {position} := 0 TO {capacity-1} DO',
+              f'CPS({clean},{row}.ValueText,1);',f'{row}.Readable := 0;','END_FOR;']
+    if publication.enabled(app):
+        lines += publication.close(publication.view_revision(app))+[f'{w}.LastInvalid := 1;','END_IF;']
+    lines += ['ELSE',
+           f'IF ({w}.Initialized = 0) OR ({w}.LastRevision <> {source}.Revision)'+(f' OR ({w}.LastInvalid <> 0)' if publication.enabled(app) else '')+' THEN']
+    if publication.enabled(app):lines += publication.begin(publication.view_revision(app))
+    lines += [
            f'{v}.Revision := {source}.Revision;',f'{v}.ValueCount := 0;',f'{position} := 0;',
            f'FOR {index} := 0 TO {definitions-1} DO',f'{definition}.DefinitionIndex := {index};',
            *text.put_text(app,definition+'.Scope',app.name,255)]
@@ -151,5 +161,8 @@ def cyclic(app):
                   f'FOR {index} := 0 TO {definitions-1} DO',f'IF {d}.ModelScoped THEN']+value(model)+['END_IF;','END_FOR;','END_FOR;']
     lines += [f'{v}.ValueCount := {position};',f'FOR {position} := {v}.ValueCount TO {capacity-1} DO',
               f'CPS({clean},{row}.ValueText,1);',f'{row}.Readable := 0;','END_FOR;',
-              f'{w}.LastRevision := {source}.Revision;',f'{w}.Initialized := 1;','END_IF;','END_IF;']
+              f'{w}.LastRevision := {source}.Revision;',f'{w}.Initialized := 1;']
+    if publication.enabled(app):
+        lines += [f'{w}.LastInvalid := 0;']+publication.close(publication.view_revision(app))
+    lines += ['END_IF;','END_IF;']
     return lines

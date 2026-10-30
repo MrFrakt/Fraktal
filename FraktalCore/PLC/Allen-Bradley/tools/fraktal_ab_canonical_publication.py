@@ -45,6 +45,7 @@ def validate(app):
     import fraktal_ab_read_coherence as read_coherence
     findings += read_coherence.validate(app)
     findings += __import__("fraktal_ab_config_read_view").validate(app)
+    findings += __import__("fraktal_ab_owner_read_bindings").validate(app)
     import fraktal_ab_canonical_fieldbus as fieldbus
     findings += fieldbus.validate(app)
     if not stage:
@@ -113,6 +114,7 @@ def root_type(app):
 
 
 def header_type(app):
+    if app.canonical_owner_revisions:return f"FRK_T_{app.name}CanonicalManifestV610"
     if app.canonical_config_read_view:return f"FRK_T_{app.name}CanonicalManifestV68"
     if app.canonical_read_coherence:return f"FRK_T_{app.name}CanonicalManifestV67"
     if app.canonical_publication_stage>=13:return f"FRK_T_{app.name}CanonicalManifestV66"
@@ -260,6 +262,7 @@ def schema(app):
     if app.canonical_read_coherence:
         __import__('fraktal_ab_read_coherence').augment(app,result)
     __import__('fraktal_ab_config_read_view').augment_manifest(app,result)
+    __import__('fraktal_ab_owner_read_bindings').augment(app,result)
     result[PREFIX+"TimingV6"] = tuple(Member(name, "DINT") for name in
                                       ("Scan", "LastScanUs", "MaxScanUs", "OverlapCount"))
     return result
@@ -420,6 +423,7 @@ def manifest_values(app, definitions=None):
     if app.canonical_publication_stage>=13:minor=wire.COMMAND_MINOR
     if app.canonical_read_coherence:minor=__import__('fraktal_ab_read_coherence').MINOR
     if app.canonical_config_read_view:minor=__import__('fraktal_ab_config_read_view').MINOR
+    if app.canonical_owner_revisions:minor=__import__('fraktal_ab_owner_read_bindings').MINOR
     binding_rows=[]
     if app.canonical_publication_stage>=5:
         import fraktal_ab_canonical_sequence as sequence
@@ -442,7 +446,9 @@ def manifest_values(app, definitions=None):
         coherence_rows=__import__('fraktal_ab_read_coherence').rows(app)
         coherence_metadata=dict(read_coherence_bindings=coherence_rows)
     read_services=__import__('fraktal_ab_config_read_view').descriptors(app)
+    owner_rows=__import__('fraktal_ab_owner_read_bindings').rows(app,definitions)
     digest = wire.content_hash(fields,old_hash,app.canonical_publication_stage,minor=minor,
+        **(dict(owner_read_bindings=owner_rows) if app.canonical_owner_revisions else {}),
         **(dict(read_services=read_services) if app.canonical_config_read_view else {}),
         **({'bindings':binding_rows} if minor>=wire.FRAGMENT_MINOR else {}),
         **({'services':service_rows} if minor>=wire.SERVICE_MINOR else {}), **type_metadata, **product_metadata, **command_metadata, **coherence_metadata)
@@ -462,6 +468,7 @@ def manifest_values(app, definitions=None):
     if minor>=wire.COMMAND_MINOR:header.update(CommandBindingsCount=len(command_rows),CommandBindingsCapacity=len(command_rows),CommandBindings=command_rows,CommandOperationsCount=len(command_operations),CommandOperationsCapacity=len(command_operations),CommandOperations=command_operations)
     if app.canonical_read_coherence:header.update(ReadCoherenceBindingsCount=len(coherence_rows),ReadCoherenceBindingsCapacity=len(coherence_rows),ReadCoherenceBindings=coherence_rows)
     if app.canonical_config_read_view:header.update(ReadServicesCount=len(read_services),ReadServicesCapacity=len(read_services),ReadServices=read_services)
+    if app.canonical_owner_revisions:header.update(OwnerReadBindingsCount=len(owner_rows),OwnerReadBindingsCapacity=len(owner_rows),OwnerReadBindings=owner_rows)
     return header
 
 
@@ -550,6 +557,7 @@ def tags(app):
             *(__import__("fraktal_ab_canonical_mailbox").tags(app,tag) if app.canonical_publication_stage>=13 else []),
             *(__import__("fraktal_ab_canonical_commands").tags(app,tag) if app.canonical_publication_stage>=13 else []),
             *__import__('fraktal_ab_config_read_view').tags(app,tag),
+            *__import__('fraktal_ab_owner_read_bindings').tags(app,tag),
             f'<Tag Name="{generation_tag(app)}" TagType="Base" DataType="DINT" Radix="Decimal" ExternalAccess="Read Only"/>',
             tag(f'FRK_{app.name}_CanonicalTiming',PREFIX+"TimingV6",{}),
             *__import__("fraktal_ab_canonical_observation").tags(app)]
@@ -558,20 +566,23 @@ def tags(app):
 def cyclic(app):
     import fraktal_ab_generate as gen
     import fraktal_ab_models as models
+    import fraktal_ab_owner_read_bindings as owner
     root, unit = app.name, f'FRK_{app.name}_Unit'
+    state=owner.work_tag(app)+'.NextState' if owner.enabled(app) else root+'.Status.State'
     lines = [f'{header_tag(app)}.Valid := 1;',
-             f'IF {unit}.Error <> 0 THEN',f'{root}.Status.State := {gen.STATE_ERROR};',
-             f'ELSIF {unit}.Running <> 0 THEN',f'{root}.Status.State := {gen.STATE_BUSY};',
-             f'ELSIF {unit}.Complete <> 0 THEN',f'{root}.Status.State := {gen.STATE_DONE};',
-             'ELSE',f'{root}.Status.State := {gen.STATE_READY};','END_IF;',
+             f'IF {unit}.Error <> 0 THEN',f'{state} := {gen.STATE_ERROR};',
+             f'ELSIF {unit}.Running <> 0 THEN',f'{state} := {gen.STATE_BUSY};',
+             f'ELSIF {unit}.Complete <> 0 THEN',f'{state} := {gen.STATE_DONE};',
+             'ELSE',f'{state} := {gen.STATE_READY};','END_IF;',
+             *(owner.write_header(app,0,'State',state) if owner.enabled(app) else []),
              f'{root}.Status.FaultActive := {unit}.Error <> 0;',
              f'{root}.ModeActivePublished := {unit}.Mode;',
              f'{root}.RunStyle := '+(f'{unit}.RunStyle;' if gen.pacing(app) else '0;'),
              f'{root}.CurrentStep.StepNo := {unit}.Step;']
-    for module in app.modules:
+    for module_index,module in enumerate(app.modules,1):
         ctx = gen.ctx_tag_for(app,module.name)
-        lines += [f'{root}.{module.name}.Status.State := {ctx}.OutImm_ExecState;',
-                  f'{root}.{module.name}.Status.FaultActive := {ctx}.Error <> 0;']
+        lines += owner.write_header(app,module_index,'State',ctx+'.OutImm_ExecState')
+        lines += [f'{root}.{module.name}.Status.FaultActive := {ctx}.Error <> 0;']
     if app.models:
         target, ordinal = f'{root}.Model.ModelCode',f'{unit}.ModelOrdinal'
         lines += [f'{target}.LEN := 0;']
@@ -632,6 +643,7 @@ def cyclic(app):
               f'GSV(TASK,{app.task_name},LastScanTime,{timing}.LastScanUs);',
               f'GSV(TASK,{app.task_name},MaxScanTime,{timing}.MaxScanUs);',
               f'GSV(TASK,{app.task_name},OverlapCount,{timing}.OverlapCount);']
+    lines += owner.close_headers(app)
     lines += [f'{generation_tag(app)} := {generation_tag(app)} + 1;']
     import fraktal_ab_canonical_observation as observation
     return lines + observation.cyclic(app)

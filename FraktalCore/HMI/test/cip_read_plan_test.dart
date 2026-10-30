@@ -183,6 +183,51 @@ class BusyCaptureWire extends CaptureWire {
 }
 
 void main() {
+  test(
+      'fully excluded arrays do not discover routing counts; live and targeted consumers retain them',
+      () async {
+    final capture = golden.fixtures().last['capture'] as Map;
+    final pub = golden.publication(capture), wire = CaptureWire(capture);
+    final array = pub.fields.values.firstWhere((f) =>
+        f.member.isArray &&
+        f.member.isStructure &&
+        f.annotation['countPath'] is String &&
+        pub.fields.values
+                .where((g) =>
+                    g.member.isArray &&
+                    g.annotation['countPath'] == f.annotation['countPath'])
+                .length ==
+            1);
+    final count = array.annotation['countPath'] as String;
+    final excluded = pub
+        .discoverPaths()
+        .where((p) => p.startsWith('${array.path}['))
+        .toSet()
+      ..add(count);
+    final plan = CipReadPlan(pub, wire)..excludedPaths = excluded;
+    await plan.acquire();
+    final countField = pub.fields[count]!;
+    final source = countField.sources.single;
+    final physical =
+        [source.record.source, ...source.chain.map((m) => m.name)].join('.');
+    expect(wire.reads, isNot(contains(physical)));
+    wire.reads.clear();
+    plan.excludedPaths = Set.of(excluded)..remove(count);
+    await plan.acquire();
+    expect(wire.reads, contains(physical),
+        reason: 'the count can have its own consumer');
+    wire.reads.clear();
+    plan.excludedPaths = excluded;
+    await plan.acquire(paths: {array.path});
+    expect(wire.reads, contains(physical),
+        reason: 'a targeted array proves its live count');
+    wire.reads.clear();
+    plan.excludedPaths = {};
+    await plan.acquire();
+    expect(wire.reads, contains(physical),
+        reason: 'opening the view refreshes the scope index');
+  });
+
   test('cyclic polling delivers fresh module identity after a long row walk',
       () async {
     final capture = golden.fixtures().last['capture'] as Map;
@@ -491,8 +536,6 @@ void main() {
         p == slowScope ||
         p.startsWith('$slowScope/') ||
         p.startsWith('$slowScope[');
-    bool module(String p) => pub.fields
-        .containsKey(p.endsWith('/Status') ? '$p/Name' : '$p/Status/Name');
 
     // The phased walk: one millisecond per request separates the phases. A
     // first due walk seeds the revision baseline; the measured walk below is
@@ -536,12 +579,16 @@ void main() {
     // The slow groups complete before any fast leaf group starts, and module
     // identity keeps its deferred place at the end (the Status phase).
     final slowGroups = groupsA.where(inScope).toSet();
+    final measured = planA.acquisitions.skip(seeded).toList();
+    final firstFast = measured.indexWhere(
+        (g) => !inScope(g['path'] as String) && g['phase'] != 'status');
+    final firstStatus = measured.indexWhere((g) => g['phase'] == 'status');
     expect(slowGroups, isNotEmpty);
-    expect(groupsA.any((p) => !inScope(p) && !module(p)), isTrue);
-    expect(groupsA.lastIndexWhere(inScope),
-        lessThan(groupsA.indexWhere((p) => !inScope(p) && !module(p))));
-    expect(groupsA.lastIndexWhere((p) => !module(p)),
-        lessThan(groupsA.indexWhere(module)));
+    expect(firstFast, greaterThanOrEqualTo(0));
+    expect(groupsA.lastIndexWhere(inScope), lessThan(firstFast));
+    expect(firstStatus, greaterThan(firstFast));
+    expect(
+        measured.skip(firstStatus).every((g) => g['phase'] == 'status'), true);
 
     // Fast rows age only behind fast and Status work: the improvement over
     // the schema-order reference is at least the slow phase's own duration.

@@ -22,7 +22,9 @@ class ReconnectingOpcUaSessionClient
         OpcUaWritePolicyClient,
         OpcUaReadOnlyConfigurationClient,
         OpcUaPathDiscoveryClient,
-        OpcUaTieredReadClient {
+        OpcUaTieredReadClient,
+        OpcUaReadTierBatchClient,
+        OpcUaConfigurationReadPolicyClient {
   final OpcUaSessionFactory _factory;
   final Duration baseBackoff;
   final Duration maxBackoff;
@@ -43,6 +45,11 @@ class ReconnectingOpcUaSessionClient
       _active == null ||
       _active is OpcUaWritePolicyClient &&
           (_active as OpcUaWritePolicyClient).readOnly;
+  @override
+  bool get configurationContainersUseHeartbeat =>
+      _active is OpcUaConfigurationReadPolicyClient &&
+      (_active as OpcUaConfigurationReadPolicyClient)
+          .configurationContainersUseHeartbeat;
   @override
   Future<Map<String, Object?>?> readConfigurationPage(
       String root, int modelOrdinal) async {
@@ -184,6 +191,24 @@ class ReconnectingOpcUaSessionClient
   }
 
   @override
+  bool get readTiersAreAtomic =>
+      _active is OpcUaReadTierBatchClient &&
+      (_active as OpcUaReadTierBatchClient).readTiersAreAtomic;
+  @override
+  Future<void> setReadTiers(
+      Iterable<String> slowPaths, Iterable<String> excludedPaths) async {
+    final session = _active;
+    if (session is! OpcUaReadTierBatchClient ||
+        !(session as OpcUaReadTierBatchClient).readTiersAreAtomic)
+      throw UnsupportedError('Atomic read tiers are unavailable.');
+    final slow = slowPaths.toList(growable: false),
+        excluded = excludedPaths.toList(growable: false);
+    await (session as OpcUaReadTierBatchClient).setReadTiers(slow, excluded);
+    _slowPaths = slow;
+    _excludedPaths = excluded;
+  }
+
+  @override
   Future<void> refreshSlowPaths() async {
     await _active?.refreshSlowPaths();
   }
@@ -233,7 +258,37 @@ class ReconnectingOpcUaSessionClient
     final attemptGeneration = _generation + 1;
     _log('[Fraktal/Connection] stage=gateway-reconnect-attempt '
         'generation=$attemptGeneration attempt=${_consecutiveFailures + 1}');
-    final future = _factory();
+    // The shared connecting future includes tier restoration: concurrent
+    // snapshots cannot acquire the fresh session with its default profile.
+    final future = () async {
+      final session = await _factory();
+      try {
+        if (_closed)
+          throw const OpcUaTransportException(
+              'Gateway client closed during reconnect.');
+        List<String>? slow, excluded;
+        do {
+          slow = _slowPaths;
+          excluded = _excludedPaths;
+          final batched = slow != null &&
+              excluded != null &&
+              session is OpcUaReadTierBatchClient &&
+              (session as OpcUaReadTierBatchClient).readTiersAreAtomic;
+          if (batched) {
+            await (session as OpcUaReadTierBatchClient)
+                .setReadTiers(slow, excluded);
+          } else {
+            if (slow != null) await session.setSlowPaths(slow);
+            if (excluded != null) await session.setExcludedPaths(excluded);
+          }
+        } while (!identical(slow, _slowPaths) ||
+            !identical(excluded, _excludedPaths));
+        return session;
+      } on Object {
+        await session.close();
+        rethrow;
+      }
+    }();
     _connecting = future;
     try {
       final session = await future;
@@ -245,17 +300,6 @@ class ReconnectingOpcUaSessionClient
       }
       _active = session;
       _generation = attemptGeneration;
-      // A freshly connected session starts reading everything; restore the tier.
-      final slow = _slowPaths;
-      if (slow != null) {
-        unawaited(session.setSlowPaths(slow).then((_) {}, onError: (_, __) {}));
-      }
-      final excluded = _excludedPaths;
-      if (excluded != null) {
-        unawaited(session
-            .setExcludedPaths(excluded)
-            .then((_) {}, onError: (_, __) {}));
-      }
       return session;
     } on Object catch (error) {
       _recordFailure(error);

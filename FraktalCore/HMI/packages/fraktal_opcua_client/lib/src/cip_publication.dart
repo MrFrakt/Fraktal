@@ -7,6 +7,7 @@ import 'cip_manifest.dart';
 import 'cip_namespace.dart';
 import 'cip_template.dart';
 import 'cip_config_read_view.dart';
+import 'cip_read_coherence.dart';
 
 const cipCanonicalTypes = {
   0xc1: 'Boolean',
@@ -306,14 +307,7 @@ final class CipPublication {
       }
       final values = view.members.singleWhere((m) => m.name == 'Values'),
           type = decoder.templates[values.handle]!;
-      const valueNames = {
-        'DefinitionIndex',
-        'ModelOrdinal',
-        'ModelCode',
-        'ValueText',
-        'Readable',
-        'Revision'
-      };
+      const valueNames = cipConfigValueMembers;
       if (type.members.length != valueNames.length ||
           !type.members.every((m) => valueNames.contains(m.name)))
         throw const FormatException('Invalid configuration value row.');
@@ -328,6 +322,51 @@ final class CipPublication {
             m.isArray ||
             m.atomic != (m.name == 'Readable' ? 0xc1 : 0xc4))
           throw const FormatException('Invalid configuration value type.');
+      }
+    }
+    _validateOwnerBindings();
+  }
+
+  void _validateOwnerBindings() {
+    if (manifest.minor < 10) return;
+    final modules = {
+      for (final f in fields.values)
+        if (!f.commandOnly &&
+            f.path.endsWith('/Status/Name') &&
+            fields.containsKey(
+                f.path.substring(0, f.path.length - 4) + 'ModuleType'))
+          f.path.substring(0, f.path.length - '/Name'.length)
+    };
+    final views = {
+      for (final s in manifest.rows('readServices'))
+        s['CanonicalRoot'] as String
+    };
+    final owners = manifest.ownerCoherence;
+    if (owners.length != modules.length + views.length ||
+        owners.map((b) => b.canonicalPrefix).toSet().length != owners.length)
+      throw const FormatException(
+          'Owner scopes do not cover module headers/views.');
+    for (final b in owners) {
+      for (final symbol in [b.revisionSymbol, b.progressSymbol]) {
+        final s = namespace.symbols[symbol];
+        if (s == null || s.structured || s.rank != 0 || s.atomic != 0xc4)
+          throw const FormatException(
+              'Owner revision/progress Symbol is not DINT.');
+      }
+      if (b.members.isEmpty) {
+        if (!views.contains(b.canonicalPrefix))
+          throw const FormatException(
+              'Owner view is not a declared read service.');
+      } else {
+        final expected = {
+          for (final name in cipHeaderCoherenceMembers)
+            if (fields.containsKey('${b.canonicalPrefix}/$name')) name
+        };
+        if (!modules.contains(b.canonicalPrefix) ||
+            b.members.length != expected.length ||
+            !b.members.containsAll(expected))
+          throw const FormatException(
+              'Owner header differs from the discovered schema.');
       }
     }
   }
@@ -667,6 +706,8 @@ final class CipPublication {
         if (manifest.minor >= 7)
           'readCoherenceBindings': manifest.rows('readCoherenceBindings'),
         if (manifest.minor >= 8) 'readServices': manifest.rows('readServices'),
+        if (manifest.minor >= 10)
+          'ownerReadBindings': manifest.rows('ownerReadBindings'),
       };
 
   List<String> discoverPaths() {

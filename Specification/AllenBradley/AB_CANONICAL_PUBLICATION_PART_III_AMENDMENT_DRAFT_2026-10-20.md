@@ -426,3 +426,25 @@ AnalogValue REAL, flags BOOL and strings at Core widths. Missing sampled words
 fail closed. A mapping error is visible. Force capability remains absent
 without a registered OUTPUT_FORCING gate. This inactive draft does not grant
 controller writes or physical/security acceptance.
+
+## Approved V6.10 owner revisions (offline, 2026-10-29)
+
+O9 approves the [owner-revision contract](AB_CANONICAL_PUBLICATION_S4B_OWNER_REVISION_REVIEW_2026-10-29.md).
+The additive, hash-covered `OwnerReadBindings` table selects the existing
+module-header leaves and each declared read-only configuration view. The
+current seven-module schema contains 29 header leaves; counts and optional
+members derive from the published Templates. No Core field is added.
+
+Protocol 2 brackets every protected write with a PLC-owned odd/even revision,
+stable between owner transactions. Its declared proof window is at most one
+second, inside the original acquisition deadline; the minimum update interval
+and conservative 2^30−1 recurring stable token bound prevent wrap. The client partitions mixed-owner
+groups and independently verifies the separate scan-progress symbol. An even
+unchanged owner token cannot keep a stopped publisher Good. Protocol 1 retains
+its strict scan-period proof bound. Source-age, tier/freshness, retry, access
+and D9 write policy remain unchanged.
+
+V6.9's approved S6 host-service shape carries forward at the next additive
+minor after V6.10; it shall not downgrade the manifest or silently extend an
+already released layout. This draft remains inactive. Offline tests and peer
+apparatus do not establish new-image fit, native ABI, scan or S4b acceptance.

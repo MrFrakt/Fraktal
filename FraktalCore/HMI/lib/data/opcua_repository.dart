@@ -112,6 +112,7 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
   List<String> _tierSlowPaths = const [];
   List<String> _tierExcludedPaths = const [];
   Future<void> _tierUpdate = Future<void>.value();
+  Set<String>? _sentSlowPaths, _sentExcludedPaths;
 
   // A budgeted tiered transport can renew the visible detail in its complete
   // snapshots. Leaf-by-leaf targeted sweeps otherwise outlive the Good window
@@ -128,6 +129,7 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
   List<String> _lastTierPaths = const [];
   List<String> _lastTierRoots = const [];
   Set<String> _lastTierManifestPaths = const {};
+  bool _lastTierConfigurationHeartbeat = false;
   // Interactive (operator-initiated) requests in flight. While > 0 the periodic
   // full-tree refresh yields the single native worker so the command's small
   // ack polls are not queued behind a full snapshot (Core §14 responsiveness).
@@ -216,6 +218,10 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
           ? Duration.zero
           : _clock.elapsed - _refreshStarted!;
       final remaining = period - elapsed;
+      if (const bool.fromEnvironment('fraktal.cip.trace')) {
+        debugPrint('[Fraktal/Freshness] stage=poll-scheduled '
+            'remainingUs=${remaining.inMicroseconds}');
+      }
       _timer = Timer(remaining > Duration.zero ? remaining : Duration.zero, () {
         _timer = null;
         unawaited(_pollBudgeted());
@@ -238,6 +244,10 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
 
   Future<void> _pollBudgeted() async {
     if (_disposed) return;
+    if (const bool.fromEnvironment('fraktal.cip.trace')) {
+      debugPrint('[Fraktal/Freshness] stage=poll-start '
+          'effectiveAgeUs=${_sampleAge.inMicroseconds}');
+    }
     _checkFreshness();
     final period = _freshness!.pollPeriod;
     if (_interactiveInFlight > 0 && _sampleAge < period) {
@@ -257,7 +267,12 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
   Future<void> _refresh({bool propagateFailure = false}) {
     if (_disposed) return Future<void>.value();
     final active = _refreshInFlight;
-    if (active != null) return active;
+    if (active != null) {
+      if (const bool.fromEnvironment('fraktal.cip.trace')) {
+        debugPrint('[Fraktal/Freshness] stage=refresh-coalesced');
+      }
+      return active;
+    }
     final refresh = _performRefresh(propagateFailure: propagateFailure);
     _refreshInFlight = refresh;
     return refresh.whenComplete(() {
@@ -267,6 +282,24 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
 
   Future<void> _performRefresh({required bool propagateFailure}) async {
     try {
+      // A tier promotion has several transport calls. Queue no snapshot
+      // between removing its exclusion and installing its slow tier. Recheck
+      // the tail in case another view changed while this update was awaited.
+      final session = _client;
+      final atomicTiers = session is OpcUaReadTierBatchClient &&
+          (session as OpcUaReadTierBatchClient).readTiersAreAtomic;
+      if (!atomicTiers) {
+        Future<void> tiers;
+        do {
+          tiers = _tierUpdate;
+          await tiers;
+        } while (!identical(tiers, _tierUpdate));
+      }
+      if (_disposed) return;
+      if (const bool.fromEnvironment('fraktal.cip.trace')) {
+        debugPrint('[Fraktal/Freshness] stage=refresh-tiers-ready '
+            'atomicProfile=$atomicTiers');
+      }
       final started = _clock.elapsed;
       _refreshStarted = started;
       var document = await _client.snapshot();
@@ -285,8 +318,7 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
       }
       final rpcElapsed = _clock.elapsed - started;
       final transitAge =
-          freshness?.transitAllowance(document, rpcElapsed) ??
-              Duration.zero;
+          freshness?.transitAllowance(document, rpcElapsed) ?? Duration.zero;
       final receivedAge = freshness == null
           ? Duration.zero
           : OpcUaFreshnessBudget.age(document['sampleAgeMs']) + transitAge;
@@ -375,6 +407,17 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
         throw const FormatException(
             'No current Good root Unit in the complete sample.');
       }
+      if (freshness != null &&
+          const bool.fromEnvironment('fraktal.cip.trace')) {
+        // Qualification needs successful ages as well as refusals. Observe
+        // after mapping; this never renews a timestamp or changes a limit.
+        debugPrint('[Fraktal/Freshness] stage=complete-sample-mapped '
+            'effectiveAgeUs=${_sampleAge.inMicroseconds} '
+            'receivedAgeUs=${receivedAge.inMicroseconds} '
+            'fastGoodUs=${freshness.fastGood.inMicroseconds}'
+            '${document['requestDelayUs'] is int ? ' requestDelayUs=${document['requestDelayUs']}' : ''}'
+            '${document['replyWaitUs'] is int ? ' replyWaitUs=${document['replyWaitUs']}' : ''}');
+      }
       final aliases = _projection.discardedAliases;
       final aliasSignature = aliases.join('|');
       if (aliases.isNotEmpty && aliasSignature != _aliasSignature) {
@@ -429,14 +472,21 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
     // resolves the forest would otherwise pin an unscoped classification for
     // the whole session.
     final manifestPaths = _manifestValues.keys.toSet();
+    final session = _client;
+    final configurationHeartbeat = _streamsDetail &&
+        session is OpcUaConfigurationReadPolicyClient &&
+        (session as OpcUaConfigurationReadPolicyClient)
+            .configurationContainersUseHeartbeat;
     if (listEquals(_lastTierPaths, _discoveredPaths) &&
         listEquals(_lastTierRoots, rootBases) &&
+        _lastTierConfigurationHeartbeat == configurationHeartbeat &&
         setEquals(_lastTierManifestPaths, manifestPaths)) {
       return;
     }
     _lastTierPaths = List.unmodifiable(_discoveredPaths);
     _lastTierRoots = List.unmodifiable(rootBases);
     _lastTierManifestPaths = manifestPaths;
+    _lastTierConfigurationHeartbeat = configurationHeartbeat;
     if (_discoveredPaths.isEmpty) return;
     final slow = <String>[];
     final excluded = <String>[];
@@ -480,17 +530,14 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
             onDemandByScope.putIfAbsent(scope, () => []).add(path);
           }
         case FieldTier.config:
+          // O8: opt-in transport policy, using the shared static-container
+          // classifier. Identity/capability heuristics alone remain fast.
+          if (configurationHeartbeat && OpcUaFieldTier.isManifestServed(path)) {
+            slow.add(path);
+          }
         case FieldTier.live:
-          // Config-tier leaves stay in the cyclic (fast) snapshot. Over OPC UA
-          // they are unpublished (OPC.UA.DA := '0') so they never reach here;
-          // over ADS the whole symbol table is visible and reading them costs a
-          // few hundred extra sum-read leaves — cheap with batch handle
-          // resolution. They are NOT excluded, because the tier's leaf list is a
-          // heuristic that also catches cyclically-required fields (module
-          // identity Status/Name, the SupportedModes capability): excluding them
-          // dropped modules from the tree and emptied the mode dropdown. The
-          // manifest still serves the genuinely obscured subtrees (fieldbus
-          // identity) that ARE on-demand/absent from the snapshot.
+          // Published configuration without an exact hydrated replacement
+          // stays fast, as do live identity and capability leaves.
           break;
       }
     }
@@ -514,14 +561,27 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
     final slow = {...baseSlow, ...demanded};
     final excluded =
         _tierExcludedPaths.where((path) => !demanded.contains(path)).toSet();
+    if (setEquals(_sentSlowPaths, slow) &&
+        setEquals(_sentExcludedPaths, excluded)) return;
+    _sentSlowPaths = Set.unmodifiable(slow);
+    _sentExcludedPaths = Set.unmodifiable(excluded);
     // Serialize updates and remove the previous promotion first. No interim
     // request may contain the same path in both slow and excluded sets.
     _tierUpdate = _tierUpdate.then((_) async {
       if (_disposed) return;
+      final session = _client;
+      if (session is OpcUaReadTierBatchClient &&
+          (session as OpcUaReadTierBatchClient).readTiersAreAtomic) {
+        await (session as OpcUaReadTierBatchClient)
+            .setReadTiers(slow, excluded);
+        return;
+      }
       await _client.setSlowPaths(baseSlow);
       await _client.setExcludedPaths(excluded);
       await _client.setSlowPaths(slow);
     }).catchError((Object error) {
+      // A refused update cannot satisfy a later identical publication.
+      _sentSlowPaths = _sentExcludedPaths = null;
       debugPrint(
           '[Fraktal/Connection] stage=opcua-read-tiers-failed error=$error');
     });

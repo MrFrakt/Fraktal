@@ -2,7 +2,105 @@ library;
 
 import 'dart:convert';
 
-/// Each bounded fetch is a separate worker RPC so cyclic station reads can
+const _headerMembers = [
+  'SchemaVersion',
+  'RootIdentity',
+  'Revision',
+  'DefinitionCount',
+  'DefinitionCapacity',
+  'ValueCount',
+  'ValueCapacity'
+];
+const cipConfigValueMembers = {
+  'DefinitionIndex',
+  'ModelOrdinal',
+  'ModelCode',
+  'ValueText',
+  'Readable',
+  'Revision'
+};
+typedef _ViewHeader = ({
+  int revision,
+  int definitions,
+  int definitionCapacity,
+  int count,
+  int capacity
+});
+
+int _integer(Object value, String suffix, int lower, int upper) {
+  if (value is! int || value < lower || value > upper)
+    throw FormatException('Invalid configuration view $suffix.');
+  return value;
+}
+
+_ViewHeader _viewHeader(Object Function(String) requiredValue, String root) {
+  if (requiredValue('SchemaVersion') != 1 ||
+      requiredValue('RootIdentity') != root)
+    throw const FormatException('Configuration view identity/version differs.');
+  int n(String key, int upper) => _integer(requiredValue(key), key, 1, upper);
+  final revision =
+          _integer(requiredValue('Revision'), 'Revision', 0, 0xffffffff),
+      definitions = n('DefinitionCount', 32767),
+      definitionCapacity = n('DefinitionCapacity', 32767),
+      count = n('ValueCount', 65535),
+      capacity = n('ValueCapacity', 65535);
+  if (definitions != definitionCapacity || count > capacity)
+    throw const FormatException('Configuration view allocation differs.');
+  return (
+    revision: revision,
+    definitions: definitions,
+    definitionCapacity: definitionCapacity,
+    count: count,
+    capacity: capacity
+  );
+}
+
+/// The PLC rebuilds this view only on its owning revision, including permission
+/// changes. Revalidate that version on every query; an inactive cache also loses
+/// its lease so a long-disconnected reader cannot confuse a wrapped token.
+final class CipConfigurationCache {
+  final int maxSilenceUs;
+  final int Function() _clockUs;
+  Object? _identity;
+  int? _validatedAtUs;
+  Map<String, Object?> _values = {};
+  CipConfigurationCache({required Duration maxSilence, int Function()? clockUs})
+      : maxSilenceUs = maxSilence.inMicroseconds,
+        _clockUs = clockUs ?? _clock() {
+    if (maxSilenceUs < 1)
+      throw ArgumentError('A positive cache lease is required.');
+  }
+  static int Function() _clock() {
+    final c = Stopwatch()..start();
+    return () => c.elapsedMicroseconds;
+  }
+
+  Map<String, Object?> _revalidate(Object identity) {
+    final now = _clockUs();
+    if (_identity != identity ||
+        _validatedAtUs == null ||
+        now - _validatedAtUs! >= maxSilenceUs) {
+      _identity = identity;
+      _values = {};
+    }
+    _validatedAtUs = now;
+    return _values;
+  }
+
+  void _invalidate(Object identity) {
+    if (_identity == identity) {
+      _identity = null;
+      _validatedAtUs = null;
+      _values = {};
+    }
+  }
+
+  void _confirm(Object identity) {
+    if (_identity == identity) _validatedAtUs = _clockUs();
+  }
+}
+
+/// Small row batches are separate worker RPCs so cyclic station reads can
 /// run between configuration batches. Other banks contribute only routing
 /// references; their ValueText and Readable payloads are never requested.
 Future<Map<String, Object?>> cipAcquireConfiguration(
@@ -11,47 +109,64 @@ Future<Map<String, Object?>> cipAcquireConfiguration(
     required Map<String, Object?> descriptor,
     required Future<Map<String, Object?>> Function(List<String>) fetch,
     required Future<Map<String, Object?>> Function(Map<String, Object?>)
-        assemble}) async {
+        assemble,
+    CipConfigurationCache? cache}) async {
   final prefix = descriptor['CanonicalRoot'];
   if (prefix is! String || modelOrdinal < 0)
     throw const FormatException('Invalid configuration request.');
-  final values = <String, Object?>{};
+  final headerPaths = [for (final n in _headerMembers) '$prefix/$n'];
+  final values = Map<String, Object?>.from(await fetch(headerPaths));
+  Object requiredValue(String n) {
+    final v = values['$prefix/$n'];
+    if (v == null)
+      throw FormatException('Configuration view row unavailable: $n.');
+    return v;
+  }
+
+  final header = _viewHeader(requiredValue, root);
+  if (header.definitionCapacity != descriptor['DefinitionCapacity'] ||
+      header.capacity != descriptor['ValueCapacity'])
+    throw const FormatException(
+        'Configuration capacity differs from discovery.');
+  final identity = (root, prefix, header);
+  final retained = cache?._revalidate(identity) ?? <String, Object?>{};
+  bool complete(String path) {
+    final members = RegExp(r'/Definitions\[\d+\]$').hasMatch(path)
+        ? cipConfigDefinitionLayout.keys
+        : RegExp(r'/Values\[\d+\]$').hasMatch(path)
+            ? cipConfigValueMembers
+            : null;
+    return members == null
+        ? values.containsKey(path)
+        : members.every((n) => values.containsKey('$path/$n'));
+  }
+
   Future<void> batch(List<String> paths, int maximum) async {
-    for (var offset = 0; offset < paths.length; offset += maximum) {
+    // A previously selected bank must not contribute payloads to this query.
+    values.addAll({
+      for (final e in retained.entries)
+        if (paths.any((p) => e.key == p || e.key.startsWith('$p/')))
+          e.key: e.value
+    });
+    final pending = paths.where((p) => !complete(p)).toList();
+    for (var offset = 0; offset < pending.length; offset += maximum) {
       final end =
-          offset + maximum < paths.length ? offset + maximum : paths.length;
-      values.addAll(await fetch(paths.sublist(offset, end)));
+          offset + maximum < pending.length ? offset + maximum : pending.length;
+      final requested = pending.sublist(offset, end);
+      final fetched = await fetch(requested);
+      final accepted = {
+        for (final e in fetched.entries)
+          if (requested.any((p) => e.key == p || e.key.startsWith('$p/')))
+            e.key: e.value
+      };
+      values.addAll(accepted);
+      retained.addAll(accepted);
     }
   }
 
-  await batch([
-    for (final n in [
-      'SchemaVersion',
-      'RootIdentity',
-      'Revision',
-      'DefinitionCount',
-      'DefinitionCapacity',
-      'ValueCount',
-      'ValueCapacity'
-    ])
-      '$prefix/$n'
-  ], 16);
-  for (final key in ['DefinitionCapacity', 'ValueCapacity']) {
-    if (values['$prefix/$key'] != descriptor[key])
-      throw const FormatException(
-          'Configuration capacity differs from discovery.');
-  }
-  final definitions = values['$prefix/DefinitionCount'],
-      count = values['$prefix/ValueCount'];
-  if (definitions is! int ||
-      definitions < 1 ||
-      definitions > 32767 ||
-      count is! int ||
-      count < 1 ||
-      count > 65535)
-    throw const FormatException('Configuration count is unavailable.');
+  final definitions = header.definitions, count = header.count;
   await batch(
-      [for (var i = 0; i < definitions; i++) '$prefix/Definitions[$i]'], 16);
+      [for (var i = 0; i < definitions; i++) '$prefix/Definitions[$i]'], 4);
   await batch([
     for (var i = 0; i < count; i++)
       for (final n in [
@@ -61,12 +176,26 @@ Future<Map<String, Object?>> cipAcquireConfiguration(
         'Revision'
       ])
         '$prefix/Values[$i]/$n'
-  ], 64);
+  ], 32);
   await batch([
     for (var i = 0; i < count; i++)
       if (values['$prefix/Values[$i]/ModelOrdinal'] == modelOrdinal)
         '$prefix/Values[$i]'
-  ], 16);
+  ], 4);
+  final finalValues = await fetch(headerPaths);
+  Object finalRequired(String n) {
+    final v = finalValues['$prefix/$n'];
+    if (v == null)
+      throw FormatException('Configuration view row unavailable: $n.');
+    return v;
+  }
+
+  if (_viewHeader(finalRequired, root) != header) {
+    cache?._invalidate(identity);
+    throw const FormatException(
+        'Configuration view changed during acquisition.');
+  }
+  cache?._confirm(identity);
   return assemble(values);
 }
 
@@ -113,24 +242,14 @@ Map<String, Object?> cipConfigurationPage(
     return values[path]!;
   }
 
-  int integer(String suffix, int lower, int upper) {
-    final value = requiredValue(suffix);
-    if (value is! int || value < lower || value > upper)
-      throw FormatException('Invalid configuration view $suffix.');
-    return value;
-  }
-
-  if (requiredValue('SchemaVersion') != 1 ||
-      requiredValue('RootIdentity') != rootSymbol ||
-      modelOrdinal < 0)
+  int integer(String suffix, int lower, int upper) =>
+      _integer(requiredValue(suffix), suffix, lower, upper);
+  if (modelOrdinal < 0)
     throw const FormatException('Configuration view identity/version differs.');
-  final revision = integer('Revision', 0, 0xffffffff),
-      definitions = integer('DefinitionCount', 1, 32767),
-      definitionCapacity = integer('DefinitionCapacity', 1, 32767),
-      count = integer('ValueCount', 1, 65535),
-      capacity = integer('ValueCapacity', 1, 65535);
-  if (definitions != definitionCapacity || count > capacity)
-    throw const FormatException('Configuration view allocation differs.');
+  final header = _viewHeader(requiredValue, rootSymbol),
+      revision = header.revision,
+      definitions = header.definitions,
+      count = header.count;
   final rows = <int, Map<String, Object?>>{},
       bankNames = <int, String>{},
       seen = <String>{},

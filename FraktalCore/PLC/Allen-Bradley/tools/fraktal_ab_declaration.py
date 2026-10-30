@@ -929,6 +929,8 @@ class Application:
     canonical_read_coherence: bool = False
     # S4b: PLC-owned read-only configuration discovery (V6.8).
     canonical_config_read_view: bool = False
+    # O9: change-owned row revisions with independent scan progress (V6.10).
+    canonical_owner_revisions: bool = False
     # Disposable S3j acceptance source, never a production HAL driver.
     canonical_io_fixture: bool = False
 

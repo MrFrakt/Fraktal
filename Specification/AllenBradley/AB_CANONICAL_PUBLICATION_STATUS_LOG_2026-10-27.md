@@ -1974,3 +1974,235 @@ PLC image, AB tool, TwinCAT or specification change is involved.
 
 WP4b.5 (rehearsal peer and its gate) is next; nothing here changes any
 limit, budget, rule or policy.
+
+
+## 2026-10-28 — WP4b.5 implemented; rehearsal prerequisite fails
+
+Seven peer tests pass on golden/sealed bytes; full HMI 697 passed/12 skipped.
+The [offline record](Evidence/AB_WP4B5_REHEARSAL_2026-10-28.md) preserves the profile/debug startup refusals
+and the zero-delay Statistics/navigation failure. The 3-pass/700 ms gate has
+zero qualifying passes. Echo remains on genealogy with before/after preflights
+and zero controller changes. Current source adds explicit rehearsal labels, a
+public-read test-panel configuration and trace-only operation/age diagnostics;
+no freshness, retry, row-proof or PLC policy changes. No native preparation,
+stage exit or commit/push. Next is latency calibration plus bounded slow-detail
+scheduling, then the original rehearsal gate. O1–O7 remain settled.
+
+## 2026-10-28 — scheduling and descriptor corrections; read-tier decision pending
+
+The [scheduling continuation](Evidence/AB_WP4B5_SCHEDULING_2026-10-28.md)
+records 738 HMI passes/12 skips, clean analyzer, locked dependencies, Windows
+profile build, 74 root tests and the unchanged 373 PLC/gate bindings. It retains
+bounded group/count batching, phase planning and decoding outside other guards,
+small coherent module headers, separate slow acquisition, fair serialized
+operations, atomic tier publication and owner-version configuration caching.
+Trace-enabled configuration equality now passes: only snapshot replies receive
+delivery timing fields. Peer delays no longer return before their requested
+fractional deadline; immutable encoding caches exclude synthetic counters.
+
+Three provisional profile runs render all 31 views, seven modules and three bus
+nodes, with maxima 393.105/433.729/423.702 ms; debug reproduces STALE after Overview.
+Those passes use a metadata-heartbeat fallback, which was reverted because the
+plan forbids changing tiers to pass a gate. Original-tier profiles 26–28 fail
+LIVE coverage; an overdue-poll experiment is also reverted. All results and
+source snapshots remain sealed. Current qualifying consecutive passes: zero.
+
+The [230-path review](AB_CANONICAL_PUBLICATION_S4B_METADATA_TIER_REVIEW_2026-10-28.md)
+requests O8 before any dependent tier change. No native preparation, download,
+mode/tag write, fault/counter clear, power/clock/vendor-state operation, commit
+or push occurs. Echo stays on genealogy with passing preflights throughout.
+Next: record O8, qualify the final source, then WP4b.6/S4b-Q with rollback.
+S5/S6 and deferred S7 remain; O1–O7 stand.
+
+## 2026-10-28 — O8 approved
+
+The owner replies “Approve CIP configuration heartbeat (Recommended)” to
+`call_a7b096025e8b4393802914b727457fab:0`. Implement the reviewed CIP-only
+capability and test non-CIP policy preservation and reconnect delegation.
+The original-tier checkpoint and provisional broader-policy passes stay
+historical; fresh final-source rehearsals and S4b-Q remain required. This
+does not claim an implementation, stage exit or native acceptance yet.
+
+## 2026-10-28 — O8 implemented and WP4b.5 passes on final source
+
+The [O8 qualification](Evidence/AB_S4B_O8_CONFIGURATION_HEARTBEAT_2026-10-28.md)
+records the optional CIP-only capability, active-session reconnect delegation
+and tier-signature invalidation. Non-CIP policy stays unchanged. Three fresh
+consecutive profile passes render all 31 views at 392.880/484.124/453.639 ms
+maximum mapped age; the same-source debug comparison reproduces STALE after
+Overview. All 27 bound HMI input hashes agree across the four runs.
+
+740 HMI tests pass/12 skipped; analyzer, locked dependencies, Windows profile
+build, 74 root tests and root gates pass. The unchanged 373 PLC/gate bindings
+transfer prior PLC tests/builds and 65% Capacity. Echo stays on genealogy with
+zero changes. Next is WP4b.6/S4b-Q preparation and native E1–E9, then S5/S6 and
+deferred S7. No stage exit, commit or push yet.
+
+## 2026-10-29 — S4b-Q observer expiry; rollback passed
+
+The [native attempt](Evidence/AB_S4B_Q_ATTEMPT_2026-10-29.md), prepared and
+sealed under standing O3, runs unchanged `30315E6D…` at 65% Capacity. All 41
+candidate cases and 87 independent raw-read replays pass. The concurrent
+observer fails after 43 samples: 56 Status leaves reach 3,310.162 ms age after
+20 failed revision proofs. E3 fails; no freshness/proof limits are weakened.
+
+The inherited runner skips E4–E7/final timing when the observer exits, a P5
+gap to correct. The CPU sampler also exits on invalid performance-counter data.
+TASK telemetry records 6,416 candidate observations, 8,994 µs cumulative maximum
+and zero overlaps; full E8 is not claimed. O7 is not triggered.
+
+Genealogy, five exact original documents, 31/31 baseline cases, final checks
+and preflight pass; MANUAL/idle/logout and no dumps. No forbidden operations,
+commit or push. Next: offline observer reproduction and acquisition correction,
+P5/CPU harness fixes, final-source qualification, then S4b-Q. S5/S6 remain;
+physical S7 stays deferred.
+
+## 2026-10-29 — observer O8 policy and P5/CPU corrections qualified offline
+
+The [correction record](Evidence/AB_S4B_OBSERVER_POLICY_2026-10-29.md) applies
+the approved 230-leaf heartbeat to the observer with atomic tier publication.
+The native 56-leaf expiry remains refused in a regression. P5 collects all
+independent read-only stages after observer failure; eight workflow scenarios
+pass. CPU sampling survives injected invalid process counters and retains host/
+emulator coverage in a live read-only probe.
+
+Adaptive packing is reverted after failed experimental rehearsals. The restored
+desktop matches all 27 inputs of the sealed O8 three-profile/debug proof; that
+exact-source proof transfers. The changed observer separately passes 100 loopback
+samples, zero Bad and four configuration pages, without writes. Final gates:
+743 HMI passed/12 skipped, clean analyzer, locked dependencies, Windows profile
+build, 74 root tests and unchanged PLC gate bindings. E3's table now explicitly
+names the already declared fast/slow Good limits, including owner-approved O8.
+
+Echo remains on restored genealogy. Native improvement remains unproven; next
+is fresh S4b-Q preparation and full-outcome qualification under standing O3,
+then rollback. S4b/S5/S6 remain, physical S7 deferred. No commit or push.
+
+## 2026-10-29 — native desktop passes; E3/E4 remain
+
+The [retry runtime](Evidence/AB_S4B_Q_OBSERVER_RUNTIME_2026-10-29.md) passes
+41 candidate checks, 87 raw-read replays, 5,407-path idle equivalence and generic
+acquisition. Native profile desktop passes all 31 LIVE views/seven modules/three
+bus nodes, maximum mapped age 446.321 ms. Final TASK median 966 µs, cumulative
+maximum 8,994 µs and zero overlaps; 7,317 monitor observations and 20 final samples.
+
+The active-fixture observer fails at sample 23: 50 Status leaves age to
+3,285.437 ms. E4 lacks its pages, although the independent Python oracle passes.
+P5 correctly collects every other stage. CPU sampling completes with no missing
+host samples despite invalid process counters. A one-connection read-only probe
+has 24 clean outcomes; the later four-connection probe reaches genealogy and
+refuses, so no matched concurrency claim is made.
+
+Genealogy, five exact documents, 31/31 baseline checks, final checks and preflight
+pass; no dumps/forbidden operations. Next: independent E4 Dart page acquisition,
+offline serialization reproduction and a narrower read schedule, then all native
+gates together. S4b remains open; no commit/push, S5/S6 remain, S7 deferred.
+
+## 2026-10-29 — isolated header refusal; owner-version review pending
+
+The [investigation](Evidence/AB_S4B_READ_SCHEDULE_2026-10-29.md) retains 13
+profile attempts: four full passes across source variants, nine failures and
+no final-source consecutive gate. Every experimental row-reuse, whole-structure,
+queue-gap, split-proof and independent-header variant is reverted. All 31
+restored HMI input hashes match the tested source. Fresh gates: 750 HMI passed /
+12 skipped, analyzer/locked dependencies/Windows build, 74 root tests, spec/
+contracts/strict consistency and unchanged PLC gate hashes.
+
+Startup read-schedule qualification and independent E4 page production remain.
+Peer checks pass 100 samples without Bad and four pages/1,100 exact scalars.
+An isolated five-field header probe, with no desktop, has 86 Good reads then
+20 failed attempts (14 changed counters, three overlong windows, three odd
+pre-counters). Current debug comparison refuses after Overview. These peer
+findings do not negate the prior native E7 pass or satisfy O7's trigger.
+
+The [owner-version draft](AB_CANONICAL_PUBLICATION_S4B_OWNER_REVISION_REVIEW_2026-10-29.md)
+revisits Alternative B with independent scan progress and an explicit new
+protocol/proof-bound amendment. Approval is pending; no dependent implementation
+or new native preparation ran. Echo remains genealogy, Run/not faulted,
+MANUAL/idle/logout, five exact documents and preflight verified. No controller
+changes or commit/push. After agreement: offline qualification, then E1–E9
+together and rollback; S5/S6 follow, physical S7 deferred.
+
+## 2026-10-29 — O9 owner-versioned publication approved
+
+The owner answered “Approve owner revisions (Recommended)” to
+`call_440bb9c9544b4ea78c5cfdde3f44d706:0`. This approves the
+[V6.10 owner-revision contract](AB_CANONICAL_PUBLICATION_S4B_OWNER_REVISION_REVIEW_2026-10-29.md)
+and dependent offline work: module headers and the read-only configuration view,
+separate scan progress, and the explicit protocol-2 proof-bound amendment.
+Protocol 1, Core values/types, read tiers, freshness/retry/access/write policy
+remain unchanged. Image/Capacity, all offline gates, three profile rehearsals,
+debug comparison and native E1–E9 remain required. Standing O3 governs guarded
+Echo use; no new acceptance, commit or push is implied.
+
+## 2026-10-29 — V6.10 implemented and qualified offline
+
+O9 now has PLC-owned header/view revisions, independent scan-progress checks,
+strict metadata/schema validation and mixed-owner read partitioning. The actual
+schema has 29 existing header leaves across seven modules; no child ConfigRev
+is invented. The wrap bound conservatively uses 2^30−1 recurring stable tokens.
+Opt-out V6.8 generation is byte-identical to its accepted source. Eight mutable
+header writers are guarded; VM tests cover configuration rebuilds, access
+masking, full-width clears, cold/retained behavior and wrapped/odd revisions.
+
+Final gates: 2,354 AB tests, 759 HMI passed/12 skipped, both v38 builds/read-backs,
+access/SDK audits, locked dependencies, analyzer and Windows profile build. Exact
+ACD `84EC495F…516FBAC` fits at 66% (2,077,924 used / 1,067,804 available /
+3,145,728 Blocks). Current emitter bytes equal the compiled source `22DD1C2E…`.
+
+Three final-source profile rehearsals pass all 31 views at maximum effective
+ages 383.054/407.711/420.990 ms (seeds 7/8/9), below 700 ms. Debug reproduces
+STALE after Overview. The independent observer has 100 samples/zero Bad; all
+four configuration pages match 1,100 oracle scalars. Synthetic V6.10 discovery
+metadata retains all sealed native V6.8 product bytes and 5,407 values/types;
+it establishes no new native ABI. Earlier profile and timing-test failures
+remain recorded. The count-walk optimization preserves consumed values/types;
+no causal claim is made for the transient STALE finding.
+
+The [offline record](Evidence/AB_S4B_OWNER_REVISION_OFFLINE_2026-10-29.md) precedes
+fresh native preparation. Echo remains genealogy, untouched by this work.
+S4b still requires E1–E9 together and rollback under O3; S5/S6 follow, S7 is
+deferred. V2 remains inactive; no commit/push before stage exit.
+
+## 2026-10-29 — native V6.10 collector gap; baseline restored
+
+The first precheck refusal preserves genealogy without controller changes;
+the SDK catches stale Capacity confirmation numbers. The retry derives them
+from the new measurement and adds three readiness regressions. Its unchanged
+image downloads/read-backs/audits successfully, then Python capture validation
+refuses the initial comparison: acquisition omits new owner-counter Symbols.
+
+P5 retains all outcomes: Dart four samples/zero Bad/four page reads; native
+desktop LIVE/seven modules but incomplete tabs; failed Python equality/
+acquisition; TASK maximum 7,759 µs, zero overlaps, incomplete fixture workload.
+Genealogy, five exact documents, 31 baseline cases, final checks/preflight pass;
+Run/not faulted, MANUAL/idle/logout, no dumps/forbidden operations. Both attempts
+are sealed separately; no native acceptance, commit or push.
+
+The collector now records declared owner revision/progress scalars as well as
+scan counters. Twenty-six seam/reader tests pass; the old code reproduces the
+native refusal and the corrected code produces 5,407 values/types. The PLC
+image and all 35 HMI proof inputs are unchanged. Fresh full AB/root gates and
+new sealed preparation precede another O3 session. S4b/S5/S6 remain; S7 deferred.
+
+## 2026-10-29 — S4b accepted; genealogy restored
+
+The [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md) passes
+E1–E9 together: 41 candidate cases, 87 exact replays, 2,538 observer samples/
+zero Bad, four configuration pages/1,100 exact scalars, 5,407-path equivalence
+and acquisition, and all 31 LIVE desktop views/seven modules/three bus nodes.
+Maximum mapped age is 255.856 ms. TASK median 966 µs, cumulative maximum
+8,974 µs/zero overlaps; 7,135 monitor observations and 20 final samples.
+ACD `84EC495F…516FBAC`, exact Capacity 66%.
+
+Genealogy, five exact documents, 31 baseline regressions and all final checks/
+preflight/timing pass. Run/not faulted, MANUAL/idle/logout, scanning, no dumps,
+no forbidden operations. Earlier precheck/collector failures remain sealed.
+Final AB 2,356/HMI 759 passed (12 skips), both v38 build/read-back/access/SDK
+gates and 74 root tests. The PLC owns header/view versions and independent scan
+progress; the generic client keeps all original proof/freshness/write limits.
+
+S4b closes at Echo scope. Stage-exit commit/push follows O1. Next: S5 typed
+command writer, Dart gateway and installer/tray; then S6 retirement and host
+services. V2/Part III remain inactive until S6. Physical/CIP Security S7 stays
+deferred under O2.

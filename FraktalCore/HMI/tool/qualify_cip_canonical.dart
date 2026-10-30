@@ -95,28 +95,10 @@ Future<void> main(List<String> arguments) async {
         port: endpoint.hasPort ? endpoint.port : 44818,
         slot: int.parse(endpoint.queryParameters['slot'] ?? '0'),
         expectSerial: endpoint.queryParameters['serial']);
-    final paths = await client.discoverPaths(),
-        slow = <String>{},
-        excluded = <String>{};
-    for (final p in paths) {
-      if (OpcUaFieldTier.isRequestPayload(p) ||
-          p.split('/').any((s) => OpcUaFieldTier.unconsumedContainers
-              .contains(s.split('[').first))) {
-        excluded.add(p);
-        continue;
-      }
-      switch (OpcUaFieldTier.classify(p)) {
-        case FieldTier.slow:
-          slow.add(p);
-        case FieldTier.onDemand:
-          excluded.add(p);
-        case FieldTier.config:
-        case FieldTier.live:
-          break;
-      }
-    }
-    await client.setSlowPaths(slow);
-    await client.setExcludedPaths(excluded);
+    final paths = await client.discoverPaths();
+    final tiers = qualificationReadTiers(paths,
+        configurationHeartbeat: client.configurationContainersUseHeartbeat);
+    await client.setReadTiers(tiers.slow, tiers.excluded);
     for (var i = 0;
         i < limit && clock.elapsed < const Duration(minutes: 30);
         i++) {
@@ -234,6 +216,35 @@ Future<void> main(List<String> arguments) async {
     'configurationPages': pages.length
   }));
   if (failure != null) exitCode = 1;
+}
+
+/// The independent observer consumes the same approved configuration heartbeat
+/// as the desktop. It has no hydrated manifest replacements to exclude.
+({Set<String> slow, Set<String> excluded}) qualificationReadTiers(
+    Iterable<String> paths,
+    {required bool configurationHeartbeat}) {
+  final slow = <String>{}, excluded = <String>{};
+  for (final path in paths) {
+    if (OpcUaFieldTier.isRequestPayload(path) ||
+        path.split('/').any((s) =>
+            OpcUaFieldTier.unconsumedContainers.contains(s.split('[').first))) {
+      excluded.add(path);
+      continue;
+    }
+    switch (OpcUaFieldTier.classify(path)) {
+      case FieldTier.slow:
+        slow.add(path);
+      case FieldTier.onDemand:
+        excluded.add(path);
+      case FieldTier.config:
+        if (configurationHeartbeat && OpcUaFieldTier.isManifestServed(path)) {
+          slow.add(path);
+        }
+      case FieldTier.live:
+        break;
+    }
+  }
+  return (slow: slow, excluded: excluded);
 }
 
 /// A rejected non-root value needs the same raw evidence as a refused root.

@@ -92,6 +92,20 @@ abstract class OpcUaTieredReadClient implements OpcUaSessionClient {
   Future<void> setExcludedPaths(Iterable<String> browsePaths);
 }
 
+/// Optional single-operation installation of a disjoint read profile. While
+/// supported, a snapshot can see either complete profile, never an interim tier.
+abstract interface class OpcUaReadTierBatchClient {
+  bool get readTiersAreAtomic;
+  Future<void> setReadTiers(
+      Iterable<String> slowPaths, Iterable<String> excludedPaths);
+}
+
+/// Optional transport policy for published activation-static configuration
+/// that has no exact manifest replacement. Other transports retain fast reads.
+abstract interface class OpcUaConfigurationReadPolicyClient {
+  bool get configurationContainersUseHeartbeat;
+}
+
 extension OpcUaSessionClientBatch on OpcUaSessionClient {
   /// Writes one commit-last mailbox transaction. Direct clients use this
   /// conservative sequential fallback; gateway clients implement one protocol

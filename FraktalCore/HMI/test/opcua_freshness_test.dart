@@ -20,6 +20,142 @@ const budget = <String, Object?>{
 const base = 'PLC1/MAIN/Press';
 
 void main() {
+  test(
+      'configuration heartbeat is opt-in and changes invalidate identical path tiers',
+      () async {
+    final client = _ConfigurationPolicyClient();
+    final repository = await OpcUaRepository.connectWithClient(client);
+    addTearDown(repository.dispose);
+    expect(client.slow.intersection(_StaticContainerClient.staticPaths.toSet()),
+        isEmpty);
+    client.heartbeat = true;
+    await repository
+        .forest()
+        .firstWhere((_) =>
+            _StaticContainerClient.staticPaths.every(client.slow.contains))
+        .timeout(const Duration(seconds: 2));
+    expect(
+        client.excluded
+            .intersection(_StaticContainerClient.staticPaths.toSet()),
+        isEmpty);
+    for (final path in [
+      '$base/Status/Name',
+      '$base/SupportedModesPublished',
+      '$base/AlarmLog/Active[1]/ReasonCode',
+      '$base/UnknownMetadata/Label'
+    ]) {
+      expect(client.slow, isNot(contains(path)));
+      expect(client.excluded, isNot(contains(path)));
+    }
+    client.heartbeat = false;
+    await repository
+        .forest()
+        .firstWhere((_) => client.slow
+            .intersection(_StaticContainerClient.staticPaths.toSet())
+            .isEmpty)
+        .timeout(const Duration(seconds: 2));
+    expect(await repository.linkState().first, LinkState.live);
+    expect(client.writes, isEmpty);
+  });
+  test(
+      'published static containers keep the fast tier until their exact replacement is hydrated',
+      () async {
+    final client = _StaticContainerClient();
+    final repository = await OpcUaRepository.connectWithClient(client);
+    addTearDown(repository.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    for (final path in _StaticContainerClient.staticPaths) {
+      expect(client.slow, isNot(contains(path)));
+      expect(client.excluded, isNot(contains(path)));
+    }
+    for (final path in [
+      '$base/Status/Name',
+      '$base/SupportedModesPublished',
+      '$base/AlarmLog/Active[1]/ReasonCode'
+    ]) {
+      expect(client.slow, isNot(contains(path)));
+      expect(client.excluded, isNot(contains(path)));
+    }
+    expect((await repository.forest().first).map((n) => n.path),
+        contains('Press'));
+    expect(await repository.linkState().first, LinkState.live);
+    expect(client.writes, isEmpty);
+  });
+  test('an atomic queued profile leaves polling on the prior complete profile',
+      () async {
+    final client = _HeldAtomicTierClient();
+    final repository = await OpcUaRepository.connectWithClient(client);
+    addTearDown(repository.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    client.holdNext = true;
+    repository.setModuleDetailActive('Press', true, containers: {'History'});
+    await client.paused.future.timeout(const Duration(seconds: 2));
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 180));
+      expect(client.snapshotsWhileHeld, greaterThan(0));
+      expect(await repository.linkState().first, LinkState.live);
+      expect(client.slow.intersection(client.excluded), isEmpty);
+      expect(client.slow.any((p) => p.contains('/History[')), false);
+    } finally {
+      client.release.complete();
+    }
+    await repository.forest().firstWhere((forest) => forest.any((node) =>
+        node.publishedValues.containsKey('Profiler/History[1]/CycleNo')));
+  });
+  test(
+      'a batch-capable client installs the whole read profile in one operation',
+      () async {
+    final client = _AtomicTierClient();
+    final repository = await OpcUaRepository.connectWithClient(client);
+    addTearDown(repository.dispose);
+    repository.setModuleDetailActive('Press', true, containers: {'History'});
+    await repository.forest().firstWhere((forest) => forest.any((node) =>
+        node.publishedValues.containsKey('Profiler/History[1]/CycleNo')));
+    expect(client.atomicCalls, greaterThan(0));
+    expect(client.tierCalls, 0);
+    expect(client.slow.intersection(client.excluded), isEmpty);
+  });
+  test('unchanged read tiers do not queue transport work ahead of polling',
+      () async {
+    final client = _StreamingDetailClient();
+    final repository = await OpcUaRepository.connectWithClient(client);
+    addTearDown(repository.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    final before = client.tierCalls;
+    repository.setModuleDetailActive('Press', true, containers: const {});
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(client.tierCalls, before);
+    repository.setModuleDetailActive('Press', true, containers: {'History'});
+    await repository.forest().firstWhere((forest) => forest.any((node) =>
+        node.publishedValues.containsKey('Profiler/History[1]/CycleNo')));
+    expect(client.tierCalls, greaterThan(before));
+    expect(client.overlappingTiers, false);
+  });
+  test(
+      'a snapshot waits for the complete tier update without renewing old data',
+      () async {
+    final client = _PausedTierClient();
+    final repository = await OpcUaRepository.connectWithClient(client);
+    addTearDown(repository.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    client.holdNext = true;
+    repository.setModuleDetailActive('Press', true, containers: {'History'});
+    await client.paused.future.timeout(const Duration(seconds: 2));
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 180));
+      expect(client.snapshotsDuringUpdate, 0,
+          reason:
+              'an excluded-but-not-yet-slow detail must never enter a snapshot');
+      expect(await repository.linkState().first, LinkState.stale,
+          reason: 'waiting for tiers cannot renew the old station sample');
+    } finally {
+      client.release.complete();
+    }
+    await repository.forest().firstWhere((forest) => forest.any((node) =>
+        node.publishedValues.containsKey('Profiler/History[1]/CycleNo')));
+    expect(await repository.linkState().first, LinkState.live);
+  });
+
   test('overrunning complete reads resume without a skipped polling boundary',
       () async {
     final client = _SlowSampleClient();
@@ -38,28 +174,37 @@ void main() {
     expect(client.maximumConcurrent, 1);
   });
 
-  test('transit allowance counts server acquisition once and rejects bad brackets', () {
+  test(
+      'transit allowance counts server acquisition once and rejects bad brackets',
+      () {
     final profile = OpcUaFreshnessBudget.parse({'freshnessBudget': budget})!;
     const elapsed = Duration(milliseconds: 85);
     expect(profile.transitAllowance({}, elapsed), elapsed);
     expect(profile.transitAllowance({'responseProcessingMs': 80}, elapsed),
         const Duration(milliseconds: 6));
     for (final invalid in [null, -1, double.nan, double.infinity, '80', 87]) {
-      expect(() => profile.transitAllowance(
-          {'responseProcessingMs': invalid}, elapsed), throwsFormatException);
+      expect(
+          () => profile
+              .transitAllowance({'responseProcessingMs': invalid}, elapsed),
+          throwsFormatException);
     }
     final received = profile.ageDocument({
       'values': {'detail': 1},
-      'dataValues': {'detail': {'value': 1, 'status': 0, 'tier': 'slow', 'ageMs': 80}},
+      'dataValues': {
+        'detail': {'value': 1, 'status': 0, 'tier': 'slow', 'ageMs': 80}
+      },
     }, profile.transitAllowance({'responseProcessingMs': 80}, elapsed));
     expect(received['values'], {'detail': 1});
-    final expired = profile.ageDocument(received, const Duration(milliseconds: 120));
+    final expired =
+        profile.ageDocument(received, const Duration(milliseconds: 120));
     expect(expired['values'], isEmpty);
     // A server's serialized queue precedes data acquisition. Its processing
     // bracket covers queue + read; the source age already covers the read.
     final queuedSample = {
       'values': {'queued': 1},
-      'dataValues': {'queued': {'value': 1, 'status': 0, 'tier': 'fast', 'ageMs': 100}},
+      'dataValues': {
+        'queued': {'value': 1, 'status': 0, 'tier': 'fast', 'ageMs': 100}
+      },
     };
     const queuedRpc = Duration(milliseconds: 205);
     final queueAndRead = profile.ageDocument(queuedSample,
@@ -68,7 +213,8 @@ void main() {
     final readOnlyBracket = profile.ageDocument(queuedSample,
         profile.transitAllowance({'responseProcessingMs': 100}, queuedRpc));
     expect(readOnlyBracket['values'], isEmpty);
-    expect(((readOnlyBracket['dataValues'] as Map)['queued'] as Map)['status'], 0x40000000);
+    expect(((readOnlyBracket['dataValues'] as Map)['queued'] as Map)['status'],
+        0x40000000);
   });
 
   test('budgeted tiers stream only visible detail without targeted sweeps',
@@ -81,17 +227,21 @@ void main() {
     await repository.forest().firstWhere((forest) => forest.any((node) =>
         node.path == 'Press' &&
         node.publishedValues.containsKey('Profiler/History[1]/CycleNo')));
-    expect(client.slow, unorderedEquals([
-      '$base/Profiler/History[1]/CycleNo',
-      '$base/Profiler/StepStats[1]/Mean',
-      '$base/Ram/Timing/Rows[1]/Last',
-    ]));
-    expect(client.excluded, containsAll([
-      '$base/AlarmLog/Ring[1]/ReasonCode',
-      '$base/SequenceSteps[1]/Visited',
-      '$base/ConfigSetDocumentLine',
-      'PLC1/MAIN/Other/Profiler/History[1]/CycleNo',
-    ]));
+    expect(
+        client.slow,
+        unorderedEquals([
+          '$base/Profiler/History[1]/CycleNo',
+          '$base/Profiler/StepStats[1]/Mean',
+          '$base/Ram/Timing/Rows[1]/Last',
+        ]));
+    expect(
+        client.excluded,
+        containsAll([
+          '$base/AlarmLog/Ring[1]/ReasonCode',
+          '$base/SequenceSteps[1]/Visited',
+          '$base/ConfigSetDocumentLine',
+          'PLC1/MAIN/Other/Profiler/History[1]/CycleNo',
+        ]));
     expect(client.reads, isEmpty);
     repository.setModuleDetailActive('Press', true, containers: {'Ring'});
     await repository.forest().firstWhere((forest) => forest.any((node) =>
@@ -113,29 +263,42 @@ void main() {
     final repository = await OpcUaRepository.connectWithClient(client);
     addTearDown(repository.dispose);
     repository.setModuleDetailActive('Press', true, containers: {'History'});
-    final forest = await repository.forest().firstWhere((forest) =>
-        forest.any((node) => node.path == 'Press' &&
+    final forest = await repository.forest().firstWhere((forest) => forest.any(
+        (node) =>
+            node.path == 'Press' &&
             node.tagAt('Profiler/History[1]/CycleNo') != null));
-    expect(forest.singleWhere((node) => node.path == 'Press')
-        .tagAt('Profiler/History[1]/CycleNo')!.quality, PublishedTagQuality.bad);
+    expect(
+        forest
+            .singleWhere((node) => node.path == 'Press')
+            .tagAt('Profiler/History[1]/CycleNo')!
+            .quality,
+        PublishedTagQuality.bad);
     expect(await repository.linkState().first, LinkState.live);
     expect(client.reads, isEmpty);
   });
 
-  test('targeted envelope retains source quality and rejects unknown versions', () {
+  test('targeted envelope retains source quality and rejects unknown versions',
+      () {
     final source = {'status': 0x40000000, 'ageMs': 1234};
     final result = decodeTargetedDataValues({
       'protocol': 'fraktal.opcua.read-values.v1',
-      'values': {'a': null}, 'dataValues': {'a': source},
+      'values': {'a': null},
+      'dataValues': {'a': source},
     });
     expect((result['dataValues'] as Map)['a'], source);
-    expect(() => decodeTargetedDataValues({
-      'protocol': 'fraktal.opcua.read-values.v2',
-      'values': {'a': 1}, 'dataValues': {'a': source},
-    }), throwsFormatException);
-    expect(() => decodeTargetedDataValues({
-      'protocol': 'fraktal.opcua.read-values.v1', 'values': {'a': 1},
-    }), throwsFormatException);
+    expect(
+        () => decodeTargetedDataValues({
+              'protocol': 'fraktal.opcua.read-values.v2',
+              'values': {'a': 1},
+              'dataValues': {'a': source},
+            }),
+        throwsFormatException);
+    expect(
+        () => decodeTargetedDataValues({
+              'protocol': 'fraktal.opcua.read-values.v1',
+              'values': {'a': 1},
+            }),
+        throwsFormatException);
     final legacy = decodeTargetedDataValues({'a': 1, 'b': null});
     expect((legacy['dataValues'] as Map)['a'], {'ageMs': 0, 'status': 0});
     expect(((legacy['dataValues'] as Map)['b'] as Map)['status'], 0x80320000);
@@ -148,12 +311,17 @@ void main() {
       final repository = await OpcUaRepository.connectWithClient(client);
       addTearDown(repository.dispose);
       repository.setModuleDetailActive('Press', true, containers: {'History'});
-      final forest = await repository.forest().firstWhere((forest) =>
-          forest.any((node) => node.path == 'Press' && node.tagAt(
-              'Profiler/History[1]/CycleNo') != null))
+      final forest = await repository
+          .forest()
+          .firstWhere((forest) => forest.any((node) =>
+              node.path == 'Press' &&
+              node.tagAt('Profiler/History[1]/CycleNo') != null))
           .timeout(const Duration(seconds: 3));
-      expect(forest.singleWhere((node) => node.path == 'Press')
-          .tagAt('Profiler/History[1]/CycleNo')!.usable,
+      expect(
+          forest
+              .singleWhere((node) => node.path == 'Press')
+              .tagAt('Profiler/History[1]/CycleNo')!
+              .usable,
           isFalse);
       expect(await repository.linkState().first, LinkState.live,
           reason: 'detail does not own the separately fresh station sample');
@@ -168,11 +336,13 @@ void main() {
     repository.setModuleDetailActive('Press', true,
         containers: {'History', 'StepStats', 'Timing'});
     await client.secondRead.future.timeout(const Duration(seconds: 2));
-    expect(client.reads.first, unorderedEquals([
-      '$base/Profiler/History[1]/CycleNo',
-      '$base/Profiler/StepStats[1]/Mean',
-      '$base/Ram/Timing/Rows[1]/Last',
-    ]));
+    expect(
+        client.reads.first,
+        unorderedEquals([
+          '$base/Profiler/History[1]/CycleNo',
+          '$base/Profiler/StepStats[1]/Mean',
+          '$base/Ram/Timing/Rows[1]/Last',
+        ]));
     final nextRead = client.reads.length;
     repository.setModuleDetailActive('Press', true, containers: {'Ring'});
     await Future<void>.delayed(const Duration(milliseconds: 140));
@@ -383,7 +553,8 @@ void main() {
     expect(await repository.forest().first, isNotEmpty);
   });
 
-  test('an early freshness timer re-arms and still withdraws a stalled sample', () async {
+  test('an early freshness timer re-arms and still withdraws a stalled sample',
+      () async {
     var shortened = false;
     await runZoned(() async {
       final client = _Client()..blockSecond = true;
@@ -394,7 +565,10 @@ void main() {
         await client.blocked.future;
         await Future<void>.delayed(const Duration(milliseconds: 380));
         expect(shortened, isTrue);
-        expect(links, containsAllInOrder([LinkState.live, LinkState.stale, LinkState.down]));
+        expect(
+            links,
+            containsAllInOrder(
+                [LinkState.live, LinkState.stale, LinkState.down]));
         expect(client.release.isCompleted, isFalse);
         expect(await repository.forest().first, isEmpty);
         expect(await repository.setMode('Press', UnitMode.manual), isFalse);
@@ -404,10 +578,14 @@ void main() {
         repository.dispose();
         if (!client.release.isCompleted) client.release.complete();
       }
-    }, zoneSpecification: ZoneSpecification(createTimer: (self, parent, zone, duration, callback) {
-      if (!shortened && duration.inMilliseconds >= 120 && duration.inMilliseconds <= 170) {
+    }, zoneSpecification: ZoneSpecification(
+        createTimer: (self, parent, zone, duration, callback) {
+      if (!shortened &&
+          duration.inMilliseconds >= 120 &&
+          duration.inMilliseconds <= 170) {
         shortened = true;
-        return parent.createTimer(zone, duration - const Duration(milliseconds: 20), callback);
+        return parent.createTimer(
+            zone, duration - const Duration(milliseconds: 20), callback);
       }
       return parent.createTimer(zone, duration, callback);
     }));
@@ -429,8 +607,8 @@ void main() {
     expect(client.closed, isTrue);
     expect(client.snapshotCalls, 1);
     expect(client.writes, isEmpty);
-    final message = messages.singleWhere(
-        (line) => line.contains('stage=complete-sample-rejected'));
+    final message = messages
+        .singleWhere((line) => line.contains('stage=complete-sample-rejected'));
     final fields = {
       for (final match in RegExp(r'(\w+Us)=(\d+)').allMatches(message))
         match[1]!: int.parse(match[2]!),
@@ -439,13 +617,18 @@ void main() {
     expect(fields['snapshotAwaitUs'], greaterThanOrEqualTo(0));
     expect(fields['serviceDecodeUs'], greaterThanOrEqualTo(0));
     expect(fields['validationUs'], greaterThanOrEqualTo(0));
-    expect(fields['rpcUs'], greaterThanOrEqualTo(fields['snapshotAwaitUs']! +
-        fields['serviceDecodeUs']! + fields['validationUs']!));
+    expect(
+        fields['rpcUs'],
+        greaterThanOrEqualTo(fields['snapshotAwaitUs']! +
+            fields['serviceDecodeUs']! +
+            fields['validationUs']!));
     expect(fields['fastGoodUs'], 150000);
-    expect(fields['receivedAgeUs'], fields['sourceAgeUs']! + fields['transitUs']!);
+    expect(
+        fields['receivedAgeUs'], fields['sourceAgeUs']! + fields['transitUs']!);
     expect(fields['effectiveAgeUs'],
         fields['receivedAgeUs']! + fields['localProcessingUs']!);
-    expect(fields['effectiveAgeUs'], greaterThanOrEqualTo(fields['fastGoodUs']!));
+    expect(
+        fields['effectiveAgeUs'], greaterThanOrEqualTo(fields['fastGoodUs']!));
   });
 
   test('a present malformed profile cannot fall back to a legacy live frame',
@@ -469,8 +652,7 @@ void main() {
 
 String _detailRelative(int index) => 'Profiler/History/History[1]/Field$index';
 
-class _SelectiveDetailClient extends _Client
-    implements OpcUaBulkReadClient {
+class _SelectiveDetailClient extends _Client implements OpcUaBulkReadClient {
   final reads = <List<String>>[];
   final snapshotAtRead = <int>[];
   final startedAt = <Duration>[];
@@ -494,7 +676,12 @@ class _SelectiveDetailClient extends _Client
       'values': values,
       'dataValues': {
         for (final item in values.entries)
-          item.key: {'value': item.value, 'status': 0, 'tier': 'fast', 'ageMs': 0},
+          item.key: {
+            'value': item.value,
+            'status': 0,
+            'tier': 'fast',
+            'ageMs': 0
+          },
       },
       'paths': [
         ...values.keys,
@@ -518,12 +705,12 @@ class _SelectiveDetailClient extends _Client
     await Future<void>.delayed(const Duration(milliseconds: 40));
     return {for (final path in paths) path: 1};
   }
-
 }
 
 class _StreamingDetailClient extends _SelectiveDetailClient
     implements OpcUaTieredReadClient {
   Set<String> slow = {}, excluded = {};
+  int tierCalls = 0;
   bool overlappingTiers = false;
   num detailAge = 0;
 
@@ -543,16 +730,111 @@ class _StreamingDetailClient extends _SelectiveDetailClient
 
   @override
   Future<void> setExcludedPaths(Iterable<String> paths) async {
+    tierCalls++;
     excluded = paths.toSet();
     overlappingTiers |= slow.intersection(excluded).isNotEmpty;
   }
+
   @override
   Future<void> setSlowPaths(Iterable<String> paths) async {
+    tierCalls++;
     slow = paths.toSet();
     overlappingTiers |= slow.intersection(excluded).isNotEmpty;
   }
+
   @override
   Future<void> refreshSlowPaths() async {}
+}
+
+class _AtomicTierClient extends _StreamingDetailClient
+    implements OpcUaReadTierBatchClient {
+  int atomicCalls = 0;
+  @override
+  bool get readTiersAreAtomic => true;
+  @override
+  Future<void> setReadTiers(
+      Iterable<String> slowPaths, Iterable<String> excludedPaths) async {
+    atomicCalls++;
+    slow = slowPaths.toSet();
+    excluded = excludedPaths.toSet();
+  }
+}
+
+class _StaticContainerClient extends _StreamingDetailClient {
+  static const staticPaths = [
+    '$base/AlarmLog/Meta[1]/OperatorAction',
+    '$base/Nameplate/Serial',
+    '$base/AvailableModels[1]/ModelCode',
+    '$base/Catalog[1]/Label',
+    '$base/ModePolicy[1]/Shield',
+  ];
+  @override
+  Future<Map<String, Object?>> snapshot() async {
+    final doc = await super.snapshot();
+    return {
+      ...doc,
+      'paths': [
+        ...doc['paths'] as List,
+        ...staticPaths,
+        '$base/UnknownMetadata/Label',
+        '$base/AlarmLog/Active[1]/ReasonCode'
+      ]
+    };
+  }
+}
+
+class _ConfigurationPolicyClient extends _StaticContainerClient
+    implements OpcUaConfigurationReadPolicyClient {
+  bool heartbeat = false;
+  @override
+  bool get configurationContainersUseHeartbeat => heartbeat;
+}
+
+class _HeldAtomicTierClient extends _AtomicTierClient {
+  bool holdNext = false, held = false;
+  int snapshotsWhileHeld = 0;
+  final paused = Completer<void>(), release = Completer<void>();
+  @override
+  Future<void> setReadTiers(
+      Iterable<String> slowPaths, Iterable<String> excludedPaths) async {
+    if (holdNext) {
+      holdNext = false;
+      held = true;
+      paused.complete();
+      await release.future;
+      held = false;
+    }
+    await super.setReadTiers(slowPaths, excludedPaths);
+  }
+
+  @override
+  Future<Map<String, Object?>> snapshot() {
+    if (held) snapshotsWhileHeld++;
+    return super.snapshot();
+  }
+}
+
+class _PausedTierClient extends _StreamingDetailClient {
+  bool holdNext = false, updating = false;
+  int snapshotsDuringUpdate = 0;
+  final paused = Completer<void>(), release = Completer<void>();
+  @override
+  Future<void> setExcludedPaths(Iterable<String> paths) async {
+    await super.setExcludedPaths(paths);
+    if (holdNext) {
+      holdNext = false;
+      updating = true;
+      paused.complete();
+      await release.future;
+      updating = false;
+    }
+  }
+
+  @override
+  Future<Map<String, Object?>> snapshot() {
+    if (updating) snapshotsDuringUpdate++;
+    return super.snapshot();
+  }
 }
 
 class _CachedDetailClient extends _SelectiveDetailClient
@@ -574,8 +856,7 @@ class _CachedDetailClient extends _SelectiveDetailClient
 /// The reported deployment has 2,621 detail leaves: six bounded reads. The
 /// total detail cycle exceeds the station budget while each full sample stays
 /// current. Blocked detail/snapshot RPCs are independent to exercise ownership.
-class _DetailClient extends _Client
-    implements OpcUaBulkReadClient {
+class _DetailClient extends _Client implements OpcUaBulkReadClient {
   bool holdFirst = false, holdSecond = false, blockNextSnapshot = false;
   final detailStarted = Completer<void>(), detailRelease = Completer<void>();
   final snapshotBlocked = Completer<void>(),
@@ -621,7 +902,6 @@ class _DetailClient extends _Client
       for (final path in paths) path: int.parse(path.split('Field').last)
     };
   }
-
 }
 
 class _SlowSampleClient extends _Client {
@@ -631,9 +911,15 @@ class _SlowSampleClient extends _Client {
   final fourthRead = Completer<void>();
   int concurrent = 0, maximumConcurrent = 0;
   _SlowSampleClient() {
-    profile = {...budget, 'pollPeriodMs': 150, 'fastGoodMs': 500,
-      'fastExpiryMs': 800, 'slowPeriodMs': 150, 'slowGoodMs': 500,
-      'slowExpiryMs': 800};
+    profile = {
+      ...budget,
+      'pollPeriodMs': 150,
+      'fastGoodMs': 500,
+      'fastExpiryMs': 800,
+      'slowPeriodMs': 150,
+      'slowGoodMs': 500,
+      'slowExpiryMs': 800
+    };
   }
   @override
   Future<Map<String, Object?>> snapshot() async {

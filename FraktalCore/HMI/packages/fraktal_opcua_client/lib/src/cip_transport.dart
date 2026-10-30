@@ -134,10 +134,14 @@ abstract interface class CipBatchReadTransport implements CipReadTransport {
   Future<List<CipReply>> readBatch(List<CipBatchRead> reads);
 }
 
+const cipMaximumBatchReads = 64;
+
 /// Null means this row cannot fit; callers keep the original fragmented path.
 Uint8List? cipEncodeReadBatch(List<CipBatchRead> reads, int capacity) {
-  if (capacity < 500 || capacity > 4000 || reads.isEmpty || reads.length > 64)
-    return null;
+  if (capacity < 500 ||
+      capacity > 4000 ||
+      reads.isEmpty ||
+      reads.length > cipMaximumBatchReads) return null;
   final header = 2 + 2 * reads.length;
   final replyBytes =
       6 + header + reads.fold<int>(0, (n, r) => n + 4 + r.replyDataBytes);

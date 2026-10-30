@@ -60,9 +60,10 @@ def logical_types(app,paths):
     return result
 
 
-def run(comm,*,page=0,model=0,provider_state=None):
+def run(comm,*,page=0,model=0,provider_state=None,application_factory=None):
     import fraktal_ab_genealogy_s4b_demo as candidate
-    app=candidate.application();state={}
+    factory=application_factory or candidate.application
+    app=factory();state={}
     def inputs(reader):
         value=previous.additional_inputs(reader,app);value['read_view_codes']=models.read(reader,app)
         state.update(count=value['host']['metadata']['Count'] if value['host'] is not None else 0,
@@ -72,7 +73,7 @@ def run(comm,*,page=0,model=0,provider_state=None):
         return previous.subset_paths(app,codes,canonical=canonical,**state,page=page,model=model)|view_paths(app,codes)
     def extra(app,unit,additional):
         return previous.extra_values(app,unit,additional,page=page,model=model,provider_state=provider_state)|reference(app,additional)
-    return shared.run(comm,application_factory=candidate.application,path_contract=paths,
+    return shared.run(comm,application_factory=factory,path_contract=paths,
         extra_oracle=extra,logical_types=logical_types,additional_inputs=inputs)
 
 

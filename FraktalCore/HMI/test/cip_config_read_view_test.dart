@@ -106,7 +106,139 @@ class ReadOnlyClient
   Future<void> close() async {}
 }
 
+class _VersionedView {
+  static const prefix = 'FixtureConfig/View';
+  final data = view();
+  final reads = <List<String>>[];
+  Set<String> unavailable = {};
+  int headers = 0, assembled = 0;
+  void Function(int)? afterHeader;
+  Map<String, Object?>? lastAssembly;
+  Future<Map<String, Object?>> fetch(List<String> paths) async {
+    reads.add(List.of(paths));
+    final result = {
+      for (final e in data.entries)
+        if (!unavailable.contains(e.key) &&
+            paths.any((p) => e.key == p || e.key.startsWith('$p/')))
+          e.key: e.value
+    };
+    if (paths.contains('$prefix/SchemaVersion')) {
+      headers++;
+      afterHeader?.call(headers);
+    }
+    return result;
+  }
+
+  Future<Map<String, Object?>> query(CipConfigurationCache cache,
+          {int model = 0}) =>
+      cipAcquireConfiguration(
+          root: 'Fixture',
+          modelOrdinal: model,
+          descriptor: {
+            'CanonicalRoot': prefix,
+            'DefinitionCapacity': 2,
+            'ValueCapacity': 6
+          },
+          cache: cache,
+          fetch: fetch,
+          assemble: (values) async {
+            assembled++;
+            lastAssembly = Map.of(values);
+            return page(values, model: model);
+          });
+  void mask(int revision) {
+    data['$prefix/Revision'] = revision;
+    for (var i = 0; i < 3; i++) {
+      data['$prefix/Values[$i]/Revision'] = revision;
+      data['$prefix/Values[$i]/Readable'] = false;
+      data['$prefix/Values[$i]/ValueText'] = '';
+    }
+    for (var i = 0; i < 2; i++) {
+      data['$prefix/Definitions[$i]/ReadLevel'] = 4;
+    }
+  }
+}
+
 void main() {
+  CipConfigurationCache cache({int Function()? clock}) => CipConfigurationCache(
+      maxSilence: const Duration(seconds: 5), clockUs: clock);
+  test('an unchanged configuration is revalidated using fresh headers only',
+      () async {
+    final source = _VersionedView(), retained = cache();
+    final first = await source.query(retained);
+    source.reads.clear();
+    expect(await source.query(retained), first);
+    expect(source.reads.length, 2);
+    expect(
+        source.reads
+            .every((p) => p.contains('${_VersionedView.prefix}/SchemaVersion')),
+        true);
+  });
+  test(
+      'incomplete configuration stays unavailable while coherent rows survive for revalidation',
+      () async {
+    final source = _VersionedView(), retained = cache();
+    source.unavailable = {'${_VersionedView.prefix}/Definitions[0]/Scope'};
+    await expectLater(source.query(retained), throwsFormatException);
+    source.unavailable = {};
+    source.reads.clear();
+    expect(await source.query(retained), page(source.data));
+    expect(source.reads.expand((p) => p),
+        contains('${_VersionedView.prefix}/Definitions[0]'));
+    expect(source.reads.expand((p) => p),
+        isNot(contains('${_VersionedView.prefix}/Definitions[1]')));
+  });
+  test('a permission revision discards every cached plaintext and policy field',
+      () async {
+    final source = _VersionedView(), retained = cache();
+    await source.query(retained);
+    source.mask(20);
+    source.reads.clear();
+    final masked = await source.query(retained);
+    expect(masked, page(source.data));
+    expect(source.reads.length, greaterThan(2));
+    expect(masked['Entries[1]/ValueText'], '');
+    expect(masked['Entries[1]/Readable'], false);
+    expect(masked['Entries[1]/ReadLevel'], 4);
+  });
+  test('a changed final version refuses a cached page before assembly',
+      () async {
+    final source = _VersionedView(), retained = cache();
+    await source.query(retained);
+    source.afterHeader = (n) {
+      if (n == 3) source.mask(20);
+    };
+    await expectLater(source.query(retained), throwsFormatException);
+    expect(source.assembled, 1);
+    expect(await source.query(retained), page(source.data));
+  });
+  test(
+      'an expired cache lease requires native rows even when the token matches',
+      () async {
+    var now = 0;
+    final source = _VersionedView(), retained = cache(clock: () => now);
+    await source.query(retained);
+    now = 5000000;
+    source.reads.clear();
+    expect(await source.query(retained), page(source.data));
+    expect(source.reads.length, greaterThan(2));
+  });
+  test('a bank query never supplies cached payloads from a different bank',
+      () async {
+    final source = _VersionedView(), retained = cache();
+    await source.query(retained);
+    expect(await source.query(retained, model: 1), page(source.data, model: 1));
+    for (final i in [0, 1]) {
+      expect(
+          source.lastAssembly!
+              .containsKey('${_VersionedView.prefix}/Values[$i]/ValueText'),
+          false);
+      expect(
+          source.lastAssembly!
+              .containsKey('${_VersionedView.prefix}/Values[$i]/Readable'),
+          false);
+    }
+  });
   test(
       'configuration batches yield between bounded reads and fetch only the selected bank values',
       () async {
@@ -139,7 +271,17 @@ void main() {
             modelOrdinal: 1));
     expect(result['EntryCount'], (fixture['expectedPages'] as List)[1].length);
     expect(batches.length, greaterThan(4));
-    expect(batches.every((b) => b.length <= 64), true);
+    expect(batches.every((b) => b.length <= 32), true);
+    expect(
+        batches
+            .where((b) => b.any((p) => p.contains('/Definitions[')))
+            .every((b) => b.length <= 4),
+        true);
+    expect(
+        batches
+            .where((b) => b.any((p) => p.contains('/Values[')))
+            .every((b) => b.length <= 4 || b.length <= 32 && b.length % 4 == 0),
+        true);
     final requested = batches.expand((b) => b).toSet();
     for (var i = 0; i < (all['$prefix/ValueCount'] as int); i++) {
       expect(requested.contains('$prefix/Values[$i]'),

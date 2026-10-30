@@ -7,13 +7,20 @@ import 'cip_transport.dart';
 import 'opcua_session_client.dart';
 
 /// Optional capability: a complete guarded row owns one read-only connection.
-/// Existing transports and targeted reads retain their serial behavior.
+/// Transports without this capability retain their serial behavior.
 abstract interface class CipGroupedReadTransport implements CipReadTransport {
   int get groupConcurrency;
   Future<T> withGroup<T>(Future<T> Function(CipReadTransport) work);
 }
 
-final class CipReadPool implements CipGroupedReadTransport {
+/// Optional capacity for combining bounded rows on one leased connection.
+/// Null preserves the original reader when any connection lacks read batching.
+abstract interface class CipBatchedGroupReadTransport
+    implements CipGroupedReadTransport {
+  int? get groupBatchBytes;
+}
+
+final class CipReadPool implements CipBatchedGroupReadTransport {
   static const _maximumConnections = 4;
   final List<CipReadTransport> _transports;
   final List<CipReadTransport> _available;
@@ -54,6 +61,17 @@ final class CipReadPool implements CipGroupedReadTransport {
 
   @override
   int get groupConcurrency => _transports.length;
+
+  @override
+  int? get groupBatchBytes {
+    int? capacity;
+    for (final transport in _transports) {
+      if (transport is! CipBatchReadTransport) return null;
+      final bytes = transport.readBatchBytes;
+      if (capacity == null || bytes < capacity) capacity = bytes;
+    }
+    return capacity;
+  }
 
   @override
   Future<T> withGroup<T>(Future<T> Function(CipReadTransport) work) async {

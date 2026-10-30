@@ -10,6 +10,7 @@ import 'cip_config_read_view.dart';
 import 'cip_namespace.dart';
 import 'cip_publication.dart';
 import 'cip_read_coherence.dart';
+import 'cip_operation_queue.dart';
 import 'cip_read_plan.dart';
 import 'cip_read_pool.dart';
 import 'cip_transport.dart';
@@ -24,6 +25,8 @@ final class CipSessionClient
         OpcUaBulkReadClient,
         OpcUaPathDiscoveryClient,
         OpcUaTieredReadClient,
+        OpcUaReadTierBatchClient,
+        OpcUaConfigurationReadPolicyClient,
         OpcUaBatchSessionClient,
         OpcUaWritePolicyClient,
         OpcUaDataValueReadClient,
@@ -36,10 +39,15 @@ final class CipSessionClient
   final Map<String, Object?> _endpoint;
   int _nextId = 1;
   bool _closed = false;
+  Future<void>? _slowInFlight;
+  final _configurationCaches = <String, CipConfigurationCache>{};
+  int _generation = 0;
   CipSessionClient._(this._isolate, this._worker, this._responses,
       this._subscription, this._endpoint);
   @override
   bool get readOnly => true;
+  @override
+  bool get configurationContainersUseHeartbeat => true;
 
   static Future<CipSessionClient> connect(
       {required String host,
@@ -100,6 +108,8 @@ final class CipSessionClient
   }
 
   Future<void> reconnect() async {
+    _generation++;
+    _configurationCaches.clear();
     await _call('connect', _endpoint);
   }
 
@@ -117,8 +127,17 @@ final class CipSessionClient
         document['replyWaitUs'] = Timeline.now - workerSent;
       }
     }
+    // Schedule one slow group as its own worker operation. Its timestamp is
+    // never part of the fast sample's acquisition or liveness envelope.
+    if (_slowInFlight == null) {
+      _slowInFlight =
+          _call('acquireSlow').then<void>((_) {}, onError: (Object error) {
+        _dispose(error);
+      }).whenComplete(() => _slowInFlight = null);
+    }
     return document;
   }
+
   @override
   Future<Map<String, Object?>> readValues(List<String> browsePaths) async =>
       Map<String, Object?>.from(
@@ -129,20 +148,43 @@ final class CipSessionClient
   @override
   Future<Map<String, Object?>?> readConfigurationPage(
       String root, int modelOrdinal) async {
+    final generation = _generation;
+    void sameGeneration() {
+      if (_closed || generation != _generation)
+        throw const OpcUaTransportException(
+            'Configuration session changed during acquisition.');
+    }
+
     final descriptor = Map<String, Object?>.from(
         await _call('configurationDescriptor', root) as Map);
+    sameGeneration();
     return cipAcquireConfiguration(
         root: root,
         modelOrdinal: modelOrdinal,
         descriptor: descriptor,
-        fetch: readValues,
-        assemble: (values) async => Map<String, Object?>.from(await _call(
-                'configurationAssemble', {
-              'root': root,
-              'model': modelOrdinal,
-              'descriptor': descriptor,
-              'values': values
-            }) as Map));
+        cache: _configurationCaches.putIfAbsent(
+            root,
+            () => CipConfigurationCache(
+                maxSilence: Duration(
+                    milliseconds: CipReadPlan.freshnessBudget['slowGoodMs']!))),
+        fetch: (paths) async {
+          sameGeneration();
+          final result = await readValues(paths);
+          sameGeneration();
+          return result;
+        },
+        assemble: (values) async {
+          sameGeneration();
+          final result = Map<String, Object?>.from(await _call(
+              'configurationAssemble', {
+            'root': root,
+            'model': modelOrdinal,
+            'descriptor': descriptor,
+            'values': values
+          }) as Map);
+          sameGeneration();
+          return result;
+        });
   }
 
   @override
@@ -151,6 +193,14 @@ final class CipSessionClient
   @override
   Future<void> setSlowPaths(Iterable<String> paths) async {
     await _call('slow', paths.toList());
+  }
+
+  @override
+  bool get readTiersAreAtomic => true;
+  @override
+  Future<void> setReadTiers(
+      Iterable<String> slowPaths, Iterable<String> excludedPaths) async {
+    await _call('tiers', [slowPaths.toList(), excludedPaths.toList()]);
   }
 
   @override
@@ -170,6 +220,8 @@ final class CipSessionClient
   Future<bool> writeBatch(List<OpcUaWrite> writes) async => false;
   void _dispose(Object error) {
     if (_closed) return;
+    _generation++;
+    _configurationCaches.clear();
     _closed = true;
     _isolate.kill(priority: Isolate.immediate);
     for (final pending in _pending.values) {
@@ -199,6 +251,7 @@ final class CipSessionEngine {
   final String manifestSymbol;
   final int manifestHandle;
   bool _progressProved = false;
+  bool _readScheduleQualified = false;
   // The transport contract sends the discovered path vector once per
   // discovery (OPCUA_TRANSPORT.md); later snapshots carry an empty list and
   // the repository keeps the last non-empty set. A new engine — what every
@@ -206,6 +259,7 @@ final class CipSessionEngine {
   bool _pathsSent = false;
   CipSessionEngine._(
       this.wire, this.plan, this.manifestSymbol, this.manifestHandle);
+
   /// Offline replay seam mirroring [discover] for a captured publication (as
   /// [CipNamespace.fromCapture] shapes it): the manifest comes from the
   /// capture's decoded manifest instead of the wire, and the wire serves tag
@@ -234,8 +288,10 @@ final class CipSessionEngine {
       for (final s in manifest.rows('readServices'))
         s['CanonicalRoot'] as String
     };
-    return CipSessionEngine._(wire, plan, symbol.name, symbol.handle);
+    return CipSessionEngine._(wire, plan, symbol.name, symbol.handle)
+      .._readScheduleQualified = true; // explicit captured-wire replay seam
   }
+
   static Future<CipSessionEngine> discover(CipReadTransport wire) async {
     try {
       final namespace = await CipNamespace.discover(wire);
@@ -288,23 +344,37 @@ final class CipSessionEngine {
     }
   }
 
+  Future<void> qualifyReadSchedule() async {
+    if (_readScheduleQualified) return;
+    final qualification = await plan.qualifyConcurrency();
+    _readScheduleQualified = true;
+    if (_traceCipTiming) {
+      // Timing/counts only; trial values never become consumer samples.
+      // ignore: avoid_print
+      print(jsonEncode({
+        'cipReadQualification': qualification,
+        'selectedConcurrentGroups': plan.groupConcurrency,
+        'publishedTrialSamples': 0
+      }));
+    }
+  }
+
   Future<Map<String, Object?>> snapshot(
       {void Function(Map<String, Object?>)? trace,
-      Stopwatch? requestClock}) async {
+      Stopwatch? requestClock,
+      bool fastOnly = false}) async {
     final timer = Stopwatch()..start();
     final responseClock = requestClock ?? timer;
+    await qualifyReadSchedule();
+    final qualificationUs = timer.elapsedMicroseconds;
     final previousAcquisition = trace == null || plan.acquisitions.isEmpty
         ? null
         : plan.acquisitions.last;
     await _checkManifest();
     final checkedBeforeUs = timer.elapsedMicroseconds;
-    if (!_progressProved) {
-      if (!await plan.proveProgress())
-        throw const FormatException('CIP publisher is not progressing.');
-      _progressProved = true;
-    }
+    await _ensureProgress();
     final progressProvedUs = timer.elapsedMicroseconds;
-    await plan.acquire();
+    await plan.acquire(fastOnly: fastOnly);
     final acquiredUs = timer.elapsedMicroseconds;
     await _checkManifest();
     final checkedAfterUs = timer.elapsedMicroseconds;
@@ -343,7 +413,8 @@ final class CipSessionEngine {
         ..sort((a, b) =>
             (b['acquisitionUs'] as int).compareTo(a['acquisitionUs'] as int));
       trace({
-        'manifestBeforeUs': checkedBeforeUs,
+        'qualificationUs': qualificationUs,
+        'manifestBeforeUs': checkedBeforeUs - qualificationUs,
         'progressProofUs': progressProvedUs - checkedBeforeUs,
         'acquireUs': acquiredUs - progressProvedUs,
         'manifestAfterUs': checkedAfterUs - acquiredUs,
@@ -359,14 +430,29 @@ final class CipSessionEngine {
         if (plan.lastWalkTrace != null) 'walk': plan.lastWalkTrace!,
       });
     }
-    _pathsSent = paths.isNotEmpty;
+    _pathsSent = true;
     return document;
+  }
+
+  Future<void> acquireSlowChunk() async {
+    if (!plan.slowAcquisitionDue) return;
+    await _checkManifest();
+    await plan.acquireSlowChunk();
+    await _checkManifest();
+  }
+
+  Future<void> _ensureProgress() async {
+    if (_progressProved) return;
+    if (!await plan.proveProgress())
+      throw const FormatException('CIP publisher is not progressing.');
+    _progressProved = true;
   }
 
   Future<Map<String, Object?>> readValues(List<String> paths) async {
     if (paths.length > 100000 || paths.any((p) => p.length > 2048))
       throw const FormatException('Targeted read budget exceeded.');
     await _checkManifest();
+    await _ensureProgress();
     await plan.acquire(paths: paths.toSet());
     await _checkManifest();
     final snapshot = plan.snapshot(includeExcluded: true);
@@ -404,15 +490,31 @@ void _cipWorker(SendPort owner) async {
   final commands = ReceivePort();
   owner.send(commands.sendPort);
   CipSessionEngine? engine;
-  Future<void> tail = Future.value();
+  final queue = CipOperationQueue();
   commands.listen((message) {
     // Server processing includes time queued before acquisition, per the
     // transport envelope. The source/leaf ages still start at their own I/O.
     final requestClock = Stopwatch()..start();
-    tail = tail.then((_) async {
-      if (message is! List || message.length != 3) return;
-      final id = message[0], operation = message[1], argument = message[2];
+    if (message is! List || message.length != 3 || message[1] is! String)
+      return;
+    final id = message[0],
+        operation = message[1] as String,
+        argument = message[2];
+    unawaited(queue.schedule<void>(operation, () async {
       final queueUs = requestClock.elapsedMicroseconds;
+      if (_traceCipTiming) {
+        // Observe command starvation without recording argument values or
+        // changing serialization, priority, clocks or request boundaries.
+        // A distinct tag keeps existing snapshot-trace parsers unchanged.
+        // ignore: avoid_print
+        print(jsonEncode({
+          'cipOperation': 'started',
+          'id': id,
+          'operation': operation,
+          'queueUs': queueUs,
+          if (argument is List) 'paths': argument.length
+        }));
+      }
       final receivedTimelineUs =
           _traceCipTiming && operation == 'snapshot' ? Timeline.now : null;
       try {
@@ -433,6 +535,7 @@ void _cipWorker(SendPort owner) async {
           switch (operation) {
             case 'snapshot':
               result = await engine!.snapshot(
+                  fastOnly: true,
                   requestClock: requestClock,
                   trace: _traceCipTiming
                       // Opt-in qualification stdout; normal builds omit it.
@@ -444,6 +547,8 @@ void _cipWorker(SendPort owner) async {
                             ...timing,
                           }))
                       : null);
+            case 'acquireSlow':
+              await engine!.acquireSlowChunk();
             case 'read':
               result =
                   await engine!.readValues(List<String>.from(argument as List));
@@ -466,6 +571,24 @@ void _cipWorker(SendPort owner) async {
             case 'slow':
               engine!.plan.slowPaths =
                   List<String>.from(argument as List).toSet();
+            case 'tiers':
+              final a = argument as List;
+              final slow = List<String>.from(a[0] as List).toSet(),
+                  excluded = List<String>.from(a[1] as List).toSet();
+              if (slow.intersection(excluded).isNotEmpty)
+                throw const FormatException('Read tiers overlap.');
+              // Both assignments complete within this worker operation. No
+              // cyclic or configuration request can observe an interim tier.
+              engine!.plan.slowPaths = slow;
+              engine!.plan.excludedPaths = {
+                ...excluded,
+                for (final s
+                    in engine!.plan.publication.manifest.rows('readServices'))
+                  s['CanonicalRoot'] as String
+              };
+              // Initial consumers publish tiers before their first snapshot.
+              // Qualify that workload, rather than unused history/configuration.
+              await engine!.qualifyReadSchedule();
             case 'excluded':
               engine!.plan.excludedPaths = {
                 ...List<String>.from(argument as List),
@@ -485,12 +608,22 @@ void _cipWorker(SendPort owner) async {
         final deliveryClock = _traceCipTiming && operation == 'snapshot'
             ? (Stopwatch()..start())
             : null;
-        if (_traceCipTiming && result is Map) {
+        if (_traceCipTiming && operation == 'snapshot' && result is Map) {
           result['workerSentTimelineUs'] = Timeline.now;
           if (receivedTimelineUs != null)
             result['workerReceivedTimelineUs'] = receivedTimelineUs;
         }
         owner.send([id, true, result]);
+        if (_traceCipTiming) {
+          // ignore: avoid_print
+          print(jsonEncode({
+            'cipOperation': 'completed',
+            'id': id,
+            'operation': operation,
+            'elapsedUs': requestClock.elapsedMicroseconds,
+            'success': true
+          }));
+        }
         if (deliveryClock != null) {
           // Opt-in qualification stdout; normal builds omit it.
           // ignore: avoid_print
@@ -501,8 +634,22 @@ void _cipWorker(SendPort owner) async {
           }));
         }
       } on Object catch (error) {
+        if (_traceCipTiming) {
+          // ignore: avoid_print
+          print(jsonEncode({
+            'cipOperation': 'completed',
+            'id': id,
+            'operation': operation,
+            'elapsedUs': requestClock.elapsedMicroseconds,
+            'success': false,
+            // This parser reports schema/member names, never payload values.
+            if (operation == 'configurationAssemble' &&
+                error is FormatException)
+              'configurationRefusal': error.message,
+          }));
+        }
         owner.send([id, false, error.toString()]);
       }
-    });
+    }));
   });
 }

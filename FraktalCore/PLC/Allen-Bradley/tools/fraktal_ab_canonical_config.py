@@ -171,7 +171,8 @@ def cyclic(app):
         f'{w}.LastModeModel := {unit}.ModelOrdinal;',f'{w}.LastCatalogCount := {count};',f'{w}.Changed := 1;','END_IF;',
         f'IF ({w}.Changed <> 0) AND ({w}.Initialized <> 0) THEN',
         f'IF {w}.Revision >= 2147483646 THEN {w}.Revision := 1; ELSE {w}.Revision := {w}.Revision + 1; END_IF;',
-        f'{w}.PageBuilt := 0;','END_IF;',f'{w}.Initialized := 1;',f'{revision} := {w}.Revision;']
+        f'{w}.PageBuilt := 0;','END_IF;',f'{w}.Initialized := 1;']
+    lines += __import__('fraktal_ab_owner_read_bindings').write_header(app,0,'ConfigRev',w+'.Revision')
     for n in ('Pending','Failed','WindowMs','StorePresent','StoreKind','RestoreLost','RestoreAcknowledged','RestorePolicy'):
         lines += [f'{p}.{n} := {source}.{n}'+(' <> 0;' if n in ('Pending','Failed','StorePresent','RestoreLost','RestoreAcknowledged') else ';')]
     lines += [f'IF ({w}.PendingDate <> {w}.LastPendingDate) OR ({w}.PendingClock <> {w}.LastPendingClock) THEN',

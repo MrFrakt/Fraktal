@@ -16,6 +16,7 @@ import 'cip_read_plan_test.dart' as planGolden;
 /// locks up once proveProgress consumes an odd number of reads.
 class ProgressingCaptureWire extends planGolden.TimedCaptureWire {
   int counterReads = 0;
+  void Function(String)? afterDataRead;
   ProgressingCaptureWire(super.capture,
       {super.extraRecords, super.stepUs = 50});
 
@@ -37,7 +38,9 @@ class ProgressingCaptureWire extends planGolden.TimedCaptureWire {
                 .asUint8List()
           ]));
     }
-    return super.request(service, encoded, data);
+    final reply = await super.request(service, encoded, data);
+    afterDataRead?.call(root);
+    return reply;
   }
 }
 
@@ -99,6 +102,52 @@ CipSessionEngine replayEngine(Map capture) {
 }
 
 void main() {
+  for (final phase in ['before', 'after']) {
+    test('slow acquisition checks manifest validity $phase its native reads',
+        () async {
+      final capture = golden.fixtures().last['capture'] as Map;
+      final symbol = manifestSymbolName(capture);
+      final wire = ProgressingCaptureWire(capture,
+          extraRecords: {symbol: canonicalManifestRecord(capture, symbol)});
+      final engine = CipSessionEngine.fromCapture(capture, wire,
+          clockUs: () => wire.nowUs,
+          guard: CipReadCoherenceGuard(clockUs: () => wire.nowUs));
+      final slow = engine.plan.publication.fields.values
+          .firstWhere((f) =>
+              !f.commandOnly &&
+              !f.member.isStructure &&
+              !f.member.isArray &&
+              f.path.split('/').length == 2)
+          .path;
+      engine.plan.slowPaths = {slow};
+      await engine.snapshot(fastOnly: true);
+      expect(engine.plan.slowAcquisitionDue, true);
+      final invalid = canonicalManifestRecord({
+        ...capture,
+        'manifest': {...capture['manifest'] as Map, 'valid': false}
+      }, symbol);
+      var bodyRead = false;
+      if (phase == 'before') {
+        wire.raw[symbol] = invalid;
+      } else {
+        wire.afterDataRead = (root) {
+          if (root != symbol) {
+            bodyRead = true;
+            wire.raw[symbol] = invalid;
+          }
+        };
+      }
+      final before = wire.reads.length;
+      await expectLater(engine.acquireSlowChunk(), throwsFormatException);
+      expect(wire.closed, true);
+      if (phase == 'before') {
+        expect(wire.reads.skip(before).every((p) => p.startsWith('$symbol.')),
+            true);
+      } else {
+        expect(bodyRead, true);
+      }
+    });
+  }
   test(
       'the discovered path vector is sent once per engine and re-sent by a new one',
       () async {
@@ -111,6 +160,10 @@ void main() {
     expect(first['paths'], expectedPaths);
     final second = await engine.snapshot(trace: traces.add);
     expect(second['paths'], const []);
+    for (var index = 0; index < 3; index++) {
+      final later = await engine.snapshot(trace: traces.add);
+      expect(later['paths'], const [], reason: 'snapshot ${index + 3}');
+    }
     // A new engine is what every reconnect builds; it sends the vector again.
     final reconnected = replayEngine(capture);
     final third = await reconnected.snapshot();

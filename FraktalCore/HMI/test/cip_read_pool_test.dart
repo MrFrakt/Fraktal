@@ -44,6 +44,101 @@ class _Activity {
   int active = 0, maximum = 0;
 }
 
+// One controller communication engine, shared by every TCP connection. Wire
+// costs advance a deterministic clock; no wall-clock sleeps or PLC writes.
+class _ControllerQueue {
+  int now = 0;
+  Future<void> tail = Future<void>.value();
+  Future<CipReply> schedule(bool body, Future<CipReply> Function() readBody) {
+    final result = Completer<CipReply>();
+    tail = tail.then((_) async {
+      await Future<void>.delayed(Duration.zero);
+      now += body ? 4000 : 1000;
+      if (body) {
+        result.complete(await readBody());
+      } else {
+        result.complete(CipReply(
+            0,
+            [],
+            Uint8List.fromList([
+              0xc4,
+              0,
+              ...(ByteData(4)..setInt32(0, (now ~/ 10000) * 2, Endian.little))
+                  .buffer
+                  .asUint8List()
+            ])));
+      }
+    });
+    return result.future;
+  }
+}
+
+class _QueuedCapture extends peer.CaptureWire {
+  final _ControllerQueue controller;
+  _QueuedCapture(super.capture, this.controller);
+  @override
+  Future<CipReply> request(int service, Uint8List encoded, [Uint8List? data]) =>
+      controller.schedule(raw.containsKey(path(encoded).first.$1),
+          () => super.request(service, encoded, data));
+}
+
+// Independent channels complete equal-latency requests together. Virtual time
+// advances only after all continuations at the previous instant have run.
+class _IndependentController {
+  int now = 0;
+  bool scheduled = false;
+  final events = <(int, void Function())>[];
+  Future<CipReply> request(bool body, Future<CipReply> Function() readBody) {
+    final result = Completer<CipReply>();
+    events.add((
+      now + 2000,
+      () {
+        if (body) {
+          readBody().then(result.complete, onError: result.completeError);
+        } else {
+          result.complete(CipReply(
+              0,
+              [],
+              Uint8List.fromList([
+                0xc4,
+                0,
+                ...(ByteData(4)..setInt32(0, (now ~/ 10000) * 2, Endian.little))
+                    .buffer
+                    .asUint8List()
+              ])));
+        }
+      }
+    ));
+    if (!scheduled) {
+      scheduled = true;
+      Timer.run(flush);
+    }
+    return result.future;
+  }
+
+  void flush() {
+    scheduled = false;
+    events.sort((a, b) => a.$1.compareTo(b.$1));
+    now = events.first.$1;
+    final due = events.where((e) => e.$1 == now).toList();
+    events.removeWhere((e) => e.$1 == now);
+    for (final event in due) event.$2();
+    if (events.isNotEmpty && !scheduled) {
+      scheduled = true;
+      Timer.run(flush);
+    }
+  }
+}
+
+class _IndependentCapture extends peer.CaptureWire {
+  final _IndependentController controller;
+  _IndependentCapture(super.capture, this.controller);
+  @override
+  Future<CipReply> request(int service, Uint8List encoded, [Uint8List? data]) =>
+      controller.request(raw.containsKey(path(encoded).first.$1),
+          () => super.request(service, encoded, data));
+}
+
 class _RecordingWire extends _Wire {
   final List<Uint8List> received;
   _RecordingWire(this.received);
@@ -361,6 +456,99 @@ void main() {
     }
   });
 
+  test('controller serialization can invalidate overlapping proof windows',
+      () async {
+    final capture = golden.fixtures().last['capture'] as Map;
+    Future<Map<String, Object?>> acquire(int concurrency) async {
+      final controller = _ControllerQueue();
+      final pool = CipReadPool.fromConnected(
+          List.generate(4, (_) => _QueuedCapture(capture, controller)));
+      addTearDown(pool.close);
+      final pub = _independentRows(capture);
+      final plan = CipReadPlan(pub, pool,
+          groupConcurrencyLimit: concurrency,
+          clockUs: () => controller.now,
+          guard: CipReadCoherenceGuard(
+              maxAttempts: 20, clockUs: () => controller.now));
+      expect(await plan.proveProgress(), true);
+      await plan.acquire();
+      return plan.snapshot();
+    }
+
+    final serial = await acquire(1), parallel = await acquire(4);
+    expect((serial['values'] as Map).length, 8);
+    expect((parallel['values'] as Map).length, lessThan(8));
+    for (final sample in (parallel['dataValues'] as Map).values.cast<Map>()) {
+      if (sample['status'] != 0) expect(sample.containsKey('value'), false);
+    }
+  });
+
+  test(
+      'startup qualification selects observed throughput without publishing trial data',
+      () async {
+    final capture = golden.fixtures().last['capture'] as Map;
+    for (final independent in [false, true]) {
+      final serial = _ControllerQueue(), parallel = _IndependentController();
+      final wires = <CipReadTransport>[
+        for (var i = 0; i < 4; i++)
+          independent
+              ? _IndependentCapture(capture, parallel)
+              : _QueuedCapture(capture, serial)
+      ];
+      final pool = CipReadPool.fromConnected(wires);
+      addTearDown(pool.close);
+      int clock() => independent ? parallel.now : serial.now;
+      final plan = CipReadPlan(_independentRows(capture), pool,
+          clockUs: clock,
+          guard: CipReadCoherenceGuard(maxAttempts: 20, clockUs: clock));
+      final trials = await plan.qualifyConcurrency();
+      expect(trials.map((r) => r['concurrentGroups']), [1, 4]);
+      expect(plan.groupConcurrency, independent ? 4 : 1);
+      expect(plan.snapshot()['values'], isEmpty,
+          reason: 'startup values retain no consumer freshness');
+      expect(plan.guard.maxAttempts, 20);
+      expect(await plan.proveProgress(), true);
+      await plan.acquire();
+      expect((plan.snapshot()['values'] as Map).length, 8);
+    }
+  });
+
+  test('an explicit serial limit prevents parallel qualification work',
+      () async {
+    final capture = golden.fixtures().last['capture'] as Map,
+        controller = _ControllerQueue();
+    final pool = CipReadPool.fromConnected(
+        List.generate(4, (_) => _QueuedCapture(capture, controller)));
+    addTearDown(pool.close);
+    final plan = CipReadPlan(_independentRows(capture), pool,
+        groupConcurrencyLimit: 1,
+        clockUs: () => controller.now,
+        guard: CipReadCoherenceGuard(
+            maxAttempts: 20, clockUs: () => controller.now));
+    expect(await plan.qualifyConcurrency(), isEmpty);
+    expect(plan.groupConcurrency, 1);
+    expect(controller.now, 0);
+  });
+
+  test('startup qualification measures only the applied fast profile',
+      () async {
+    final capture = golden.fixtures().last['capture'] as Map,
+        controller = _IndependentController();
+    final pool = CipReadPool.fromConnected(
+        List.generate(4, (_) => _IndependentCapture(capture, controller)));
+    addTearDown(pool.close);
+    final pub = _independentRows(capture), paths = pub.fields.keys.toList();
+    final plan = CipReadPlan(pub, pool,
+        clockUs: () => controller.now,
+        guard: CipReadCoherenceGuard(
+            maxAttempts: 20, clockUs: () => controller.now))
+      ..excludedPaths = paths.take(4).toSet()
+      ..slowPaths = paths.skip(4).take(2).toSet();
+    final trials = await plan.qualifyConcurrency();
+    expect(trials.map((r) => r['coherentValues']), [2, 2]);
+    expect(plan.snapshot()['values'], isEmpty);
+  });
+
   test('parallel row reads preserve all golden values/types and socket bounds',
       () async {
     final fixture = golden.fixtures().last, capture = fixture['capture'] as Map;
@@ -381,23 +569,23 @@ void main() {
     await pool.close();
   });
 
-  test('targeted groups remain serial on a parallel-capable transport',
+  test('targeted groups share bounded leases without reading unrelated rows',
       () async {
     final capture = golden.fixtures().last['capture'] as Map;
     final activity = _Activity();
     final wires = List.generate(4, (_) => _Capture(capture, activity));
     final pool = CipReadPool.fromConnected(wires);
-    final publication = golden.publication(capture);
+    final publication = _independentRows(capture);
     final plan = CipReadPlan(publication, pool,
         clockUs: () => 0, guard: CipReadCoherenceGuard(clockUs: () => 0));
-    final path = '${publication.roots.first}/Status';
+    final paths = publication.fields.keys.take(7).toSet();
     expect(await plan.proveProgress(), true);
     for (var i = 0; i < 8; i++) {
-      await plan.acquire(paths: {path});
+      await plan.acquire(paths: paths);
     }
-    expect(activity.maximum, 1);
-    expect((plan.snapshot()['values'] as Map)['$path/Name'],
-        publication.roots.first);
+    expect(activity.maximum, 4);
+    expect(wires.every((wire) => wire.maximum == 1), true);
+    expect((plan.snapshot()['values'] as Map).keys.toSet(), paths);
     await pool.close();
   });
 

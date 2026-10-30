@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 import fraktal_ab_read_coherence as read_coherence
+import fraktal_ab_owner_read_bindings as owner_read
 
 MAGIC = 0x46524B36
 MAJOR = 6
@@ -47,6 +48,8 @@ COMMAND_HEADER = PRODUCT_HEADER | {'CommandBindingsCount','CommandBindingsCapaci
 READ_HEADER = COMMAND_HEADER | read_coherence.HEADER_FIELDS
 READ_SERVICE_MINOR = 8
 READ_SERVICE_HEADER = READ_HEADER | {"ReadServicesCount","ReadServicesCapacity","ReadServices"}
+OWNER_MINOR = owner_read.MINOR
+OWNER_HEADER = READ_SERVICE_HEADER | owner_read.HEADER_FIELDS
 
 
 def data_products(rows):
@@ -113,7 +116,7 @@ def type_tables(rows, exceptions):
 
 
 def body(fields, legacy_hash, stage=STAGE, *, minor=MINOR, bindings=None, services=None,
-         type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None):
+         type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None, owner_read_bindings=None):
     result=dict(schemaMajor=MAJOR, schemaMinor=minor, publicationStage=stage,
                 legacyContentHash=legacy_hash, fields=fields)
     if minor>=FRAGMENT_MINOR:result['bindings']=bindings
@@ -125,13 +128,14 @@ def body(fields, legacy_hash, stage=STAGE, *, minor=MINOR, bindings=None, servic
     if minor>=COMMAND_MINOR:result.update(commandBindings=commands,commandOperations=operations)
     if minor>=READ_MINOR:result['readCoherenceBindings']=read_coherence_bindings
     if minor>=READ_SERVICE_MINOR:result['readServices']=read_services
+    if minor>=OWNER_MINOR:result['ownerReadBindings']=owner_read_bindings
     return result
 
 
 def content_hash(fields, legacy_hash, stage=STAGE, *, minor=MINOR, bindings=None, services=None,
-                 type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None):
+                 type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None, owner_read_bindings=None):
     raw = json.dumps(body(fields, legacy_hash, stage, minor=minor,bindings=bindings,services=services,
-                         type_annotations=type_annotations,path_exceptions=path_exceptions,products=products,commands=commands,operations=operations,read_coherence_bindings=read_coherence_bindings,read_services=read_services), ensure_ascii=True,
+                         type_annotations=type_annotations,path_exceptions=path_exceptions,products=products,commands=commands,operations=operations,read_coherence_bindings=read_coherence_bindings,read_services=read_services,owner_read_bindings=owner_read_bindings), ensure_ascii=True,
                      separators=(",", ":"), sort_keys=True).encode("ascii")
     return hashlib.sha256(raw).hexdigest().upper()
 
@@ -153,13 +157,13 @@ def normalize(record):
     """Validate every row and its hash before exposing any annotation."""
     minor=record.get('SchemaMinor')
     expected = SERVICE_HEADER if minor==SERVICE_MINOR else FRAGMENT_HEADER if minor==FRAGMENT_MINOR else HEADER
-    if minor in (TYPE_MINOR,PRODUCT_MINOR,COMMAND_MINOR,READ_MINOR,READ_SERVICE_MINOR):
-        expected = (READ_SERVICE_HEADER if minor==READ_SERVICE_MINOR else READ_HEADER if minor==READ_MINOR else COMMAND_HEADER if minor==COMMAND_MINOR else PRODUCT_HEADER if minor==PRODUCT_MINOR else TYPE_HEADER) | {name for name in ('Bindings', 'Services', 'PathExceptions', 'DataProducts', 'CommandBindings', 'CommandOperations')
+    if minor in (TYPE_MINOR,PRODUCT_MINOR,COMMAND_MINOR,READ_MINOR,READ_SERVICE_MINOR,OWNER_MINOR):
+        expected = (OWNER_HEADER if minor==OWNER_MINOR else READ_SERVICE_HEADER if minor==READ_SERVICE_MINOR else READ_HEADER if minor==READ_MINOR else COMMAND_HEADER if minor==COMMAND_MINOR else PRODUCT_HEADER if minor==PRODUCT_MINOR else TYPE_HEADER) | {name for name in ('Bindings', 'Services', 'PathExceptions', 'DataProducts', 'CommandBindings', 'CommandOperations')
                                   if record.get(name+'Count', 0)}
     if set(record) != expected or record["Magic"] != MAGIC:
         raise ValueError("unrecognized canonical manifest header")
     if any(type(record[k]) is not int for k in ("Magic", "SchemaMajor", "SchemaMinor", "PublicationStage")) \
-            or record["SchemaMajor"] != MAJOR or record["SchemaMinor"] not in (MINOR, VIEW_MINOR, FRAGMENT_MINOR, SERVICE_MINOR, TYPE_MINOR, PRODUCT_MINOR, COMMAND_MINOR, READ_MINOR, READ_SERVICE_MINOR) \
+            or record["SchemaMajor"] != MAJOR or record["SchemaMinor"] not in (MINOR, VIEW_MINOR, FRAGMENT_MINOR, SERVICE_MINOR, TYPE_MINOR, PRODUCT_MINOR, COMMAND_MINOR, READ_MINOR, READ_SERVICE_MINOR, OWNER_MINOR) \
             or not STAGE <= record["PublicationStage"] < (1 << 31):
         raise ValueError("unsupported canonical manifest version/stage")
     if record["Valid"] is not True or record["Truncated"] is not False:
@@ -307,6 +311,16 @@ def normalize(record):
             if not isinstance(row,dict) or set(row)!=SERVICE_FIELD:raise ValueError('invalid read-service row')
             read_services.append({k:text(v) if k in ('RootSymbol','CanonicalRoot') else v for k,v in row.items()})
         validate_descriptors(read_services)
+    owner_rows=[]
+    if minor>=OWNER_MINOR:
+        count,capacity=record['OwnerReadBindingsCount'],record['OwnerReadBindingsCapacity']
+        if type(count) is not int or type(capacity) is not int or not 1<=count==capacity<=1024 \
+                or not isinstance(record['OwnerReadBindings'],list) or len(record['OwnerReadBindings'])!=count:
+            raise ValueError('invalid owner-read count/capacity')
+        for row in record['OwnerReadBindings']:
+            if not isinstance(row,dict) or set(row)!=owner_read.FIELDS:raise ValueError('invalid owner-read row')
+            owner_rows.append({k:text(v) if k in ('CanonicalPrefix','MembersJson','RevisionSymbol','ProgressSymbol') else v for k,v in row.items()})
+        owner_read.validate_rows(owner_rows,read_services=read_services,base_bindings=coherence_rows)
     legacy, digest = text(record["LegacyContentHash"]), text(record["ContentHash"])
     if not re.fullmatch(r"[A-F0-9]{16}", legacy) or digest != content_hash(fields, legacy, record['PublicationStage'], minor=minor,
             **({'bindings':bindings} if minor>=FRAGMENT_MINOR else {}),
@@ -315,7 +329,8 @@ def normalize(record):
             **({'products':products} if minor>=PRODUCT_MINOR else {}),
             **({'commands':commands,'operations':command_operations} if minor>=COMMAND_MINOR else {}),
             **({'read_coherence_bindings':coherence_rows} if minor>=READ_MINOR else {}),
-            **({'read_services':read_services} if minor>=READ_SERVICE_MINOR else {})) \
+            **({'read_services':read_services} if minor>=READ_SERVICE_MINOR else {}),
+            **({'owner_read_bindings':owner_rows} if minor>=OWNER_MINOR else {})) \
             or type(record["ConfigRevision"]) is not int or record["ConfigRevision"] != revision(digest):
         raise ValueError("canonical manifest content hash/revision mismatch")
     result=dict(schemaMajor=MAJOR, schemaMinor=minor, valid=True, truncated=False, contentHash=digest,
@@ -330,6 +345,7 @@ def normalize(record):
     if minor>=COMMAND_MINOR:result.update(commandBindings=commands,commandOperations=command_operations)
     if minor>=READ_MINOR:result['readCoherenceBindings']=coherence_rows
     if minor>=READ_SERVICE_MINOR:result['readServices']=read_services
+    if minor>=OWNER_MINOR:result['ownerReadBindings']=owner_rows
     return result
 
 

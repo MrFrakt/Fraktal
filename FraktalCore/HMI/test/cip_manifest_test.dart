@@ -16,6 +16,53 @@ Map<String, Object?> copy(Map value) =>
     Map<String, Object?>.from(jsonDecode(jsonEncode(value)) as Map);
 
 void main() {
+  test('generated Python V6.10 metadata agrees with physical and Dart hashing',
+      () {
+    final fixture = jsonDecode(utf8.decode(gzip.decode(
+        File('test/fixtures/cip_owner_manifest_v610.json.gz')
+            .readAsBytesSync()))) as Map;
+    expect(fixture['nativeCapture'], false);
+    final manifest =
+        CipManifest.fromNormalized(copy(fixture['normalized'] as Map));
+    expect(
+        CipManifest.fromPhysical(copy(fixture['physicalManifest'] as Map))
+            .document,
+        manifest.document);
+    expect(manifest.minor, 10);
+    expect(manifest.ownerCoherence.length, 8);
+    expect(manifest.ownerCoherence.fold<int>(0, (n, b) => n + b.members.length),
+        29);
+    final header = manifest.ownerCoherence.first;
+    expect(manifest.bindingFor('${header.canonicalPrefix}/Name').protocol, 2);
+    expect(
+        manifest.bindingFor('${header.canonicalPrefix}/FaultActive').protocol,
+        1);
+    expect(header.progressSymbol, isNot(header.revisionSymbol));
+    final view = manifest.ownerCoherence.last;
+    expect(
+        manifest
+            .bindingFor('${view.canonicalPrefix}/Values[0]/Readable')
+            .protocol,
+        2);
+    for (final field in [
+      'MaximumProofWindowUs',
+      'ProgressSymbol',
+      'Protocol',
+      'MembersJson'
+    ]) {
+      final bad = copy(fixture['normalized'] as Map);
+      final row = (bad['ownerReadBindings'] as List).first as Map;
+      row[field] = switch (field) {
+        'MaximumProofWindowUs' => 1000001,
+        'ProgressSymbol' => row['RevisionSymbol'],
+        'Protocol' => 1,
+        _ => '["Name","ModuleType","State","Secret"]'
+      };
+      expect(() => CipManifest.fromNormalized(bad), throwsFormatException,
+          reason: field);
+    }
+  });
+
   test('canonical hash uses exact SHA-256 and Python ASCII JSON form', () {
     expect(cipSha256(utf8.encode('abc')),
         'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');

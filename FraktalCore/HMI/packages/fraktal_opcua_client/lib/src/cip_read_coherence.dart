@@ -3,25 +3,59 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+const cipHeaderCoherenceMembers = {
+  'Name',
+  'ModuleType',
+  'State',
+  'ConfigRev',
+  'TypeKey'
+};
+
 /// Metadata-driven guard for one row/group, never a whole live document.
 final class CipReadCoherenceBinding {
   final String canonicalPrefix;
   final String revisionSymbol;
   final int mutationPeriodUs;
+  final int protocol;
+  final String progressSymbol;
+  final int proofWindowUs;
+  final Set<String> members;
 
   CipReadCoherenceBinding(
-      this.canonicalPrefix, this.revisionSymbol, this.mutationPeriodUs) {
+      this.canonicalPrefix, this.revisionSymbol, this.mutationPeriodUs,
+      {this.protocol = 1,
+      String? progressSymbol,
+      int? proofWindowUs,
+      Iterable<String> members = const []})
+      : progressSymbol = progressSymbol ?? revisionSymbol,
+        proofWindowUs = proofWindowUs ?? mutationPeriodUs,
+        members = Set.unmodifiable(members) {
     if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]*(/[A-Za-z_][A-Za-z0-9_]*)*$')
             .hasMatch(canonicalPrefix) ||
         !RegExp(r'^[A-Za-z_][A-Za-z0-9_]{0,39}$').hasMatch(revisionSymbol) ||
         mutationPeriodUs < 1 ||
-        mutationPeriodUs > 60000000) {
+        mutationPeriodUs > 60000000 ||
+        !RegExp(r'^[A-Za-z_][A-Za-z0-9_]{0,39}$')
+            .hasMatch(this.progressSymbol) ||
+        (protocol != 1 && protocol != 2) ||
+        (protocol == 1 &&
+            (this.progressSymbol != revisionSymbol ||
+                this.proofWindowUs != mutationPeriodUs ||
+                this.members.isNotEmpty)) ||
+        (protocol == 2 &&
+            (this.progressSymbol == revisionSymbol ||
+                this.proofWindowUs < 1 ||
+                this.proofWindowUs > 1000000 ||
+                this.proofWindowUs ~/ mutationPeriodUs >= (1 << 30) - 1))) {
       throw const FormatException('Invalid CIP read-coherence binding.');
     }
   }
 
-  bool covers(String path) =>
-      path == canonicalPrefix || path.startsWith('$canonicalPrefix/');
+  bool covers(String path) => members.isEmpty
+      ? path == canonicalPrefix || path.startsWith('$canonicalPrefix/')
+      : members.any((m) =>
+          path == '$canonicalPrefix/$m' ||
+          path.startsWith('$canonicalPrefix/$m/'));
 }
 
 enum CipSampleQuality { good, uncertain, bad }
@@ -79,26 +113,33 @@ final class CipReadCoherenceGuard {
     required Future<Uint8List> Function() readGroup,
   }) async {
     final started = _clockUs();
+    final budgetUs =
+        binding.protocol == 2 && binding.proofWindowUs < timeout.inMicroseconds
+            ? binding.proofWindowUs
+            : timeout.inMicroseconds;
     var attempts = 0;
     final failures = <Map<String, Object?>>[];
+    (int, int)? carriedBefore;
     List<Map<String, Object?>> trace() => List.unmodifiable(
         failures.map((row) => Map<String, Object?>.unmodifiable(row)));
     CipCoherentSample failed(CipSampleQuality quality, String reason) =>
         CipCoherentSample._(quality, reason, null, null, attempts,
             _clockUs() - started, null, trace());
     Future<T> bounded<T>(Future<T> Function() operation) {
-      final remaining = timeout.inMicroseconds - (_clockUs() - started);
+      final remaining = budgetUs - (_clockUs() - started);
       if (remaining <= 0) throw TimeoutException('CIP read-group deadline.');
       return operation().timeout(Duration(microseconds: remaining));
     }
 
     try {
-      while (attempts < maxAttempts &&
-          _clockUs() - started < timeout.inMicroseconds) {
+      while (attempts < maxAttempts && _clockUs() - started < budgetUs) {
         attempts++;
-        final windowStart = _clockUs();
-        final before =
-            await bounded(() => readRevision(binding.revisionSymbol));
+        final previousPost = carriedBefore;
+        carriedBefore = null;
+        final windowStart = previousPost?.$2 ?? _clockUs();
+        final int before = previousPost != null
+            ? previousPost.$1
+            : await bounded(() => readRevision(binding.revisionSymbol));
         if (before < 0 || before > 2147483646) {
           return failed(CipSampleQuality.bad, 'coherence-revision-invalid');
         }
@@ -122,8 +163,9 @@ final class CipReadCoherenceGuard {
           continue;
         }
         final bytes = await bounded(readGroup);
+        final afterStarted = _clockUs();
         final after = await bounded(() => readRevision(binding.revisionSymbol));
-        if (_clockUs() - started >= timeout.inMicroseconds) {
+        if (_clockUs() - started >= budgetUs) {
           return failed(CipSampleQuality.bad, 'read-timeout');
         }
         if (after < 0 || after > 2147483646) {
@@ -134,7 +176,7 @@ final class CipReadCoherenceGuard {
         final windowUs = _clockUs() - windowStart;
         if (before == after &&
             after.isEven &&
-            windowUs < binding.mutationPeriodUs) {
+            windowUs < binding.proofWindowUs) {
           return CipCoherentSample._(
               CipSampleQuality.good,
               null,
@@ -152,6 +194,10 @@ final class CipReadCoherenceGuard {
           'after': after,
           'windowUs': windowUs
         });
+        // A completed post read is already a valid pre read for the next
+        // body. Retain its actual I/O start for that window; the retry gets
+        // neither a renewed timestamp nor another attempt/deadline budget.
+        carriedBefore = (after, afterStarted);
       }
       return failed(CipSampleQuality.uncertain, 'coherence-unavailable');
     } on TimeoutException {

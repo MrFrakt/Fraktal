@@ -22,7 +22,7 @@ class ReadViewTests(table_suite.TableDrivenConfigurationTests):
         with patch.object(base.demo,'application',lambda:app):super().setUp()
         self.controller.tags[view.tag(app)]=self.value(view.VIEW,dict(SchemaVersion=1,RootIdentity=app.name,
             DefinitionCount=view.capacities(app)[0],DefinitionCapacity=view.capacities(app)[0],ValueCapacity=view.capacities(app)[1]))
-        self.controller.tags[view.work_tag(app)]=self.value(view.WORK)
+        self.controller.tags[view.work_tag(app)]=self.value(view.work_type(app))
         self.read=self.controller.tags[view.tag(app)]
         # The core publisher fills these earlier in the same scan; exercise the
         # real R2 owner/read-view code here, not an unrelated model-catalog loop.

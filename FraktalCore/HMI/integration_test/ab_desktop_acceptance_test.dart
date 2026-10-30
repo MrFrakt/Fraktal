@@ -33,12 +33,15 @@ import 'package:fraktal_hmi/domain/types.dart';
 import 'package:fraktal_hmi/localization/localization_controller.dart';
 import 'package:fraktal_hmi/state/app_state.dart';
 import 'package:fraktal_hmi/ui/fraktal_hmi_app.dart';
+import 'package:fraktal_hmi/ui/custom_module_tabs.dart'
+    show moduleTabCapabilities;
 import 'package:integration_test/integration_test.dart';
 
 import '../tool/screenshots/hmi_driver.dart' show loadHmiFonts;
 
 const _liveEndpoint = String.fromEnvironment('fraktal.ab.desktop.endpoint');
 const _liveOutput = String.fromEnvironment('fraktal.ab.desktop.output');
+const _rehearsal = bool.fromEnvironment('fraktal.ab.desktop.rehearsal');
 
 class _NativeFixtureClient
     implements
@@ -140,13 +143,18 @@ class _NativeFixtureClient
   Future<void> close() async {}
 }
 
-List<String> modulePaths(Iterable<ModuleNode> roots) => [
-      for (final node in roots) node.path,
-      for (final node in roots) ...modulePaths(node.children)
+List<ModuleNode> moduleNodes(Iterable<ModuleNode> roots) => [
+      for (final node in roots) ...[node, ...moduleNodes(node.children)]
     ];
+List<String> modulePaths(Iterable<ModuleNode> roots) =>
+    moduleNodes(roots).map((node) => node.path).toList();
 
 void main() {
   final live = _liveEndpoint.isNotEmpty;
+  if (_rehearsal && !live) {
+    throw const FormatException(
+        'Rehearsal requires its explicit loopback endpoint.');
+  }
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   if (live)
     binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
@@ -193,6 +201,7 @@ void main() {
     AppState? app;
     _NativeFixtureClient? fixture;
     var refusedActions = 0;
+    var publicReadPanel = false;
     void record(String stage) {
       File('${out.path}/link_forest.jsonl').writeAsStringSync(
           jsonEncode({
@@ -239,6 +248,7 @@ void main() {
             .writeAsBytes(png!.buffer.asUint8List());
         image.dispose();
       });
+      requireLive('captured-$name');
       shots.add({
         'file': '$name.png',
         'module': path,
@@ -246,6 +256,18 @@ void main() {
         'link': app!.link.name,
         'rootCount': app!.forest.length
       });
+    }
+
+    Future<void> waitForView(bool Function() ready, String stage) async {
+      final timer = Stopwatch()..start();
+      while (!ready() && timer.elapsed < const Duration(seconds: 30)) {
+        requireLive('waiting-$stage');
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 25)));
+        await tester.pump();
+      }
+      requireLive(stage);
+      expect(ready(), true, reason: stage);
     }
 
     try {
@@ -258,7 +280,16 @@ void main() {
             throw const FormatException('Injected startup fixture refusal');
           }
           if (live) {
-            expect(_liveEndpoint, 'cip://127.0.0.1?slot=0&serial=601FC87B');
+            if (_rehearsal) {
+              final endpoint = Uri.parse(_liveEndpoint);
+              expect(endpoint.scheme, 'cip');
+              expect(endpoint.host, '127.0.0.1');
+              expect(endpoint.hasPort && endpoint.port != 44818, true);
+              expect(endpoint.queryParameters,
+                  {'slot': '0', 'serial': '601FC87B'});
+            } else {
+              expect(_liveEndpoint, 'cip://127.0.0.1?slot=0&serial=601FC87B');
+            }
             repository = await createExternalRepository(
                 const ConnectionSettings(endpoint: _liveEndpoint));
           } else {
@@ -280,6 +311,25 @@ void main() {
           await until(
               () => app!.link == LinkState.live && app!.forest.isNotEmpty,
               'discovered forest');
+          if (live) expect(app!.session.level, AccessLevel.none);
+          // This read-only acceptance panel exposes all readable surfaces at
+          // the logged-out level. Configure its existing local content policy,
+          // rather than impersonating an operator or changing PLC permissions.
+          // Machine actions still pass the production read-only write gate.
+          for (final node in moduleNodes(app!.forest)) {
+            for (final section in ModuleSection.values) {
+              await app!.content
+                  .setRequiredLevel(node.path, section, AccessLevel.none);
+            }
+            final tabs = app!.content.tabsFor(
+                node.path, moduleTabCapabilities(node),
+                typeKey: node.typeKey);
+            await app!.content.setTabs(node.path, [
+              for (final tab in tabs)
+                tab.copyWith(requiredLevel: AccessLevel.none)
+            ]);
+          }
+          publicReadPanel = true;
         } on Object catch (error, stack) {
           startupError = error;
           startupStack = stack;
@@ -310,19 +360,29 @@ void main() {
         app!.forest = const [];
       }
       await capture('overview', null, null);
-      List<ModuleNode> walk(ModuleNode node) =>
-          [node, for (final child in node.children) ...walk(child)];
-      final nodes = [for (final root in app!.forest) ...walk(root)];
+      final nodes = moduleNodes(app!.forest);
       expect(nodes, isNotEmpty);
       for (var module = 0; module < nodes.length; module++) {
         app!.select(nodes[module].path);
         await tester.pump(const Duration(milliseconds: 100));
+        requireLive('module-$module-ready');
+        final expectedTabs = (expected['shots'] as List)
+            .cast<Map>()
+            .where((shot) =>
+                shot['module'] == nodes[module].path && shot['tab'] is int)
+            .length;
+        await waitForView(() {
+          final found = find.byType(TabBar);
+          return found.evaluate().isNotEmpty &&
+              tester.widget<TabBar>(found.first).tabs.length == expectedTabs;
+        }, 'module-$module-complete-tabs');
         expect(app!.permitsLocal(GatedAction.startStop), false);
         expect(app!.permitsLocal(GatedAction.dataWrite), false);
         final tabs = find.byType(TabBar);
         expect(tabs, findsWidgets, reason: 'module surface cannot be skipped');
         final count = tester.widget<TabBar>(tabs.first).tabs.length;
         for (var tab = 0; tab < count; tab++) {
+          requireLive('before-module-$module-tab-$tab-lookup');
           final widget =
               tester.widget<TabBar>(find.byType(TabBar).first).tabs[tab] as Tab;
           expect(widget.text, isNotNull);
@@ -333,8 +393,11 @@ void main() {
               .first;
           await tester.ensureVisible(finder);
           await tester.pump(const Duration(milliseconds: 100));
+          requireLive('before-module-$module-tab-$tab-tap');
+          expect(finder, findsOneWidget);
           await tester.tap(finder);
           await tester.pump(const Duration(milliseconds: 300));
+          requireLive('after-module-$module-tab-$tab-selection');
           expect(
               DefaultTabController.of(tester.element(find.byType(TabBar).first))
                   .index,
@@ -343,9 +406,18 @@ void main() {
         }
       }
       app!.setFieldbusView(true);
-      await capture('fieldbus', null, null);
       List<BusNode> busWalk(BusNode node) =>
           [node, for (final child in node.children) ...busWalk(child)];
+      await tester.pump();
+      await waitForView(() {
+        final names = [for (final root in app!.fieldbus) ...busWalk(root)]
+            .map((node) => node.name)
+            .toSet();
+        final wanted =
+            List<String>.from(expected['fieldbusNodes'] as List).toSet();
+        return names.length == wanted.length && names.containsAll(wanted);
+      }, 'fieldbus-complete-tree');
+      await capture('fieldbus', null, null);
       final busNodes = [for (final root in app!.fieldbus) ...busWalk(root)];
       for (var index = 0; index < busNodes.length; index++) {
         final finder = find.text(busNodes[index].name).first;
@@ -374,18 +446,23 @@ void main() {
         'shots': shots,
         'refusedActions': refusedActions,
         'coverageValidated': true,
-        'nativeFreshnessClaim': live,
-        'desktopLiveAccepted': live
+        'publicReadPanel': publicReadPanel,
+        'rehearsal': _rehearsal,
+        'rehearsalPassed': live && _rehearsal,
+        'nativeFreshnessClaim': live && !_rehearsal,
+        'desktopLiveAccepted': live && !_rehearsal
       }));
     } catch (error) {
       File('${out.path}/failure.json').writeAsStringSync(jsonEncode({
         'passed': false,
         'live': live,
+        'rehearsal': _rehearsal,
         'error': error.toString(),
         'link': app?.link.name,
         'modules': app == null ? [] : modulePaths(app!.forest),
         'shots': shots,
         'refusedActions': refusedActions,
+        'publicReadPanel': publicReadPanel,
         'desktopLiveAccepted': false
       }));
       rethrow;

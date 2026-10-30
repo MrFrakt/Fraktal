@@ -1,6 +1,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'cip_namespace.dart';
@@ -33,6 +34,47 @@ final class _NativeReadLayout {
       bytes + (structureHandle == null ? 2 : 4),
       atomic: atomic,
       structureHandle: structureHandle);
+}
+
+final class _PlannedRow {
+  final CipPublishedField field;
+  final String path;
+  final bool element;
+  final Set<String>? selection;
+  final CipReadCoherenceBinding binding;
+  final List<CipBatchRead> requests;
+  _PlannedRow(this.field, this.path, this.element, this.selection, this.binding,
+      this.requests);
+}
+
+final class _SharedRowProof {
+  final CipCoherentSample sample;
+  final int startedAtUs, finishedAtUs, rows;
+  final CipReadTransport replies;
+  _SharedRowProof(this.sample, this.startedAtUs, this.finishedAtUs, this.rows,
+      this.replies);
+}
+
+final class _PackedRequests {
+  final requests = <CipBatchRead>[];
+  final aliases = <int>[];
+  _PackedRequests(Iterable<CipBatchRead> original) {
+    final indices = <(int?, int?, int, String, String), int>{};
+    for (final r in original) {
+      final key = (
+        r.atomic,
+        r.structureHandle,
+        r.replyDataBytes,
+        base64Encode(r.path),
+        base64Encode(r.data)
+      );
+      final index = indices.putIfAbsent(key, () {
+        requests.add(r);
+        return requests.length - 1;
+      });
+      aliases.add(index);
+    }
+  }
 }
 
 // Only accepted packet replies are replayed, against their exact requests.
@@ -73,6 +115,8 @@ final class CipReadPlan {
   final CipReadTransport wire;
   final int Function() _clockUs;
   final CipReadCoherenceGuard guard;
+  int? _groupConcurrencyLimit;
+  bool _coalescingUnavailable = false;
   final Map<String, Object?> _values = {};
   final Map<String, String> _types = {};
   final Map<String, Map<String, Object?>> _samples = {};
@@ -82,6 +126,10 @@ final class CipReadPlan {
   final Map<String, int> _countTokens = {};
   final Map<String, List<CipPublishedField>> _childCache = {};
   final Map<String, bool> _arrayCache = {};
+  final Map<String, List<CipPublishedField>> _leafCache = {};
+  late final List<String> _declaredPaths = publication.discoverPaths();
+  Set<String>? _neededExcluded;
+  final Set<String> _neededScopes = {};
   late final Set<String> _countSchemas = {
     for (final field in publication.fields.values)
       if (field.annotation['countPath'] is String)
@@ -91,6 +139,10 @@ final class CipReadPlan {
   Set<String> slowPaths = {}, excludedPaths = {};
   int _lastSlow = -1000000000;
   bool _refreshSlow = true;
+  List<List<_PlannedRow>> _slowGroups = [];
+  int _slowCursor = 0;
+  int? _slowStartedAtUs;
+  Set<String>? _slowProfile, _excludedProfile;
   // Trace-only walk summary (WP4b.3): per-phase group counts and durations of
   // the last full acquire, consumed by the engine's snapshot trace.
   String? _phaseLabel;
@@ -110,11 +162,18 @@ final class CipReadPlan {
   };
 
   CipReadPlan(this.publication, this.wire,
-      {int Function()? clockUs, CipReadCoherenceGuard? guard})
-      : _clockUs = clockUs ?? _clock(),
+      {int Function()? clockUs,
+      CipReadCoherenceGuard? guard,
+      int? groupConcurrencyLimit})
+      : _groupConcurrencyLimit = groupConcurrencyLimit,
+        _clockUs = clockUs ?? _clock(),
         // Several paced attempts can fall within one active publication
         // phase. Keep the total deadline and each row's proof window bounded.
         guard = guard ?? CipReadCoherenceGuard(maxAttempts: 20) {
+    if (groupConcurrencyLimit != null &&
+        (groupConcurrencyLimit < 1 || groupConcurrencyLimit > 4)) {
+      throw ArgumentError('Invalid CIP group concurrency limit.');
+    }
     if (publication.manifest.minor < 7)
       throw const FormatException(
           'Live CIP requires explicit coherence bindings.');
@@ -125,6 +184,59 @@ final class CipReadPlan {
   }
 
   void refreshSlow() => _refreshSlow = true;
+
+  int get groupConcurrency {
+    final transport = wire;
+    final maximum =
+        transport is CipGroupedReadTransport ? transport.groupConcurrency : 1;
+    final limit = _groupConcurrencyLimit;
+    return limit != null && limit < maximum ? limit : maximum;
+  }
+
+  /// Compare complete startup reads before publishing any sample. Some
+  /// controllers serialize all sockets; independent transports benefit from
+  /// parallel guards. Choose observed coherent-value throughput, without
+  /// changing each row's proof, attempts, age or deadline.
+  Future<List<Map<String, Object?>>> qualifyConcurrency() async {
+    final maximum = groupConcurrency;
+    if (maximum < 1 || maximum > 4)
+      throw const FormatException('Invalid CIP group concurrency.');
+    if (maximum == 1) {
+      _groupConcurrencyLimit = 1;
+      return [];
+    }
+    final rows = <Map<String, Object?>>[];
+    var winner = 1, best = -1.0;
+    for (final limit in [1, maximum]) {
+      final trial = CipReadPlan(publication, wire,
+          clockUs: _clockUs, guard: guard, groupConcurrencyLimit: limit)
+        ..slowPaths = Set.of(slowPaths)
+        ..excludedPaths = Set.of(excludedPaths);
+      if (!await trial.proveProgress()) {
+        throw const FormatException('CIP publisher is not progressing.');
+      }
+      await trial.acquire(fastOnly: true); // warm the same plan before timing
+      final started = _clockUs();
+      await trial.acquire(fastOnly: true);
+      final elapsed = _clockUs() - started;
+      final values = (trial.snapshot()['values'] as Map).length;
+      final rate = values / (elapsed > 0 ? elapsed : 1);
+      rows.add({
+        'concurrentGroups': limit,
+        'elapsedUs': elapsed,
+        'coherentValues': values,
+        'uncertainGroups':
+            trial.acquisitions.where((r) => r['quality'] != 'good').length
+      });
+      if (rate > best) {
+        best = rate;
+        winner = limit;
+      }
+    }
+    _groupConcurrencyLimit = winner;
+    // Trial caches never become production samples with renewed timestamps.
+    return rows;
+  }
 
   Future<bool> proveProgress() async {
     final bindings = {
@@ -163,6 +275,97 @@ final class CipReadPlan {
               f.path.startsWith('$prefix/') &&
               !f.path.substring(prefix.length + 1).contains('/'))
           .toList());
+
+  Set<String> _leafPaths(
+      CipPublishedField field, String concrete, bool element) {
+    final m = field.member;
+    if (m.isArray && !m.isStructure && !element) {
+      return {
+        for (final i in field.annotation['indices'] as List? ??
+            List.generate(field.annotation['elementCount'] as int, (i) => i))
+          '$concrete[${(field.annotation['lowerBound'] as int) + (i as int)}]'
+      };
+    }
+    final prefix = field.path + (m.isArray ? '[*]' : '');
+    if (!m.isStructure ||
+        publication.decoder.templates[m.handle]!.stringByteCapacity != null)
+      return {concrete};
+    final leaves = _leafCache.putIfAbsent(
+        prefix,
+        () => [
+              for (final f in publication.fields.values)
+                if (!f.commandOnly &&
+                    f.path.startsWith('$prefix/') &&
+                    (!f.member.isStructure ||
+                        publication.decoder.templates[f.member.handle]!
+                                .stringByteCapacity !=
+                            null))
+                  f
+            ]);
+    return {for (final f in leaves) concrete + f.path.substring(prefix.length)};
+  }
+
+  CipReadCoherenceBinding _binding(CipPublishedField field, String concrete,
+      bool element, Set<String>? selection) {
+    if (publication.manifest.ownerCoherence.isEmpty)
+      return publication.manifest.bindingFor(concrete);
+    final owners = {
+      for (final path in _leafPaths(field, concrete, element))
+        if (_wanted(path, selection)) publication.manifest.bindingFor(path),
+      for (final d in _dependencies(field, concrete))
+        publication.manifest.bindingFor(d.path)
+    };
+    if (owners.length != 1)
+      throw const FormatException('Native group mixes publication owners.');
+    return owners.single;
+  }
+
+  /// Heartbeat and row-version ownership are independent in protocol 2.
+  /// A frozen even owner counter must not renew scan liveness.
+  Future<void> refreshProgress() async {
+    if (publication.manifest.ownerCoherence.isEmpty) return;
+    final sources = {
+      for (final b in publication.manifest.ownerCoherence) b.progressSymbol
+    };
+    try {
+      for (final symbol in sources) {
+        final begun = _clockUs();
+        final budgetUs = guard.timeout.inMicroseconds < 1000000
+            ? guard.timeout.inMicroseconds
+            : 1000000;
+        for (var attempt = 0; attempt < guard.maxAttempts; attempt++) {
+          final started = _clockUs(), remaining = budgetUs - (started - begun);
+          if (remaining <= 0) break;
+          final token = await CipNamespace.readDint(wire, symbol)
+              .timeout(Duration(microseconds: remaining));
+          if (token < 0 || token > 2147483646)
+            throw const FormatException('Invalid publisher progress counter.');
+          if (token.isEven) {
+            final previous = _tokens[symbol];
+            if (previous != null &&
+                token != previous &&
+                !cipRevisionIsLater(token, previous))
+              throw const FormatException(
+                  'Publisher progress restarted; rediscovery required.');
+            if (previous != null && token != previous)
+              _progress[symbol] = started;
+            _tokens[symbol] = token;
+            _revisionFinishedAt[symbol] = _clockUs();
+            break;
+          }
+          final remainingWait = budgetUs - (_clockUs() - begun);
+          if (attempt + 1 < guard.maxAttempts && remainingWait > 0)
+            await Future<void>.delayed(Duration(
+                microseconds: remainingWait < 1000 ? remainingWait : 1000));
+        }
+      }
+    } on Object {
+      // A deadline can leave a request in flight. Retire this namespace just
+      // as for a failed row proof; no later request may reuse that socket.
+      wire.abort();
+      rethrow;
+    }
+  }
 
   List<_CountDependency> _dependencies(
       CipPublishedField field, String concrete) {
@@ -290,10 +493,11 @@ final class CipReadPlan {
   }
 
   List<CipBatchRead>? _batchPlan(
-      CipReadTransport transport,
+      int? capacity,
       List<_CountDependency> dependencies,
-      List<(CipPublishedField, String, bool)> parts) {
-    if (transport is! CipBatchReadTransport) return null;
+      List<(CipPublishedField, String, bool)> parts,
+      {int minimumReads = 2}) {
+    if (capacity == null) return null;
     final result = <CipBatchRead>[];
     for (final dependency in dependencies) {
       final field = _countField(dependency.path);
@@ -317,10 +521,8 @@ final class CipReadPlan {
         result.add(native.batch);
       }
     }
-    if (result.length < 2) return null;
-    return cipEncodeReadBatch(result, transport.readBatchBytes) == null
-        ? null
-        : result;
+    if (result.length < minimumReads) return null;
+    return cipEncodeReadBatch(result, capacity) == null ? null : result;
   }
 
   bool _wanted(String path, Set<String>? requested) =>
@@ -345,6 +547,22 @@ final class CipReadPlan {
 
   bool _excluded(String path) => _within(path, excludedPaths);
   bool _slow(String path) => _within(path, slowPaths);
+
+  void _prepareConsumedScopes() {
+    if (_neededExcluded != null &&
+        _neededExcluded!.length == excludedPaths.length &&
+        _neededExcluded!.containsAll(excludedPaths)) return;
+    _neededExcluded = Set.of(excludedPaths);
+    _neededScopes.clear();
+    for (final path in _declaredPaths) {
+      if (_excluded(path)) continue;
+      _neededScopes.add(path);
+      for (var i = 0; i < path.length; i++) {
+        if (path.codeUnitAt(i) == 47 || path.codeUnitAt(i) == 91)
+          _neededScopes.add(path.substring(0, i));
+      }
+    }
+  }
 
   void _recordCount(String path, int count, int revision) {
     final previous = _countTokens[path];
@@ -371,9 +589,130 @@ final class CipReadPlan {
     return _groupOn(wire, field, path, element: element, selection: selection);
   }
 
-  Future<void> _groupOn(
-      CipReadTransport transport, CipPublishedField field, String path,
-      {bool element = false, Set<String>? selection}) async {
+  Future<void> _groupMany(List<_PlannedRow> rows,
+      {void Function(Future<void> Function())? deferDecode}) async {
+    if (_coalescingUnavailable || rows.length == 1) {
+      for (final row in rows) {
+        await _group(row.field, row.path,
+            element: row.element, selection: row.selection);
+      }
+      return;
+    }
+    final grouped = wire as CipGroupedReadTransport;
+    await grouped.withGroup((transport) async {
+      if (transport is! CipBatchReadTransport) {
+        throw const FormatException(
+            'Row-batch capacity lacks a batch transport.');
+      }
+      // Identical typed dependencies need one native read within this proven
+      // window. Every logical row retains its exact request/reply cursor.
+      final packet = _PackedRequests([for (final row in rows) ...row.requests]);
+      final requests = packet.requests;
+      final started = _clockUs();
+      var candidateStarted = started, revisionStarted = started;
+      List<CipReply> replies = [];
+      var fallback = false;
+      final sample = await guard.read(
+          binding: rows.first.binding,
+          readRevision: (symbol) {
+            revisionStarted = _clockUs();
+            return CipNamespace.readDint(transport, symbol);
+          },
+          readGroup: () async {
+            candidateStarted = revisionStarted;
+            try {
+              replies = await transport.readBatch(requests);
+            } on CipBatchUnavailable {
+              fallback = true;
+              rethrow;
+            }
+            if (replies.length != requests.length) {
+              throw const FormatException('Coalesced row reply count differs.');
+            }
+            if (replies.any((r) => r.status == 6)) {
+              fallback = true;
+              throw const CipBatchUnavailable();
+            }
+            for (final reply in replies) {
+              reply.requireSuccess();
+            }
+            return Uint8List(0);
+          });
+      final finished = _clockUs();
+      try {
+        if (fallback) {
+          // A refused/partial packet consumed an attempt for every row.
+          // Individual fallback gets only the remaining original attempts
+          // and deadline, including time spent on preceding fallback rows.
+          _coalescingUnavailable = true;
+          final attempts = guard.maxAttempts - sample.attempts;
+          for (final row in rows) {
+            final remaining =
+                guard.timeout.inMicroseconds - (_clockUs() - started);
+            if (attempts <= 0 || remaining <= 0) {
+              wire.abort();
+              throw const FormatException(
+                  'Coalesced fallback budget exhausted.');
+            }
+            await _groupOn(transport, row.field, row.path,
+                element: row.element,
+                selection: row.selection,
+                boundedGuard: CipReadCoherenceGuard(
+                    maxAttempts: attempts,
+                    timeout: Duration(microseconds: remaining),
+                    clockUs: _clockUs),
+                priorAttempts: sample.attempts,
+                overallStartedAtUs: started);
+          }
+          return;
+        }
+        if (sample.quality == CipSampleQuality.bad) {
+          throw const FormatException(
+              'CIP row acquisition failed; rediscovery required.');
+        }
+        Future<void> decode() async {
+          try {
+            var offset = 0;
+            for (final row in rows) {
+              final end = offset + row.requests.length;
+              // Each row gets its own exact-reply cursor: a count shrink may
+              // withdraw that row without consuming its now-ineligible body.
+              final cached = _BatchReplies(
+                  row.requests,
+                  sample.quality == CipSampleQuality.good
+                      ? [
+                          for (var i = offset; i < end; i++)
+                            replies[packet.aliases[i]]
+                        ]
+                      : []);
+              // The decoder has only captured replies, never a live socket.
+              await _groupOn(cached, row.field, row.path,
+                  element: row.element,
+                  selection: row.selection,
+                  shared: _SharedRowProof(
+                      sample, candidateStarted, finished, rows.length, cached));
+              offset = end;
+            }
+          } on Object {
+            wire.abort();
+            rethrow;
+          }
+        }
+
+        if (deferDecode == null) {
+          await decode();
+        } else {
+          deferDecode(decode);
+        }
+      } on Object {
+        wire.abort();
+        rethrow;
+      }
+    });
+  }
+
+  List<(CipPublishedField, String, bool)> _parts(CipPublishedField field,
+      String path, bool element, Set<String>? selection) {
     final parts = <(CipPublishedField, String, bool)>[];
     void select(CipPublishedField f, String p, bool one) {
       final children = f.member.isStructure &&
@@ -394,94 +733,114 @@ final class CipReadPlan {
     }
 
     select(field, path, element);
+    return parts;
+  }
+
+  Future<void> _groupOn(
+      CipReadTransport transport, CipPublishedField field, String path,
+      {bool element = false,
+      Set<String>? selection,
+      _SharedRowProof? shared,
+      CipReadCoherenceGuard? boundedGuard,
+      int priorAttempts = 0,
+      int? overallStartedAtUs}) async {
+    final parts = _parts(field, path, element, selection);
     if (parts.isEmpty) return;
     final dependencies = _dependencies(field, path),
-        binding =
-            publication.manifest.coherence.singleWhere((b) => b.covers(path));
-    var batch = _batchPlan(transport, dependencies, parts);
-    var groupTransport = transport;
+        binding = _binding(field, path, element, selection);
+    var batch = _batchPlan(
+        transport is CipBatchReadTransport ? transport.readBatchBytes : null,
+        dependencies,
+        parts);
+    var groupTransport = shared?.replies ?? transport;
     Map<String, Object?> candidate = {};
     Map<String, String> types = {};
     Map<String, int> counts = {};
-    var candidateStartedAtUs = _clockUs(), expectingPostCounter = false;
-    final sample = await guard.read(
-        binding: binding,
-        readRevision: (symbol) async {
-          if (expectingPostCounter) {
-            expectingPostCounter = false;
+    var candidateStartedAtUs = shared?.startedAtUs ?? _clockUs(),
+        revisionStartedAtUs = _clockUs();
+    Future<Uint8List> readBody() async {
+      candidateStartedAtUs = shared?.startedAtUs ?? revisionStartedAtUs;
+      // Counter requests complete outside this body packet. No MSP
+      // execution-order or whole-packet atomicity assumption is needed.
+      groupTransport = shared?.replies ?? transport;
+      final requests = batch;
+      if (shared == null && requests != null) {
+        List<CipReply>? replies;
+        try {
+          replies =
+              await (transport as CipBatchReadTransport).readBatch(requests);
+        } on CipBatchUnavailable {
+          batch = null;
+        }
+        if (replies != null) {
+          if (replies.length != requests.length)
+            throw const FormatException('Batched row reply count differs.');
+          if (replies.any((reply) => reply.status == 6)) {
+            // Fallback remains in this original attempt/window/deadline,
+            // including the discarded packet.
+            batch = null;
           } else {
-            // Age starts before I/O for the attempt that supplies the row,
-            // including its pre-counter read and asynchronous continuations.
-            candidateStartedAtUs = _clockUs();
+            groupTransport = _BatchReplies(requests, replies);
           }
-          return CipNamespace.readDint(transport, symbol);
-        },
-        readGroup: () async {
-          expectingPostCounter = true;
-          // Counter requests complete outside this body packet. No MSP
-          // execution-order or whole-packet atomicity assumption is needed.
-          groupTransport = transport;
-          final requests = batch;
-          if (requests != null) {
-            List<CipReply>? replies;
-            try {
-              replies = await (transport as CipBatchReadTransport)
-                  .readBatch(requests);
-            } on CipBatchUnavailable {
-              batch = null;
-            }
-            if (replies != null) {
-              if (replies.length != requests.length)
-                throw const FormatException('Batched row reply count differs.');
-              if (replies.any((reply) => reply.status == 6)) {
-                // Fallback remains in this original attempt/window/deadline,
-                // including the discarded packet.
-                batch = null;
-              } else {
-                groupTransport = _BatchReplies(requests, replies);
-              }
-            }
-          }
-          candidate = {};
-          types = {};
-          counts = {};
-          for (final d in dependencies) {
-            final n = await _count(d.path, transport: groupTransport);
-            if (n < 0 || n > d.extent)
-              throw const FormatException(
-                  'Live count exceeds declared extent.');
-            counts[d.path] = n;
-          }
-          if (dependencies
-              .any((d) => d.index != null && d.index! >= counts[d.path]!))
-            return Uint8List(0);
-          for (final requested in parts)
-            for (final source in requested.$1.sources) {
-              final nativeCount = _nativeCount(
-                  requested.$1, requested.$2, requested.$3, counts);
-              if (nativeCount == 0) continue;
-              final value = await _read(source, requested.$2,
-                  element: requested.$3,
-                  countOverride: nativeCount,
-                  transport: groupTransport);
-              final part = publication.projectSubtree(
-                  requested.$2, source.member, value, counts,
-                  element: requested.$3);
-              final next = Map<String, Object?>.from(part['values'] as Map);
-              if (next.keys.any(candidate.containsKey))
-                throw const FormatException('Colliding row leaves.');
-              candidate.addAll(next);
-              types.addAll(Map<String, String>.from(part['types'] as Map));
-            }
-          return Uint8List(0);
-        });
+        }
+      }
+      candidate = {};
+      types = {};
+      counts = {};
+      for (final d in dependencies) {
+        final n = await _count(d.path, transport: groupTransport);
+        if (n < 0 || n > d.extent)
+          throw const FormatException('Live count exceeds declared extent.');
+        counts[d.path] = n;
+      }
+      if (dependencies
+          .any((d) => d.index != null && d.index! >= counts[d.path]!))
+        return Uint8List(0);
+      for (final requested in parts)
+        for (final source in requested.$1.sources) {
+          final nativeCount =
+              _nativeCount(requested.$1, requested.$2, requested.$3, counts);
+          if (nativeCount == 0) continue;
+          final value = await _read(source, requested.$2,
+              element: requested.$3,
+              countOverride: nativeCount,
+              transport: groupTransport);
+          final part = publication.projectSubtree(
+              requested.$2, source.member, value, counts,
+              element: requested.$3);
+          final next = Map<String, Object?>.from(part['values'] as Map);
+          if (next.keys.any(candidate.containsKey))
+            throw const FormatException('Colliding row leaves.');
+          candidate.addAll(next);
+          types.addAll(Map<String, String>.from(part['types'] as Map));
+        }
+      return Uint8List(0);
+    }
+
+    final CipCoherentSample sample;
+    if (shared != null) {
+      sample = shared.sample;
+      if (sample.quality == CipSampleQuality.good) await readBody();
+    } else {
+      sample = await (boundedGuard ?? guard).read(
+          binding: binding,
+          readRevision: (symbol) async {
+            revisionStartedAtUs = _clockUs();
+            return CipNamespace.readDint(transport, symbol);
+          },
+          readGroup: readBody);
+    }
     final now = _clockUs();
     acquisitions.add({
       'path': path,
       'quality': sample.quality.name,
       'reason': sample.reason,
-      'attempts': sample.attempts,
-      'acquisitionUs': sample.acquisitionUs,
+      'attempts': sample.attempts + priorAttempts,
+      'acquisitionUs': overallStartedAtUs == null
+          ? sample.acquisitionUs
+          : now - overallStartedAtUs,
+      if (shared != null) 'sharedRows': shared.rows,
+      if (priorAttempts != 0) 'fallbackAttempts': priorAttempts,
       if (_phaseLabel != null) 'phase': _phaseLabel
     });
     if (acquisitions.length > 10000) acquisitions.removeAt(0);
@@ -506,8 +865,10 @@ final class CipReadPlan {
           'type': _types[p],
           'status': 0x40000000,
           'reason': sample.reason,
-          'coherenceAttempts': sample.attempts,
-          'coherenceAcquisitionUs': sample.acquisitionUs,
+          'coherenceAttempts': sample.attempts + priorAttempts,
+          'coherenceAcquisitionUs': overallStartedAtUs == null
+              ? sample.acquisitionUs
+              : now - overallStartedAtUs,
           'coherenceFailures': sample.failures
         }..remove('value');
       }
@@ -525,14 +886,17 @@ final class CipReadPlan {
           'Publication counter restarted; rediscovery required.');
     }
     if (previousToken == null || cipRevisionIsLater(token, previousToken)) {
-      if (previousToken != null &&
+      if (binding.protocol == 1 &&
+          previousToken != null &&
           candidateStartedAtUs > (_progress[symbol] ?? -1))
         _progress[symbol] = candidateStartedAtUs;
       _tokens[symbol] = token;
     }
-    if (_tokens[symbol] == token) _revisionFinishedAt[symbol] = now;
-    final progressing = _progress.containsKey(symbol) &&
-        now - _progress[symbol]! < _fastGoodMs * 1000;
+    if (_tokens[symbol] == token)
+      _revisionFinishedAt[symbol] = shared?.finishedAtUs ?? now;
+    final progress = binding.progressSymbol;
+    final progressing = _progress.containsKey(progress) &&
+        now - _progress[progress]! < _fastGoodMs * 1000;
     counts.forEach((p, n) => _recordCount(p, n, token));
     for (final e
         in candidate.entries.where((e) => e.key.endsWith('/Status/Name'))) {
@@ -572,66 +936,186 @@ final class CipReadPlan {
     }
   }
 
-  Future<void> acquire({Set<String>? paths}) async {
-    final due = _refreshSlow || _clockUs() - _lastSlow >= slowIntervalUs;
+  bool _fitsBatch(List<_PlannedRow> rows, _PlannedRow row, int? capacity) =>
+      capacity != null &&
+      rows.length < cipMaximumBatchReads &&
+      row.requests.isNotEmpty &&
+      rows.first.requests.isNotEmpty &&
+      rows.first.binding.revisionSymbol == row.binding.revisionSymbol &&
+      rows.first.binding.canonicalPrefix == row.binding.canonicalPrefix &&
+      rows.first.binding.mutationPeriodUs == row.binding.mutationPeriodUs &&
+      rows.first.binding.protocol == row.binding.protocol &&
+      rows.first.binding.proofWindowUs == row.binding.proofWindowUs &&
+      rows.first.binding.progressSymbol == row.binding.progressSymbol &&
+      cipEncodeReadBatch(
+              _PackedRequests(
+                      [for (final r in rows) ...r.requests, ...row.requests])
+                  .requests,
+              capacity) !=
+          null;
+
+  /// Whether a slow sweep has remaining rows or its heartbeat is due.
+  bool get slowAcquisitionDue =>
+      _slowGroups.isNotEmpty &&
+      (_refreshSlow ||
+          _slowCursor != 0 ||
+          _clockUs() - _lastSlow >= slowIntervalUs);
+
+  /// One bounded native group between fast snapshots, on the same serialized
+  /// worker and the same row owner. A new sweep is due from its start time;
+  /// finishing a long sweep cannot add another full slow-period gap.
+  Future<void> acquireSlowChunk() async {
+    if (!slowAcquisitionDue) return;
+    await refreshProgress();
+    if (_refreshSlow) {
+      _slowCursor = 0;
+      _slowStartedAtUs = null;
+    }
+    if (_slowCursor == 0 &&
+        !_refreshSlow &&
+        _clockUs() - _lastSlow < slowIntervalUs) return;
+    _refreshSlow = false;
+    _slowStartedAtUs ??= _clockUs();
+    if (_slowGroups.isNotEmpty) {
+      await _groupMany(_slowGroups[_slowCursor]);
+      _slowCursor++;
+    }
+    if (_slowCursor >= _slowGroups.length) {
+      _lastSlow = _slowStartedAtUs!;
+      _slowStartedAtUs = null;
+      _slowCursor = 0;
+    }
+  }
+
+  Future<void> acquire({Set<String>? paths, bool fastOnly = false}) async {
+    await refreshProgress();
+    if (paths == null) _prepareConsumedScopes();
+    final due =
+        !fastOnly && (_refreshSlow || _clockUs() - _lastSlow >= slowIntervalUs);
+    final slowGroups = <List<_PlannedRow>>[];
+    final slowPending = <_PlannedRow>[];
     final walkStart = acquisitions.length;
     final seenCounts = <String>{};
-    final statuses = <(CipPublishedField, String, bool)>[];
+    final statuses = <(CipPublishedField, String, Set<String>)>[];
+    final identityPaths = <String>{};
     var statusPhase = false;
+    var discoveringCounts = false, queuedCount = false;
     // On a slow-due walk the phases split the leaf groups: all-slow groups
     // first, then every group with a fast leaf, so fast rows do not age
     // behind slow I/O. Null outside those phases; see acquire() below.
     bool? slowOnlyPhase;
     final grouped = wire;
-    final concurrency = paths == null && grouped is CipGroupedReadTransport
-        ? grouped.groupConcurrency
-        : 1;
+    final concurrency = groupConcurrency;
     if (concurrency < 1 || concurrency > 4)
       throw const FormatException('Invalid CIP group concurrency.');
-    final active = <Future<void>>{};
-    Completer<void>? slotAvailable;
-    Object? failure;
-    StackTrace? failureStack;
-    Future<void> flush() async {
-      await Future.wait(active.toList());
-      if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
-    }
-
-    Future<void> acquireGroup(CipPublishedField field, String concrete,
-        {bool element = false, Set<String>? selection}) async {
-      // Refill a completed slot without waiting for unrelated slow rows.
-      // Counts and the Status phase still drain the entire window below.
-      if (active.length >= concurrency) {
-        final available = Completer<void>();
-        slotAvailable = available;
-        await available.future;
-      }
-      if (failure != null) await flush();
-      Future<void> run() async {
-        try {
-          await _group(field, concrete, element: element, selection: selection);
-        } on Object catch (error, stack) {
-          if (failure == null) {
-            failure = error;
-            failureStack = stack;
+    final workQueue = <Future<void> Function()>[];
+    final decodeQueue = <Future<void> Function()>[];
+    final pending = <_PlannedRow>[];
+    final capacity = grouped is CipBatchedGroupReadTransport
+        ? grouped.groupBatchBytes
+        : null;
+    Future<void> drainActive() async {
+      // Compile this phase before opening any guard. Path/layout validation
+      // and packet construction must not steal another row's I/O window.
+      final work = List<Future<void> Function()>.of(workQueue);
+      workQueue.clear();
+      var next = 0;
+      Object? failure;
+      StackTrace? failureStack;
+      Future<void> worker() async {
+        while (failure == null && next < work.length) {
+          final task = work[next++];
+          try {
+            await task();
+          } on Object catch (error, stack) {
+            failure ??= error;
+            failureStack ??= stack;
           }
         }
       }
 
-      late final Future<void> task;
-      task = run().whenComplete(() {
-        active.remove(task);
-        final available = slotAvailable;
-        slotAvailable = null;
-        available?.complete();
-      });
-      active.add(task);
+      await Future.wait(
+          [for (var i = 0; i < concurrency && i < work.length; i++) worker()]);
+      if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
+      // Flatten captured bytes only after the phase's wire proofs finish.
+      // Decoder CPU must not consume another connection's proof window.
+      for (final decode in decodeQueue) {
+        await decode();
+      }
+      decodeQueue.clear();
+    }
+
+    Future<void> dispatch(Future<void> Function() work) async {
+      workQueue.add(work);
+    }
+
+    Future<void> flushPending() async {
+      if (pending.isEmpty) return;
+      final rows = List<_PlannedRow>.of(pending);
+      pending.clear();
+      await dispatch(() => _groupMany(rows, deferDecode: decodeQueue.add));
+    }
+
+    Future<void> flush() async {
+      await flushPending();
+      await drainActive();
+    }
+
+    Future<void> acquireGroup(CipPublishedField field, String concrete,
+        {bool element = false, Set<String>? selection}) async {
+      // A targeted read uses the same bounded leases and external proof as a
+      // cyclic read; selection still limits its body to the requested leaves.
+      final requests = !_coalescingUnavailable
+          ? _batchPlan(capacity, _dependencies(field, concrete),
+              _parts(field, concrete, element, selection),
+              minimumReads: 1)
+          : null;
+      if (requests == null) {
+        await flushPending();
+        await dispatch(() =>
+            _group(field, concrete, element: element, selection: selection));
+        return;
+      }
+      final binding = _binding(field, concrete, element, selection);
+      final row =
+          _PlannedRow(field, concrete, element, selection, binding, requests);
+      if (pending.isNotEmpty && !_fitsBatch(pending, row, capacity)) {
+        await flushPending();
+      }
+      pending.add(row);
+      // cipEncodeReadBatch bounds both directions and the embedded read count;
+      // do not impose a second, independent packet-size policy here.
+    }
+
+    Future<void> acquireOwnedGroup(CipPublishedField field, String concrete,
+        {bool element = false, Set<String>? selection}) async {
+      if (publication.manifest.ownerCoherence.isEmpty)
+        return acquireGroup(field, concrete,
+            element: element, selection: selection);
+      final groups = <CipReadCoherenceBinding, Set<String>>{};
+      for (final p in _leafPaths(field, concrete, element)) {
+        if (_wanted(p, selection))
+          groups
+              .putIfAbsent(publication.manifest.bindingFor(p), () => {})
+              .add(p);
+      }
+      if (groups.length == 1)
+        return acquireGroup(field, concrete,
+            element: element, selection: selection);
+      for (final selected in groups.values)
+        await acquireGroup(field, concrete,
+            element: element, selection: selected);
     }
 
     Future<void> visit(CipPublishedField field, String concrete,
         {bool element = false}) async {
       if (!_wanted(concrete, paths) || paths == null && _excluded(concrete))
         return;
+      // Count discovery is routing work for consumed descendants. A wholly
+      // excluded array owes no routing read. Its count remains independently
+      // readable if that scalar itself is consumed; targeted reads still
+      // override exclusions and prove count/body together.
+      if (paths == null && !_neededScopes.contains(concrete)) return;
       final m = field.member;
       if (m.isArray && m.isStructure && !element) {
         final a = field.annotation,
@@ -642,8 +1126,16 @@ final class CipReadPlan {
           final cp =
               '${concrete.substring(0, concrete.lastIndexOf('/'))}/${(a['countPath'] as String).split('/').last}';
           if (seenCounts.add(cp)) {
-            await flush();
-            await _group(publication.fields[cipSchemaKey(cp)]!, cp);
+            if (discoveringCounts) {
+              // Collect independent routing counts before expanding their
+              // arrays. Descendant counts wait for the next drained level.
+              await acquireGroup(publication.fields[cipSchemaKey(cp)]!, cp);
+              queuedCount = true;
+              return;
+            } else {
+              await flush();
+              await _group(publication.fields[cipSchemaKey(cp)]!, cp);
+            }
           }
           final n = _counts[cp];
           if (n == null) return;
@@ -670,52 +1162,72 @@ final class CipReadPlan {
               f.member.isArray ||
               publication.fields.values.any(
                   (d) => d.path.startsWith('${f.path}/') && d.member.isArray)));
-      // A full row walk can outlast the fast Good interval. Deliver module
-      // identity/status near its end without rereading rows or renewing ages.
-      // A leaf module may already fit in one group together with its Status.
-      // Other late rows still lose payload under the unchanged age rules.
+      if (discoveringCounts && !hasArrays) return;
+      // Keep the Core discovery header small. Large diagnostics and device
+      // data must not turn an unavailable body row into a missing module.
+      // These exact fields are read once, together, at the end of the walk.
       final statusPrefix =
           field.path.endsWith('/Status') ? field.path : '${field.path}/Status';
       if (paths == null &&
           !statusPhase &&
-          !hasArrays &&
           m.isStructure &&
           publication.fields.containsKey('$statusPrefix/Name') &&
           publication.fields.containsKey('$statusPrefix/ModuleType')) {
-        // Both phases of a due walk defer module identity the same way.
-        if (!statuses.contains((field, concrete, element)))
-          statuses.add((field, concrete, element));
-        return;
+        final status = publication.fields[statusPrefix]!;
+        final actual =
+            field.path.endsWith('/Status') ? concrete : '$concrete/Status';
+        if (!statuses.any((s) => s.$2 == actual)) {
+          final selected = <String>{
+            for (final name in cipHeaderCoherenceMembers)
+              if (publication.fields.containsKey('$statusPrefix/$name') &&
+                  !_excluded('$actual/$name'))
+                '$actual/$name'
+          };
+          identityPaths.addAll(selected);
+          if (selected.isNotEmpty) statuses.add((status, actual, selected));
+        }
       }
       if (hasArrays) {
         for (final child in children)
           await visit(child, '$concrete/${child.member.name}');
       } else {
-        final leaves = m.isArray && !m.isStructure && !element
-            ? <String>{
-                for (final index in field.annotation['indices'] as List? ??
-                    List.generate(
-                        field.annotation['elementCount'] as int, (i) => i))
-                  '$concrete[${(field.annotation['lowerBound'] as int) + (index as int)}]'
-              }
-            : children.isEmpty
-                ? <String>{concrete}
-                : {
-                    for (final f in publication.fields.values)
-                      if (!f.commandOnly &&
-                          f.path.startsWith('$prefix/') &&
-                          (!f.member.isStructure ||
-                              publication.decoder.templates[f.member.handle]!
-                                      .stringByteCapacity !=
-                                  null))
-                        concrete + f.path.substring(prefix.length)
-                  };
+        final leaves = _leafPaths(field, concrete, element);
         // Tiers name logical leaves, including primitive-array elements. An
         // excluded sibling is not a fast consumer of the native read group.
-        final consumed =
-            paths == null ? leaves.where((p) => !_excluded(p)).toSet() : leaves;
+        final consumed = paths == null
+            ? leaves
+                .where((p) => !_excluded(p) && !identityPaths.contains(p))
+                .toSet()
+            : leaves;
         if (paths == null && consumed.isEmpty) return;
         final allSlow = consumed.every(_slow);
+        final selection =
+            paths ?? (consumed.length != leaves.length ? consumed : null);
+        if (selection?.isEmpty == true) return;
+        if (fastOnly && allSlow) {
+          final binding = _binding(field, concrete, element, selection);
+          final row = _PlannedRow(
+              field,
+              concrete,
+              element,
+              selection,
+              binding,
+              _batchPlan(capacity, _dependencies(field, concrete),
+                      _parts(field, concrete, element, selection),
+                      minimumReads: 1) ??
+                  []);
+          if (slowPending.isNotEmpty &&
+              !_fitsBatch(slowPending, row, capacity)) {
+            slowGroups.add(List.of(slowPending));
+            slowPending.clear();
+          }
+          if (row.requests.isEmpty) {
+            slowGroups.add([row]);
+          } else {
+            slowPending.add(row);
+          }
+          return;
+        }
         if (paths == null && !due && allSlow) return;
         // A slow-due walk reads all-slow groups in the slow phase and every
         // other group in the fast phase; the request multiset is unchanged.
@@ -725,10 +1237,7 @@ final class CipReadPlan {
             slowOnlyPhase != allSlow) {
           return;
         }
-        final selection =
-            paths ?? (consumed.length != leaves.length ? consumed : null);
-        if (selection?.isEmpty == true) return;
-        await acquireGroup(field, concrete,
+        await acquireOwnedGroup(field, concrete,
             element: element, selection: selection);
       }
     }
@@ -743,6 +1252,15 @@ final class CipReadPlan {
     }
 
     try {
+      if (capacity != null) {
+        discoveringCounts = true;
+        do {
+          queuedCount = false;
+          await walkRecords();
+          await flush();
+        } while (queuedCount);
+        discoveringCounts = false;
+      }
       if (paths == null && due && slowPaths.isNotEmpty && _tokens.isNotEmpty) {
         // The slow phase completes (and its requests drain) before any fast
         // group starts, so the oldest fast row ages only behind fast and
@@ -767,12 +1285,14 @@ final class CipReadPlan {
       statusPhase = true;
       _phaseLabel = 'status';
       for (final status in statuses)
-        await visit(status.$1, status.$2, element: status.$3);
+        await acquireGroup(status.$1, status.$2, selection: status.$3);
       await flush();
     } on Object {
-      // No started row may outlive a refused walk or its connection owner.
+      // Execution drains its started rows before throwing. A planning refusal
+      // discards work that has not opened a guard or borrowed a connection.
       _phaseLabel = null;
-      await Future.wait(active.toList());
+      workQueue.clear();
+      decodeQueue.clear();
       rethrow;
     }
     _phaseLabel = null;
@@ -800,6 +1320,17 @@ final class CipReadPlan {
         }
       }
     }
+    if (fastOnly) {
+      if (slowPending.isNotEmpty) slowGroups.add(List.of(slowPending));
+      if (!identical(_slowProfile, slowPaths) ||
+          !identical(_excludedProfile, excludedPaths) ||
+          _slowGroups.length != slowGroups.length) {
+        refreshSlow();
+        _slowProfile = slowPaths;
+        _excludedProfile = excludedPaths;
+      }
+      _slowGroups = slowGroups;
+    }
     if (paths == null && due) {
       _lastSlow = _clockUs();
       _refreshSlow = false;
@@ -808,13 +1339,13 @@ final class CipReadPlan {
       final walk = acquisitions.skip(walkStart).toList();
       Map<String, Object?> phase(String? label) {
         final rows = walk.where((g) =>
-            g['phase'] == label ||
-            (label == null && !g.containsKey('phase')));
+            g['phase'] == label || (label == null && !g.containsKey('phase')));
         return {
           'groups': rows.length,
           'us': rows.fold<int>(0, (a, g) => a + (g['acquisitionUs'] as int))
         };
       }
+
       final phased = walk.any((g) => g['phase'] == 'slow');
       lastWalkTrace = {
         'due': due,
