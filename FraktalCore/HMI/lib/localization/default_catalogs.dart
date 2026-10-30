@@ -370,6 +370,14 @@ const standardEnglish = <String, String>{
   'std.gatedAction.powerControl': 'Control power',
   'std.gatedAction.configSet': 'Parameter sets',
   'std.config.airPressure.conflictTime': 'Switch conflict qualification',
+  'std.state.analogInputValid': 'Signal valid',
+  'std.state.analogInputInRange': 'In range',
+  'std.state.analogInputStable': 'Stable',
+  'std.config.analogInputRef1': 'Adjustment reference 1',
+  'std.config.analogInputRef2': 'Adjustment reference 2',
+  'std.config.analogInputMeas1': 'Adjustment measured 1',
+  'std.config.analogInputMeas2': 'Adjustment measured 2',
+  'std.config.analogInputTare': 'Tare',
   'std.access.machineActions': 'Machine actions',
   'std.access.panelActions': 'Panel actions',
   'std.access.plcStillDecides':
@@ -463,6 +471,10 @@ const standardEnglish = <String, String>{
   'std.moduleType.twoHand.description':
       'Publishes raw button status and a functional start edge from the certified two-hand-control result.',
   'std.moduleType.digitalInput': 'Digital input',
+  'std.moduleType.analogInput': 'Analog input',
+  'std.moduleType.analogInput.name': 'Analog input',
+  'std.moduleType.analogInput.description':
+      'Measures one analog channel: scaled, adjusted, tared and judged for stability.',
   'std.access.none': 'Open',
   'std.access.operator': 'Operator',
   'std.access.technician': 'Technician',
@@ -582,6 +594,16 @@ const standardEnglish = <String, String>{
       'Manual command rejected. Review the release conditions.',
   'std.error.recipeSchemaInvalid': 'Recipe schema validation failed.',
   'std.error.unsupportedCylinderCommand': 'Unsupported cylinder command.',
+  'std.error.unsupportedAnalogInputCommand': 'Unsupported analog-input command.',
+  'std.error.analogInputUnderRange':
+      'The measured value is below the configured range.',
+  'std.error.analogInputOverRange':
+      'The measured value is above the configured range.',
+  'std.error.analogInputSignalInvalid': 'The analog input signal is invalid.',
+  'std.error.analogInputAdjustmentInvalid':
+      'The two-point adjustment is implausible and was refused.',
+  'std.error.analogInputNotStable':
+      'The analog input did not become stable within the measure timeout.',
   'std.error.unsupportedManualTarget': 'Unsupported manual-command target.',
   'std.error.cylinderBothSensors': 'Both cylinder position sensors are active.',
   'std.error.cylinderRetractTimeout':
@@ -1190,6 +1212,7 @@ const standardEnglish = <String, String>{
   'std.moduleType.robot.description':
       'Robot commanded by position identifiers through its connector',
   'std.command.home': 'Home',
+  'std.command.measure': 'Measure',
   'std.command.moveTo': 'Move to',
   'std.config.axisTaughtPosition': 'Taught position',
   'std.command.jogPositive': 'Jog +',
@@ -2270,6 +2293,29 @@ const standardSpanish = <String, String>{
   'std.moduleType.robot.description':
       'Robot mandado por identificadores de posición a través de su conector',
   'std.command.home': 'Referenciar',
+  'std.command.measure': 'Medir',
+  'std.state.analogInputValid': 'Señal válida',
+  'std.state.analogInputInRange': 'En rango',
+  'std.state.analogInputStable': 'Estable',
+  'std.config.analogInputRef1': 'Referencia de ajuste 1',
+  'std.config.analogInputRef2': 'Referencia de ajuste 2',
+  'std.config.analogInputMeas1': 'Medido de ajuste 1',
+  'std.config.analogInputMeas2': 'Medido de ajuste 2',
+  'std.config.analogInputTare': 'Tara',
+  'std.moduleType.analogInput': 'Entrada analógica',
+  'std.moduleType.analogInput.name': 'Entrada analógica',
+  'std.moduleType.analogInput.description':
+      'Mide un canal analógico: escalado, ajustado, tarado y juzgado por estabilidad.',
+  'std.error.unsupportedAnalogInputCommand': 'Comando de entrada analógica no admitido.',
+  'std.error.analogInputUnderRange':
+      'El valor medido está por debajo del rango configurado.',
+  'std.error.analogInputOverRange':
+      'El valor medido está por encima del rango configurado.',
+  'std.error.analogInputSignalInvalid': 'La señal de entrada analógica no es válida.',
+  'std.error.analogInputAdjustmentInvalid':
+      'El ajuste de dos puntos es implausible y fue rechazado.',
+  'std.error.analogInputNotStable':
+      'La entrada analógica no se estabilizó dentro del tiempo de medida.',
   'std.command.moveTo': 'Mover a',
   'std.config.axisTaughtPosition': 'Posición enseñada',
   'std.command.jogPositive': 'Mover +',

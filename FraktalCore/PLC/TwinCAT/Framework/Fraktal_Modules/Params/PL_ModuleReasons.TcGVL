@@ -45,6 +45,12 @@ VAR_GLOBAL CONSTANT
     ROBOT_RESUME_INVALID     : DINT := 10315;   // resume after hold, but the arm left the retained path
     // air-pressure monitor CM 10600-10699
     AIR_SWITCH_CONFLICT    : DINT := 10601;
+    // analog input CM 10700-10799
+    AI_UNDER_RANGE        : DINT := 10701;   // a stable measured value below ParCfg.UnderRange
+    AI_OVER_RANGE         : DINT := 10702;   // a stable measured value above ParCfg.OverRange
+    AI_SIGNAL_INVALID     : DINT := 10703;   // quality lost, bad ParCfg or a dead reference at MEASURE
+    AI_ADJUSTMENT_INVALID : DINT := 10704;   // the retained two-point adjustment is implausible
+    AI_NOT_STABLE         : DINT := 10705;   // the value never entered the stability band within MeasureTimeout
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

@@ -5532,3 +5532,69 @@ Final: Core 0.26.1.0 / Modules 0.13.0.1 installed from the isolated worktree; si
 AB/TIA replay and contract gate green; HMI analyzer clean, 622 passed / 12 skipped. On the
 isolated UmRT: aggregate 269/269 in 51 suites, Press 9/9 in 2 suites. Scope and artifacts:
 `Specification/Evidence/2026-10-27_TC3_GenericCM_NokPolicy.md`.
+## 168. The generic analog input CM (Modules 0.13.1.0, 2026-10-30)
+
+L1 of the remaining-library plan. One type covers a plain analog signal, a
+measuring sensor (a value read once it is stable) and a scale (a tared
+reading): the differences are configuration, not types (O9), and after L1/L2/L5
+reserve 10700/10800/10900 every CM reason block is allocated.
+
+- **`FB_AnalogInputCM`**: `ParCfg` scales linearly over `[RawMin, RawMax]` to
+  `[EngMin, EngMax]` (both ranges may be inverted) until a two-point adjustment
+  is active, then a first-order `FilterTime` filter on `Gross - Tare`, an
+  `UnderRange`/`OverRange` judgement and a `StableBand`/`StableTime` stability
+  window with re-anchoring on a band exit. Bad quality, a ParCfg the type
+  cannot honour or an implausible retained adjustment publishes `Valid` FALSE
+  and `Value` 0 (S5.6) - never the last good value, and the filter
+  re-initialises so returning quality is measured afresh. The one command,
+  `MEASURE`, waits for stability within `MeasureTimeout` and completes with
+  `OutCmd.Value`; `Gross` (before tare) and `Raw` are published beside `Value`
+  because they are the adjustment's and the tare's capture sources (S3.8c(b)).
+- **Two-point adjustment and tare are deployment data** (`StationCfg`,
+  S3.8a/S3.8b): five editable values, the two measured points and the tare also
+  capturable from the live signal. A pair is ACTIVE when both references and
+  both measured points differ; single points may be written while it is
+  inactive, so an operator captures one point at a time. A pair whose gain lies
+  outside `[0.5, 2.0]` of the nominal gain is implausible - that is a corrupted
+  restore, not a calibration - and `_M_OnConfigWrite` refuses a typed OR
+  captured candidate that would make the pair active and implausible. This is
+  the library's first `_M_OnConfigWrite` override; it sees raw text, has no
+  side effects, and parses with `STRING_TO_LREAL` under the same rule.
+- **IEC AND does not short-circuit - a lesson bought on the runtime.** The
+  first build guarded the plausibility call as
+  `IF (a) AND (b) AND NOT _M_AdjustmentPlausible(...)` and evaluated the call
+  on every INACTIVE pair: `(Ref2-Ref1)/(Meas2-Meas1)` divided 0/0, the FPU trap
+  (0xc0000090) halted the PLC task, and the aggregate gate died at startup
+  twice before the Windows event log named the exception. Every call that can
+  divide, dereference or fault now sits under its own IF (the `valid`
+  dereference chain included). No static gate catches this class; the TcUnit
+  runtime gate does.
+- **The TcUnit gate had a swallowed-start race** (`Invoke-TwinCatTcUnitGate.ps1`,
+  `Set-AdsPlcState`): a Run request issued while the boot application is still
+  loading is accepted yet swallowed - no ADS error, the state stays Stop, and
+  with autostart deliberately disabled nothing re-issues it. The request is now
+  re-issued on every poll that still sees the old state. Measured twice on the
+  UmRT on 2026-10-30; the aggregate and press gates then passed unchanged.
+- **Reasons 10701-10705** (`AI_UNDER_RANGE`/`AI_OVER_RANGE`/`AI_SIGNAL_INVALID`/
+  `AI_ADJUSTMENT_INVALID`/`AI_NOT_STABLE`), rationalized, catalogued (78 -> 83,
+  generator gains the `AI` expansion), Part I S8.8 registry row added.
+  `AI_ADJUSTMENT_INVALID` is raised before `AI_SIGNAL_INVALID` so the operator
+  is sent to the adjustment, not the wiring. Operator text in English and
+  Spanish; the HMI gains the `analogInput` module symbol (`Icons.show_chart`).
+- **Upgrade cost.** Core *patch* 0.26.2.0 - only the generated reason catalog
+  changed (the S167 precedent); Modules *patch* 0.13.1.0 pins it and adds the
+  type. New type: no stored records, no retained image exists yet, nothing
+  migrates. TIA: Modules-only, so the packages change only by the
+  `PL_ModuleReasons` hash (examples manifest refreshed); the frozen candidate
+  contract is untouched. AB records the gap in its census.
+- **Tests.** `FB_AnalogInputCM_Tests`, 16 rows: T2 first-out with the schematic
+  tag, T5 implausible refused typed or captured, timed filter/stability/timeout
+  rows asserting elapsed `TIME()`. A first boot initializes version 0 silently,
+  and an unrecognized layout keeps the module out of error while defaulting.
+
+Final: Core 0.26.2.0 / Modules 0.13.1.0 installed from an isolated worktree;
+six `CheckAllObjects` clean (0 errors, 0 warnings); both lint profiles, the tool
+tests, strict consistency and every AB/TIA replay and contract gate green; HMI
+analyzer clean, 622 passed / 12 skipped on Flutter 3.44.6 (lock unenforced). On
+the isolated UmRT: aggregate 285/285 in 52 suites, Press 9/9 in 2 suites. Scope
+and artifacts: `Specification/Evidence/2026-10-30_TC3_GenericCM_AnalogInput.md`.

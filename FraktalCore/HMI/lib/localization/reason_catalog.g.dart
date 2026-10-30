@@ -229,6 +229,21 @@ const generatedReasonEnglish = <String, String>{
   "std.reason.10601": "Air switch conflict.",
   "std.reason.10601.action": "Inspect both pressure-switch channels, wiring, and pneumatic pressure.",
   "std.reason.10601.consequence": "Air availability cannot be proven from contradictory inputs.",
+  "std.reason.10701": "Analog input under range.",
+  "std.reason.10701.action": "Check the sensor, its wiring, and the scaled range, then remeasure.",
+  "std.reason.10701.consequence": "The measured value is below the range the station accepts.",
+  "std.reason.10702": "Analog input over range.",
+  "std.reason.10702.action": "Check the sensor, its wiring, and the scaled range, then remeasure.",
+  "std.reason.10702.consequence": "The measured value is above the range the station accepts.",
+  "std.reason.10703": "Analog input signal invalid.",
+  "std.reason.10703.action": "Inspect the input channel's quality, wiring, and the module's configuration.",
+  "std.reason.10703.consequence": "No measurement can be taken from an invalid signal.",
+  "std.reason.10704": "Analog input adjustment invalid.",
+  "std.reason.10704.action": "Repeat the two-point adjustment; a plausible pair is refused only after a corrupted restore or a layout change.",
+  "std.reason.10704.consequence": "Measuring through an implausible adjustment would publish values nobody calibrated.",
+  "std.reason.10705": "Analog input not stable.",
+  "std.reason.10705.action": "Let the value settle within the configured band, or widen the band or the measure timeout.",
+  "std.reason.10705.consequence": "An unstable value cannot be recorded as a measurement.",
   "std.reason.11001": "Clamp not confirmed.",
   "std.reason.11001.action": "Inspect every clamp child and restore the first unconfirmed clamp condition.",
   "std.reason.11001.consequence": "The equipment module cannot prove the requested clamp state.",
@@ -312,6 +327,11 @@ const generatedReasonSymbolByCode = <int, String>{
   10501: "POWER_ENABLE_WITHHELD",
   10502: "POWER_FEEDBACK_TIMEOUT",
   10601: "AIR_SWITCH_CONFLICT",
+  10701: "AI_UNDER_RANGE",
+  10702: "AI_OVER_RANGE",
+  10703: "AI_SIGNAL_INVALID",
+  10704: "AI_ADJUSTMENT_INVALID",
+  10705: "AI_NOT_STABLE",
   11001: "CLAMP_NOT_CONFIRMED",
 };
 
@@ -393,6 +413,11 @@ const generatedReasonPriorityByCode = <int, int>{
   10501: 0,
   10502: 2,
   10601: 1,
+  10701: 1,
+  10702: 1,
+  10703: 1,
+  10704: 1,
+  10705: 0,
   11001: 1,
 };
 
@@ -474,6 +499,11 @@ const generatedReasonCategoryByCode = <int, int>{
   10501: 0,
   10502: 0,
   10601: 0,
+  10701: 0,
+  10702: 0,
+  10703: 2,
+  10704: 2,
+  10705: 0,
   11001: 0,
 };
 
@@ -555,6 +585,11 @@ const generatedReasonShelvableByCode = <int, bool>{
   10501: false,
   10502: false,
   10601: false,
+  10701: false,
+  10702: false,
+  10703: false,
+  10704: false,
+  10705: false,
   11001: false,
 };
 
@@ -630,6 +665,11 @@ const generatedReasonHasOperatorAction = <int>{
   10501,
   10502,
   10601,
+  10701,
+  10702,
+  10703,
+  10704,
+  10705,
   11001,
 };
 

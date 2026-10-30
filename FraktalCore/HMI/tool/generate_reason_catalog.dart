@@ -342,6 +342,7 @@ String _defaultText(String symbol) {
   var words = symbol.split('_');
   if (words.first == 'EVENT') words = words.skip(1).toList();
   const replacements = <String, String>{
+    'AI': 'analog input',
     'AIR': 'air',
     'CFG': 'configuration',
     'CPU': 'CPU',

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AnalogInputOutImm" Id="{3f1eb147-22df-4081-ad5b-a6964a9dc9c6}">
+    <Declaration><![CDATA[// Core S3.12 - cyclic status. Value is the filtered, tared engineering
+// value; Gross (before tare) and Raw are published beside it because they are
+// the adjustment's and the tare's capture sources (S3.8c(b)): the operator
+// sees the number that is about to be stored.
+TYPE ST_AnalogInputOutImm :
+STRUCT
+    Value   : LREAL;
+    Gross   : LREAL;
+    Raw     : LREAL;
+    Valid   : BOOL;
+    InRange : BOOL;
+    Stable  : BOOL;
+    IoTag   : STRING(80);
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

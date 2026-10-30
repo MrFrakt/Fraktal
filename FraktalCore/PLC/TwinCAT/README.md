@@ -2,8 +2,11 @@
 
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
-Core `0.26.1.0` adds the Unit's NOK-part limit (`SetNokPolicy`: in a row and/or x of
-the last y; a trip is one MANUAL_RESET alarm and a running Unit stops at its cycle end).
+Modules `0.13.1.0` adds the generic analog input CM (`FB_AnalogInputCM`: scaling, two-point
+adjustment, tare, a first-order filter and a stability-banded MEASURE; Core `0.26.2.0`
+carries its reason catalog). Core `0.26.1.0` adds the Unit's NOK-part limit
+(`SetNokPolicy`: in a row and/or x of the last y; a trip is one MANUAL_RESET alarm and a
+running Unit stops at its cycle end).
 Core `0.26.0.0` publishes an analog fieldbus channel's unit as a code
 (`ST_IoChannel.UnitCode`, the legacy `Unit` text derived from it). Modules `0.12.0.0`
 debounces `FB_DigitalInputCM` at the source (`ParCfg.DebounceTime`) and `0.13.0.0` gives
@@ -19,7 +22,7 @@ the user table outside the symbol table, controller/IPC health from the Beckhoff
 Device Manager and the EtherCAT master's own state, frame and CRC counters (§160-§162).
 The Windows clock adapter observes the target's existing time service and expires
 missing quality; see the [build and installation guide](../../../Specification/Guides/TC3_WINDOWS_CLOCK.md).
-Modules `0.13.0.1` pins Core `0.26.1.0`. The latest source audit is
+Modules `0.13.1.0` pins Core `0.26.2.0`. The latest source audit is
 [Core and Press TC3 feature gaps](../../../Specification/Reports/TC3_CORE_PRESS_FEATURE_AUDIT_2026-10-06.md).
 
 > **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their

@@ -24,8 +24,9 @@ void main() {
     // check. 77 = 74 + CONFIG_RESTORE_LOST, CONFIG_PERSIST_FAILED,
     // CONFIG_SET_REJECTED, EVENT_CONFIG_SET_APPLIED, minus the retired
     // AXIS_TEACH_LOST, which the framework band now owns (§8.8). 78 adds
-    // NOK_LIMIT_REACHED (§3.16.5).
-    expect(generatedReasonSymbolByCode, hasLength(78));
+    // NOK_LIMIT_REACHED (§3.16.5). 83 adds the analog input CM block
+    // 10701-10705 (AI_UNDER_RANGE..AI_NOT_STABLE).
+    expect(generatedReasonSymbolByCode, hasLength(83));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

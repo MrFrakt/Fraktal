@@ -7,6 +7,41 @@
     "shelving": "Shelving suppresses annunciation only, never control, and expires automatically."
   },
   "reasons": {
+    "AI_UNDER_RANGE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the sensor, its wiring, and the scaled range, then remeasure.",
+      "consequence": "The measured value is below the range the station accepts."
+    },
+    "AI_OVER_RANGE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the sensor, its wiring, and the scaled range, then remeasure.",
+      "consequence": "The measured value is above the range the station accepts."
+    },
+    "AI_SIGNAL_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Inspect the input channel's quality, wiring, and the module's configuration.",
+      "consequence": "No measurement can be taken from an invalid signal."
+    },
+    "AI_ADJUSTMENT_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Repeat the two-point adjustment; a plausible pair is refused only after a corrupted restore or a layout change.",
+      "consequence": "Measuring through an implausible adjustment would publish values nobody calibrated."
+    },
+    "AI_NOT_STABLE": {
+      "priority": "LOW",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Let the value settle within the configured band, or widen the band or the measure timeout.",
+      "consequence": "An unstable value cannot be recorded as a measurement."
+    },
     "TASK_OVERRUN": {
       "priority": "MED",
       "category": "SYSTEM",

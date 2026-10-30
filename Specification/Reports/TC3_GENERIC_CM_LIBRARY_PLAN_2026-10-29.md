@@ -22,7 +22,7 @@ Paths are relative to the repository root. `TC3/` abbreviates
 | D3 | Native TCP channel (TF6310), EL6001 serial, PartFeed NC axis and RFID/MES/historian adapters are **out of scope**. | 2026-10-06 | No RFID part carrier, no code-reader extension; the code-reader and robot items are paper audits only (§9). |
 | D4 | TIA candidate contract changes need an explicit, versioned owner review (V2 reviewed 2026-10-27 for `NOK_LIMIT_REACHED`). | 2026-10-27 | No package below touches a frozen Core record or `E_Reason`. If one ever must, stop and ask (V3). |
 
-**Open owner question Q1 — ask before L1.** WP5.1 (commit `289630901`) wired a NOK policy
+**Owner question Q1 — answered 2026-10-29: keep the wiring.** WP5.1 (commit `289630901`) wired a NOK policy
 into the Press composition root (`TC3/Examples/PressDemo/Fraktal_Press_Demo/00_System/MAIN.TcPOU`:
 `NokPolicy` declaration and the `SetNokPolicy` block after `SetPartCarrier`). Under D1 the owner
 may want it removed. If so: delete exactly those 8 lines, run the gates, commit
@@ -533,7 +533,7 @@ envelope cut with interpolation; lower envelope; incomplete curve; verdict prece
 
 ## 9. L7 — Utility and energy metering (§8.14) — scope question Q2 first
 
-**Q2 for the owner:** implement the optional §8.14 profile now (Core minor), or leave it until a
+**Q2 — answered 2026-10-29: deferred** until a station meters utilities. Original question: implement the optional §8.14 profile now (Core minor), or leave it until a
 station meters utilities? If yes, the design is:
 - Core DUTs `E_UtilityMedium {ELECTRICAL := 1, AIR := 2, WATER := 3, COOLANT := 4}` (append-only,
   HMI-mirrored), `ST_UtilityChannel {Medium; UnitCode : E_EngUnit; Instant : LREAL; Total : LREAL;
