@@ -313,6 +313,7 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 | M10 | `FB_Iv3VisionCM`, `FB_Matrix220CM` | P3 | ✘ | after S13 |
 | M11 | `FB_PowerGroupCM` | — | — | **out of scope (D3)** |
 | M12 | `FB_AnalogInputCM` | P2 | ◘ | TC3 Modules 0.13.1 adds the type; Modules-only, so TIA sources change only by the `PL_ModuleReasons` hash; not yet carried |
+| M13 | `FB_AnalogOutputCM` | P2 | ◘ | TC3 Modules 0.13.2 adds the type; same hash-only TIA impact; not yet carried |
 
 ### 7.3 Press bench without power control (`Fraktal_Press_Demo` → `Fraktal_Press_TIA`)
 

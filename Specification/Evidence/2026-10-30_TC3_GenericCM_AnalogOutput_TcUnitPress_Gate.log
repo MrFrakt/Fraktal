@@ -1,0 +1,21 @@
+Gate PressTests -> 192.168.1.6.1.1 (expect PRG_PressTestRunner, 9 tests / 2 suites)
+  target NetId: 192.168.1.6.1.1
+  PLC project: PressTests (autostart disabled)
+  compiles clean
+  activating configuration
+  restarting TwinCAT into Run
+  ADS port 851 before start: Invalid
+  ADS Run: loads and starts the boot application activation just wrote
+  PLC is RUNNING 'PressTests' (verified over ADS)
+  ADS: resolved TcUnit globals as 'GVL_TcUnit.TcUnitRunner'
+  ADS: 9 tests / 2 suites, 9 successful, 0 failed
+  ADS: wrote C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\PressTests-2026-10-30_192421.raw.log
+  raw log: C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\PressTests-2026-10-30_192421.raw.log
+  restored the .tsproj that activation rewrote
+
+Validate with:
+  python tools\tcunit_to_junit.py "C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\PressTests-2026-10-30_192421.raw.log" "C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\PressTests-2026-10-30_192421.junit.xml" `
+    --gate-name PressTests --expected-tests 9 `
+    --expected-suites 2 --expected-runner PRG_PressTestRunner
+
+The target is left in Run mode with the application stopped. Returning it to Config is yours to do.

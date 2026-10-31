@@ -343,6 +343,7 @@ String _defaultText(String symbol) {
   if (words.first == 'EVENT') words = words.skip(1).toList();
   const replacements = <String, String>{
     'AI': 'analog input',
+    'AO': 'analog output',
     'AIR': 'air',
     'CFG': 'configuration',
     'CPU': 'CPU',

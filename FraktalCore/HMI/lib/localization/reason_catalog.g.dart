@@ -244,6 +244,12 @@ const generatedReasonEnglish = <String, String>{
   "std.reason.10705": "Analog input not stable.",
   "std.reason.10705.action": "Let the value settle within the configured band, or widen the band or the measure timeout.",
   "std.reason.10705.consequence": "An unstable value cannot be recorded as a measurement.",
+  "std.reason.10801": "Analog output target oor.",
+  "std.reason.10801.action": "Command a target inside the accepted band, or have engineering widen it.",
+  "std.reason.10801.consequence": "The channel was not driven; it keeps its previous state.",
+  "std.reason.10802": "Analog output configuration invalid.",
+  "std.reason.10802.action": "Correct the scaling, band and safe-value configuration and reload the recipe.",
+  "std.reason.10802.consequence": "The channel cannot be commanded with valid supervision.",
   "std.reason.11001": "Clamp not confirmed.",
   "std.reason.11001.action": "Inspect every clamp child and restore the first unconfirmed clamp condition.",
   "std.reason.11001.consequence": "The equipment module cannot prove the requested clamp state.",
@@ -332,6 +338,8 @@ const generatedReasonSymbolByCode = <int, String>{
   10703: "AI_SIGNAL_INVALID",
   10704: "AI_ADJUSTMENT_INVALID",
   10705: "AI_NOT_STABLE",
+  10801: "AO_TARGET_OOR",
+  10802: "AO_CFG_INVALID",
   11001: "CLAMP_NOT_CONFIRMED",
 };
 
@@ -418,6 +426,8 @@ const generatedReasonPriorityByCode = <int, int>{
   10703: 1,
   10704: 1,
   10705: 0,
+  10801: 1,
+  10802: 1,
   11001: 1,
 };
 
@@ -504,6 +514,8 @@ const generatedReasonCategoryByCode = <int, int>{
   10703: 2,
   10704: 2,
   10705: 0,
+  10801: 0,
+  10802: 2,
   11001: 0,
 };
 
@@ -590,6 +602,8 @@ const generatedReasonShelvableByCode = <int, bool>{
   10703: false,
   10704: false,
   10705: false,
+  10801: false,
+  10802: false,
   11001: false,
 };
 
@@ -670,6 +684,8 @@ const generatedReasonHasOperatorAction = <int>{
   10703,
   10704,
   10705,
+  10801,
+  10802,
   11001,
 };
 

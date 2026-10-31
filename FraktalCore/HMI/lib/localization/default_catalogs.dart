@@ -378,6 +378,7 @@ const standardEnglish = <String, String>{
   'std.config.analogInputMeas1': 'Adjustment measured 1',
   'std.config.analogInputMeas2': 'Adjustment measured 2',
   'std.config.analogInputTare': 'Tare',
+  'std.config.analogOutputManualTarget': 'Manual set point',
   'std.access.machineActions': 'Machine actions',
   'std.access.panelActions': 'Panel actions',
   'std.access.plcStillDecides':
@@ -472,6 +473,10 @@ const standardEnglish = <String, String>{
       'Publishes raw button status and a functional start edge from the certified two-hand-control result.',
   'std.moduleType.digitalInput': 'Digital input',
   'std.moduleType.analogInput': 'Analog input',
+  'std.moduleType.analogOutput': 'Analog output',
+  'std.moduleType.analogOutput.name': 'Analog output',
+  'std.moduleType.analogOutput.description':
+      'Drives one analog channel to a bounded, release-gated set point.',
   'std.moduleType.analogInput.name': 'Analog input',
   'std.moduleType.analogInput.description':
       'Measures one analog channel: scaled, adjusted, tared and judged for stability.',
@@ -595,6 +600,11 @@ const standardEnglish = <String, String>{
   'std.error.recipeSchemaInvalid': 'Recipe schema validation failed.',
   'std.error.unsupportedCylinderCommand': 'Unsupported cylinder command.',
   'std.error.unsupportedAnalogInputCommand': 'Unsupported analog-input command.',
+  'std.error.unsupportedAnalogOutputCommand': 'Unsupported analog-output command.',
+  'std.error.analogOutputTargetOutOfRange':
+      'The set point is outside the accepted band.',
+  'std.error.analogOutputConfigurationInvalid':
+      'The analog output configuration is invalid.',
   'std.error.analogInputUnderRange':
       'The measured value is below the configured range.',
   'std.error.analogInputOverRange':
@@ -1213,6 +1223,7 @@ const standardEnglish = <String, String>{
       'Robot commanded by position identifiers through its connector',
   'std.command.home': 'Home',
   'std.command.measure': 'Measure',
+  'std.command.set': 'Set',
   'std.command.moveTo': 'Move to',
   'std.config.axisTaughtPosition': 'Taught position',
   'std.command.jogPositive': 'Jog +',
@@ -2316,6 +2327,17 @@ const standardSpanish = <String, String>{
       'El ajuste de dos puntos es implausible y fue rechazado.',
   'std.error.analogInputNotStable':
       'La entrada analógica no se estabilizó dentro del tiempo de medida.',
+  'std.moduleType.analogOutput': 'Salida analógica',
+  'std.moduleType.analogOutput.name': 'Salida analógica',
+  'std.moduleType.analogOutput.description':
+      'Impulsa un canal analógico a un punto de consigna acotado y liberado.',
+  'std.command.set': 'Fijar',
+  'std.config.analogOutputManualTarget': 'Punto de consigna manual',
+  'std.error.unsupportedAnalogOutputCommand': 'Comando de salida analógica no admitido.',
+  'std.error.analogOutputTargetOutOfRange':
+      'El punto de consigna está fuera de la banda aceptada.',
+  'std.error.analogOutputConfigurationInvalid':
+      'La configuración de la salida analógica no es válida.',
   'std.command.moveTo': 'Mover a',
   'std.config.axisTaughtPosition': 'Posición enseñada',
   'std.command.jogPositive': 'Mover +',

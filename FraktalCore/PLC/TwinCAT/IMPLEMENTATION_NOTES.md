@@ -5598,3 +5598,57 @@ tests, strict consistency and every AB/TIA replay and contract gate green; HMI
 analyzer clean, 622 passed / 12 skipped on Flutter 3.44.6 (lock unenforced). On
 the isolated UmRT: aggregate 285/285 in 52 suites, Press 9/9 in 2 suites. Scope
 and artifacts: `Specification/Evidence/2026-10-30_TC3_GenericCM_AnalogInput.md`.
+## 169. The generic analog output CM (Modules 0.13.2.0, 2026-10-30)
+
+L2 of the remaining-library plan. The output-side counterpart of S168: one
+command, `SET`, and a channel whose state is always somebody's.
+
+- **`FB_AnalogOutputCM`**: `SET` drives the channel to a target inside
+  `[ParCfg.Minimum, ParCfg.Maximum]` (both inside the scalable range; the
+  safe value inside the band) and completes in the scan the value is
+  written; the value then stays applied until the next `SET`. Whatever
+  state nobody stands behind drives `SafeValue`: before the first `SET`,
+  while an interlock withholds it, while withdrawn, and after an abort
+  (S5.6 - the channel never silently keeps its last driven value).
+- **Held, not resumed.** During a `SET` an interlock is S6.1 HELD (the
+  output withdrawn by the same permit, a resume re-applies the target). A
+  value applied and THEN withheld drives `SafeValue` and does NOT
+  self-resume when the condition returns (S9.3): only `RestoreOutputs` or
+  a new `SET` re-applies it. `RestoreOutputs` restores what the module
+  itself would drive and only while the interlock permits - the caller
+  asks, this module still decides; a suspended channel is released but a
+  withdrawn-with-nothing-applied one keeps driving `SafeValue`.
+  `WithdrawOutputs` holds until restore or the NEXT `SET`, which releases
+  it in the same act that applies its own target (the cylinder latch
+  semantics, on one value instead of two coils).
+- **The manual set point is deployment data**: `ManualCommand(SET)`
+  applies `StationCfg.ManualTarget` - an ordinary editable value with the
+  band as bounds - so an operator's set point survives a restart and is
+  never a silent recipe member (S3.8a/S3.8b).
+- **Reasons 10801-10802** (`AO_TARGET_OOR`, `AO_CFG_INVALID`),
+  rationalized, catalogued (83 -> 85), registry row added; the generator
+  gains the `AO` expansion. Operator text in English and Spanish; the HMI
+  gains the `analogOutput` module symbol. One rule the L1 runtime lesson
+  set is already baked in here: the only division lives in
+  `_M_ScaleToRaw`, which every caller reaches only under a valid `ParCfg`,
+  and no call sits inside a boolean expression.
+- **Upgrade cost.** Core *patch* 0.26.3.0 (generated reason catalog only);
+  Modules *patch* 0.13.2.0 pins it and adds the type. New type: nothing
+  migrates. TIA: hash-only change, packages regenerated and verified; AB
+  records the gap in its census.
+- **Tests.** `FB_AnalogOutputCM_Tests`, nine rows: T2 (out-of-band target
+  refused before writing), T3 (interlock withholds the channel, resumes),
+  T5 (invalid configuration refused). The first aggregate run failed three
+  rows, all test-authoring defects the runtime caught: the shared instance
+  had already been SET by another row, a band instance whose own
+  `SafeValue` lay outside its band is configuration-invalid rather than
+  target-out-of-range, and a `DONE` command is no longer abortable - the
+  abort row now aborts a HELD `SET`, the one state a one-scan command can
+  be busy in.
+
+Final: Core 0.26.3.0 / Modules 0.13.2.0 installed from an isolated worktree;
+six `CheckAllObjects` clean (0 errors, 0 warnings); both lint profiles, the
+tool tests, strict consistency and every AB/TIA replay and contract gate
+green; HMI analyzer clean, 622 passed / 12 skipped on Flutter 3.44.6. On the
+isolated UmRT: aggregate 294/294 in 53 suites, Press 9/9 in 2 suites. Scope
+and artifacts: `Specification/Evidence/2026-10-30_TC3_GenericCM_AnalogOutput.md`.

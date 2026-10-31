@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AnalogOutputCM_Tests" Id="{39a698b8-e6ad-481e-b599-25748e1e9187}" SpecialFunc="None">
+    <Declaration><![CDATA[// Generic analog-output CM rows. T1/T4 are proven once in FB_Base_Tests; a
+// one-scan command needs no timed rows, so one shared instance serves the
+// rows that start clean, and dedicated instances cover the stateful ones
+// (TcUnit runs a suite's rows side by side).
+FUNCTION_BLOCK FB_AnalogOutputCM_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _cm : FB_AnalogOutputCM;          // shared by the from-clean rows
+    _hal : ST_AnalogOutputHal;
+    _wired : BOOL;
+    _d : ST_Diagnostic;
+    _band, _bad, _hold, _lost, _abrt, _wdr, _man : FB_AnalogOutputCM;
+    _bandHal, _badHal, _holdHal, _lostHal, _abrtHal, _wdrHal, _manHal : ST_AnalogOutputHal;
+    _fresh, _freshHal : FB_AnalogOutputCM;
+    _freshOutHal : ST_AnalogOutputHal;
+    _identity : ST_IoPointIdentity;
+    _badSetup : BOOL;
+    _ok : BOOL;
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#5S;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF NOT _wired THEN
+    _cm.ParCfg.RawMax := 200.0;         // 0..200 raw over 0..100 eng: raw = 2 * eng
+    _cm.Setup(Name := 'Test.AO', HalRef := _hal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _identity.Tag := '_101QB601';
+    _identity.Address := 'EL4xxx Ch1';
+    _cm.ConfigureIoIdentity(Identity := _identity);
+    _band.ParCfg.RawMax := 200.0;
+    _band.ParCfg.Minimum := 10.0;
+    _band.ParCfg.Maximum := 90.0;
+    _band.ParCfg.SafeValue := 10.0;
+    _band.Setup(Name := 'Test.AOBand', HalRef := _bandHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    // SafeValue outside the accepted band: refused (S5.6).
+    _bad.ParCfg.RawMax := 200.0;
+    _bad.ParCfg.Minimum := 10.0;
+    _bad.ParCfg.Maximum := 90.0;
+    _bad.ParCfg.SafeValue := 0.0;
+    _badSetup := _bad.Setup(Name := 'Test.AOBad', HalRef := _badHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _hold.ParCfg.RawMax := 200.0;
+    _hold.Setup(Name := 'Test.AOHold', HalRef := _holdHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _lost.ParCfg.RawMax := 200.0;
+    _lost.Setup(Name := 'Test.AOLost', HalRef := _lostHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _abrt.ParCfg.RawMax := 200.0;
+    _abrt.Setup(Name := 'Test.AOAbrt', HalRef := _abrtHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _wdr.ParCfg.RawMax := 200.0;
+    _wdr.Setup(Name := 'Test.AOWdr', HalRef := _wdrHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _man.ParCfg.RawMax := 200.0;
+    _man.Setup(Name := 'Test.AOMan', HalRef := _manHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _fresh.Setup(Name := 'Test.AOFresh', HalRef := _freshOutHal,
+        DisplayNameKey := 'std.moduleType.analogOutput.name',
+        DescriptionKey := 'std.moduleType.analogOutput.description');
+    _wired := TRUE;
+ELSE
+    ;
+END_IF
+Scales_the_target_to_raw();
+Target_outside_the_band_is_refused_before_writing();
+Invalid_configuration_is_refused();
+Interlock_holds_with_the_safe_value_and_resumes();
+Interlock_lost_after_done_drives_safe_value_without_self_resume();
+Abort_drives_the_safe_value();
+Withdraw_holds_until_restore_or_the_next_set();
+Manual_set_uses_the_station_target();
+Safe_value_before_the_first_set();]]></ST></Implementation>
+    <Method Name="Scales_the_target_to_raw" Id="{c003247a-22ba-4314-9c78-c10c575033c6}">
+      <Declaration><![CDATA[METHOD Scales_the_target_to_raw]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Scales_the_target_to_raw');
+_cm.ParCmd.Target := 50.0;
+_cm.Command := E_AnalogOutputCommand.SET;
+_cm.Execute := TRUE;
+_cm();
+AssertTrue(Condition := _cm.Done, Message := 'a valid SET completes in the scan the value is written');
+AssertEquals_LREAL(Expected := 100.0, Actual := _hal.Raw, Delta := 0.0001,
+    Message := 'the channel is driven through the scaling');
+AssertEquals_LREAL(Expected := 50.0, Actual := _cm.OutCmd.Applied, Delta := 0.0001,
+    Message := 'Done carries the applied target');
+_cm.Execute := FALSE;
+_cm();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Target_outside_the_band_is_refused_before_writing" Id="{081ba1be-2a85-42f8-af58-e11dbf1d9b62}">
+      <Declaration><![CDATA[METHOD Target_outside_the_band_is_refused_before_writing]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Target_outside_the_band_is_refused_before_writing');
+_band();                 // drives SafeValue: raw 20, never applied
+_band.ParCmd.Target := 95.0;
+_band.Command := E_AnalogOutputCommand.SET;
+_band.Execute := TRUE;
+_band();
+AssertTrue(Condition := _band.Error, Message := 'an out-of-band target is refused');
+AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AO_TARGET_OOR),
+    Actual := _band.ErrorID, Message := 'with the type-band reason');
+_d := _band.GetFaultSummary();
+AssertEquals_STRING(Expected := 'Test.AOBand', Actual := _d.SourcePath,
+    Message := 'first-out names the owning module');
+AssertEquals_LREAL(Expected := 20.0, Actual := _bandHal.Raw, Delta := 0.0001,
+    Message := 'the channel still drives SafeValue; nothing was written');
+_band.Execute := FALSE;
+_band();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Invalid_configuration_is_refused" Id="{0aab7dcf-708b-4493-a40a-4243d612ab2b}">
+      <Declaration><![CDATA[METHOD Invalid_configuration_is_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Invalid_configuration_is_refused');
+AssertFalse(Condition := _badSetup, Message := 'a ParCfg the type cannot honour refuses Setup');
+_bad();
+AssertEquals_LREAL(Expected := 0.0, Actual := _badHal.Raw, Delta := 0.0001,
+    Message := 'an invalid configuration fails closed to raw zero');
+_bad.ParCmd.Target := 50.0;
+_bad.Command := E_AnalogOutputCommand.SET;
+_bad.Execute := TRUE;
+_bad();
+AssertTrue(Condition := _bad.Error, Message := 'a SET under an invalid configuration faults');
+AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AO_CFG_INVALID),
+    Actual := _bad.ErrorID, Message := 'with the configuration reason');
+_bad.Execute := FALSE;
+_bad();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Interlock_holds_with_the_safe_value_and_resumes" Id="{ba6a6985-d65f-42eb-8c18-20e79246d98e}">
+      <Declaration><![CDATA[METHOD Interlock_holds_with_the_safe_value_and_resumes]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Interlock_holds_with_the_safe_value_and_resumes');
+_hold.SetAreaSafe(Ok := FALSE, DescriptionKey := 'project.interlock.testAreaUnsafe');
+_hold.ParCmd.Target := 40.0;
+_hold.Command := E_AnalogOutputCommand.SET;
+_hold.Execute := TRUE;
+_hold();
+AssertTrue(Condition := _hold.Busy AND NOT _hold.Error,
+    Message := 'a withheld interlock is HELD, not a fault (S6.1)');
+AssertEquals_LREAL(Expected := 0.0, Actual := _holdHal.Raw, Delta := 0.0001,
+    Message := 'the channel drives SafeValue while held');
+_hold.SetAreaSafe(Ok := TRUE, DescriptionKey := 'project.interlock.testAreaUnsafe');
+_hold();
+AssertTrue(Condition := _hold.Done, Message := 'the hold resumes by itself when the condition returns');
+AssertEquals_LREAL(Expected := 80.0, Actual := _holdHal.Raw, Delta := 0.0001,
+    Message := 'and applies the target');
+_hold.Execute := FALSE;
+_hold();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Interlock_lost_after_done_drives_safe_value_without_self_resume" Id="{8a3f87c8-9aad-42ac-82ad-c33fd1c25277}">
+      <Declaration><![CDATA[METHOD Interlock_lost_after_done_drives_safe_value_without_self_resume]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Interlock_lost_after_done_drives_safe_value_without_self_resume');
+_lost.ParCmd.Target := 30.0;
+_lost.Command := E_AnalogOutputCommand.SET;
+_lost.Execute := TRUE;
+_lost();
+AssertTrue(Condition := _lost.Done, Message := 'applied first, so the loss is observable');
+_lost.Execute := FALSE;
+_lost();
+_lost.SetAreaSafe(Ok := FALSE, DescriptionKey := 'project.interlock.testAreaUnsafe');
+_lost();
+AssertEquals_LREAL(Expected := 0.0, Actual := _lostHal.Raw, Delta := 0.0001,
+    Message := 'a lost interlock drives SafeValue');
+_lost.SetAreaSafe(Ok := TRUE, DescriptionKey := 'project.interlock.testAreaUnsafe');
+_lost();
+AssertEquals_LREAL(Expected := 0.0, Actual := _lostHal.Raw, Delta := 0.0001,
+    Message := 'and does NOT self-resume when the condition returns (S9.3)');
+_lost.RestoreOutputs();
+_lost();
+AssertEquals_LREAL(Expected := 60.0, Actual := _lostHal.Raw, Delta := 0.0001,
+    Message := 'an explicit restore re-applies the held value');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Abort_drives_the_safe_value" Id="{367fdcc7-dc68-4ba3-a2fe-3fb02000da62}">
+      <Declaration><![CDATA[METHOD Abort_drives_the_safe_value]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Abort_drives_the_safe_value');
+// A DONE command is no longer abortable, so the abort is exercised on a SET
+// held by the area interlock - the one state a SET can be busy in.
+_abrt.SetAreaSafe(Ok := FALSE, DescriptionKey := 'project.interlock.testAreaUnsafe');
+_abrt.ParCmd.Target := 25.0;
+_abrt.Command := E_AnalogOutputCommand.SET;
+_abrt.Execute := TRUE;
+_abrt();
+AssertTrue(Condition := _abrt.Busy AND NOT _abrt.Done, Message := 'the SET is held, not done');
+_abrt.Abort := TRUE;
+_abrt();
+AssertTrue(Condition := _abrt.Aborted, Message := 'the abort is acknowledged');
+AssertEquals_LREAL(Expected := 0.0, Actual := _abrtHal.Raw, Delta := 0.0001,
+    Message := 'an aborted channel stands behind nothing and drives SafeValue');
+_abrt.Abort := FALSE;
+_abrt();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Withdraw_holds_until_restore_or_the_next_set" Id="{ad7c1537-1e7d-493f-8e9a-07b91041e2c7}">
+      <Declaration><![CDATA[METHOD Withdraw_holds_until_restore_or_the_next_set]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Withdraw_holds_until_restore_or_the_next_set');
+_wdr.ParCmd.Target := 60.0;
+_wdr.Command := E_AnalogOutputCommand.SET;
+_wdr.Execute := TRUE;
+_wdr();
+AssertTrue(Condition := _wdr.Done, Message := 'applied first');
+_wdr.Execute := FALSE;
+_wdr();
+_wdr.WithdrawOutputs();
+_wdr();
+AssertEquals_LREAL(Expected := 0.0, Actual := _wdrHal.Raw, Delta := 0.0001,
+    Message := 'a withdrawal drives SafeValue');
+AssertTrue(Condition := _wdr.OutImm.Withdrawn, Message := 'the withdrawal is published');
+_wdr.ParCmd.Target := 60.0;
+_wdr.Command := E_AnalogOutputCommand.SET;
+_wdr.Execute := TRUE;
+_wdr();
+AssertTrue(Condition := _wdr.Done, Message := 'the next SET completes while withdrawn');
+AssertEquals_LREAL(Expected := 120.0, Actual := _wdrHal.Raw, Delta := 0.0001,
+    Message := 'and re-applies the channel');
+_wdr.Execute := FALSE;
+_wdr();
+_wdr.WithdrawOutputs();
+_wdr();
+AssertEquals_LREAL(Expected := 0.0, Actual := _wdrHal.Raw, Delta := 0.0001,
+    Message := 'withdrawn again');
+_wdr.RestoreOutputs();
+_wdr();
+AssertEquals_LREAL(Expected := 120.0, Actual := _wdrHal.Raw, Delta := 0.0001,
+    Message := 'RestoreOutputs re-applies the held value');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Manual_set_uses_the_station_target" Id="{cc0a07b6-7a47-4f45-822c-f91102dc974c}">
+      <Declaration><![CDATA[METHOD Manual_set_uses_the_station_target]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Manual_set_uses_the_station_target');
+_ok := _man.M_ApplyConfigWrite(Scope := 'Test.AOMan', WriteKey := 'analogOutput.manualTarget',
+    Revision := 1, TextValue := '70', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'the manual target is written through the station path');
+AssertEquals_LREAL(Expected := 70.0, Actual := _man.StationCfg.ManualTarget, Delta := 0.0001,
+    Message := 'and stored');
+_ok := _man.ManualCommand(Value := TO_DINT(E_AnalogOutputCommand.SET));
+AssertTrue(Condition := _ok, Message := 'the manual SET is accepted');
+_man();
+AssertTrue(Condition := _man.Done, Message := 'the manual SET completes');
+AssertEquals_LREAL(Expected := 140.0, Actual := _manHal.Raw, Delta := 0.0001,
+    Message := 'with the station target, not ParCmd');
+AssertEquals_LREAL(Expected := 70.0, Actual := _man.OutCmd.Applied, Delta := 0.0001,
+    Message := 'which Done reports');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Safe_value_before_the_first_set" Id="{e0c12df3-5193-412b-bb94-85b72c67f945}">
+      <Declaration><![CDATA[METHOD Safe_value_before_the_first_set]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Safe_value_before_the_first_set');
+AssertEquals_LREAL(Expected := 0.0, Actual := _freshOutHal.Raw, Delta := 0.0001,
+    Message := 'before any SET the channel drives SafeValue (raw 0)');
+_fresh();
+AssertFalse(Condition := _fresh.OutImm.Withdrawn, Message := 'and is not withdrawn - nothing was taken');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -25,8 +25,9 @@ void main() {
     // CONFIG_SET_REJECTED, EVENT_CONFIG_SET_APPLIED, minus the retired
     // AXIS_TEACH_LOST, which the framework band now owns (§8.8). 78 adds
     // NOK_LIMIT_REACHED (§3.16.5). 83 adds the analog input CM block
-    // 10701-10705 (AI_UNDER_RANGE..AI_NOT_STABLE).
-    expect(generatedReasonSymbolByCode, hasLength(83));
+    // 10701-10705 (AI_UNDER_RANGE..AI_NOT_STABLE). 85 adds the analog output
+    // CM block 10801-10802 (AO_TARGET_OOR, AO_CFG_INVALID).
+    expect(generatedReasonSymbolByCode, hasLength(85));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

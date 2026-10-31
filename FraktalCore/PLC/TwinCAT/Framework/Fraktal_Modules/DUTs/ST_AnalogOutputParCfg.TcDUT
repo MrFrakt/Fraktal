@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AnalogOutputParCfg" Id="{75b3bde3-746a-4bba-92e9-792fe9747845}">
+    <Declaration><![CDATA[// Core S3.8 - one-time configuration of one analog output. Scaling is linear
+// over [RawMin, RawMax] <- [EngMin, EngMax] (both ranges may be inverted);
+// [Minimum, Maximum] is the band a SET target is accepted in, and SafeValue
+// is what the channel drives whenever nothing is applied: before the first
+// SET, while held, withdrawn, suspended or aborted (S5.6 - a channel whose
+// state nobody stands behind drives the safe value, never the last one).
+TYPE ST_AnalogOutputParCfg :
+STRUCT
+    SchemaVersion : UINT := 1;
+    RawMin        : LREAL := 0.0;
+    RawMax        : LREAL := 32767.0;
+    EngMin        : LREAL := 0.0;
+    EngMax        : LREAL := 100.0;
+    UnitCode      : E_EngUnit := E_EngUnit.NONE;
+    Minimum       : LREAL := 0.0;
+    Maximum       : LREAL := 100.0;
+    SafeValue     : LREAL := 0.0;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

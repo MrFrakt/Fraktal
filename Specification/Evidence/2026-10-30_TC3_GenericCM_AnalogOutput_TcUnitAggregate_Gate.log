@@ -1,0 +1,21 @@
+Gate FraktalTests -> 192.168.1.6.1.1 (expect PRG_TcUnitRunner, 294 tests / 53 suites)
+  target NetId: 192.168.1.6.1.1
+  PLC project: Fraktal_Tests (autostart disabled)
+  compiles clean
+  activating configuration
+  restarting TwinCAT into Run
+  ADS port 851 before start: Invalid
+  ADS Run: loads and starts the boot application activation just wrote
+  PLC is RUNNING 'Fraktal_Tests' (verified over ADS)
+  ADS: resolved TcUnit globals as 'GVL_TcUnit.TcUnitRunner'
+  ADS: 294 tests / 53 suites, 294 successful, 0 failed
+  ADS: wrote C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\FraktalTests-2026-10-30_192306.raw.log
+  raw log: C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\FraktalTests-2026-10-30_192306.raw.log
+  restored the .tsproj that activation rewrote
+
+Validate with:
+  python tools\tcunit_to_junit.py "C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\FraktalTests-2026-10-30_192306.raw.log" "C:\Projects\Fraktal\artifacts\l2\checkout\artifacts\tcunit\FraktalTests-2026-10-30_192306.junit.xml" `
+    --gate-name FraktalTests --expected-tests 294 `
+    --expected-suites 53 --expected-runner PRG_TcUnitRunner
+
+The target is left in Run mode with the application stopped. Returning it to Config is yours to do.
