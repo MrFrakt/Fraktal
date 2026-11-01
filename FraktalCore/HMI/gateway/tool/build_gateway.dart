@@ -135,7 +135,7 @@ Future<void> main(List<String> arguments) async {
       stdout.writeln('Bundled fraktal_ads.dll (ADS PLC transport available).');
     } else {
       stdout.writeln('fraktal_ads.dll not built (TwinCAT ADS SDK absent); '
-          'the gateway will support opc.tcp:// endpoints only.');
+          'ADS endpoints are unavailable; opc.tcp://, s7web:// and cip:// remain available.');
     }
     await _run(Platform.resolvedExecutable, [
       'run',
@@ -153,7 +153,8 @@ Future<void> main(List<String> arguments) async {
     // The multi-PLC form: one templated unit instance per controller.
     await File('${project.path}/deploy/linux/fraktal-gateway@.service')
         .copy('${output.path}/fraktal-gateway@.service');
-    await File('${project.path}/deploy/linux/fraktal-gateway-instance.env.example')
+    await File(
+            '${project.path}/deploy/linux/fraktal-gateway-instance.env.example')
         .copy('${output.path}/fraktal-gateway-instance.env.example');
   }
   stdout.writeln('Gateway package: ${output.path}');

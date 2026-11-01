@@ -8,6 +8,14 @@ clauses before editing. One committed declaration is the source; the L5X is
 output, never hand-edited. This guide replaces superseded build-by-build advice;
 historical evidence remains unchanged.
 
+**Canonical migration status, 2026-10-31:** S4b desktop and S5 packaged Dart
+gateway/Web qualification pass on local Echo. Discovery is declaration-free;
+direct unsecured desktop CIP is read-only, and gateway writes require the
+station's explicit write posture. See the [S5 record](../AllenBradley/Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md)
+and section 4.4. Legacy retirement, host services and V2 activation remain S6;
+physical/CIP Security acceptance remains deferred S7. Dated deployment details
+below retain their legacy-image scope until that migration.
+
 **The port is not complete apart from power.** Main press operation and Phase
 0-6 features are verified on the named press68 deployment. Signal tower remains
 absent; optional local Part traceability, host events and nameplates have
@@ -188,14 +196,20 @@ gateway restores later downloads from its documents (Part III AB §3.8b).
 
 ### 4.4 Import, download, gateway
 
-The owner imports, runs Verify Controller, completes the download, then restarts
-the existing gateway with the same declaration and approved security settings:
+The owner imports, runs Verify Controller and completes the download. For a
+canonical image, start the packaged Dart gateway with the approved per-instance
+write posture and exact controller serial; it discovers the PLC publication
+without loading a station declaration:
 
 ```powershell
-python -B fraktal_ab_gateway.py <ip> --expect-serial <serial> --port <port>
+fraktal_gateway.exe --plc-endpoint "cip://<ip>?slot=0&serial=<serial>" --port <port> --instance-name <station>
 ```
 
-Preserve write-root/origin/authentication; never echo tokens. Do not bypass
+The example is read-only. Add `--write-root <published-root>` only after the
+owner explicitly chooses a write-enabled deployment, preserving authenticated
+proxy/origin policy. Legacy images require their historical matching tooling
+until migrated; this command needs canonical Symbol/Template/manifest exposure.
+Do not bypass
 hash/capacity mismatch. A gateway needed before download must run from a
 worktree at the loaded build's commit. A canceled download proves no new state.
 

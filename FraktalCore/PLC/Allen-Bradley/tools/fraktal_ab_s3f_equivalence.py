@@ -70,6 +70,7 @@ def reference_config(app,additional,*,page=0,model=0,provider_state=None):
         prefix=f'HmiResponse/ConfigPage/Entries[{i}]/'
         row={p[len(prefix):]:value for p,value in full.items() if p.startswith(prefix)}
         if set(row)!=set(ENTRY_FIELDS):raise ValueError('reference configuration entry incomplete')
+        if app.canonical_publication_stage>=13:row['WriteRevision']=q['Revision']
         # The two enumerated Core LREAL fields alone change Python value kind.
         for name in ('Minimum','Maximum'):
             if type(row[name]) is not int:raise ValueError('legacy configuration bounds must be exact DINT integers')

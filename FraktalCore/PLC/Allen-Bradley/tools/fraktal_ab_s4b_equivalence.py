@@ -34,6 +34,7 @@ def reference(app,additional):
         for i in range(1,page['HmiResponse/ConfigPage/EntryCount']+1):
             prefix=f'HmiResponse/ConfigPage/Entries[{i}]/'
             row={p[len(prefix):]:v for p,v in page.items() if p.startswith(prefix)}
+            if app.canonical_publication_stage>=13:row['WriteRevision']=revision
             for n in ('Minimum','Maximum'):row[n]=float(row[n])
             result.append(row)
         return result

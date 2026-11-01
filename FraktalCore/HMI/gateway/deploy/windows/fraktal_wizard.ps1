@@ -502,7 +502,7 @@ function Show-InstanceDialog(
   $endpointLabel.Text = if ($LockEndpoint) {
     'PLC endpoint (shared with the HMI / local endpoint):'
   } else {
-    'PLC endpoint (ads://<AmsNetId>:851 or opc.tcp://<host>:4840):'
+    'PLC endpoint (ads://, opc.tcp://, s7web:// or cip://<host>?slot=0&serial=<serial>):'
   }
   $endpointLabel.Location = New-Object System.Drawing.Point(16, 72)
   $endpointLabel.Size = New-Object System.Drawing.Size(470, 20)
@@ -572,7 +572,7 @@ function Show-InstanceDialog(
     }
     if (-not (Test-FraktalEndpoint $endpointBox.Text)) {
       [System.Windows.Forms.MessageBox]::Show($dialog,
-        'Enter a valid PLC endpoint, e.g. ads://192.168.1.6.1.1:851 (six dot-separated parts) or opc.tcp://192.168.1.6:4840.',
+        'Enter a valid PLC endpoint, e.g. cip://192.168.1.6?slot=0&serial=601FC87B, ads://192.168.1.6.1.1:851, s7web://192.168.1.6 or opc.tcp://192.168.1.6:4840.',
         'Invalid PLC endpoint', 0, 48)
       return
     }

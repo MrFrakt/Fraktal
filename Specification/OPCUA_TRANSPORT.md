@@ -22,6 +22,7 @@ transport is specified in `ADS_TRANSPORT_MIGRATION.md`; the summary is below.
 | Linux / Android | Fraktal WebSocket gateway | native `ws`/`wss` client; direct C ABI remains source-compatible where packaged |
 | Web | Fraktal WebSocket gateway | browser WebSocket client; the gateway owns the OPC UA session |
 | Gateway → Siemens S7 (Fraktal/TIA) | **S7 Web API** (`s7web://`) | `WebApiSessionClient` over one pinned HTTPS connection; licence-free (Part IV §11.1a) |
+| Gateway → Allen-Bradley | **CIP** (`cip://host?slot=0&serial=...`) | `CipSessionClient`; serial-pinned canonical discovery, separate typed command connection only with explicit write roots |
 
 Browsers shall never attempt raw OPC UA TCP. Every transport delivers the same
 flat `fraktal.opcua.snapshot.v1` document to `OpcUaSnapshotMapper`, so discovery
@@ -358,6 +359,7 @@ The Web client sends:
 {"protocol":"fraktal.opcua.gateway.v1","id":4,"method":"discoverPaths","params":{}}
 {"protocol":"fraktal.opcua.gateway.v1","id":5,"method":"setReadTiers","params":{"revision":7,"slow":[41,42],"excluded":[90,91],"refreshSlow":false}}
 {"protocol":"fraktal.opcua.gateway.v1","id":6,"method":"readValues","params":{"revision":7,"indices":[90,91]}}
+{"protocol":"fraktal.opcua.gateway.v1","id":7,"method":"readConfigurationPage","params":{"root":"Press","model":0}}
 ```
 
 The gateway replies:
@@ -368,6 +370,27 @@ The gateway replies:
 {"id":4,"ok":true,"result":{"revision":7,"nodeCount":1234,"paths":["PLC1/MAIN/Unit/Status/State"]}}
 ```
 
+`readConfigurationPage` is an additive optional method. `root` identifies a
+discovered readable Unit and `model` is its non-negative model ordinal (zero
+selects the station/current page). The result is the provider's configuration
+page map, or `null` when unavailable. The gateway applies its read-root scope
+before the provider call. An older gateway answers `Unsupported gateway
+method.`; clients then report configuration unavailable. They shall never
+fall back to a mailbox query. On CIP, `QUERY_CONFIG` has no viewer write
+exception: all configuration browsing uses this read-only service.
+Configuration-page calls have a separate serial service queue. A call waits
+for earlier controls on its connection, but its multi-read acquisition does
+not block later cyclic requests or controls on that socket. Writes retain
+their connection order and global mailbox serializer. Reply IDs permit the
+independent read-service reply to arrive later.
+
+Gateway snapshots relay the active transport's optional
+`configurationContainersUseHeartbeat` policy as a Boolean. Web and native
+gateway clients apply it after a successful snapshot; an absent field means
+false. This preserves the approved CIP configuration heartbeat across the
+gateway hop. It does not change station freshness, source ages, row proofs,
+write policy or any declared Good/expiry budget.
+
 The gateway shall enforce origin/TLS/authentication policy, preserve browse
 paths and values exactly, serialize writes in request order, and never replay a
 write after reconnecting.
@@ -375,6 +398,23 @@ write after reconnecting.
 The gateway relays `dataValues` without normalizing status codes, types, or
 timestamps. Native and Web HMIs therefore make the same quality decision from
 the same server result.
+
+When the upstream snapshot declares `responseProcessingMs`, the gateway adds
+its monotonic request-queue and tier-wait time **before** calling the upstream
+snapshot operation. This is server work before acquisition, not transit after
+the source sample. The gateway preserves source/leaf ages and the upstream
+document. It does not subtract the upstream call's whole round trip: delivery,
+projection and serialization after the native age boundary remain conservative
+transit allowance.
+
+Concurrent cyclic requests may share an acquisition already in progress for
+the same installed read profile. A profile change prevents that sharing; a
+completed acquisition or failure is never retained as a response cache. Each
+caller receives its own processing overlap: from its request receipt to the
+conservative native age boundary (native call start plus declared native
+processing), or zero if it joined later. A caller shall not inherit processing
+time from before its request. Source/leaf ages and all quality limits remain
+unchanged; a shared failure reaches every waiter without an automatic retry.
 
 `discoverPaths` returns the complete stable path vector plus a revision.
 `setReadTiers` uses indices into that vector instead of repeating long browse
@@ -386,11 +426,19 @@ profile accepts at most 20,000 indices and the whole request remains bounded to
 after tier setup, cyclic snapshots carry an empty `paths` list so static browse
 strings are not retransmitted. A rediscovery increments the revision and clears
 every connection's profile before new tiers can be installed.
+Web and native gateway clients publish both tier sets in one `setReadTiers`
+request. The server uses the native client's atomic tier operation when
+available; cyclic snapshots wait for the complete profile installation.
 
 One gateway owns one native PLC session, so connection-local tier mutations
-cannot be applied independently at that layer. The server therefore applies the
-intersection of every connected browser's slow and excluded sets: a path is
-slowed or omitted only when all clients agree. A new or not-yet-configured
+cannot be applied independently at that layer. The server uses the most
+demanding connected browser's tier for each path: any fast reader requires
+fast; otherwise any slow reader requires slow; otherwise all clients exclude
+the path. An excluding client adds no refresh demand and therefore cannot
+promote another client's slow path to fast. Equivalently, excluded paths are
+the intersection of excluded sets, and slow paths are the intersection of
+each client's combined slow/excluded set, minus the shared excluded paths.
+A new or not-yet-configured
 browser temporarily requests the full live surface. This costs bandwidth during
 bootstrap but cannot make an existing operator view stale or incomplete.
 
@@ -525,6 +573,10 @@ overlay; facets and views remain transport-agnostic (the
 mailbox works identically over the gateway). A server that publishes no
 `ConfigRev` (older PLC library) is treated as fully published and never
 queried. Absent manifest data degrades to empty facets, never an error.
+The signature uses authoritative revisions at discovered module bases:
+`Status/ConfigRev`, with a direct `ConfigRev` member as the older-binding
+fallback. Nested Unit revisions remain included. A revision inside a saved
+set or another data record does not invalidate the module's whole manifest.
 
 ## Native read tiers (direct ADS / OPC UA)
 

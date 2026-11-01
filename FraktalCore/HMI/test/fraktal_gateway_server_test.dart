@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -24,6 +25,125 @@ void main() {
         'ws://127.0.0.1:${server!.port}/fraktal',
         headers: {'origin': origin},
       );
+
+  test('old gateway configuration method is unavailable with no fallback',
+      () async {
+    final old = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final methods = <String>[];
+    old.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      socket.listen((message) {
+        final input = jsonDecode(message as String) as Map;
+        methods.add(input['method'] as String);
+        socket.add(jsonEncode({
+          'id': input['id'],
+          'ok': false,
+          'error': 'Unsupported gateway method.'
+        }));
+      });
+    });
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${old.port}/fraktal'));
+    try {
+      expect(await gateway.readConfigurationPage('Press', 0), isNull);
+      expect(methods, ['readConfigurationPage']);
+    } finally {
+      await gateway.close();
+      await old.close(force: true);
+    }
+  });
+  test('gateway relays the active transport configuration heartbeat policy',
+      () async {
+    final configuration = _ConfigurationOpcUaClient();
+    client = configuration;
+    client.document = {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'values': {'Press/HmiResponse/AckSequence': 0}
+    };
+    server =
+        FraktalGatewayServer(client, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    expect(gateway.configurationContainersUseHeartbeat, isFalse);
+    final snapshot = await gateway.snapshot();
+    expect(snapshot['configurationContainersUseHeartbeat'], isTrue);
+    expect(gateway.configurationContainersUseHeartbeat, isTrue);
+  });
+
+  test('read-only configuration RPC preserves the page without mailbox writes',
+      () async {
+    final configuration = _ConfigurationOpcUaClient();
+    client = configuration;
+    server = FraktalGatewayServer(client,
+        config: FraktalGatewayConfig(
+            port: 0,
+            readRoots: {'Press'},
+            allowMailboxConfigurationQueries: false));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    expect(await gateway.readConfigurationPage('Press', 2), configuration.page);
+    expect(configuration.pageCalls, 1);
+    expect(configuration.writes, isEmpty);
+    expect(configuration.batchCalls, 0);
+  });
+  test(
+      'configuration RPC scope and discovered Unit checks precede provider reads',
+      () async {
+    final configuration = _ConfigurationOpcUaClient();
+    client = configuration;
+    server = FraktalGatewayServer(client,
+        config: FraktalGatewayConfig(port: 0, readRoots: {'Press'}));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    for (final root in ['Other', 'Press/Child']) {
+      await expectLater(gateway.readConfigurationPage(root, 0),
+          throwsA(isA<OpcUaRemoteException>()));
+    }
+    for (final model in [-1, 0x80000000]) {
+      await expectLater(gateway.readConfigurationPage('Press', model),
+          throwsA(isA<OpcUaRemoteException>()));
+    }
+    expect(configuration.pageCalls, 0);
+    expect(configuration.writes, isEmpty);
+  });
+  test(
+      'unsupported configuration provider returns unavailable without querying mailbox',
+      () async {
+    server =
+        FraktalGatewayServer(client, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    expect(await gateway.readConfigurationPage('Press', 0), isNull);
+    expect(client.writes, isEmpty);
+  });
+  test('CIP viewer policy forbids the legacy QUERY_CONFIG write exception',
+      () async {
+    client.document = {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'values': {
+        'PLC1/MAIN/Unit/HmiResponse/AckSequence': 0,
+        'PLC1/MAIN/Unit/HmiResponse/ConfigPage/TotalEntries': 0,
+      }
+    };
+    server = FraktalGatewayServer(client,
+        config: FraktalGatewayConfig(
+            port: 0, allowMailboxConfigurationQueries: false));
+    await server!.start();
+    final socket = await connect();
+    socket.add(_queryRequest(1, 1));
+    final reply = jsonDecode(await socket.first as String) as Map;
+    expect(reply['ok'], isFalse);
+    expect(client.writes, isEmpty);
+    await socket.close();
+  });
 
   test('path discovery does not acquire unrequested station values', () async {
     client = _DiscoveryOpcUaClient()
@@ -496,6 +616,265 @@ void main() {
     await gatewayClient.close();
   });
 
+  test('a pending configuration page does not block cyclic snapshots',
+      () async {
+    final configuration = _BlockedConfigurationClient()
+      ..document = {
+        'protocol': 'fraktal.opcua.snapshot.v1',
+        'values': {'Press/HmiResponse/AckSequence': 0},
+      };
+    server = FraktalGatewayServer(configuration,
+        config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    final page = gateway.readConfigurationPage('Press', 0);
+    await configuration.entered.future;
+    var snapshotCompleted = false;
+    final snapshot = gateway.snapshot().then((value) {
+      snapshotCompleted = true;
+      return value;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    final completedWhilePagePending = snapshotCompleted;
+    configuration.release.complete();
+    await page;
+    expect((await snapshot)['values'], {'Press/HmiResponse/AckSequence': 0});
+    expect(completedWhilePagePending, isTrue);
+  });
+
+  test(
+      'configuration reads wait for prior controls without holding later writes',
+      () async {
+    final configuration = _BlockedConfigurationClient()
+      ..document = {
+        'protocol': 'fraktal.opcua.snapshot.v1',
+        'values': {'Press/HmiResponse/AckSequence': 0},
+      };
+    server = FraktalGatewayServer(configuration,
+        config: FraktalGatewayConfig(port: 0, writeRoots: {'Press'}));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    List<OpcUaWrite> command(int sequence) => [
+          const OpcUaWrite('Press/HmiRequest/Kind', OpcUaWriteType.int32, 4),
+          OpcUaWrite(
+              'Press/HmiRequest/Sequence', OpcUaWriteType.uint32, sequence),
+        ];
+    final first = gateway.writeBatch(command(1));
+    final page = gateway.readConfigurationPage('Press', 0);
+    await configuration.entered.future;
+    expect(await first, isTrue);
+    expect(
+        configuration.writes
+            .where((row) => row.path.endsWith('/Sequence'))
+            .map((row) => row.value),
+        [1]);
+    var secondCompleted = false;
+    final second = gateway.writeBatch(command(2)).then((value) {
+      secondCompleted = true;
+      return value;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    final completedWhilePagePending = secondCompleted;
+    configuration.release.complete();
+    await page;
+    expect(await second, isTrue);
+    expect(completedWhilePagePending, isTrue);
+    expect(
+        configuration.writes
+            .where((row) => row.path.endsWith('/Sequence'))
+            .map((row) => row.value),
+        [1, 2]);
+  });
+
+  test('gateway profiles install both tiers in one native operation', () async {
+    const live = 'PLC1/MAIN/Unit/Status/State';
+    const slow = 'PLC1/MAIN/Unit/Safety/State';
+    const excluded = 'PLC1/MAIN/Unit/AlarmLog/State';
+    final atomic = _AtomicTierClient()
+      ..document = {
+        'protocol': 'fraktal.opcua.snapshot.v1',
+        'paths': [live, slow, excluded],
+        'values': {live: 1, slow: 2, excluded: 3},
+      };
+    server =
+        FraktalGatewayServer(atomic, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    await gateway.snapshot();
+    atomic.profileCalls = 0;
+    expect(gateway, isA<OpcUaReadTierBatchClient>());
+    final batch = gateway as OpcUaReadTierBatchClient;
+    expect(batch.readTiersAreAtomic, isTrue);
+    await batch.setReadTiers([slow], [excluded]);
+    expect(atomic.profileCalls, 1);
+    expect(atomic.slowPaths, {slow});
+    expect(atomic.excludedPaths, {excluded});
+    await expectLater(
+        batch.setReadTiers([slow], [slow]), throwsA(isA<FormatException>()));
+    expect(atomic.profileCalls, 1);
+    expect(atomic.excludedPaths, {excluded});
+  });
+
+  test('gateway timing includes queued work before native acquisition',
+      () async {
+    const path = 'PLC1/MAIN/Unit/Status/State';
+    final delayed = _DelayedReadClient()
+      ..document = {
+        'protocol': 'fraktal.opcua.snapshot.v1',
+        'paths': [path],
+        'values': {path: 1},
+        'sampleAgeMs': 5,
+        'responseProcessingMs': 7,
+      };
+    server =
+        FraktalGatewayServer(delayed, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    await gateway.discoverPaths();
+    final read = gateway.readValues([path]);
+    await delayed.readStarted.future;
+    final snapshot = gateway.snapshot();
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    delayed.readRelease.complete();
+    await read;
+    final document = await snapshot;
+    expect(document['responseProcessingMs'], greaterThanOrEqualTo(47));
+    expect(document['sampleAgeMs'], 5,
+        reason: 'server queue accounting never renews a source timestamp');
+    expect((document['values'] as Map)[path], 1);
+  });
+
+  test('gateway timing preserves transit after the native sample was acquired',
+      () async {
+    const path = 'PLC1/MAIN/Unit/Status/State';
+    final delayed = _DelayedSnapshotClient()
+      ..document = {
+        'protocol': 'fraktal.opcua.snapshot.v1',
+        'paths': [path],
+        'values': {path: 1},
+        'sampleAgeMs': 5,
+        'responseProcessingMs': 7,
+      };
+    server =
+        FraktalGatewayServer(delayed, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final gateway = await IoGatewayOpcUaClient.connect(
+        Uri.parse('ws://127.0.0.1:${server!.port}/fraktal'));
+    addTearDown(gateway.close);
+    await gateway.discoverPaths();
+    delayed.delayNext = true;
+    final clock = Stopwatch()..start();
+    final snapshot = gateway.snapshot();
+    await delayed.sampleAcquired.future;
+    final beforeReadMs = clock.elapsedMicroseconds / 1000;
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    delayed.deliverSample.complete();
+    final document = await snapshot;
+    expect(document['responseProcessingMs'],
+        lessThanOrEqualTo(7 + beforeReadMs + 2));
+    expect(document['sampleAgeMs'], 5);
+    expect(delayed.document['responseProcessingMs'], 7,
+        reason: 'a gateway must not mutate its upstream snapshot');
+  });
+
+  for (final changeProfile in [false, true]) {
+    test(
+        'concurrent snapshots share only the same installed profile: $changeProfile',
+        () async {
+      const path = 'PLC1/MAIN/Unit/Status/State';
+      final delayed = _DelayedSnapshotClient()
+        ..document = {
+          'protocol': 'fraktal.opcua.snapshot.v1',
+          'paths': [path],
+          'values': {path: 1},
+          'sampleAgeMs': 5,
+          'responseProcessingMs': 7,
+        };
+      server =
+          FraktalGatewayServer(delayed, config: FraktalGatewayConfig(port: 0));
+      await server!.start();
+      final endpoint = Uri.parse('ws://127.0.0.1:${server!.port}/fraktal');
+      final first = await IoGatewayOpcUaClient.connect(endpoint);
+      final second = await IoGatewayOpcUaClient.connect(endpoint);
+      addTearDown(first.close);
+      addTearDown(second.close);
+      await first.discoverPaths();
+      await second.discoverPaths();
+      final before = delayed.snapshotCalls;
+      delayed.delayNext = true;
+      final firstSample = first.snapshot();
+      await delayed.sampleAcquired.future;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      if (changeProfile) await second.setReadTiers([], []);
+      final secondSample = second.snapshot();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      delayed.deliverSample.complete();
+      final samples = await Future.wait([firstSample, secondSample]);
+      expect(delayed.snapshotCalls - before, changeProfile ? 2 : 1);
+      for (final sample in samples) {
+        expect(sample['sampleAgeMs'], 5);
+        expect((sample['values'] as Map)[path], 1);
+      }
+      if (!changeProfile) {
+        expect(samples[0]['responseProcessingMs'], greaterThanOrEqualTo(7));
+        expect(samples[1]['responseProcessingMs'], 0,
+            reason: 'a caller joining after the source boundary gets no '
+                'processing allowance from before its own request');
+      }
+    });
+  }
+
+  test(
+      'a shared snapshot failure reaches both callers without an automatic retry',
+      () async {
+    const path = 'PLC1/MAIN/Unit/Status/State';
+    final delayed = _DelayedSnapshotClient()
+      ..document = {
+        'protocol': 'fraktal.opcua.snapshot.v1',
+        'paths': [path],
+        'values': {path: 1},
+        'sampleAgeMs': 5,
+        'responseProcessingMs': 7,
+      };
+    server =
+        FraktalGatewayServer(delayed, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final endpoint = Uri.parse('ws://127.0.0.1:${server!.port}/fraktal');
+    final first = await IoGatewayOpcUaClient.connect(endpoint);
+    final second = await IoGatewayOpcUaClient.connect(endpoint);
+    addTearDown(first.close);
+    addTearDown(second.close);
+    await first.discoverPaths();
+    await second.discoverPaths();
+    final before = delayed.snapshotCalls;
+    delayed
+      ..delayNext = true
+      ..deliveryError = StateError('offline injected read failure');
+    final firstResult =
+        expectLater(first.snapshot(), throwsA(isA<OpcUaRemoteException>()));
+    await delayed.sampleAcquired.future;
+    final secondResult =
+        expectLater(second.snapshot(), throwsA(isA<OpcUaRemoteException>()));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    delayed.deliverSample.complete();
+    await Future.wait([firstResult, secondResult]);
+    expect(delayed.snapshotCalls - before, 1);
+    delayed
+      ..delayNext = false
+      ..deliveryError = null;
+    expect(((await first.snapshot())['values'] as Map)[path], 1);
+    expect(delayed.snapshotCalls - before, 2,
+        reason: 'only a new explicit request starts the next acquisition');
+  });
+
   test('shared PLC tiers use the intersection requested by every browser',
       () async {
     const live = 'PLC1/MAIN/Unit/Status/State';
@@ -537,6 +916,64 @@ void main() {
 
     await first.close();
     await second.close();
+  });
+
+  test('shared tiers preserve slow reads when the other browser excludes them',
+      () async {
+    const prefix = 'PLC1/MAIN/Unit/Status/';
+    final names = [
+      for (final first in ['fast', 'slow', 'excluded'])
+        for (final second in ['fast', 'slow', 'excluded']) '${first}_$second',
+    ];
+    client.document = {
+      'protocol': 'fraktal.opcua.snapshot.v1',
+      'paths': [for (final name in names) '$prefix$name'],
+      'values': {for (final name in names) '$prefix$name': 1},
+    };
+    server =
+        FraktalGatewayServer(client, config: FraktalGatewayConfig(port: 0));
+    await server!.start();
+    final endpoint = Uri.parse('ws://127.0.0.1:${server!.port}/fraktal');
+    final first = await IoGatewayOpcUaClient.connect(endpoint);
+    final second = await IoGatewayOpcUaClient.connect(endpoint);
+    addTearDown(first.close);
+    addTearDown(second.close);
+    await first.snapshot();
+    await second.snapshot();
+    await first.setSlowPaths([
+      for (final name in names)
+        if (name.startsWith('slow_')) '$prefix$name',
+    ]);
+    await first.setExcludedPaths([
+      for (final name in names)
+        if (name.startsWith('excluded_')) '$prefix$name',
+    ]);
+    await second.setSlowPaths([
+      for (final name in names)
+        if (name.endsWith('_slow')) '$prefix$name',
+    ]);
+    await second.setExcludedPaths([
+      for (final name in names)
+        if (name.endsWith('_excluded')) '$prefix$name',
+    ]);
+    expect(client.slowPaths, {
+      '${prefix}slow_slow',
+      '${prefix}slow_excluded',
+      '${prefix}excluded_slow',
+    });
+    expect(client.excludedPaths, {'${prefix}excluded_excluded'});
+    final firstValues = (await first.snapshot())['values'] as Map;
+    final secondValues = (await second.snapshot())['values'] as Map;
+    expect(secondValues.keys, contains('${prefix}excluded_slow'));
+    expect(firstValues.keys, contains('${prefix}slow_excluded'));
+    await first.close();
+    await second.snapshot(); // waits for the disconnect's aggregate update
+    expect(client.slowPaths, {
+      '${prefix}fast_slow',
+      '${prefix}slow_slow',
+      '${prefix}excluded_slow',
+    });
+    expect(client.writes, isEmpty);
   });
 
   test('large forest traffic follows the surface consumed by every browser',
@@ -1031,10 +1468,89 @@ String _batchRequest(int id, int sequence, int kind) => jsonEncode({
       },
     });
 
+class _BlockedConfigurationClient extends _ConfigurationOpcUaClient {
+  final entered = Completer<void>();
+  final release = Completer<void>();
+  @override
+  Future<Map<String, Object?>?> readConfigurationPage(
+      String root, int modelOrdinal) async {
+    entered.complete();
+    await release.future;
+    return super.readConfigurationPage(root, modelOrdinal);
+  }
+}
+
+class _ConfigurationOpcUaClient extends _FakeOpcUaClient
+    implements
+        OpcUaReadOnlyConfigurationClient,
+        OpcUaPathDiscoveryClient,
+        OpcUaConfigurationReadPolicyClient {
+  @override
+  bool get configurationContainersUseHeartbeat => true;
+  int pageCalls = 0;
+  final page = <String, Object?>{
+    'root': 'Press',
+    'model': 2,
+    'entries': <Object?>[]
+  };
+  @override
+  Future<List<String>> discoverPaths() async =>
+      ['Press/HmiResponse/AckSequence'];
+  @override
+  Future<Map<String, Object?>?> readConfigurationPage(
+      String root, int modelOrdinal) async {
+    pageCalls++;
+    return page;
+  }
+}
+
 class _DiscoveryOpcUaClient extends _FakeOpcUaClient
     implements OpcUaPathDiscoveryClient {
   @override
   Future<List<String>> discoverPaths() async => ['PLC1/MAIN/Unit/Status/Name'];
+}
+
+class _AtomicTierClient extends _FakeOpcUaClient
+    implements OpcUaReadTierBatchClient {
+  int profileCalls = 0;
+  @override
+  bool get readTiersAreAtomic => true;
+  @override
+  Future<void> setReadTiers(
+      Iterable<String> slow, Iterable<String> excluded) async {
+    profileCalls++;
+    slowPaths = Set.unmodifiable(slow);
+    excludedPaths = Set.unmodifiable(excluded);
+  }
+}
+
+class _DelayedReadClient extends _FakeOpcUaClient {
+  final readStarted = Completer<void>();
+  final readRelease = Completer<void>();
+  @override
+  Future<Map<String, Object?>> readValues(List<String> paths) async {
+    if (!readStarted.isCompleted) readStarted.complete();
+    await readRelease.future;
+    return super.readValues(paths);
+  }
+}
+
+class _DelayedSnapshotClient extends _FakeOpcUaClient {
+  bool delayNext = false;
+  Object? deliveryError;
+  final sampleAcquired = Completer<void>();
+  final deliverSample = Completer<void>();
+  @override
+  Future<Map<String, Object?>> snapshot() async {
+    final sample = await super.snapshot();
+    if (delayNext) {
+      if (!sampleAcquired.isCompleted) sampleAcquired.complete();
+      await deliverSample.future;
+    }
+    final error = deliveryError;
+    if (error != null) throw error;
+    return sample;
+  }
 }
 
 class _FakeOpcUaClient

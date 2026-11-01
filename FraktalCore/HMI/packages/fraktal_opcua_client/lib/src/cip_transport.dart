@@ -15,6 +15,48 @@ abstract interface class CipReadTransport {
   void abort();
 }
 
+/// Separate capability for the gateway's typed mailbox connection. Read-only
+/// sockets never expose this capability or admit Write Tag through request().
+abstract interface class CipCommandTransport {
+  int get connectionBytes;
+  Future<CipReply> writeTag(String symbol, Uint8List data);
+  Future<void> close();
+  void abort();
+}
+
+final class CipCommandSocketTransport implements CipCommandTransport {
+  final CipSocketTransport _wire;
+  CipCommandSocketTransport._(this._wire);
+
+  static Future<CipCommandSocketTransport> connect({
+    required String host,
+    int port = 44818,
+    int slot = 0,
+    required String expectSerial,
+    required int connectionBytes,
+  }) async =>
+      CipCommandSocketTransport._(await CipSocketTransport.connect(
+          host: host,
+          port: port,
+          slot: slot,
+          expectSerial: expectSerial,
+          connectionBytes: connectionBytes));
+
+  @override
+  int get connectionBytes => _wire.connectionBytes;
+  @override
+  Future<CipReply> writeTag(String symbol, Uint8List data) {
+    if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]{0,39}$').hasMatch(symbol))
+      return Future.error(const FormatException('Invalid command Symbol.'));
+    return _wire._request(0x4d, cipSymbolPath(symbol), data);
+  }
+
+  @override
+  Future<void> close() => _wire.close();
+  @override
+  void abort() => _wire.abort();
+}
+
 bool _symbolicTagPath(Uint8List path) {
   var at = 0;
   while (at < path.length) {
@@ -315,6 +357,11 @@ final class CipSocketTransport implements CipBatchReadTransport {
       _context = 0,
       _sequence = 0;
   bool _closed = false;
+  Object? _failure;
+  bool _closedWhileIdle = false;
+  // Only a peer close observed outside an exchange can be renewed before the
+  // next whole-row lease. An abort, timeout or malformed reply is terminal.
+  bool get closedWhileIdle => _closedWhileIdle;
   Future<void> _tail = Future<void>.value();
   Completer<Uint8List>? _pending;
   Uint8List _buffer = Uint8List(0);
@@ -325,7 +372,10 @@ final class CipSocketTransport implements CipBatchReadTransport {
     _socket.setOption(SocketOption.tcpNoDelay, true);
     _socket.listen(_receive,
         onError: (Object error) => _fail(error),
-        onDone: () => _fail(const OpcUaTransportException('CIP peer closed.')));
+        onDone: () {
+          if (!_closed && _pending == null) _closedWhileIdle = true;
+          _fail(const OpcUaTransportException('CIP peer closed.'));
+        });
   }
 
   static Future<CipSocketTransport> connect(
@@ -386,21 +436,26 @@ final class CipSocketTransport implements CipBatchReadTransport {
 
   @override
   Future<CipReply> request(int service, Uint8List path, [Uint8List? data]) {
+    if (!cipReadRequestAllowed(service, path, data)) {
+      return Future.error(const FormatException(
+          'Only bounded CIP read services are available.'));
+    }
+    return _request(service, path, data);
+  }
+
+  Future<CipReply> _request(int service, Uint8List path, [Uint8List? data]) {
     if (path.length > 510 || (data?.length ?? 0) > connectionBytes) {
       return Future.error(
           const FormatException('CIP request exceeds connection.'));
     }
     path = Uint8List.fromList(path);
     data = data == null ? null : Uint8List.fromList(data);
-    if (!cipReadRequestAllowed(service, path, data)) {
-      return Future.error(const FormatException(
-          'Only bounded CIP read services are available.'));
-    }
     final result = Completer<CipReply>();
     _tail = _tail.then((_) async {
       try {
         if (_closed)
-          throw const OpcUaTransportException('CIP connection closed.');
+          throw _failure ??
+              const OpcUaTransportException('CIP connection closed.');
         _sequence = (_sequence + 1) & 0xffff;
         final request = Uint8List.fromList([
           ...cipWords([_sequence]),
@@ -620,6 +675,7 @@ final class CipSocketTransport implements CipBatchReadTransport {
   }
 
   void _fail(Object error) {
+    _failure ??= error;
     _closed = true;
     _socket.destroy();
     _buffer = Uint8List(0);

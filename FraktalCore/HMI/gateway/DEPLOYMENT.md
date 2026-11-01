@@ -11,7 +11,7 @@ static server. Flutter Web, Windows, Linux, and Android clients can use the same
 HMI and standard-PLC requests remain untrusted; only TwinSAFE/certified safety
 logic may grant safe motion, reset, unlock, muting, bridging, or safe outputs.
 
-**PLC transport.** `--plc-endpoint` selects one of three transports (all emit the
+**PLC transport.** `--plc-endpoint` selects one of four transports (all emit the
 same gateway protocol to browsers, so the Web HMI is identical either way):
 
 - `opc.tcp://<host>:4840` — TF6100 / multi-brand OPC UA, governed by the security
@@ -33,12 +33,30 @@ same gateway protocol to browsers, so the Web HMI is identical either way):
   security profile does not apply. One gateway holds ONE persistent TLS connection
   per CPU (an S7-1200 handshake costs ≈ 2.75 s) and keeps it warm.
 
+- `cip://<host>[:44818]?slot=0&serial=<8 hex digits>` — canonical Allen-Bradley
+  Symbol/Template/manifest discovery, without a station declaration. The serial
+  pin is mandatory. With explicit `--write-root` values, the gateway opens a
+  fresh dedicated connection for each typed payload/commit pair and closes it
+  afterward; otherwise every command is refused. A read connection closed by
+  the peer while idle is renewed against the original serial before the next
+  guarded row starts. An interrupted read or command is never replayed.
+  Configuration pages use the PLC-owned read-only view, including other model
+  banks. The OPC UA security profile is ignored. Remote access uses the existing
+  authenticated same-host HTTPS/WSS proxy. Direct unsecured desktop CIP stays
+  read-only; this gateway posture does not commission CIP Security.
+
 For the complete Windows installer and Linux systemd walkthrough, acceptance
 evidence, upgrades, and remote-browser topology, see
 `../../../Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md`. The same walkthrough is
 copied beside the binaries in every platform package.
 
 ## Instances: one gateway per PLC
+
+For example, a write-enabled Echo bench instance uses
+`--instance-name echo --plc-endpoint cip://127.0.0.1?slot=0&serial=601FC87B --port 8080 --write-root Press`.
+Its separate read-only viewer uses `--instance-name echo-view`, port `8081`,
+the same pinned endpoint and no write root. Decide and record write posture for
+each new station before enabling it. Quote the endpoint in a shell.
 
 One process owns one PLC session, so a host serving several controllers runs
 several instances. Isolation is the point: a stalled ADS router, an unreachable

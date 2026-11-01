@@ -1,0 +1,29 @@
+00:00 +0: loading test\cip_endpoint_test.dart
+00:00 +0: test\cip_endpoint_test.dart: Windows installer applies the CIP endpoint bounds
+00:00 +0 -1: test\cip_endpoint_test.dart: Windows installer applies the CIP endpoint bounds [E]
+  Expected: <0>
+    Actual: <1>
+  
+  Endpoint validation differs: cip://localhost:0?serial=601FC87B, expected False, actual True
+  At C:\Users\SoftIndVM\Fraktal\FraktalCore\HMI\gateway\test\installer_endpoints.ps1:24 char:33
+  + ... ector[1]) { throw "Endpoint validation differs: $($vector[0]), expect ...
+  +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      + CategoryInfo          : OperationStopped: (Endpoint valida...se, actual True:String) [], RuntimeException
+      + FullyQualifiedErrorId : Endpoint validation differs: cip://localhost:0?serial=601FC87B, expected False, actual T 
+     rue
+   
+  
+  
+  package:matcher                   expect
+  test\cip_endpoint_test.dart 10:5  main.<fn>
+  
+00:00 +0 -1: test\cip_endpoint_test.dart: gateway endpoint requires serial and bounds every transport parameter
+00:00 +1 -1: test\cip_endpoint_test.dart: CLI rejects invalid CIP before attempting a controller connection
+00:04 +2 -1: test\cip_endpoint_test.dart: CIP cannot enable all-root write policy
+00:05 +3 -1: Some tests failed.
+
+Failing tests:
+  test\cip_endpoint_test.dart: Windows installer applies the CIP endpoint bounds
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

@@ -94,6 +94,7 @@ class ConfigurationTests(unittest.TestCase):
         for i in range(1,31):
             prefix=f'HmiResponse/ConfigPage/Entries[{i}]/'
             row={p[len(prefix):]:v for p,v in expected.items() if p.startswith(prefix)}
+            if self.app.canonical_publication_stage>=13:row['WriteRevision']=self.work['Revision']
             for name in ('Minimum','Maximum'):row[name]=float(row[name])
             result.append(row)
         return result
@@ -107,6 +108,7 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(self.root['Status']['ConfigRev'],self.root['HmiResponse']['ConfigPage']['Revision'])
 
     def test_bounded_pages_equal_all_independent_oracle_entries_once(self):
+        self.scan()
         expected=self.expected();all_rows=[]
         for index,count in ((0,16),(1,14),(2,0),(32767,0)):
             self.query(index);page=self.root['HmiResponse']['ConfigPage']

@@ -70,7 +70,9 @@ class ReadOnlyClient
         OpcUaReadOnlyConfigurationClient {
   int writes = 0, queries = 0;
   @override
-  bool get readOnly => true;
+  final bool readOnly;
+  final bool unavailable;
+  ReadOnlyClient({this.readOnly = true, this.unavailable = false});
   @override
   Future<Map<String, Object?>> snapshot() async => {
         'values': {
@@ -93,6 +95,7 @@ class ReadOnlyClient
   Future<Map<String, Object?>?> readConfigurationPage(
       String root, int model) async {
     queries++;
+    if (unavailable) return null;
     return page(view(), model: model);
   }
 
@@ -389,4 +392,19 @@ void main() {
     expect(client.queries, greaterThan(0));
     expect(client.writes, 0);
   });
+  for (final unavailable in [false, true]) {
+    test(
+        'write-enabled repository uses published read service; unavailable=$unavailable',
+        () async {
+      final client = ReadOnlyClient(readOnly: false, unavailable: unavailable);
+      final repo = await OpcUaRepository.connectWithClient(client,
+          refreshInterval: const Duration(days: 1));
+      addTearDown(repo.dispose);
+      expect(repo.readOnly, isFalse);
+      final result = await repo.queryModelConfig('Fixture', 1);
+      expect(result, unavailable ? isNull : isNotNull);
+      expect(client.queries, greaterThan(0));
+      expect(client.writes, 0);
+    });
+  }
 }

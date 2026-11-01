@@ -266,6 +266,81 @@ class _HeldGroups implements CipGroupedReadTransport {
 }
 
 void main() {
+  Future<void> expireIdle(network.Peer peer, CipReadPool pool) async {
+    final original = await Future.wait(List.generate(
+        4, (_) => pool.withGroup((wire) async => wire as CipSocketTransport)));
+    for (final socket in peer.connections) {
+      socket.destroy();
+    }
+    final clock = Stopwatch()..start();
+    while (original.any((wire) => !wire.closedWhileIdle)) {
+      if (clock.elapsed > const Duration(seconds: 2)) {
+        fail('Idle peer close was not observed');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+  }
+
+  test(
+      'idle-closed pool connections renew before work with the original serial',
+      () async {
+    final peer = await network.Peer.open();
+    final pool =
+        await CipReadPool.connect(host: '127.0.0.1', port: peer.server.port);
+    try {
+      expect(peer.connections.length, 4);
+      await expireIdle(peer, pool);
+      for (var i = 0; i < 8; i++) {
+        final reply = await pool.request(0x0e, cipObjectPath(1, 1, 6));
+        reply.requireSuccess();
+      }
+      expect(peer.connections.length, 8);
+    } finally {
+      await pool.close();
+      await peer.close();
+    }
+  });
+
+  test('idle renewal refuses a changed controller before invoking row work',
+      () async {
+    final peer = await network.Peer.open();
+    final pool =
+        await CipReadPool.connect(host: '127.0.0.1', port: peer.server.port);
+    try {
+      await expireIdle(peer, pool);
+      peer.identitySerial = 1;
+      var invoked = false;
+      await expectLater(pool.withGroup((wire) async {
+        invoked = true;
+      }), throwsA(isA<Exception>()));
+      expect(invoked, false);
+      expect(peer.connections.length, 5);
+    } finally {
+      await pool.close();
+      await peer.close();
+    }
+  });
+
+  test('a peer close inside a leased row is never retried', () async {
+    final peer = await network.Peer.open();
+    final pool =
+        await CipReadPool.connect(host: '127.0.0.1', port: peer.server.port);
+    try {
+      await expectLater(pool.withGroup((wire) async {
+        await wire.request(0x0e, cipObjectPath(1, 1, 6));
+        for (final socket in peer.connections) {
+          socket.destroy();
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await wire.request(0x0e, cipObjectPath(1, 1, 6));
+      }), throwsA(isA<Exception>()));
+      expect(peer.connections.length, 4);
+    } finally {
+      await pool.close();
+      await peer.close();
+    }
+  });
+
   test('queued read packets retain their validated bytes after caller mutation',
       () async {
     final received = <Uint8List>[];

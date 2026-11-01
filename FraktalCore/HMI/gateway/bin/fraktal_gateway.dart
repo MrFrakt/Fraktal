@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:fraktal_gateway/fraktal_gateway.dart';
 import 'package:fraktal_opcua_client/ads_session_client.dart';
+import 'package:fraktal_opcua_client/cip_session_client.dart';
+import 'package:fraktal_opcua_client/reconnecting_opcua_session_client.dart';
 import 'package:fraktal_opcua_client/opcua_native_client.dart';
 import 'package:fraktal_opcua_client/opcua_session_client.dart';
 import 'package:fraktal_opcua_client/webapi_session_client.dart';
@@ -31,13 +33,14 @@ Future<void> main(List<String> arguments) async {
   final plcScheme = options.plcEndpoint.scheme;
   final isAds = plcScheme == 'ads';
   final isWebApi = plcScheme == 's7web';
+  final isCip = plcScheme == 'cip';
   stdout.writeln('[Fraktal/Gateway] stage=config '
       'instance=${options.instanceName.isEmpty ? '(unnamed)' : options.instanceName} '
       'plcEndpoint=${options.plcEndpoint} '
       'plcTransport=${plcScheme.isEmpty ? "(unknown)" : plcScheme} '
       // On ADS the OPC UA profile is not applied at all; say so explicitly so a
       // leftover --security-profile in gateway.args is not mistaken for active.
-      'securityProfile=${isAds ? "$securityProfileName (ignored: ADS transport)" : isWebApi ? "$securityProfileName (ignored: Web API transport)" : securityProfileName} '
+      'securityProfile=${isAds ? "$securityProfileName (ignored: ADS transport)" : isWebApi ? "$securityProfileName (ignored: Web API transport)" : isCip ? "$securityProfileName (ignored: CIP transport)" : securityProfileName} '
       'listenPort=${options.port} path=${options.path} '
       'webRoot=${options.webRoot.isEmpty ? "(none)" : options.webRoot} '
       'readRoots=${options.readRoots.isEmpty ? "(OPC-authorized)" : options.readRoots.join(",")} '
@@ -65,6 +68,22 @@ Future<void> main(List<String> arguments) async {
       );
       stdout.writeln('[Fraktal/Gateway] stage=connected '
           'transport=ads amsNetId=$amsNetId amsPort=$amsPort');
+    } else if (isCip) {
+      final endpoint = CipEndpoint.parse(options.plcEndpoint.toString(),
+          requireSerial: true);
+      stdout.writeln('[Fraktal/Gateway] stage=cip-connect '
+          'host=${endpoint.host} port=${endpoint.port} slot=${endpoint.slot} serial=${endpoint.serial}');
+      client = await ReconnectingOpcUaSessionClient.connect(
+        factory: () => CipSessionClient.connect(
+            host: endpoint.host,
+            port: endpoint.port,
+            slot: endpoint.slot,
+            expectSerial: endpoint.serial,
+            commandWrites: options.writeRoots.isNotEmpty,
+            timeout: options.connectTimeout),
+        log: stdout.writeln,
+      );
+      stdout.writeln('[Fraktal/Gateway] stage=connected transport=cip');
     } else if (isWebApi) {
       // Siemens S7 Web API (Fraktal/TIA Part IV §11.1a): licence-free HTTPS to
       // the CPU's web server, trusting exactly the pinned server certificate;
@@ -142,6 +161,7 @@ Future<void> main(List<String> arguments) async {
         readRoots: options.readRoots,
         writeRoots: options.writeRoots,
         allowAllRootMailboxes: options.allowAllRootMailboxes,
+        allowMailboxConfigurationQueries: !isCip,
         initialPlcReady: true,
         webRoot: options.webRoot.isEmpty ? null : Directory(options.webRoot),
       ),
@@ -304,7 +324,10 @@ class _GatewayOptions {
         case '-h':
           help = true;
         case '--plc-endpoint':
-          endpoint = Uri.parse(valueAfter(index, argument));
+          final suppliedEndpoint = valueAfter(index, argument);
+          endpoint = Uri.parse(suppliedEndpoint);
+          if (endpoint.scheme == 'cip')
+            CipEndpoint.parse(suppliedEndpoint, requireSerial: true);
           index++;
         case '--port':
           port = int.parse(valueAfter(index, argument));
@@ -380,6 +403,11 @@ class _GatewayOptions {
           'ads://5.132.128.188.1.1:851.',
         );
       }
+    } else if (endpoint.scheme == 'cip') {
+      CipEndpoint.parse(endpoint.toString(), requireSerial: true);
+      if (allowAllRootMailboxes)
+        throw const FormatException(
+            'CIP requires explicit --write-root values.');
     } else if (endpoint.scheme == 's7web') {
       // Siemens S7 Web API: s7web://<host>[:443]. The server certificate is
       // pinned; there is no "accept any certificate" mode.
@@ -393,11 +421,12 @@ class _GatewayOptions {
         );
       }
       if (webApiBatch < 1 || webApiBatch > 200) {
-        throw const FormatException('--webapi-batch must be between 1 and 200.');
+        throw const FormatException(
+            '--webapi-batch must be between 1 and 200.');
       }
     } else if (endpoint.scheme != 'opc.tcp' || endpoint.host.isEmpty) {
       throw const FormatException(
-        '--plc-endpoint must be a complete opc.tcp://, ads:// or s7web:// URI.',
+        '--plc-endpoint must be a complete opc.tcp://, ads://, s7web:// or cip:// URI.',
       );
     }
     if (port < 1 || port > 65535) {
@@ -472,7 +501,7 @@ Usage:
   fraktal_gateway [options]
 
 Options:
-  --plc-endpoint URI       PLC endpoint. Three transports:
+  --plc-endpoint URI       PLC endpoint. Four transports:
                              opc.tcp://<host>:4840  (TF6100, default)
                              ads://<AmsNetId>:851   (native TwinCAT; the AMS
                              route is the trust boundary, so the OPC UA security
@@ -480,6 +509,9 @@ Options:
                              s7web://<host>[:443]   (Siemens S7 Web API, no
                              runtime licence; needs --plc-certificate and the
                              FRAKTAL_TIA_WEB_* variables; OPC UA profile ignored)
+                             cip://<host>[:44818]?slot=0&serial=<8 hex digits>
+                             (Allen-Bradley; OPC UA profile ignored; commands
+                             require explicit --write-root and the authenticated proxy)
   --plc-certificate PATH   s7web: the CPU web server certificate (PEM or DER)
                             pinned at commissioning; nothing else is trusted
   --webapi-batch N         s7web: leaves per Web API request (default 20); the

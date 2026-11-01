@@ -6,8 +6,8 @@ decisions in [the design note](AB_CANONICAL_PUBLICATION_DESIGN_2026-10-19.md)
 Part III and frozen contracts V1 stay authoritative for the shipping
 implementation until S6 activates V2.
 
-This revision retains the completed S4b checklist and states the remaining
-work (S5–S7) as work packages: the files,
+This revision retains the completed S4b/S5 checklists and states the remaining
+work (S6–S7) as work packages: the files,
 the change, the tests, the offline gates and the native session for each. It
 also settles in advance every choice that can be settled now (§6.2), so that
 implementation needs no further design decisions except the open owner
@@ -59,7 +59,7 @@ The work is done when all six hold:
 6. **Acceptance.** Echo acceptance passes per stage. Physical and CIP Security
    acceptance pass on a v37+ capable controller (S7).
 
-## 2. Status through 2026-10-29
+## 2. Status through 2026-10-30
 
 | Stage | Status | Accepted record (local Echo L81E v38) | Still open |
 |---|---|---|---|
@@ -70,7 +70,7 @@ The work is done when all six hold:
 | S3 exit: press in ST/SFC/LD, path census | Done | [press S3 exit](Evidence/AB_PRESS_S3_EXIT_RUNTIME_2026-10-25.md), [census](AB_CANONICAL_PUBLICATION_S3_PATH_CENSUS_2026-10-25.json) | Physical-module identity and real I/O move to S7 |
 | S4a coherence bindings | Done | [S4a](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md) | — |
 | S4b generic Dart client and desktop | **Done at Echo scope** | [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md): all E1–E9 pass together | Physical/security evidence remains S7; V2 activation remains S6 |
-| S5 gateway, Web, installer | Not started | — | §5.2 |
+| S5 gateway, Web, installer | **Done at Echo/package scope** | [S5 qualification](Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md): C1–C13, two-client stability, owner visual check, native gates and verified genealogy recovery | Original baseline START refusal retained; investigate in S6 harness migration. Physical/security acceptance remains S7 |
 | S6 retirement, collapse, persistence, events | Not started; census taken | [census](Evidence/AB_S4B_READER_RUNTIME_2026-10-26/Continuation/legacy_consumer_inventory_01.json) | §5.3 |
 | S7 physical controller, CIP Security | Not started | — | §5.4 |
 
@@ -489,6 +489,219 @@ and push, excluding unrelated edits. Next is S5 on this accepted image, then
 S6 retirement/host services and inactive-contract activation. Physical S7
 remains deferred under O2.
 
+### 2.14 S5 automated runtime: C12 owner witness pending, 2026-10-30
+
+The [sealed runtime](Evidence/AB_S5_GATEWAY_AUTOMATED_RUNTIME_C12_PENDING_2026-10-30.md)
+passes all 12 automatic C1–C11/C13 cases through the packaged Dart gateway:
+seven-module discovery, login success/refusal, mode and CM commands,
+configuration edit/exact restoration, four-page/1,100-scalar oracle comparison,
+foreign-root/stale/duplicate and all 39 read-only refusals, and gateway
+STALE/DOWN/LIVE recovery without replay. Independent equivalence and raw
+capture replay pass on 5,238 occupied values. Capacity is 66%; TASK median
+943 µs, cumulative maximum 7,759 µs, zero overlaps. Genealogy, the five original
+documents, 31 baseline cases, final checks and preflight pass after rollback.
+
+The owner confirmed availability for C12, but no Chrome checklist arrived
+during the sealed 20-minute window. Gateways then closed and rollback ran.
+C12 remains unproven; the qualified-session result is false. No S5 commit or
+push occurs before that owner check. Next is a freshly guarded owner-browser
+follow-up on the same image/source/package, followed by the normal rollback;
+S6 starts after S5 exits. O1–O9 stay decided, including standing O3.
+
+The run found and fixed a real publication defect: canonical `WriteRevision`
+used the static build hash while typed ingress validates the live configuration
+owner. The [correction](AB_CANONICAL_PUBLICATION_S5_WRITE_REVISION_CORRECTION_2026-10-30.md)
+changes exactly two generated assignments; layouts and initial Tags stay
+identical. Candidate ACD `95E1C514…A586012`, source `979DD73C…105A162` pass both
+v38 target builds/read-backs and fresh Studio Capacity. All 2,357 AB, 777 HMI
+(12 skipped), 74 root tests, analyzer, locked dependencies, spec/contracts and
+strict consistency pass. Earlier precheck, CLI, simulated-air, stale-revision,
+startup and monitor-handshake attempts remain separately sealed.
+
+### 2.15 Owner browser observations and idle connections, 2026-10-30
+
+The [owner follow-up](Evidence/AB_S5_GATEWAY_OWNER_CONNECTION_ATTEMPT_2026-10-30.md)
+records the four basic checks as reported passed, plus two defects: a brief
+disconnect on manual movement and an initial connection error before recovery.
+Gateway logs confirm real upstream CIP disconnects. The browser's native
+logged-out boundary failed; rollback retained its active-session guard. After
+the owner explicitly logged out again, the continuation restored genealogy,
+all five documents, 31 baseline cases, final checks and preflight. The original
+failed session result remains unchanged. S5 is still open.
+
+A read-only Echo probe reproduced peer closure of an unused connection after
+a 100-second idle interval while a periodically read connection stayed usable.
+The transport correction opens one fresh serial-pinned command connection per
+payload/commit pair and closes it afterward. The read pool renews an observed
+idle peer close before starting a whole-row lease. It does not retry an
+interrupted row, timeout, malformed reply or command. A second native probe
+observed all four idle sockets closed, then successfully renewed/read all four
+against the original serial. All 781 HMI tests pass, with 12 existing skips.
+Fresh package/browser/delayed-command qualification is required before S5 exit.
+
+The [first corrected-package attempt](Evidence/AB_S5_GATEWAY_IDLE_LOGIN_ATTEMPT_2026-10-30.md)
+reached seven-module LIVE and accepted LOGIN acknowledgement 11, then lost the
+client LIVE state while waiting for its provider result. No upstream CIP
+disconnect appears in that run's gateway log. An old browser had also
+reconnected, so the initial idle precondition is unproven. The fixture stopped
+at C2; later command/browser cases did not run. Independent read/scan gates
+passed at 5,212 occupied paths, and genealogy/five documents/31 baseline cases
+were restored after read-only correlation recovered the fixture's own login
+proof. A separate one/two-client read-only comparison kept all 80 samples
+within the fast Good window. The login-transition cause remains open; next is
+the unchanged write scope with existing opt-in frontend timing/freshness traces.
+
+The [trace repeat](Evidence/AB_S5_GATEWAY_BROWSER_ACK_ATTEMPT_2026-10-30.md)
+passed all 12 automatic cases, including clean 100-second idle startup and
+100-second delayed movement. The owner reported the two-tab check passed with
+no flicker. Its native witness nevertheless rejected absent acknowledgement
+progress; independent subsequent request/ACK values remained 22. This mismatch
+is unresolved, so C12 and S5 remain open. Independent read/scan gates passed on
+5,238 occupied paths, with 7,759 µs cumulative TASK maximum and zero overlaps.
+After the first baseline run timed out in HOME before the SFC hold case, an
+unchanged full retry passed 31/31; final checks/preflight passed and genealogy
+is restored. Failed outputs remain sealed. Next is a focused owner-browser
+follow-up with read-only RPC/counter observation; unchanged automatic proofs
+may be reused only with explicit source/image/package hash verification.
+
+On 2026-10-31 the owner [clarified](Evidence/AB_S5_GATEWAY_BROWSER_WINDOW_CLARIFICATION_2026-10-31.md)
+that the reply confirmed an earlier test. This explains the unchanged counter;
+it is not evidence of a new command-routing defect. The former failed window
+is preserved. The next session opens a fresh Chrome profile for a current,
+owner-operated C12 check, retaining all existing native acknowledgement and
+logout guards. Additional browser-RPC instrumentation was prepared offline but
+is not needed or deployed for this clarification.
+
+The [fresh-window attempt](Evidence/AB_S5_GATEWAY_BROWSER_WINDOW_EXPIRED_2026-10-31.md)
+again passed all 12 automatic cases and independent read/scan gates. Its
+two-hour owner window expired without a checklist; the automatic rollback
+restored genealogy, all five documents, 31/31 baseline cases and final checks.
+The later owner reply requests setup/login help, not acceptance. Supply those
+details separately and reopen a fresh guarded session with the unchanged
+package/image. No product correction, acceptance-rule change or S5 exit follows
+from the expiry.
+
+The next [owner two-tab check](Evidence/AB_S5_GATEWAY_TWO_TAB_FAILURE_2026-10-31.md)
+failed: second-tab startup showed an error, then repeated connection transitions.
+Native ACK advanced 22→33; the PLC stayed healthy and no upstream CIP disconnect
+was recorded. All 12 automatic cases and independent read/scan checks passed;
+rollback restored genealogy, five documents, 31/31 baseline cases and final
+checks. Offline investigation reproduces a shared tier defect: a slow consumer
+plus an excluding consumer becomes fast under separate set intersections.
+Correct the merge to the highest actual demand (fast > slow > excluded), with
+all nine pair combinations covered. This changes no client's selected tier,
+freshness/proof/retry limit or write policy. Native browser acceptance remains
+open after the offline correction.
+
+The [shared-tier retry](Evidence/AB_S5_GATEWAY_TWO_CLIENT_TIMING_FAILURE_2026-10-31.md)
+passed all 12 command cases, but its added read-only two-client prerequisite
+caught nine non-LIVE transitions over two 20-second detail/overview phases.
+It collected 68 secondary samples; ACK stayed 22. Chrome was not opened.
+Snapshot waits of 1.96–2.11 seconds contained native source ages of only
+0.18–0.21 seconds. The shared merge correction alone is insufficient. Separate
+tier RPCs still expose intermediate profiles, and gateway queue time before
+the native call is absent from the declared server-processing bracket.
+Offline regressions reproduce both gaps. Install profiles atomically and add
+only pre-read gateway waits to the existing processing envelope, preserving
+source/leaf ages and post-acquisition transit. No budget/proof/retry/access
+limit changes. Independent read/scan gates, genealogy/five-document rollback,
+31 baseline cases and all final checks passed. S5 remains open.
+
+The [atomic/queue retry](Evidence/AB_S5_GATEWAY_ATOMIC_QUEUE_RUNTIME_FAILURE_2026-10-31.md)
+again passed all 12 command cases but recorded five non-LIVE transitions in
+the two-client prerequisite, with 69 secondary samples and unchanged ACK22.
+Its previous late-sample refusals did not recur during that probe, but LIVE
+cadence remains insufficient. Chrome did not open. Independent reads/scan,
+genealogy/five-document rollback, 31 baseline cases and final checks passed.
+Test sharing concurrent acquisitions for an unchanged installed profile, with
+per-caller processing overlap and no completed-response cache. Do not share
+across profile changes, renew source ages, hide a failure or increase a limit.
+The probe also retains phase/time details for each rejected link transition.
+
+The [shared-read retry](Evidence/AB_S5_GATEWAY_SHARED_SNAPSHOT_RUNTIME_FAILURE_2026-10-31.md)
+again passed all 12 command cases. Its two-client probe collected 115 secondary
+samples (69 previously), with five non-LIVE transitions during detail activity
+and unchanged ACK22. The phase/time records are retained. This does not meet
+acceptance; Chrome did not open. Independent read/scan checks, genealogy/five-
+document rollback, 31 baseline cases and final checks passed. Use the existing
+native worker trace next, with unchanged implementation sources and a clearly
+marked diagnostic executable. Repeat the same command/read vectors, skip the
+owner window, preserve all limits and roll back. A diagnostic capture is not
+a normal-package qualification or S5 exit.
+
+The [native timing diagnostic](Evidence/AB_S5_GATEWAY_NATIVE_TIMING_DIAGNOSTIC_RUNTIME_2026-10-31.md)
+passed all 12 command cases and reproduced three non-LIVE transitions, 117
+secondary samples, unchanged ACK22. Post-command native execution maxima were
+352 ms for snapshots and 71 ms for slow chunks, with snapshot queue at most
+37 ms. Thirteen configuration-assembly operations and repeated configuration
+hydration were recorded during the detail workload. Revision invalidation
+incorrectly accepts saved-set `/ConfigRev` leaves; configuration-page RPCs
+also hold later cyclic requests in their connection queue. Offline tests
+reproduce both gaps. Restrict signatures to discovered module revisions and
+give read-only configuration pages a separate serial service queue, retaining
+prior controls and all write/tier ordering. Tests preserve real root/nested
+Unit refetches and verify cyclic/later control progress while a page is held.
+No value, quality, freshness, proof or retry limit changes. Independent reads/
+scan, genealogy/five-document restore, 31 baseline cases and final checks
+passed. Browser C12 was deliberately not attempted; S5 remains open.
+
+### 2.16 Fresh two-tab checklist passes; timing/history defects, 2026-10-31
+
+The [normal-package qualification](Evidence/AB_S5_GATEWAY_CONFIG_OWNER_RUNTIME_DETAIL_FINDINGS_2026-10-31.md)
+passes all 12 automatic cases and the two-client prerequisite (121 secondary
+samples, zero non-LIVE transitions, ACK22 unchanged). The owner performs the
+fresh Chrome checklist without connection flicker; native ACK22 to ACK28 and
+MANUAL/idle/logged-out boundaries independently confirm command progress and
+logout. All independent native gates pass: 5,264 paths, seven modules, exact
+value/type equivalence and replay, four configuration pages/1,100 scalars,
+TASK maximum 7,759 microseconds and zero overlaps. Genealogy/five original
+documents, 31 baseline cases, final checks and preflight are restored.
+
+The owner also reports a tall blank PartSlide timing card which disappears,
+and history rows repeatedly clearing/repopulating. These remain open; the
+scoped C12 pass is not S5 exit. Read-only browser observation confirms slow
+detail ages near 10 seconds, beyond the unchanged 7.5-second Good limit.
+Timing reaches zero Good leaves. Fix the narrow timing-table layout and let
+bounded background chunks continue between fast polls, retaining worker
+scheduling fences, per-row proofs and all age/freshness limits. Require
+regressions and a fresh normal-package native detail-stability qualification.
+
+### 2.17 S5 exit with verified baseline recovery, 2026-10-31
+
+The [corrected normal-package qualification](Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md)
+passes all 12 automatic cases and owner-operated C12. The owner confirms the
+compact scrolling timing table and stable history/timing in two Chrome tabs.
+Native ACK22 to ACK26 and logged-out MANUAL/idle boundaries corroborate C12;
+automated C5 independently proves movement and return. The extended read-only
+probe retains 27 history rows and two timing rows in each client, 120 secondary
+samples, zero row/link drops and unchanged ACK22. No freshness, proof, age,
+retry or write-policy limit changes.
+
+Independent gates pass: 5,264 occupied paths with exact values/types and raw
+capture replay across seven modules; four configuration pages/1,100 scalars;
+TASK cumulative maximum 7,759 microseconds, zero overlaps over 6,261 monitored
+post-download observations plus 20 final samples. Fresh offline gates include
+802 HMI passed/12 existing skips, analyzer, locked dependencies, package and
+installer, gateway tests and 74 root tests. Unchanged PLC proofs transfer by
+hash, including 2,357 AB tests and both v38 builds/readbacks.
+
+The original session result remains failed: after downloading genealogy and
+restoring all five original documents, its baseline fixture stops after 28
+rows at START refused and restores its inputs/policy. A guarded MANUAL
+normalization and one unchanged 31-case retry pass with a read-only witness;
+all final checks/preflight/timing pass. A separate stage-exit record consolidates
+native qualification and verified recovery without rewriting either failed
+output. The first refusal's cause is not established; investigate the harness
+readiness boundary during S6. No re-download, assertion change or added write
+vector is used for recovery. Echo ends Run/not faulted, scanning, MANUAL/idle/
+logged out, saved documents equal to live; no dumps/clears/clocks/power changes.
+
+S5 exits at Echo/package scope. O1 authorizes its stage commit/push. Next is
+WP6.1's current consumer classification, then canonical harness migration and
+the final sealed oracle replay before collapse. O4/O5 host-service/persistence
+decisions and O6's gated baseline switch remain in force. V2 stays inactive
+until S6; S7 remains deferred under O2.
+
 ## 3. Invariants for every stage
 
 - **One source.** The declaration is the only source, and the generator emits
@@ -815,8 +1028,10 @@ image and the unchanged write scope. `30315E6D…` remains the pre-O9 candidate.
 
 ### 5.2 S5 — Dart gateway `cip://` for Web clients and commanding
 
-S5 changes only HMI and gateway code. The PLC image stays the S4b-accepted
-V6.10 image; its
+S5 implements HMI and gateway code against the S4b V6.10 publication. Native
+qualification also required the two documented write-revision assignment
+corrections (§2.14), producing exact image `95E1C514…A586012` with the same
+wire layout and both v38 build/read-back and Capacity gates. Its
 V6.6 `CommandBindings` already publish the typed command ingress
 ([wire draft](AB_CANONICAL_PUBLICATION_S3K_WIRE_DRAFT_2026-10-25.md)).
 
@@ -932,12 +1147,20 @@ WebSocket client, which speaks the same protocol as the Web HMI.
 | C12 browser | owner, Chrome, the packaged Web HMI on `echo`'s origin | LIVE overview, login, an acknowledged mode change, logout; the owner records the checklist, as on [2026-09-24](Evidence/AB_BROWSER_COMMAND_2026-09-24.md) |
 | C13 final state | `echo` | Logged out, MANUAL, idle |
 
+C2/C3 distinguish command consumption from authentication. The existing native
+access provider acknowledges LOGIN before its bounded hash work completes.
+Both cases correlate `Access/LoginResultSequence` and wait for `LoginBusy` to
+clear. C2 requires the expected user/level and no failure; C3 requires
+`LoginFailed` and level zero; the owner also publishes its audit result. Its initial
+mailbox acknowledgement can be Accepted. This clarifies the existing Core
+login behavior (`OpcUaRepository.login`), without changing the PLC contract.
+
 **Exit:** C1–C13 pass, and `/healthz` `writeAccess` matches each instance's
 configuration.
 
 ### 5.3 S6 — Retirement, collapse, persistence and events
 
-Order: WP6.1 → 6.2 → 6.3, with 6.4 (owner approval) in parallel; then 6.5 → 6.6
+Order: WP6.1 → 6.2 → 6.3, with 6.4 (contract inventory under approved O4) in parallel; then 6.5 → 6.6
 → 6.7 → 6.8 → the native session.
 
 **WP6.1 — Classify every legacy consumer.** Re-run the census script
@@ -984,7 +1207,7 @@ Seal the result as `Evidence/AB_S6_MIGRATION_ORACLE_FINAL_REPLAY_<date>`, with
 hashes. From then on, sealed evidence stays readable data, and its executable
 replay ends by design.
 
-**WP6.4 — Host-service contract (owner approval, O4).** The staged ConfigSet and
+**WP6.4 — Host-service contract inventory (approved O4).** The staged ConfigSet and
 ConfigProvider inputs, the live-document keeper and the host-event sink are the
 last consumers that need the station declaration and the legacy endpoints. For
 example, `fraktal_ab_set_broker.py` maps keys through `gen.editable_values(app)`.
@@ -1005,8 +1228,8 @@ The O4 shape remains:
 - the legacy staged endpoints and the legacy Frame ingress are removed in WP6.6.
 
 Write it as `AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_<date>.md`, with
-its inventory, then ask. WP6.5 and the host-service part of WP6.6 wait for the
-approval.
+its inventory before WP6.5. O4 in §6.3 already approves the shape; no further
+approval gates WP6.5 or the host-service part of WP6.6.
 
 **WP6.5 — Declaration-free host adapter.**
 

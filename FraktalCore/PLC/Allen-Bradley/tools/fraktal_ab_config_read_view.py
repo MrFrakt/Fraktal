@@ -137,7 +137,7 @@ def cyclic(app):
     for name,_ in owner.TEXT_FIELDS:
         lines+=text.put(app,definition+'.'+name,f'{d}.{name}.Offset',f'{d}.{name}.Length')
     lines += [f'{definition}.{name}.LEN := 0;' for name in ('Unit','EnumDomain','EnumLabelKey')]
-    lines += [f'{definition}.WriteRevision := {manifest.config_revision(app)};',f'{definition}.Writable := 1;',
+    lines += [f'{definition}.WriteRevision := {owner.write_revision(app)};',f'{definition}.Writable := 1;',
               f'{definition}.HasMinimum := 1;',f'{definition}.HasMaximum := 1;']
     lines += [f'{definition}.{name} := {d}.{name};' for name in ('ConfigKind','ValueType','RequiresReady','Minimum','Maximum','UnitCode','ModelScoped','CanCapture')]
     lines += [f'{definition}.{name} := {levels}.{name}[{index}];' for name in ('ReadLevel','WriteLevel')] if app.access_users is not None else [f'{definition}.ReadLevel := -1;',f'{definition}.WriteLevel := -1;']

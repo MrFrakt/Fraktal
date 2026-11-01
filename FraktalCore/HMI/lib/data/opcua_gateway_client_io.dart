@@ -71,8 +71,11 @@ class IoGatewayOpcUaClient
         OpcUaBatchSessionClient,
         OpcUaBulkReadClient,
         OpcUaDataValueReadClient,
+        OpcUaConfigurationReadPolicyClient,
+        OpcUaReadOnlyConfigurationClient,
         OpcUaPathDiscoveryClient,
-        OpcUaTieredReadClient {
+        OpcUaTieredReadClient,
+        OpcUaReadTierBatchClient {
   final WebSocket _socket;
   final HttpClient? _httpClient;
   final Map<int, Completer<Object?>> _pending = {};
@@ -80,6 +83,9 @@ class IoGatewayOpcUaClient
   int _nextId = 1;
   bool _closed = false;
   bool _disposed = false;
+  bool _configurationHeartbeat = false;
+  @override
+  bool get configurationContainersUseHeartbeat => _configurationHeartbeat;
   int _discoveryRevision = 0;
   List<String> _discoveredPaths = const [];
   Map<String, int> _pathIndex = const {};
@@ -220,6 +226,8 @@ class IoGatewayOpcUaClient
       throw const FormatException('Gateway snapshot missing.');
     }
     final document = Map<String, Object?>.from(result);
+    _configurationHeartbeat =
+        document['configurationContainersUseHeartbeat'] == true;
     _rememberDiscovery(document);
     return document;
   }
@@ -246,11 +254,17 @@ class IoGatewayOpcUaClient
   Future<Map<String, Object?>> readDataValues(List<String> browsePaths) =>
       _readTargetValues(browsePaths, withMetadata: true);
 
+  @override
+  Future<Map<String, Object?>?> readConfigurationPage(
+          String root, int modelOrdinal) =>
+      readOpcUaGatewayConfigurationPage(_call, root, modelOrdinal);
+
   Future<Map<String, Object?>> _readTargetValues(List<String> browsePaths,
       {required bool withMetadata}) async {
-    if (browsePaths.isEmpty) return withMetadata
-        ? {'values': <String, Object?>{}, 'dataValues': <String, Object?>{}}
-        : const {};
+    if (browsePaths.isEmpty)
+      return withMetadata
+          ? {'values': <String, Object?>{}, 'dataValues': <String, Object?>{}}
+          : const {};
     await _ensureDiscovery();
     final indices = <int>[];
     for (final path in browsePaths) {
@@ -280,7 +294,8 @@ class IoGatewayOpcUaClient
       if (withMetadata) {
         final envelope = decodeTargetedDataValues(result);
         values.addAll((envelope['values'] as Map).cast<String, Object?>());
-        metadata.addAll((envelope['dataValues'] as Map).cast<String, Object?>());
+        metadata
+            .addAll((envelope['dataValues'] as Map).cast<String, Object?>());
       } else {
         for (final entry in result.entries) {
           values['${entry.key}'] = entry.value;
@@ -288,6 +303,22 @@ class IoGatewayOpcUaClient
       }
     }
     return withMetadata ? {'values': values, 'dataValues': metadata} : values;
+  }
+
+  @override
+  bool get readTiersAreAtomic => true;
+
+  @override
+  Future<void> setReadTiers(
+      Iterable<String> slowPaths, Iterable<String> excludedPaths) async {
+    final slow = Set<String>.unmodifiable(slowPaths);
+    final excluded = Set<String>.unmodifiable(excludedPaths);
+    if (slow.intersection(excluded).isNotEmpty) {
+      throw const FormatException('Read tiers overlap.');
+    }
+    _slowPaths = slow;
+    _excludedPaths = excluded;
+    await _publishReadTiers();
   }
 
   @override

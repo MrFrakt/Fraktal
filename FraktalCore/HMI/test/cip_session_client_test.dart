@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,7 @@ import 'package:fraktal_opcua_client/src/cip_namespace.dart';
 import 'package:fraktal_opcua_client/src/cip_read_coherence.dart';
 import 'package:fraktal_opcua_client/src/cip_session_client.dart';
 import 'package:fraktal_opcua_client/src/cip_transport.dart';
+import 'package:fraktal_opcua_client/src/cip_slow_acquisition.dart';
 
 import 'cip_publication_test.dart' as golden;
 import 'cip_read_plan_test.dart' as planGolden;
@@ -102,6 +104,40 @@ CipSessionEngine replayEngine(Map capture) {
 }
 
 void main() {
+  test('captured slow rows finish refreshing without another fast snapshot',
+      () async {
+    final capture = golden.fixtures().last['capture'] as Map;
+    final engine = replayEngine(capture);
+    engine.plan.slowPaths = engine.plan.publication
+        .discoverPaths()
+        .where((path) =>
+            path.contains('/Timing/') || path.contains('/AlarmLog/Ring['))
+        .toSet();
+    await engine.snapshot(fastOnly: true);
+    await engine.acquireSlowChunk();
+    expect(engine.plan.slowAcquisitionDue, true,
+        reason: 'One chunk per snapshot leaves this real publication pending.');
+    final done = Completer<void>();
+    var chunks = 0;
+    final pump = CipSlowAcquisitionPump(
+        acquireChunk: () async {
+          await engine.acquireSlowChunk();
+          chunks++;
+          final more = engine.plan.slowAcquisitionDue;
+          if (!more) done.complete();
+          return more;
+        },
+        onError: done.completeError);
+    pump.request();
+    await done.future;
+    expect(chunks, greaterThan(1));
+    final samples = engine.plan.snapshot()['dataValues'] as Map;
+    final detail = samples.entries.where((entry) =>
+        (entry.key as String).contains('/Timing/') ||
+        (entry.key as String).contains('/AlarmLog/Ring['));
+    expect(detail, isNotEmpty);
+    expect(detail.every((entry) => (entry.value as Map)['status'] == 0), true);
+  });
   for (final phase in ['before', 'after']) {
     test('slow acquisition checks manifest validity $phase its native reads',
         () async {

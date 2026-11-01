@@ -964,10 +964,19 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
   }
 
   String _configRevSignature() {
-    final parts = <String>[
-      for (final entry in _values.entries)
-        if (entry.key.endsWith('/ConfigRev')) '${entry.key}=${entry.value}',
-    ]..sort();
+    final parts = <String>[];
+    for (final base in _projection.browsePathByModulePath.values.toSet()) {
+      // A saved record may also contain ConfigRev. Only an actual module's
+      // authoritative revision invalidates the hydrated configuration.
+      // Canonical Status wins; retain the direct member for older bindings.
+      for (final path in ['$base/Status/ConfigRev', '$base/ConfigRev']) {
+        if (_values.containsKey(path)) {
+          parts.add('$path=${_values[path]}');
+          break;
+        }
+      }
+    }
+    parts.sort();
     return parts.join('|');
   }
 
@@ -977,7 +986,7 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
       final base = _browseBase(root.path);
       if (base == null) continue;
       final pageBase = '$base/HmiResponse/ConfigPage';
-      if (readOnly) {
+      if (readOnly || _hasConfigurationView(root.path)) {
         final view = await _readConfigurationView(root.path);
         if (view == null) {
           _manifestRetryAfter = DateTime.now().add(const Duration(seconds: 5));
@@ -1024,7 +1033,7 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
     final base = _browseBase(rootPath);
     if (base == null || modelIndex < 0) return null;
     final pageBase = '$base/HmiResponse/ConfigPage';
-    if (readOnly) {
+    if (readOnly || _hasConfigurationView(rootPath)) {
       final view =
           await _readConfigurationView(rootPath, modelOrdinal: modelIndex);
       if (view == null) return null;
@@ -1064,6 +1073,11 @@ class OpcUaRepository implements PlcRepository, PlcRepositoryWritePolicy {
       return null;
     }
   }
+
+  bool _hasConfigurationView(String root) => _readServices.any((service) =>
+      service['Kind'] == 1 &&
+      service['Version'] == 1 &&
+      service['RootSymbol'] == root);
 
   /// Capture this query's page before cleanup or a cyclic snapshot can replace
   /// the shared values. Both manifest hydration and model selection use it.

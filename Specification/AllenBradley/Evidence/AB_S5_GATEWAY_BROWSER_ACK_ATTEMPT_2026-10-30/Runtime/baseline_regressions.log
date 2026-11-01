@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_genealogy_execute.py", line 51, in <module>
+    if __name__=='__main__': raise SystemExit(main())
+                                              ~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_genealogy_execute.py", line 47, in main
+    return tower.execute_fixture(args,app,account,run_type=run_type,schema=schema,
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                 **({} if exercise_rows is None else dict(exercise_rows=exercise_rows)))
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_tower_execute.py", line 174, in execute_fixture
+    operation(language)
+    ~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 269, in held
+    self.home()
+    ~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 161, in home
+    self.wait(lambda: self.unit()['Complete'], 'HOME')
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_part_execute.py", line 106, in wait
+    raise FixtureRefused(f'{label} timed out: step={u["Step"]}, error={u["ErrorID"]}')
+fraktal_ab_part_execute.FixtureRefused: HOME timed out: step=0, error=0

@@ -6,6 +6,26 @@ Linux systemd package. Follow `FIRST_PROJECT_AGENT_GUIDE.md` through Phase E
 first; this document does not replace PLC, TF6100, or functional-safety
 commissioning.
 
+The gateway also supports native ADS (`ads://`), Siemens HTTPS (`s7web://`)
+and canonical Allen-Bradley CIP (`cip://`). For AB, use
+`--plc-endpoint "cip://<host>?slot=0&serial=<8 hex digits>"`; the serial is
+mandatory and no station declaration is loaded. A read-only instance has no
+write root. After the owner chooses a write-enabled station, add its exact
+`--write-root <published-root>` and retain the authenticated reverse proxy.
+Configuration browsing uses the PLC's read-only view, without mailbox queries.
+The OPC UA security profile does not apply to CIP; direct unsecured desktop
+CIP remains read-only. Echo S5 qualification passes all C1–C13 cases, including
+the fresh owner Chrome checklist, native commanding, exact configuration
+restoration and stable two-client detail reads. Genealogy and its five original
+documents are restored; an unchanged retry passes all 31 baseline cases after
+a recorded START refusal. Physical-controller and CIP Security acceptance
+remain separate. See the
+[runtime record](../AllenBradley/Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md).
+
+An Echo bench pair uses `echo` on port 8080 with `--write-root Press` and
+`echo-view` on port 8081 with no write root. Both use the same serial-pinned
+endpoint; each remote instance receives a separate authenticated origin.
+
 ## 1. Resulting topology
 
 The gateway is the only component that talks OPC UA to the PLC. It also serves

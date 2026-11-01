@@ -426,6 +426,55 @@ void main() {
     expect(report.reasons[1].reasonCode, 2002);
   });
 
+  for (final canonical in [false, true]) {
+    test(
+        'stored-record revisions do not refetch module configuration: $canonical',
+        () async {
+      final client = _RecordRevisionClient(canonical);
+      final repository = await OpcUaRepository.connectWithClient(client,
+          refreshInterval: const Duration(milliseconds: 20));
+      addTearDown(repository.dispose);
+      await repository.forest().firstWhere(
+          (forest) => forest.isNotEmpty && forest.first.commands.length == 2);
+      expect(client.requestedPages, [0, 1]);
+      client.recordRevision++;
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+      expect(client.requestedPages, [0, 1]);
+      client.bumpRevision('.updated');
+      await repository
+          .forest()
+          .firstWhere((forest) =>
+              forest.isNotEmpty &&
+              forest.first.commands.isNotEmpty &&
+              forest.first.commands.first.label == 'std.cmd.open.updated')
+          .timeout(const Duration(seconds: 5));
+      expect(client.requestedPages, [0, 1, 0, 1]);
+    });
+  }
+
+  test('a nested Unit revision still refetches the owning manifest', () async {
+    final client = _RecordRevisionClient(true, includeChild: true);
+    final repository = await OpcUaRepository.connectWithClient(client,
+        refreshInterval: const Duration(milliseconds: 20));
+    addTearDown(repository.dispose);
+    final forest = await repository.forest().firstWhere(
+        (forest) => forest.isNotEmpty && forest.first.commands.length == 2);
+    expect(
+        forest.first.children.any((node) => node.path == 'PneumaticPress.Cell'),
+        isTrue);
+    client.childRevision++;
+    client.labelSuffix = '.nested';
+    await repository
+        .forest()
+        .firstWhere((forest) =>
+            forest.isNotEmpty &&
+            forest.first.commands.isNotEmpty &&
+            forest.first.commands.first.label == 'std.cmd.open.nested')
+        .timeout(const Duration(seconds: 5));
+    expect(client.requestedPages, [0, 1, 0, 1]);
+    expect(client.configRev, 1000);
+  });
+
   test(
       'config manifest hydrates obscured catalogs/topology and refetches on '
       'ConfigRev change', () async {
@@ -670,6 +719,34 @@ class _OncePathsClient extends _DiscoveryBeforeReadClient {
 /// Publishes a root Unit with the §3.10.2 obscured publication (no Catalog,
 /// no topology identity in the snapshot) and serves them as a two-page
 /// QUERY_CONFIG manifest through the mailbox echo.
+class _RecordRevisionClient extends _ManifestClient {
+  final bool canonical;
+  final bool includeChild;
+  int recordRevision = 0;
+  int childRevision = 1;
+  _RecordRevisionClient(this.canonical, {this.includeChild = false});
+  @override
+  Future<Map<String, Object?>> snapshot() async {
+    final document = await super.snapshot();
+    final values = document['values'] as Map<String, Object?>;
+    const base = 'PLC1/MAIN/PneumaticPress';
+    if (canonical) {
+      values['$base/Status/ConfigRev'] = values.remove('$base/ConfigRev');
+    }
+    values['$base/ConfigSets/ConfigSets[1]/ConfigRev'] = recordRevision;
+    values['$base/Records[1]/Status/ConfigRev'] = recordRevision;
+    if (includeChild) {
+      values.addAll({
+        '$base/Cell/Status/Name': 'PneumaticPress.Cell',
+        '$base/Cell/Status/ModuleType': ModuleType.unit.index,
+        '$base/Cell/Status/State': ExecState.ready.index,
+        '$base/Cell/Status/ConfigRev': childRevision,
+      });
+    }
+    return document;
+  }
+}
+
 class _ManifestClient implements OpcUaSessionClient {
   var sequence = 0;
   var configRev = 1000;

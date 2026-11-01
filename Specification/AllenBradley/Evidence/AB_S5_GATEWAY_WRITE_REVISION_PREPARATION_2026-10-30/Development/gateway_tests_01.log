@@ -1,0 +1,40 @@
+00:00 +0: loading test\cip_endpoint_test.dart
+00:00 +0: test\cip_endpoint_test.dart: Windows installer applies the CIP endpoint bounds
+00:00 +0 -1: test\cip_endpoint_test.dart: Windows installer applies the CIP endpoint bounds [E]
+  Expected: <0>
+    Actual: <1>
+  
+  Cannot convert argument "options", with value: "2", for "Split" to type "System.StringSplitOptions": "Cannot convert 
+  value "2" to type "System.StringSplitOptions" due to enumeration values that are not valid. Specify one of the 
+  following enumeration values and try again. The possible enumeration values are "None,RemoveEmptyEntries"."
+  At C:\Users\SoftIndVM\Fraktal\FraktalCore\HMI\gateway\deploy\windows\fraktal_instances.ps1:68 char:9
+  +         $pair = $part.Split(@('='), 2)
+  +         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+      + FullyQualifiedErrorId : MethodArgumentConversionInvalidCastArgument
+   
+  
+  
+  package:matcher                   expect
+  test\cip_endpoint_test.dart 10:5  main.<fn>
+  
+00:00 +0 -1: test\cip_endpoint_test.dart: gateway endpoint requires serial and bounds every transport parameter
+00:00 +0 -2: test\cip_endpoint_test.dart: gateway endpoint requires serial and bounds every transport parameter [E]
+  Expected: throws <Instance of 'FormatException'>
+    Actual: <Closure: () => CipEndpoint>
+     Which: returned <Instance of 'CipEndpoint'>
+  cip://localhost:0?serial=601FC87B
+  
+  package:matcher                   expect
+  test\cip_endpoint_test.dart 38:7  main.<fn>
+  
+00:00 +0 -2: test\cip_endpoint_test.dart: CLI rejects invalid CIP before attempting a controller connection
+00:03 +1 -2: test\cip_endpoint_test.dart: CIP cannot enable all-root write policy
+00:04 +2 -2: Some tests failed.
+
+Failing tests:
+  test\cip_endpoint_test.dart: Windows installer applies the CIP endpoint bounds
+  test\cip_endpoint_test.dart: gateway endpoint requires serial and bounds every transport parameter
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.

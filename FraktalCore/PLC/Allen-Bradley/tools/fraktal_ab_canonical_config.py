@@ -213,6 +213,16 @@ def number_logic(app):
     return [line.replace(formatting.state_tag(app),state_tag(app)) for line in formatting.number_logic(app)]
 
 
+def write_revision(app):
+    """The revision accepted by the selected ingress, never a client repair.
+
+    Core typed ingress checks the configuration owner's live token. The
+    temporary legacy Frame adapter still uses its released build capability.
+    """
+    from fraktal_ab_canonical_commands import enabled
+    return state_tag(app)+'.Revision' if enabled(app) else str(manifest.config_revision(app))
+
+
 def table_page_logic(app):
     """The same page as page_logic, walked over the definition table."""
     import fraktal_ab_canonical_text as text
@@ -228,7 +238,7 @@ def table_page_logic(app):
         *text.put_text(app,row+'.Scope',app.name,255)]
     for name,_ in TEXT_FIELDS:lines += text.put(app,f'{row}.{name}',f'{d}.{name}.Offset',f'{d}.{name}.Length')
     lines += [f'{row}.{n}.LEN := 0;' for n in ('Unit','EnumDomain','EnumLabelKey')]
-    lines += [f'{row}.WriteRevision := {manifest.config_revision(app)};',f'{row}.Writable := 1;',
+    lines += [f'{row}.WriteRevision := {write_revision(app)};',f'{row}.Writable := 1;',
         f'{row}.HasMinimum := 1;',f'{row}.HasMaximum := 1;',
         *[f'{row}.{n} := {d}.{n};' for n in ('ConfigKind','ValueType','RequiresReady','Minimum','Maximum','UnitCode','ModelScoped','CanCapture')]]
     if app.access_users is not None:
@@ -274,7 +284,7 @@ def page_logic(app):
         widths={'Scope':255,'Item':255,'WriteKey':160,'Unit':16,'LabelKey':160,'EnumDomain':255,
                 'EnumLabelKey':80,'ClassId':40,'CaptureSource':255}
         for name,text in static.items():lines += core.put_text(row+'.'+name,text,widths[name])
-        for name,value in dict(WriteRevision=manifest.config_revision(app),ConfigKind=cap['ConfigKind'],ValueType=cap['ValueType'],
+        for name,value in dict(WriteRevision=write_revision(app),ConfigKind=cap['ConfigKind'],ValueType=cap['ValueType'],
             Writable=1,RequiresReady=int(bool(cap['RequiresReady'])),HasMinimum=1,HasMaximum=1,
             Minimum=cap['Minimum'],Maximum=cap['Maximum'],UnitCode=cap['UnitCode'],
             ModelScoped=int(scoped),CanCapture=int(bool(cap.get('CaptureSourceKey',0)))).items():

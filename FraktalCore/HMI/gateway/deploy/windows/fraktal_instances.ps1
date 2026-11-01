@@ -51,14 +51,39 @@ function Test-FraktalInstanceName([string]$Name) {
 
 # Validates an endpoint the same way the HMI wizard does, so a bad value fails
 # here instead of letting the installed gateway reject it later.
-#   scheme in {ws,wss,http,https,opc.tcp,ads}; an ads:// host has 6 dot parts.
+#   CIP pins the controller serial and permits only slot/serial query keys.
 function Test-FraktalEndpoint([string]$Endpoint) {
   if ([string]::IsNullOrWhiteSpace($Endpoint)) { return $false }
   try { $uri = [System.Uri]::new($Endpoint.Trim()) } catch { return $false }
   if (-not $uri.IsAbsoluteUri -or [string]::IsNullOrEmpty($uri.Host)) { return $false }
   $scheme = $uri.Scheme.ToLowerInvariant()
-  if ($scheme -notin @('ws', 'wss', 'http', 'https', 'opc.tcp', 'ads')) { return $false }
+  if ($scheme -notin @('ws', 'wss', 'http', 'https', 'opc.tcp', 'ads', 's7web', 'cip')) { return $false }
   if ($scheme -eq 'ads' -and ($uri.Host.Split('.') | Measure-Object).Count -ne 6) { return $false }
+  if ($scheme -eq 'cip') {
+    $authority = (($uri.OriginalString -split '://', 2)[1] -split '[/?#]', 2)[0]
+    $declaredPortMatch = [regex]::Match($authority, ':([0-9]*)$')
+    if ($declaredPortMatch.Success) {
+      $declaredPort = 0
+      if (-not [int]::TryParse($declaredPortMatch.Groups[1].Value, [ref]$declaredPort) -or
+          $declaredPort -lt 1 -or $declaredPort -gt 65535) { return $false }
+    }
+    if ($uri.UserInfo -or $uri.Fragment -or ($uri.AbsolutePath -ne '' -and $uri.AbsolutePath -ne '/') -or
+        ($uri.Port -ne -1 -and ($uri.Port -lt 1 -or $uri.Port -gt 65535))) { return $false }
+    $queryValues = @{}
+    if ($uri.Query.Length -gt 1) {
+      foreach ($part in $uri.Query.Substring(1).Split('&')) {
+        $pair = $part -split '=', 2
+        $key = [Uri]::UnescapeDataString($pair[0])
+        if ($key -cnotin @('slot', 'serial') -or $queryValues.ContainsKey($key) -or $pair.Length -ne 2) { return $false }
+        $queryValues[$key] = [Uri]::UnescapeDataString($pair[1])
+      }
+    }
+    if (-not $queryValues.ContainsKey('serial') -or $queryValues['serial'] -cnotmatch '^[0-9A-Fa-f]{8}$') { return $false }
+    if ($queryValues.ContainsKey('slot')) {
+      $slotNumber = 0
+      if (-not [int]::TryParse($queryValues['slot'], [ref]$slotNumber) -or $slotNumber -lt 0 -or $slotNumber -gt 255) { return $false }
+    }
+  }
   return $true
 }
 

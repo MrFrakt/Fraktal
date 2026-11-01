@@ -21,7 +21,9 @@ class CycleTrendView extends StatefulWidget {
   final Duration minCycleTime;
   final Set<TimeClass>? hiddenTimeClasses;
   const CycleTrendView(
-      {super.key, required this.history, this.minCycleTime = Duration.zero,
+      {super.key,
+      required this.history,
+      this.minCycleTime = Duration.zero,
       this.hiddenTimeClasses});
 
   @override
@@ -251,6 +253,8 @@ class _TrendPainter extends CustomPainter {
 /// in the cycle Gantt is slow, this names the command (and its Min/Avg/Max drift)
 /// that consumed the time. Plain table = the accessibility fallback by design.
 class CommandTimingView extends StatelessWidget {
+  static const _labelWidth = 140.0, _valueWidth = 56.0;
+  static const _minimumTableWidth = _labelWidth + 5 * _valueWidth + 8 + 96;
   final String moduleName;
   final List<CommandTiming> rows;
   const CommandTimingView(
@@ -266,34 +270,52 @@ class CommandTimingView extends StatelessWidget {
     return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.av_timer),
-            const SizedBox(width: 8),
-            Expanded(
-              child: LText('Command timing — $moduleName',
-                  style: theme.textTheme.titleMedium,
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: [
-            const SizedBox(width: 140),
-            _h(context, 'Count'),
-            _h(context, 'Last'),
-            _h(context, 'Min'),
-            _h(context, 'Avg'),
-            _h(context, 'Max'),
-            const Expanded(child: SizedBox.shrink()),
-          ]),
-          for (final r in rows) _row(context, r, maxMs),
-        ]),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.av_timer),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: LText('Command timing — $moduleName',
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              LayoutBuilder(builder: (context, box) {
+                // Preserve every numeric column on narrow cards. The chart always
+                // has positive space, avoiding reversed clamp bounds in its bars.
+                final width = box.maxWidth < _minimumTableWidth
+                    ? _minimumTableWidth
+                    : box.maxWidth;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: width,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Row(children: [
+                        const SizedBox(width: _labelWidth),
+                        _h(context, 'Count'),
+                        _h(context, 'Last'),
+                        _h(context, 'Min'),
+                        _h(context, 'Avg'),
+                        _h(context, 'Max'),
+                        const Expanded(child: SizedBox.shrink()),
+                      ]),
+                      for (final r in rows) _row(context, r, maxMs),
+                    ]),
+                  ),
+                );
+              }),
+            ]),
       ),
     );
   }
 
   Widget _h(BuildContext context, String text) => SizedBox(
-      width: 56,
+      width: _valueWidth,
       child: LText(text,
           style: Theme.of(context).textTheme.labelSmall,
           textAlign: TextAlign.right));
@@ -305,7 +327,8 @@ class CommandTimingView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
         SizedBox(
-            width: 140, child: LText(r.label, overflow: TextOverflow.ellipsis)),
+            width: _labelWidth,
+            child: LText(r.label, overflow: TextOverflow.ellipsis)),
         _cell(context, '${r.count}'),
         _cell(context, _s(r.last)),
         _cell(context, _s(r.minimum)),
@@ -343,7 +366,7 @@ class CommandTimingView extends StatelessWidget {
   }
 
   Widget _cell(BuildContext context, String text) => SizedBox(
-      width: 56,
+      width: _valueWidth,
       child: LText(text,
           style: Theme.of(context).textTheme.bodySmall,
           textAlign: TextAlign.right));

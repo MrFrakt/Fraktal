@@ -1,0 +1,4 @@
+"""One bounded lease for the explicitly requested local owner browser test."""
+BROWSER_WINDOW_SECONDS=2*60*60
+GATEWAY_TTL_MINUTES=BROWSER_WINDOW_SECONDS//60+15
+MONITOR_MAX_SECONDS=BROWSER_WINDOW_SECONDS+30*60

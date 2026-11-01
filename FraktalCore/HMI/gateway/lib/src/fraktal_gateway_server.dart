@@ -36,6 +36,7 @@ class FraktalGatewayConfig {
   final Set<String> readRoots;
   final Set<String> writeRoots;
   final bool allowAllRootMailboxes;
+  final bool allowMailboxConfigurationQueries;
   final bool initialPlcReady;
   final Duration socketPingInterval;
   final Directory? webRoot;
@@ -49,6 +50,7 @@ class FraktalGatewayConfig {
     Set<String> readRoots = const {},
     Set<String> writeRoots = const {},
     this.allowAllRootMailboxes = false,
+    this.allowMailboxConfigurationQueries = true,
     this.initialPlcReady = false,
     this.socketPingInterval = const Duration(seconds: 2),
     Directory? webRoot,
@@ -156,7 +158,11 @@ class FraktalGatewayServer {
 
   HttpServer? _server;
   Future<void> _writeTail = Future<void>.value();
+  Future<void> _configurationTail = Future<void>.value();
   Future<void> _tierTail = Future<void>.value();
+  final Stopwatch _clock = Stopwatch()..start();
+  int _tierGeneration = 0;
+  _SnapshotFlight? _snapshotFlight;
   final Map<String, int> _lastCommittedSequenceByMailbox = {};
   List<String> _discoveredPaths = const [];
   int _discoveryRevision = 0;
@@ -306,11 +312,27 @@ class FraktalGatewayServer {
     Future<void> requestTail = Future<void>.value();
     socket.listen(
       (message) {
-        requestTail = requestTail
-            .then((_) => _handleMessage(socket, message))
+        final receivedUs = _clock.elapsedMicroseconds;
+        final incoming = _decodeRequest(message);
+        final configuration =
+            incoming.value?['protocol'] == kFraktalGatewayProtocol &&
+                incoming.value?['method'] == 'readConfigurationPage';
+        // Configuration reads may span many bounded upstream operations.
+        // Keep one service owner, but do not hold this socket's cyclic/control
+        // queue behind the entire page. Prior control requests still fence it.
+        final prior = requestTail;
+        final ready =
+            configuration ? _configurationTail.then((_) => prior) : prior;
+        final operation = ready
+            .then((_) => _handleMessage(socket, incoming, receivedUs))
             .onError((Object error, StackTrace stackTrace) {
           _log('[Fraktal/Gateway] stage=request-error error=$error');
         });
+        if (configuration) {
+          _configurationTail = operation;
+        } else {
+          requestTail = operation;
+        }
       },
       onError: (Object error, StackTrace stackTrace) {
         _log('[Fraktal/Gateway] stage=socket-error error=$error');
@@ -332,33 +354,21 @@ class FraktalGatewayServer {
     );
   }
 
-  Future<void> _handleMessage(WebSocket socket, Object? message) async {
+  Future<void> _handleMessage(
+      WebSocket socket, _IncomingRequest incoming, int receivedUs) async {
     if (_closing) {
       _sendError(socket, null, 'Gateway is stopping.');
       return;
     }
-    if (message is! String) {
-      _sendError(socket, null, 'Binary requests are not supported.');
+    final error = incoming.error;
+    if (error != null) {
+      _sendError(socket, null, error);
+      if (incoming.tooLarge) {
+        await socket.close(WebSocketStatus.messageTooBig, 'Request too large');
+      }
       return;
     }
-    if (utf8.encode(message).length > _maxRequestBytes) {
-      _sendError(socket, null, 'Request exceeds the 256 KiB limit.');
-      await socket.close(WebSocketStatus.messageTooBig, 'Request too large');
-      return;
-    }
-
-    Object? decoded;
-    try {
-      decoded = jsonDecode(message);
-    } on FormatException {
-      _sendError(socket, null, 'Request is not valid JSON.');
-      return;
-    }
-    if (decoded is! Map) {
-      _sendError(socket, null, 'Request must be a JSON object.');
-      return;
-    }
-    final request = Map<Object?, Object?>.from(decoded);
+    final request = incoming.value!;
     final id = request['id'];
     if (id is! int || id < 0 || id > 0x7fffffff) {
       _sendError(socket, null, 'Request id must be a non-negative integer.');
@@ -376,7 +386,7 @@ class FraktalGatewayServer {
 
     switch (request['method']) {
       case 'snapshot':
-        await _snapshot(socket, id);
+        await _snapshot(socket, id, receivedUs);
       case 'discoverPaths':
         await _discoverPaths(socket, id);
       case 'setReadTiers':
@@ -391,6 +401,9 @@ class FraktalGatewayServer {
           id,
           Map<Object?, Object?>.from(parameters),
         );
+      case 'readConfigurationPage':
+        await _readConfigurationPage(
+            socket, id, Map<Object?, Object?>.from(parameters));
       case 'write':
         await _write(socket, id, Map<Object?, Object?>.from(parameters));
       case 'writeBatch':
@@ -400,11 +413,26 @@ class FraktalGatewayServer {
     }
   }
 
-  Future<void> _snapshot(WebSocket socket, int id) async {
+  Future<void> _snapshot(WebSocket socket, int id, int receivedUs) async {
     try {
-      await _tierTail;
-      final snapshot = await _client.snapshot();
-      validateCompleteOpcUaSnapshot(snapshot);
+      Future<void> tiers;
+      do {
+        tiers = _tierTail;
+        await tiers;
+      } while (!identical(tiers, _tierTail));
+      final acquired = await _sharedSnapshot();
+      var snapshot = acquired.document;
+      final boundary = acquired.earliestSourceBoundaryUs;
+      if (boundary != null) {
+        // Only the portion before the proven source boundary that overlaps
+        // THIS request is server processing. A late joiner must not inherit
+        // another caller's earlier processing interval. Leaf ages never move.
+        final processingMs = (boundary - receivedUs) / 1000;
+        snapshot = {
+          ...snapshot,
+          'responseProcessingMs': processingMs > 0 ? processingMs : 0,
+        };
+      }
       _rememberDiscovery(snapshot);
       _markOpcUaSuccess();
       _seedMailboxSequences(snapshot);
@@ -412,6 +440,73 @@ class FraktalGatewayServer {
     } on Object catch (error) {
       _markOpcUaFailure(error);
       _sendError(socket, id, 'OPC UA snapshot failed: $error');
+    }
+  }
+
+  Future<_AcquiredSnapshot> _sharedSnapshot() {
+    final active = _snapshotFlight;
+    if (active != null && active.generation == _tierGeneration) {
+      return active.acquisition;
+    }
+    final next = _SnapshotFlight(_tierGeneration, _acquireSnapshot());
+    _snapshotFlight = next;
+    void clear() {
+      if (identical(_snapshotFlight, next)) _snapshotFlight = null;
+    }
+
+    unawaited(next.acquisition.then<void>((_) => clear(),
+        onError: (Object _, StackTrace __) => clear()));
+    return next.acquisition;
+  }
+
+  Future<_AcquiredSnapshot> _acquireSnapshot() async {
+    final startedUs = _clock.elapsedMicroseconds;
+    final document = await _client.snapshot();
+    validateCompleteOpcUaSnapshot(document);
+    final processing = document['responseProcessingMs'];
+    // Native processing starts no earlier than this call. This lower bound
+    // on the native age boundary keeps any upstream delivery delay as transit.
+    final boundary = processing is num && processing.isFinite && processing >= 0
+        ? startedUs + processing * 1000
+        : null;
+    return _AcquiredSnapshot(document, boundary);
+  }
+
+  Future<void> _readConfigurationPage(
+      WebSocket socket, int id, Map<Object?, Object?> parameters) async {
+    final root = parameters['root'], model = parameters['model'];
+    if (parameters.keys.toSet().difference({'root', 'model'}).isNotEmpty ||
+        root is! String ||
+        root.isEmpty ||
+        model is! int ||
+        model < 0 ||
+        model > 0x7fffffff) {
+      _sendError(socket, id, 'Invalid configuration root or model.');
+      return;
+    }
+    // Enforce deployment scope before discovery or a potentially costly read.
+    if (!config.permitsRead('$root/HmiResponse/ConfigPage')) {
+      _sendError(
+          socket, id, 'Configuration page is outside the readable Unit scope.');
+      return;
+    }
+    if (_client is! OpcUaReadOnlyConfigurationClient) {
+      _sendResult(socket, id, null);
+      return;
+    }
+    try {
+      await _ensureDiscovery();
+      if (!_discoveredPaths.contains('$root/HmiResponse/AckSequence')) {
+        _sendError(socket, id, 'Configuration root is not a discovered Unit.');
+        return;
+      }
+      final page = await (_client as OpcUaReadOnlyConfigurationClient)
+          .readConfigurationPage(root, model);
+      _markOpcUaSuccess();
+      _sendResult(socket, id, page);
+    } on Object catch (error) {
+      _markOpcUaFailure(error);
+      _sendError(socket, id, 'Configuration page read failed: $error');
     }
   }
 
@@ -595,6 +690,10 @@ class FraktalGatewayServer {
     final profile = _readProfiles[socket];
     return <String, Object?>{
       ...snapshot,
+      'configurationContainersUseHeartbeat':
+          _client is OpcUaConfigurationReadPolicyClient &&
+              (_client as OpcUaConfigurationReadPolicyClient)
+                  .configurationContainersUseHeartbeat,
       'discoveryRevision': _discoveryRevision,
       'nodeCount': allowed.length,
       'truncated': false,
@@ -610,18 +709,28 @@ class FraktalGatewayServer {
 
   Future<void> _queueAggregateTiers({bool refreshSlow = false}) {
     final profiles = _readProfiles.values.toList(growable: false);
-    final slow = _profileIntersection(
-      profiles,
-      (profile) => profile.slowPaths,
-    );
     final excluded = _profileIntersection(
       profiles,
       (profile) => profile.excludedPaths,
     );
+    // A consumer that excludes a path adds no refresh demand. A slow reader
+    // therefore remains slow when another tab excludes that path; only an
+    // actual fast reader may promote it. All-excluded paths stay excluded.
+    final slow = _profileIntersection(
+      profiles,
+      (profile) => {...profile.slowPaths, ...profile.excludedPaths},
+    ).difference(excluded);
     final operation = _tierTail.then((_) async {
-      await _client.setSlowPaths(slow);
-      await _client.setExcludedPaths(excluded);
+      final client = _client;
+      if (client is OpcUaReadTierBatchClient &&
+          (client as OpcUaReadTierBatchClient).readTiersAreAtomic) {
+        await (client as OpcUaReadTierBatchClient).setReadTiers(slow, excluded);
+      } else {
+        await client.setSlowPaths(slow);
+        await client.setExcludedPaths(excluded);
+      }
       if (refreshSlow) await _client.refreshSlowPaths();
+      _tierGeneration++;
       _log('[Fraktal/Gateway] stage=read-tiers '
           'clients=${profiles.length} slow=${slow.length} '
           'onDemand=${excluded.length} refreshSlow=$refreshSlow');
@@ -685,7 +794,8 @@ class FraktalGatewayServer {
       _sendError(socket, id, error.message);
       return;
     }
-    final query = _isConfigQuery(batch);
+    final query =
+        config.allowMailboxConfigurationQueries && _isConfigQuery(batch);
     if (query) {
       // D5: a page query is a read operation. It may use the mailbox in a
       // viewer, but only for a discovered, readable Unit's response page.
@@ -835,6 +945,59 @@ class _ValidatedWrite {
   final Object value;
 
   const _ValidatedWrite(this.path, this.type, this.value);
+}
+
+typedef _IncomingRequest = ({
+  Map<Object?, Object?>? value,
+  String? error,
+  bool tooLarge,
+});
+
+_IncomingRequest _decodeRequest(Object? message) {
+  if (message is! String) {
+    return (
+      value: null,
+      error: 'Binary requests are not supported.',
+      tooLarge: false
+    );
+  }
+  if (utf8.encode(message).length > _maxRequestBytes) {
+    return (
+      value: null,
+      error: 'Request exceeds the 256 KiB limit.',
+      tooLarge: true
+    );
+  }
+  Object? decoded;
+  try {
+    decoded = jsonDecode(message);
+  } on FormatException {
+    return (value: null, error: 'Request is not valid JSON.', tooLarge: false);
+  }
+  if (decoded is! Map) {
+    return (
+      value: null,
+      error: 'Request must be a JSON object.',
+      tooLarge: false
+    );
+  }
+  return (
+    value: Map<Object?, Object?>.from(decoded),
+    error: null,
+    tooLarge: false
+  );
+}
+
+class _AcquiredSnapshot {
+  final Map<String, Object?> document;
+  final num? earliestSourceBoundaryUs;
+  _AcquiredSnapshot(this.document, this.earliestSourceBoundaryUs);
+}
+
+class _SnapshotFlight {
+  final int generation;
+  final Future<_AcquiredSnapshot> acquisition;
+  _SnapshotFlight(this.generation, this.acquisition);
 }
 
 class _SocketReadProfile {

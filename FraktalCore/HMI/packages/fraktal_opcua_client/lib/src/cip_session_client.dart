@@ -6,6 +6,7 @@ import 'dart:developer';
 import 'dart:isolate';
 
 import 'cip_manifest.dart';
+import 'cip_command_writer.dart';
 import 'cip_config_read_view.dart';
 import 'cip_namespace.dart';
 import 'cip_publication.dart';
@@ -13,13 +14,14 @@ import 'cip_read_coherence.dart';
 import 'cip_operation_queue.dart';
 import 'cip_read_plan.dart';
 import 'cip_read_pool.dart';
+import 'cip_slow_acquisition.dart';
 import 'cip_transport.dart';
 import 'opcua_session_client.dart';
 
 const _traceCipTiming = bool.fromEnvironment('fraktal.cip.trace');
 
-/// Desktop canonical CIP reader. Discovery, decoding and polling run on one
-/// worker isolate. Unsecured CIP has no write path, including config queries.
+/// Canonical CIP session. Desktop callers keep the default read-only policy;
+/// the authenticated gateway explicitly enables its separate command socket.
 final class CipSessionClient
     implements
         OpcUaBulkReadClient,
@@ -39,13 +41,15 @@ final class CipSessionClient
   final Map<String, Object?> _endpoint;
   int _nextId = 1;
   bool _closed = false;
-  Future<void>? _slowInFlight;
+  late final _slowPump = CipSlowAcquisitionPump(
+      acquireChunk: () async => await _call('acquireSlow') as bool,
+      onError: _dispose);
   final _configurationCaches = <String, CipConfigurationCache>{};
   int _generation = 0;
   CipSessionClient._(this._isolate, this._worker, this._responses,
       this._subscription, this._endpoint);
   @override
-  bool get readOnly => true;
+  bool get readOnly => _endpoint['commandWrites'] != true;
   @override
   bool get configurationContainersUseHeartbeat => true;
 
@@ -54,7 +58,12 @@ final class CipSessionClient
       int port = 44818,
       int slot = 0,
       String? expectSerial,
+      bool commandWrites = false,
       Duration timeout = const Duration(seconds: 60)}) async {
+    if (commandWrites &&
+        (expectSerial == null ||
+            !RegExp(r'^[0-9a-fA-F]{8}$').hasMatch(expectSerial)))
+      throw const FormatException('CIP commands require a pinned serial.');
     final responses = ReceivePort(), ready = Completer<SendPort>();
     CipSessionClient? client;
     Isolate? isolate;
@@ -82,7 +91,8 @@ final class CipSessionClient
         'host': host,
         'port': port,
         'slot': slot,
-        'expectSerial': expectSerial
+        'expectSerial': expectSerial,
+        'commandWrites': commandWrites,
       });
       await client._call('connect', client._endpoint, timeout);
       return client;
@@ -109,6 +119,7 @@ final class CipSessionClient
 
   Future<void> reconnect() async {
     _generation++;
+    _slowPump.cancel();
     _configurationCaches.clear();
     await _call('connect', _endpoint);
   }
@@ -127,14 +138,11 @@ final class CipSessionClient
         document['replyWaitUs'] = Timeline.now - workerSent;
       }
     }
-    // Schedule one slow group as its own worker operation. Its timestamp is
-    // never part of the fast sample's acquisition or liveness envelope.
-    if (_slowInFlight == null) {
-      _slowInFlight =
-          _call('acquireSlow').then<void>((_) {}, onError: (Object error) {
-        _dispose(error);
-      }).whenComplete(() => _slowInFlight = null);
-    }
+    // Each due group is a separate queued operation. Continue between polls:
+    // charging only one group per snapshot let large rings age past Good even
+    // though their native reads were short. Slow timestamps remain independent
+    // of the fast sample's acquisition and liveness envelope.
+    _slowPump.request();
     return document;
   }
 
@@ -217,10 +225,17 @@ final class CipSessionClient
   Future<bool> write(String path, OpcUaWriteType type, Object value) async =>
       false;
   @override
-  Future<bool> writeBatch(List<OpcUaWrite> writes) async => false;
+  Future<bool> writeBatch(List<OpcUaWrite> writes) async {
+    if (readOnly) return false;
+    return await _call('writeBatch', [
+      for (final w in writes) [w.path, w.type.index, w.value]
+    ]) as bool;
+  }
+
   void _dispose(Object error) {
     if (_closed) return;
     _generation++;
+    _slowPump.cancel();
     _configurationCaches.clear();
     _closed = true;
     _isolate.kill(priority: Isolate.immediate);
@@ -490,6 +505,7 @@ void _cipWorker(SendPort owner) async {
   final commands = ReceivePort();
   owner.send(commands.sendPort);
   CipSessionEngine? engine;
+  CipCommandWriter? writer;
   final queue = CipOperationQueue();
   commands.listen((message) {
     // Server processing includes time queued before acquisition, per the
@@ -520,6 +536,8 @@ void _cipWorker(SendPort owner) async {
       try {
         Object? result;
         if (operation == 'connect') {
+          await writer?.close();
+          writer = null;
           await engine?.wire.close();
           engine = null;
           final a = argument as Map;
@@ -529,10 +547,49 @@ void _cipWorker(SendPort owner) async {
               slot: a['slot'] as int,
               expectSerial: a['expectSerial'] as String?);
           engine = await CipSessionEngine.discover(wire);
+          if (a['commandWrites'] == true) {
+            final publication = engine!.plan.publication;
+            final bounds = publication.manifest
+                .rows('commandBindings')
+                .map((r) => r['ConnectionBytes'] as int)
+                .toList();
+            if (bounds.isEmpty)
+              throw const FormatException('No command binding.');
+            final connectionBytes = bounds.reduce((a, b) => a > b ? a : b);
+            writer = CipCommandWriter(publication,
+                connectionBytes: connectionBytes,
+                open: () => CipCommandSocketTransport.connect(
+                    host: a['host'] as String,
+                    port: a['port'] as int,
+                    slot: a['slot'] as int,
+                    expectSerial: a['expectSerial'] as String,
+                    connectionBytes: connectionBytes),
+                verifyPublication: engine!._checkManifest);
+          }
         } else {
           if (engine == null)
             throw const OpcUaTransportException('CIP discovery required.');
           switch (operation) {
+            case 'writeBatch':
+              if (writer == null) {
+                result = false;
+              } else {
+                try {
+                  result = await writer!.writeBatch([
+                    for (final w in argument as List)
+                      OpcUaWrite(w[0] as String,
+                          OpcUaWriteType.values[w[1] as int], w[2] as Object)
+                  ]);
+                } on Object {
+                  if (writer!.requiresRediscovery) {
+                    await writer!.close();
+                    writer = null;
+                    await engine!.wire.close();
+                    engine = null;
+                  }
+                  rethrow;
+                }
+              }
             case 'snapshot':
               result = await engine!.snapshot(
                   fastOnly: true,
@@ -549,6 +606,7 @@ void _cipWorker(SendPort owner) async {
                       : null);
             case 'acquireSlow':
               await engine!.acquireSlowChunk();
+              result = engine!.plan.slowAcquisitionDue;
             case 'read':
               result =
                   await engine!.readValues(List<String>.from(argument as List));
@@ -599,6 +657,8 @@ void _cipWorker(SendPort owner) async {
             case 'refresh':
               engine!.plan.refreshSlow();
             case 'close':
+              await writer?.close();
+              writer = null;
               await engine!.wire.close();
               engine = null;
             default:

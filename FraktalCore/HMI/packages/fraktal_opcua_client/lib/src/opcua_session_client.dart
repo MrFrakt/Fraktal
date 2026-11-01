@@ -155,3 +155,53 @@ extension OpcUaSessionClientTiering on OpcUaSessionClient {
     }
   }
 }
+
+/// Maximum targeted-read batch in version 1 of the Web gateway contract.
+/// Repository detail scheduling uses the same bound as both gateway clients.
+const opcUaTargetReadBatchSize = 512;
+
+Map<String, Object?> decodeTargetedDataValues(Object? result) {
+  if (result is! Map) {
+    throw const FormatException('Gateway targeted-read result is invalid.');
+  }
+  if (result['protocol'] == 'fraktal.opcua.read-values.v1') {
+    if (result['values'] is! Map || result['dataValues'] is! Map) {
+      throw const FormatException('Gateway targeted-read envelope is invalid.');
+    }
+    return Map<String, Object?>.from(result);
+  }
+  if (result.containsKey('protocol')) {
+    throw const FormatException('Unknown targeted-read envelope version.');
+  }
+  // Older gateways force a native targeted read and return scalars only.
+  // Preserve that read-start aging behavior until they support the envelope.
+  return {
+    'values': Map<String, Object?>.from(result),
+    'dataValues': {
+      for (final item in result.entries)
+        '${item.key}': {
+          'ageMs': 0,
+          'status': item.value == null ? 0x80320000 : 0,
+        },
+    },
+  };
+}
+
+/// Shared optional RPC behavior for native and browser WebSocket clients.
+/// An older gateway makes this service unavailable; it never grants a write.
+Future<Map<String, Object?>?> readOpcUaGatewayConfigurationPage(
+    Future<Object?> Function(String, Map<String, Object?>) call,
+    String root,
+    int modelOrdinal) async {
+  try {
+    final result = await call(
+        'readConfigurationPage', {'root': root, 'model': modelOrdinal});
+    if (result == null) return null;
+    if (result is! Map)
+      throw const FormatException('Invalid configuration page response.');
+    return Map<String, Object?>.from(result);
+  } on OpcUaRemoteException catch (error) {
+    if (error.message == 'Unsupported gateway method.') return null;
+    rethrow;
+  }
+}

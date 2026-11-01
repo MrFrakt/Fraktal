@@ -24,11 +24,15 @@ final class CipReadPool implements CipBatchedGroupReadTransport {
   static const _maximumConnections = 4;
   final List<CipReadTransport> _transports;
   final List<CipReadTransport> _available;
+  final Future<CipReadTransport> Function()? _open;
   final List<Completer<CipReadTransport>> _waiting = [];
   bool _closed = false;
 
   CipReadPool.fromConnected(List<CipReadTransport> transports)
-      : _transports = List.unmodifiable(transports),
+      : this._(transports, null);
+
+  CipReadPool._(List<CipReadTransport> transports, this._open)
+      : _transports = List.of(transports),
         _available = List.of(transports) {
     if (transports.isEmpty ||
         transports.length > _maximumConnections ||
@@ -52,7 +56,10 @@ final class CipReadPool implements CipBatchedGroupReadTransport {
         opened.add(await CipSocketTransport.connect(
             host: host, port: port, slot: slot, expectSerial: serial));
       }
-      return CipReadPool.fromConnected(opened);
+      return CipReadPool._(
+          opened,
+          () => CipSocketTransport.connect(
+              host: host, port: port, slot: slot, expectSerial: serial));
     } on Object {
       await Future.wait(opened.map((transport) => transport.close()));
       rethrow;
@@ -89,6 +96,20 @@ final class CipReadPool implements CipBatchedGroupReadTransport {
     }
     try {
       if (_closed) throw const OpcUaTransportException('CIP read pool closed.');
+      // Renew only before starting work: no counter/body read is retried and
+      // every replacement checks the originally discovered controller serial.
+      if (transport is CipSocketTransport &&
+          transport.closedWhileIdle &&
+          _open != null) {
+        final index = _transports.indexOf(transport);
+        final replacement = await _open!();
+        if (_closed) {
+          await replacement.close();
+          throw const OpcUaTransportException('CIP read pool closed.');
+        }
+        _transports[index] = replacement;
+        transport = replacement;
+      }
       final result = await work(transport);
       if (_closed) throw const OpcUaTransportException('CIP read pool closed.');
       return result;

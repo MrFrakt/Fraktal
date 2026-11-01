@@ -4,6 +4,26 @@ This tree contains the Allen-Bradley Logix binding. The authoritative
 implementation specification is
 [`Specification/Fraktal_AB_Part_III.md`](../../../Specification/Fraktal_AB_Part_III.md).
 
+**Canonical HMI migration:** S4b desktop and S5 packaged gateway/Web
+qualifications are complete at local Echo scope.
+S5 implements the packaged Dart gateway with
+`--plc-endpoint "cip://<host>?slot=0&serial=<8 hex digits>"`, discovered through
+the PLC's Symbols, Templates and manifest. It loads no station declaration.
+Configuration browsing uses the read-only PLC view. The default instance has
+no write root; enabling `--write-root <published-root>` requires the owner's
+recorded write posture and the existing authenticated proxy. All C1–C13 cases
+pass, including the fresh owner Chrome checklist. Two-client detail reads and
+the narrow timing card also pass without disappearing rows or connection
+flicker. Echo is restored to genealogy; 31 baseline cases and final checks
+pass after one unchanged retry of a baseline START refusal. The original
+failure remains sealed and its cause is an S6 harness follow-up. See the
+[runtime record](../../../Specification/AllenBradley/Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md).
+Follow the
+[canonical plan](../../../Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md)
+and [gateway deployment guide](../../../Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md).
+The Python gateway and legacy projection remain migration tooling until S6;
+the dated legacy evidence below retains its original declaration-bound scope.
+
 **Gap closure (2026-10-18):** Echo now derives from the physical press
 declaration; that refactor preserved both baseline projects. Optional
 digital nameplates publish through the versioned manifest and generic HMI.
@@ -45,8 +65,10 @@ Genealogy-free declarations preserve their earlier output. See the
 The same run proves forced restart/reconnect of a disposable read-only local
 gateway, preserving 260 Part/host-history values. Installed-service, write and
 remote-network recovery remain separate acceptance gates.
-The current local Echo image is `fraktal_ab_genealogy_demo`, manifest
-`6DEC4C1DC2F7F78A`; select that declaration for its gateway/tools. The earlier
+The local Echo rollback image is `fraktal_ab_genealogy_demo`, manifest
+`6DEC4C1DC2F7F78A`; its legacy harnesses select that declaration. The canonical
+Dart gateway requires the qualified canonical image; S6 switches the rollback
+baseline only after its own acceptance gates. The earlier
 Part/tower/private-observer image references below describe their dated evidence.
 An opt-in local BY_POSITION carrier now adds Part identity, bounded scaled
 measurements, write-before-event result commits and received/started/processed/

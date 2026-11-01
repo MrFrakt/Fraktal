@@ -12,21 +12,29 @@ Uint8List u32(int n) =>
 class Peer {
   final ServerSocket server;
   Socket? socket;
-  Uint8List buffer = Uint8List(0);
+  final connections = <Socket>[];
+  final buffers = <Socket, Uint8List>{};
   final List<int> services = [];
+  final List<Uint8List> tagWrites = [];
+  int writeStatus = 0;
+  bool hangWrite = false;
   bool split = false, hang = false;
   String? corrupt;
   int identitySerial = 0x601fc87b;
   Peer._(this.server) {
     server.listen((s) {
       socket = s;
-      s.listen(receive, onError: (Object _) {});
+      connections.add(s);
+      buffers[s] = Uint8List(0);
+      s.listen((chunk) => receive(s, chunk), onError: (Object _) {});
     });
   }
   static Future<Peer> open() async =>
       Peer._(await ServerSocket.bind(InternetAddress.loopbackIPv4, 0));
   Future<void> close() async {
-    socket?.destroy();
+    for (final socket in connections) {
+      socket.destroy();
+    }
     await server.close();
   }
 
@@ -38,19 +46,21 @@ class Peer {
           port: server.port,
           expectSerial: serial,
           timeout: timeout);
-  void receive(Uint8List chunk) {
-    buffer = Uint8List.fromList([...buffer, ...chunk]);
+  void receive(Socket source, Uint8List chunk) {
+    var buffer = Uint8List.fromList([...buffers[source]!, ...chunk]);
+    buffers[source] = buffer;
     while (buffer.length >= 24) {
       final size =
           24 + ByteData.sublistView(buffer).getUint16(2, Endian.little);
       if (buffer.length < size) return;
       final frame = Uint8List.sublistView(buffer, 0, size);
       buffer = Uint8List.fromList(buffer.sublist(size));
-      unawaited(reply(frame));
+      buffers[source] = buffer;
+      unawaited(reply(source, frame));
     }
   }
 
-  Future<void> reply(Uint8List frame) async {
+  Future<void> reply(Socket source, Uint8List frame) async {
     final header = ByteData.sublistView(frame);
     final command = header.getUint16(0, Endian.little);
     if (command == 0x66) return;
@@ -101,17 +111,23 @@ class Peer {
       final sequence = header.getUint16(44, Endian.little), service = frame[46];
       services.add(service);
       if (hang && service == 0x52) return;
+      if (service == 0x4d) {
+        tagWrites.add(Uint8List.fromList(frame.sublist(46)));
+        if (hangWrite) return;
+      }
       if (service == 0x0e)
         expect(frame.sublist(48), [0x20, 1, 0x24, 1, 0x30, 6]);
-      final data = service == 0x0e
-          ? u32(identitySerial)
-          : Uint8List.fromList([0xc4, 0, ...u32(42)]);
+      final data = service == 0x4d
+          ? Uint8List(0)
+          : service == 0x0e
+              ? u32(identitySerial)
+              : Uint8List.fromList([0xc4, 0, ...u32(42)]);
       payload =
           cpf(0xa1, corrupt == 'connection' ? 0x55667789 : 0x55667788, 0xb1, [
         ...cipWords([corrupt == 'sequence' ? sequence + 1 : sequence]),
         service | 0x80,
         0,
-        0,
+        service == 0x4d ? writeStatus : 0,
         0,
         ...data
       ]);
@@ -128,14 +144,14 @@ class Peer {
       b.setUint32(12, 1234567, Endian.little);
     try {
       if (split) {
-        socket!.add(response.sublist(0, 7));
-        await socket!.flush();
+        source.add(response.sublist(0, 7));
+        await source.flush();
         await Future<void>.delayed(const Duration(milliseconds: 1));
-        socket!.add(response.sublist(7));
+        source.add(response.sublist(7));
       } else {
-        socket!.add(response);
+        source.add(response);
       }
-      await socket!.flush();
+      await source.flush();
     } on Object {/* Client must close a malformed or timed-out connection. */}
   }
 }
@@ -224,7 +240,7 @@ void main() {
       await expectLater(
           CipNamespace.readDint(client, 'Counter'), throwsFormatException);
       await expectLater(
-          CipNamespace.readDint(client, 'Counter'), throwsA(isA<Exception>()));
+          CipNamespace.readDint(client, 'Counter'), throwsFormatException);
       await client.close();
     }
   });
@@ -240,7 +256,7 @@ void main() {
     final second = CipNamespace.readDint(client, 'Other');
     await Future.wait([
       expectLater(first, throwsA(isA<TimeoutException>())),
-      expectLater(second, throwsA(isA<Exception>()))
+      expectLater(second, throwsA(isA<TimeoutException>()))
     ]);
     expect(peer.services.where((s) => s == 0x52).length, 1);
     await client.close();

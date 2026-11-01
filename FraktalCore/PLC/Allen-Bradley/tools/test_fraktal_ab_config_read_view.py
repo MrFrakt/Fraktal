@@ -114,6 +114,35 @@ class ReadViewTests(table_suite.TableDrivenConfigurationTests):
             self.assertEqual(set(row['ValueText']['DATA'][row['ValueText']['LEN']:]),{0})
         self.test_every_live_and_model_row_equals_the_existing_independent_page_oracle()
 
+    def test_published_write_revision_is_accepted_and_old_revision_refused_after_change(self):
+        # Reproduce S5 C6: real publisher output is the request argument; the
+        # independent generated ingress decides whether it is current.
+        import test_fraktal_ab_canonical_commands as ingress
+        import fraktal_ab_canonical_commands as command
+        import fraktal_ab_mailbox as mailbox
+        class PublishedIngress(ingress.IngressTests):pass
+        with patch.object(ingress.demo,'application',lambda:self.app):PublishedIngress.setUpClass()
+        native=PublishedIngress();native.setUp()
+        self.scan()
+        before=self.read['Definitions'][0]['WriteRevision']
+        self.assertEqual(before,self.root['Status']['ConfigRev'])
+        key=self.text(self.read['Definitions'][0]['WriteKey'])
+        native.tags[self.app.name]['Status']['ConfigRev']=self.root['Status']['ConfigRev']
+        native.stage(1,Kind=mailbox.WRITE_CONFIG,TargetPath=self.app.name,NameValue=key,IntValue=before,TextValue='1')
+        native.plc.run(native.ingress)
+        self.assertEqual(native.work['Error'],0)
+        self.records['FRK_T_PressStationCfg']['StationNumber']=2
+        self.scan()
+        current=self.read['Definitions'][0]['WriteRevision']
+        self.assertNotEqual(current,before)
+        self.assertEqual(current,self.root['Status']['ConfigRev'])
+        self.assertTrue(all(r['WriteRevision']==current for r in self.entries()))
+        native.tags[self.app.name]['Status']['ConfigRev']=self.root['Status']['ConfigRev']
+        for sequence,revision,error in [(2,before,command.STALE_REVISION),(3,current,0)]:
+            native.stage(sequence,Kind=mailbox.WRITE_CONFIG,TargetPath=self.app.name,NameValue=key,IntValue=revision,TextValue='1')
+            native.plc.run(native.ingress)
+            self.assertEqual(native.work['Error'],error)
+
     def test_invalid_catalogue_count_is_masked_instead_of_indexing_outside_the_model_bank(self):
         self.scan();self.controller.tags[models.tag(self.app)]['Count']=(self.app.model_capacity or len(self.app.models))+1
         self.scan();self.assertEqual(self.read['ValueCount'],0)

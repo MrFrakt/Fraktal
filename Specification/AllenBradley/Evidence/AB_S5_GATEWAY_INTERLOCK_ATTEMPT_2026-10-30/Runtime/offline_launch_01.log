@@ -1,0 +1,14 @@
+{"passed": true, "postures": 2, "controllerAccess": false, "writes": 0}
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-s5-20261029\session_03\offline_launch_smoke.py", line 41, in <module>
+    if __name__=='__main__':main()
+                            ~~~~^^
+  File "C:\work\fraktal-ab-s5-20261029\session_03\offline_launch_smoke.py", line 39, in main
+    peer.stdin.write('stop\n');peer.stdin.flush();peer.wait(timeout=15)
+                                                  ~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Python314\Lib\subprocess.py", line 1279, in wait
+    return self._wait(timeout=timeout)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\subprocess.py", line 1608, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['C:\\work\\fraktal-toolchains\\flutter-3.47.5\\bin\\cache\\dart-sdk\\bin\\dart.exe', '--packages=C:\\work\\fraktal-ab-s5-20261029\\session_03\\dart_package_config.json', 'C:\\Users\\SoftIndVM\\Fraktal\\FraktalCore\\HMI\\tool\\cip_rehearsal_peer.dart', '--capture', 'C:\\Users\\SoftIndVM\\Fraktal\\FraktalCore\\HMI\\test\\fixtures\\cip_owner_apparatus_v610.json.gz', '--port', '0', '--delay-scale', '0']' timed out after 15 seconds
