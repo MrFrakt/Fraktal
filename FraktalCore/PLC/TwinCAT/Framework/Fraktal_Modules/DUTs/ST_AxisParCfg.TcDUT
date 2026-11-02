@@ -6,7 +6,7 @@
 // configuration where the drive integrator owns them.
 TYPE ST_AxisParCfg :
 STRUCT
-    SchemaVersion : UINT := 1;
+    SchemaVersion : UINT := 2;   // v2 appended SpeedScaleMin/SpeedScaleMax
     SoftMin       : LREAL := 0.0;
     SoftMax       : LREAL := 100.0;
     Velocity      : LREAL := 50.0;
@@ -24,6 +24,11 @@ STRUCT
     // backstop for a stalled transport, NOT the normal stop: releasing the
     // control sends Dir=0 and stops immediately (O10).
     JogTimeout      : TIME := T#200MS;
+    // Speed-scale band (WP3.3): a command's SpeedScale is a percentage of
+    // ParCfg.Velocity, and one outside this band is refused before motion
+    // (AXIS_PARAM_OOR), never clamped. REAL and percent, as ST_RobotParCfg.
+    SpeedScaleMin : REAL := 1.0;
+    SpeedScaleMax : REAL := 100.0;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

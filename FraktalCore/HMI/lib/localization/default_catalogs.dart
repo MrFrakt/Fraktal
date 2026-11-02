@@ -614,6 +614,14 @@ const standardEnglish = <String, String>{
       'The two-point adjustment is implausible and was refused.',
   'std.error.analogInputNotStable':
       'The analog input did not become stable within the measure timeout.',
+  'std.error.axisPositionUndeclared':
+      'The move names a position this installation never declared.',
+  'std.error.axisSpeedScaleOutOfRange':
+      'The speed scale is outside the configured band.',
+  'std.error.axisConfigurationInvalid':
+      'The axis speed-scale configuration is invalid.',
+  'std.error.axisManualStepNotSet':
+      'The manual step is not set; stepping is refused.',
   'std.error.unsupportedManualTarget': 'Unsupported manual-command target.',
   'std.error.cylinderBothSensors': 'Both cylinder position sensors are active.',
   'std.error.cylinderRetractTimeout':
@@ -1223,9 +1231,13 @@ const standardEnglish = <String, String>{
       'Robot commanded by position identifiers through its connector',
   'std.command.home': 'Home',
   'std.command.measure': 'Measure',
+  'std.command.moveRelative': 'Move relative',
+  'std.command.stepPositive': 'Step +',
+  'std.command.stepNegative': 'Step -',
   'std.command.set': 'Set',
   'std.command.moveTo': 'Move to',
   'std.config.axisTaughtPosition': 'Taught position',
+  'std.config.axisManualStep': 'Manual step',
   'std.command.jogPositive': 'Jog +',
   'std.command.jogNegative': 'Jog −',
   'std.command.robotRunPath': 'Run path',
@@ -2332,12 +2344,24 @@ const standardSpanish = <String, String>{
   'std.moduleType.analogOutput.description':
       'Impulsa un canal analógico a un punto de consigna acotado y liberado.',
   'std.command.set': 'Fijar',
+  'std.command.moveRelative': 'Mover relativo',
+  'std.command.stepPositive': 'Paso +',
+  'std.command.stepNegative': 'Paso -',
   'std.config.analogOutputManualTarget': 'Punto de consigna manual',
+  'std.config.axisManualStep': 'Paso manual',
   'std.error.unsupportedAnalogOutputCommand': 'Comando de salida analógica no admitido.',
   'std.error.analogOutputTargetOutOfRange':
       'El punto de consigna está fuera de la banda aceptada.',
   'std.error.analogOutputConfigurationInvalid':
       'La configuración de la salida analógica no es válida.',
+  'std.error.axisPositionUndeclared':
+      'El movimiento nombra una posición que esta instalación nunca declaró.',
+  'std.error.axisSpeedScaleOutOfRange':
+      'La escala de velocidad está fuera de la banda configurada.',
+  'std.error.axisConfigurationInvalid':
+      'La configuración de la banda de velocidad del eje no es válida.',
+  'std.error.axisManualStepNotSet':
+      'El paso manual no está fijado; se rechaza el paso.',
   'std.command.moveTo': 'Mover a',
   'std.config.axisTaughtPosition': 'Posición enseñada',
   'std.command.jogPositive': 'Mover +',

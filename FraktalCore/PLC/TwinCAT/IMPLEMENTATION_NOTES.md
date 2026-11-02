@@ -5652,3 +5652,89 @@ tool tests, strict consistency and every AB/TIA replay and contract gate
 green; HMI analyzer clean, 622 passed / 12 skipped on Flutter 3.44.6. On the
 isolated UmRT: aggregate 294/294 in 53 suites, Press 9/9 in 2 suites. Scope
 and artifacts: `Specification/Evidence/2026-10-30_TC3_GenericCM_AnalogOutput.md`.
+
+## 170. Axis depth: named positions, relative moves, speed scale and override (Modules 0.14.0.0, 2026-11-02)
+
+L3 of the remaining-library plan. Every addition is checked before any
+`MC_*` call, so each refusal is provable without an NC axis; the motion
+itself is not (no NC PTP licence on this host).
+
+- **Named positions.** A second retained image, `ST_AxisTeachCfg`
+  (`ManualStep` and `Positions[2..PL_Axis.MAX_POSITIONS]`, schema
+  `PL_Axis.AXIS_TEACHCFG_SCHEMA` 1), restored by its own
+  `M_RestoreStationCfg`. The v2 `ST_AxisStationCfg` and its keys are
+  unchanged, so no deployed image is lost and a first boot after the
+  upgrade is silent. The composition root declares positions with
+  `M_DeclarePosition(Index, LabelKey)` before `Setup` (refused out of
+  range, for an empty label, twice, or after `Setup`); `Setup` registers
+  each as `axis.position<n>` with the soft limits as bounds and a capture
+  from `ActPos`, plus `axis.manualStep` - 10 of the 12 registrations.
+  `ParCmd.PositionIdx` selects the target (0 `Target`, 1 `TaughtPosition`,
+  2..8 a declared position); an undeclared index is refused
+  `AXIS_POSITION_UNDECLARED` (10207) before the range and datum checks.
+- **Relative and step moves.** `E_AxisCommand` appends `MOVE_REL`
+  (sequence only: `ParCmd.Distance`) and `STEP_POS`/`STEP_NEG` (manual
+  catalog: `±ManualStep`), all on `MC_MoveRelative`. A zero distance
+  completes without an `MC_*` call; a step with no manual step set is
+  refused `AXIS_PARAM_OOR` (`std.error.axisManualStepNotSet`).
+- **Defects found in review and fixed before the first commit.**
+  - The first version judged `ActPos + distance` against the soft limits
+    on every scan, so the target travelled with the axis: a legal move
+    from 0 to 80 under `SoftMax` 100 would have faulted `AXIS_TARGET_OOR`
+    at `ActPos` 40. The relative request is now resolved and judged once,
+    when the command starts, and the distance is latched (`_relDistance`).
+    No TcUnit row can reach the moving step without an NC axis, so this
+    fix is reasoned, not runtime-proven.
+  - Index resolution and `M_DeclarePosition` guarded the array read with
+    plain `AND`/`OR`. ST evaluates both operands, so an out-of-range index
+    still read `_positionDeclared[ParCmd.PositionIdx]` past the array
+    (and, if that byte happened to be non-zero, `_teach.Positions[...]`
+    too). Both chains are now `AND_THEN`/`OR_ELSE` throughout, so the
+    range check really guards the read.
+  - Seven `FB_Axis_Tests` rows shared an instance whose `Setup` nobody
+    called, so they never started and the aggregate gate never reached
+    `AllTestSuitesFinished` (the result print stopped at suite 33,
+    `AxisTests`). The first of the seven now sets the instance up. Two
+    rows used a `Setup` result that is FALSE by design as their done mark,
+    and the stored-v1 row had no valid default record, so its "refused"
+    assertion was satisfied by `Setup`'s own refusal: each now has a done
+    mark and the provider a current-layout record. In `FB_AxisJog_Tests`
+    the out-of-range, index-0 and empty-label refusals sat behind a flag
+    the previous row had always set, so they never ran; the row now uses
+    its own instance and proves each refusal before `Setup`, then the
+    after-`Setup` refusal.
+- **Speed.** `ST_AxisParCfg` v2 appends `SpeedScaleMin`/`SpeedScaleMax`
+  (REAL percent, the robot idiom) and `ST_AxisParCmd` `SpeedScale`; a
+  scale outside the band is refused `AXIS_PARAM_OOR` (10208) before the
+  datum, never clamped, and scales the commanded velocity. `PrepareRecipe`
+  refuses a non-positive, inverted or over-100 band with
+  `AXIS_CFG_INVALID` (10209). `SetOverride(Percent)` is set-and-hold
+  (0..100, refused and kept otherwise), drives `MC_Power.Override` - so it
+  acts on a running move and on jog - and is published as
+  `OutImm.Override`. No freshness fallback: a silent owner can only leave
+  an already accepted value.
+- **Reasons 10207-10209** rationalized and catalogued (85 -> 88), the
+  registry row widened to "axis CM 10201-10209", Annex G updated, operator
+  text in English and Spanish, AB/TIA census rows; the TIA packages
+  regenerated (a hash-only change).
+- **Upgrade cost.** Modules *minor* 0.14.0.0 (ParCfg v2, ParCmd growth,
+  enum append, a new retained image, a new OutImm member); Core *patch*
+  0.26.4.0 carries only the regenerated reason catalog. `ST_AxisParCfg`
+  records **stored** in a recipe provider are refused (`RECIPE_INVALID`)
+  until saved again; no StationCfg image is lost.
+- **Tests.** Fifteen rows - thirteen in `FB_Axis_Tests` (index resolution,
+  relative and step refusals, zero distance, speed-scale band, override
+  set-and-hold and refusal, invalid band at prepare, a stored v1
+  `ST_AxisParCfg` refused through the probe `ST_ProbeAxisParCfgV1`) and
+  two in `FB_AxisJog_Tests` (declared positions register and capture;
+  declarations refused at index 0, 1 and 9, for an empty label, twice, and
+  after `Setup`).
+
+Final: Core 0.26.4.0 / Modules 0.14.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 622 passed / 12 skipped on
+Flutter 3.44.6. On the isolated UmRT: the first aggregate run stalled at
+`AxisTests` (the rows above that never started); after the fixes,
+aggregate 309/309 in 53 suites and Press 9/9 in 2 suites. Scope and
+artifacts: `Specification/Evidence/2026-11-02_TC3_GenericCM_AxisDepth.md`.

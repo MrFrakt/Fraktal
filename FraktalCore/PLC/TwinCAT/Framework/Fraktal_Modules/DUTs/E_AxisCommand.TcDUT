@@ -12,7 +12,13 @@ TYPE E_AxisCommand : (
     // They never reach _M_Dispatch: a jog is not an Execute/Done command, and
     // PLCopen models it with level inputs for the same reason.
     JOG_POS := 3,
-    JOG_NEG := 4
+    JOG_NEG := 4,
+    // Relative move (sequence-only: it needs a distance, so it is not in the
+    // manual catalog) and the manual step commands, which move by the retained
+    // ManualStep in either direction (WP3.2).
+    MOVE_REL := 5,
+    STEP_POS := 6,
+    STEP_NEG := 7
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>

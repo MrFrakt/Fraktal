@@ -568,12 +568,23 @@ class ShiftCard extends StatelessWidget {
           Row(children: [
             const Icon(Icons.schedule_outlined),
             const SizedBox(width: kInlineItemGap),
-            LText('Shifts', style: theme.textTheme.titleMedium),
+            // Flexible on both texts: an exit transition squeezes this card's
+            // width through values smaller than the header's natural size, and
+            // unbounded children overflow those intermediate frames (measured
+            // in the publish flow when the simulator's shift card animates out).
+            Flexible(
+              child: LText('Shifts',
+                  style: theme.textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis),
+            ),
             const Spacer(),
-            Text(
+            Flexible(
+              child: Text(
                 '${_name(context, shift.currentShift)} · '
                 '${context.tr('since')} ${_time(shift.startedAt)}',
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall),
+            ),
           ]),
           if (shift.endsAt != null)
             LText('std.shift.endsAt', args: {'time': _time(shift.endsAt)}),
