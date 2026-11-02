@@ -5738,3 +5738,59 @@ Flutter 3.44.6. On the isolated UmRT: the first aggregate run stalled at
 `AxisTests` (the rows above that never started); after the fixes,
 aggregate 309/309 in 53 suites and Press 9/9 in 2 suites. Scope and
 artifacts: `Specification/Evidence/2026-11-02_TC3_GenericCM_AxisDepth.md`.
+
+## 171. The configurable cylinder adopts the valve timing (Modules 0.15.0.0, 2026-11-02)
+
+L4 of the remaining-library plan. `FB_ConfigurableCylinderCM` drives its
+commanded output through the same `FB_ValveDrive` as `FB_CylinderCM`
+(§166), so the two cylinder types time their valves one way and the timing
+is written once.
+
+- **`ParCfg` v2** appends `MinOutputTime`, `PulsingWidth`, `PulsingPeriod`
+  (`T#0MS`) and `ResetOnEndPos`, `ResetOnTimeout` (`FALSE`); `SettleTime`
+  already existed and keeps its 30 ms default. Every new default
+  reproduces v1: a steady output held after Done and after a timeout.
+- **Behaviour.** One private `_M_DriveCoil(ToWork, Level)` writes the
+  commanded output and never the spring side of a single-acting cylinder.
+  A move that starts with neither position confirmed pulses; any other is
+  steady. Done needs the settle **and** `MinTimeElapsed` (a sensorless
+  move: `MinTimeElapsed` after its travel time), then withdraws the output
+  when `ResetOnEndPos`; a timeout withdraws it when `ResetOnTimeout`. The
+  interlock path is unchanged: a lost area interlock still withdraws both
+  outputs and faults (this type has no HELD path and no `WithdrawOutputs`;
+  neither is added here).
+- **`PrepareRecipe` refuses (`CYL_CFG_INVALID`)** a non-zero
+  `MinOutputTime` the move timeout cannot contain, a pulse as long as its
+  period, `ResetOnEndPos` on a single-acting cylinder (withdrawing a
+  spring-return coil at its end returns the cylinder), and - one rule
+  stricter than the plan - pulsing unless **both** positions are sensed.
+  With an unsensed end, "neither position confirmed" is also true at that
+  end, so every stroke from it would pulse, and a pulsed stroke towards an
+  unsensed end would invalidate the travel time the type completes on.
+- **A defect found while adopting it.** A refused prepare left
+  `_recipePrepared` as the previous accepted prepare had set it, over a
+  staged record that was now the refused one: a `CommitRecipe` meant for
+  the earlier prepare would have applied the refused record.
+  `PrepareRecipe` now clears the mark first, as `FB_CylinderCM` does, and
+  a test row commits after four refusals to prove nothing is applied.
+- **Kept as `FB_CylinderCM` has it.** A timeout without `ResetOnTimeout`
+  leaves the output at its last level, which during pulsing may be either;
+  both types behave the same.
+- **Upgrade cost.** Modules *minor* 0.15.0.0 (a persistent layout change).
+  Core unchanged; no reason added. `ST_ConfigurableCylinderParCfg` records
+  **stored** in a recipe provider are refused (`RECIPE_INVALID`) until
+  saved again. Nothing outside TC3 carries the layout; the Siemens plan
+  and AB census record the gap.
+- **Tests.** Eight rows in `FB_ConfigurableCylinderCM_Tests`: settle and
+  minimum output time gate Done, pulsing from the middle, a stroke from an
+  end position is steady, end-of-move and timeout resets, the four
+  refusals plus the commit-after-refusal, the declared defaults reproduce
+  v1, and a stored v1 record refused through the probe
+  `ST_ProbeConfigurableCylinderParCfgV1`.
+
+Final: Core 0.26.4.0 / Modules 0.15.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green. On the isolated UmRT: aggregate 317/317 in 53 suites
+and Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-02_TC3_GenericCM_ConfigurableCylinderTiming.md`.

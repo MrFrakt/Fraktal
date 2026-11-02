@@ -26,6 +26,7 @@ VAR
     _tSettle : TON;
     _tDiscH  : TON;                             // home discrepancy timer
     _tDiscW  : TON;                             // work discrepancy timer
+    _drive   : FB_ValveDrive;                   // the commanded output's level for this move
     _cfgOk   : BOOL;
     _areaSafe : BOOL := TRUE;                   // §7.2 application-supplied area/process interlock
     _areaSafeKey : STRING(255);
@@ -63,7 +64,8 @@ VAR_INPUT
     Model : ST_ModelId;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_parCfgStaged := ParCfg;
+        <ST><![CDATA[_recipePrepared := FALSE;                // a refusal below leaves nothing to commit
+_parCfgStaged := ParCfg;
 IF _recipe <> 0 THEN
     IF NOT _recipe.Load(ModelCode := Model.ModelCode, RecipeKey := 'ConfigurableCylinderCM', pParCfg := ADR(_parCfgStaged), Size := SIZEOF(_parCfgStaged)) THEN
         _M_Fault(E_Reason.RECIPE_INVALID, 'std.error.recipeSchemaInvalid');
@@ -76,7 +78,14 @@ _cfgOk := (_parCfgStaged.HomeSensorCount >= 0) AND (_parCfgStaged.HomeSensorCoun
       AND (_parCfgStaged.WorkSensorCount >= 0) AND (_parCfgStaged.WorkSensorCount <= PL_Fraktal.MAX_POS_SENSORS)
       AND (_parCfgStaged.TravelTime < _parCfgStaged.MoveTimeout)
       AND ((_parCfgStaged.HomeSensorCount > 0) OR (_parCfgStaged.TravelTime > T#0S))
-      AND ((_parCfgStaged.WorkSensorCount > 0) OR (_parCfgStaged.TravelTime > T#0S));
+      AND ((_parCfgStaged.WorkSensorCount > 0) OR (_parCfgStaged.TravelTime > T#0S))
+      // v2 valve timing: a zero time is off and cannot conflict; pulsing needs a
+      // sensed middle; withdrawing a spring-return coil at its end would return it.
+      AND ((_parCfgStaged.MinOutputTime = T#0MS) OR (_parCfgStaged.MinOutputTime < _parCfgStaged.MoveTimeout))
+      AND ((_parCfgStaged.PulsingWidth = T#0MS)
+        OR ((_parCfgStaged.PulsingWidth < _parCfgStaged.PulsingPeriod)
+          AND (_parCfgStaged.HomeSensorCount > 0) AND (_parCfgStaged.WorkSensorCount > 0)))
+      AND NOT (_parCfgStaged.ResetOnEndPos AND _parCfgStaged.SingleActing);
 IF NOT _cfgOk THEN
     _M_FaultN(PL_ModuleReasons.CYL_CFG_INVALID, 'std.error.cylinderConfigurationInvalid');
     PrepareRecipe := FALSE;
@@ -230,6 +239,20 @@ ELSE
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_M_DriveCoil" Id="{fe13a807-9eb4-456d-a4d7-833bf424e22f}">
+      <Declaration><![CDATA[// The commanded direction's output at Level, the other off. A single-acting
+// cylinder never drives its home output: the spring is the home stroke.
+METHOD PRIVATE _M_DriveCoil
+VAR_INPUT
+    ToWork : BOOL;
+    Level  : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT __ISVALIDREF(_hal) THEN
+    RETURN;
+END_IF
+_hal.ToWorkOut := Level AND ToWork;
+_hal.ToHomeOut := Level AND (NOT ToWork) AND (NOT ParCfg.SingleActing);]]></ST></Implementation>
+    </Method>
     <Method Name="_M_Dispatch" Id="{ee37bbb6-46e7-4fe1-a54f-868b85f364fe}">
       <Declaration><![CDATA[// drive -> await (all-sensors-agree, or time when sensorless) -> settle -> done
 METHOD PROTECTED _M_Dispatch
@@ -237,6 +260,7 @@ VAR
     toWork  : BOOL;
     n       : INT;
     arrived : BOOL;
+    coil    : BOOL;
     d       : ST_Diagnostic;
 END_VAR]]></Declaration>
       <Implementation>
@@ -267,8 +291,12 @@ n := SEL(toWork, ParCfg.HomeSensorCount, ParCfg.WorkSensorCount);   // sensors o
 CASE _step OF
     10:
         OutCmd.ReachedPosition := E_CylinderPosition.UNKNOWN;
-        _hal.ToWorkOut := toWork;
-        _hal.ToHomeOut := (NOT toWork) AND (NOT ParCfg.SingleActing);
+        // Pulsing is for a move that starts from the sensed middle - neither
+        // position confirmed - where a full stroke would slam (FB_CylinderCM rule).
+        _drive.M_Begin(Pulsing := (ParCfg.PulsingWidth > T#0MS)
+                AND NOT OutImm.AtHome AND NOT OutImm.AtWork,
+            MinOutputTime := ParCfg.MinOutputTime);
+        _M_DriveCoil(ToWork := toWork, Level := TRUE);
         _tMove(IN := FALSE);
         _tSettle(IN := FALSE);
         _step := 20;
@@ -280,22 +308,35 @@ CASE _step OF
             _tSettle(IN := TRUE, PT := ParCfg.TravelTime);      // sensorless -> travel time
             arrived := _tSettle.Q;
         END_IF
+        coil := _drive.M_Coil(Steady := arrived, PulsingWidth := ParCfg.PulsingWidth,
+            PulsingPeriod := ParCfg.PulsingPeriod);
+        _M_DriveCoil(ToWork := toWork, Level := coil);
         IF arrived THEN
             _tSettle(IN := FALSE);
             _step := 30;
         ELSIF _tMove.Q THEN
             _tMove(IN := FALSE);
+            IF ParCfg.ResetOnTimeout THEN
+                _M_DriveCoil(ToWork := toWork, Level := FALSE);
+            END_IF
             _M_FaultN(SEL(toWork, PL_ModuleReasons.CYL_HOME_NOT_REACHED, PL_ModuleReasons.CYL_WORK_NOT_REACHED),
                       SEL(toWork, 'std.error.cylinderHomeTimeout', 'std.error.cylinderWorkTimeout'));
         END_IF
     30:  // settle/debounce; re-confirm all sensors still agree
         _tSettle(IN := TRUE, PT := ParCfg.SettleTime);
+        coil := _drive.M_Coil(Steady := TRUE, PulsingWidth := ParCfg.PulsingWidth,
+            PulsingPeriod := ParCfg.PulsingPeriod);
+        _M_DriveCoil(ToWork := toWork, Level := coil);
         IF n <= 0 THEN
-            OutCmd.ReachedPosition := SEL(toWork, E_CylinderPosition.HOME, E_CylinderPosition.WORK);
-            _M_Complete();
-        ELSIF _M_PosArrived(Work := toWork) THEN
-            IF _tSettle.Q THEN
+            IF _drive.MinTimeElapsed THEN
                 OutCmd.ReachedPosition := SEL(toWork, E_CylinderPosition.HOME, E_CylinderPosition.WORK);
+                _M_DriveCoil(ToWork := toWork, Level := NOT ParCfg.ResetOnEndPos);
+                _M_Complete();
+            END_IF
+        ELSIF _M_PosArrived(Work := toWork) THEN
+            IF _tSettle.Q AND _drive.MinTimeElapsed THEN
+                OutCmd.ReachedPosition := SEL(toWork, E_CylinderPosition.HOME, E_CylinderPosition.WORK);
+                _M_DriveCoil(ToWork := toWork, Level := NOT ParCfg.ResetOnEndPos);
                 _M_Complete();
             END_IF
         ELSE
