@@ -28,8 +28,9 @@ void main() {
     // 10701-10705 (AI_UNDER_RANGE..AI_NOT_STABLE). 85 adds the analog output
     // CM block 10801-10802 (AO_TARGET_OOR, AO_CFG_INVALID). 88 adds the axis
     // depth block 10207-10209 (AXIS_POSITION_UNDECLARED, AXIS_PARAM_OOR,
-    // AXIS_CFG_INVALID).
-    expect(generatedReasonSymbolByCode, hasLength(88));
+    // AXIS_CFG_INVALID). 92 adds the curve monitor block 10901-10904
+    // (CURVE_WINDOW_VIOLATED..CURVE_SPEC_INVALID).
+    expect(generatedReasonSymbolByCode, hasLength(92));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

@@ -5794,3 +5794,82 @@ profiles, the tool tests, strict consistency and every AB/TIA replay and
 contract gate green. On the isolated UmRT: aggregate 317/317 in 53 suites
 and Press 9/9 in 2 suites. Scope and artifacts:
 `Specification/Evidence/2026-11-02_TC3_GenericCM_ConfigurableCylinderTiming.md`.
+
+## 172. The curve monitor (Modules 0.15.1.0, 2026-11-02)
+
+L5 of the remaining-library plan. `FB_CurveMonitor` judges one measured
+curve - force over stroke, pressure over time - against windows it must
+pass through and envelopes it must stay on one side of. It is
+owner-private like `FB_ValveDrive`: no module identity, no published
+state, no I/O, and it raises nothing itself.
+
+- **Use.** The owner embeds an `ST_CurveSpec` in its own `ParCfg`,
+  validates it in `PrepareRecipe` with `M_Validate` (refusing with
+  `CURVE_SPEC_INVALID`), calls `M_Begin` when the curve starts,
+  `M_Sample(X, Y)` once per measured point and `M_Finish` when it ends.
+  `M_Begin` copies the spec, so a recipe committed mid-curve cannot move
+  this curve's verdict, and an invalid spec judges nothing and finishes
+  NOK with `CURVE_SPEC_INVALID`. Samples outside `M_Begin..M_Finish` are
+  ignored; `M_Finish` again returns the same result.
+- **Online, no buffer.** Every rule is decided as the samples arrive:
+  windows track inside/outside per sample, envelopes keep a segment cursor
+  that moves with X, so a monotonic curve costs O(windows + envelopes) per
+  sample. A window is judged on its samples - a curve sampled too sparsely
+  to land one inside it misses it.
+- **Windows.** Bounds are inclusive. `ANY_EDGE`/`ANY_EDGE` passes on one
+  inside sample. A declared `EntryEdge` is the edge the outside-to-inside
+  segment crosses last (the largest segment parameter among the bounds the
+  outside sample violates), a declared `ExitEdge` the one the
+  inside-to-outside segment crosses first; an exact corner goes to the
+  first in `LEFT, RIGHT, BOTTOM, TOP` order. A curve that starts inside
+  never crossed a declared entry, and one that ends inside never took a
+  declared exit; both fail the window. The plan's names did not survive
+  the gates: the members `Entry`/`Exit` became `EntryEdge`/`ExitEdge`
+  (`EXIT` is reserved, lint rule C2), and the enum member `ANY` became
+  `ANY_EDGE` - the compiler rejected `ANY`, IEC's generic-type keyword
+  (C0368, then C0004 at every use), which C2 did not know. C2 now lists
+  the IEC generic types (`ANY`, `ANY_INT`, ...), with a test, so the next
+  one fails in seconds, not in XAE.
+- **Envelopes.** `Upper` keeps the curve at or below the linear
+  interpolation, otherwise at or above; outside the envelope's X span
+  nothing is judged. The first violating sample's index is recorded per
+  envelope.
+- **Verdict.** `Complete` = the curve reached every window's `XMax` and
+  every envelope's last X. OK only when complete, every window passed and
+  no envelope cut; otherwise NOK naming the first failing rule -
+  incomplete before window before envelope.
+- **One addition to the plan's result: `DescriptionKey`**, the operator
+  text of `Reason`, so every owner faults with `_M_FaultN(Result.Reason,
+  Result.DescriptionKey)` instead of mapping four codes to four keys
+  itself (§1.1 O1).
+- **Validation** also refuses a spec of another `SchemaVersion`
+  (`PL_Curve.SPEC_SCHEMA`), an edge value the type does not know (a stored
+  record), and a spec with no rule at all - a check that checks nothing is
+  a configuration mistake, not an OK.
+- **Reasons 10901-10904** (`CURVE_WINDOW_VIOLATED`,
+  `CURVE_ENVELOPE_VIOLATED`, `CURVE_INCOMPLETE` MED/PROCESS;
+  `CURVE_SPEC_INVALID` MED/SYSTEM), registered to the helper and raised by
+  its owner; catalogued (88 -> 92), registry row, operator text in English
+  and Spanish, the generator expands `SPEC`. This allocates the last free
+  CM block: a further CM type needs a Part I §8.8 registry amendment
+  first.
+- **Upgrade cost.** Modules *patch* 0.15.1.0 (additive); Core *patch*
+  0.26.5.0 carries only the regenerated reason catalog. TIA: hash-only
+  change, packages regenerated and verified; the Siemens plan and AB
+  census record the helper as not carried.
+- **Tests.** `FB_CurveMonitor_Tests`, eleven single-scan rows: spec
+  validation (and an invalid spec finishing NOK), `ANY_EDGE` window pass
+  and miss, declared entry/exit edges passing (`LEFT`->`RIGHT`,
+  `BOTTOM`->`TOP`), a wrong entry edge and a curve starting inside, a
+  wrong exit edge and a curve ending inside, an upper envelope cut on its
+  second segment by interpolation, a lower envelope, an incomplete curve
+  (and one with no sample), verdict precedence, and `M_Begin` resetting
+  the previous curve.
+
+Final: Core 0.26.5.0 / Modules 0.15.1.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 622 passed / 12 skipped on
+Flutter 3.44.6. On the isolated UmRT: aggregate 328/328 in 54 suites and
+Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-02_TC3_GenericCM_CurveMonitor.md`.

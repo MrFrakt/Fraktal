@@ -622,6 +622,13 @@ const standardEnglish = <String, String>{
       'The axis speed-scale configuration is invalid.',
   'std.error.axisManualStepNotSet':
       'The manual step is not set; stepping is refused.',
+  'std.error.curveWindowViolated':
+      'The measured curve missed a window or crossed it through a wrong edge.',
+  'std.error.curveEnvelopeViolated':
+      'The measured curve crossed its envelope.',
+  'std.error.curveIncomplete':
+      'The measured curve ended before it could be judged.',
+  'std.error.curveSpecInvalid': 'The curve specification is invalid.',
   'std.error.unsupportedManualTarget': 'Unsupported manual-command target.',
   'std.error.cylinderBothSensors': 'Both cylinder position sensors are active.',
   'std.error.cylinderRetractTimeout':
@@ -2362,6 +2369,13 @@ const standardSpanish = <String, String>{
       'La configuración de la banda de velocidad del eje no es válida.',
   'std.error.axisManualStepNotSet':
       'El paso manual no está fijado; se rechaza el paso.',
+  'std.error.curveWindowViolated':
+      'La curva medida no pasó por una ventana o la cruzó por un borde incorrecto.',
+  'std.error.curveEnvelopeViolated':
+      'La curva medida cruzó su envolvente.',
+  'std.error.curveIncomplete':
+      'La curva medida terminó antes de poder evaluarse.',
+  'std.error.curveSpecInvalid': 'La especificación de la curva no es válida.',
   'std.command.moveTo': 'Mover a',
   'std.config.axisTaughtPosition': 'Posición enseñada',
   'std.command.jogPositive': 'Mover +',

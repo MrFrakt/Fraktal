@@ -2,7 +2,9 @@
 
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
-Modules `0.15.0.0` gives the configurable cylinder (`FB_ConfigurableCylinderCM`) the
+Modules `0.15.1.0` adds the owner-private curve monitor (`FB_CurveMonitor`: windows
+with entry/exit edges and envelopes, judged online per sample; Core `0.26.5.0` carries
+the grown reason catalog). Modules `0.15.0.0` gives the configurable cylinder (`FB_ConfigurableCylinderCM`) the
 valve timing `FB_CylinderCM` already has: minimum output time, pulsing from the sensed
 middle and the end-of-move/timeout reset policies (`ParCfg` v2). Modules `0.14.0.0`
 deepens the axis CM (`FB_AxisCM`: declared named positions with captures,
@@ -31,7 +33,7 @@ the user table outside the symbol table, controller/IPC health from the Beckhoff
 Device Manager and the EtherCAT master's own state, frame and CRC counters (§160-§162).
 The Windows clock adapter observes the target's existing time service and expires
 missing quality; see the [build and installation guide](../../../Specification/Guides/TC3_WINDOWS_CLOCK.md).
-Modules `0.15.0.0` pins Core `0.26.4.0`. The latest source audit is
+Modules `0.15.1.0` pins Core `0.26.5.0`. The latest source audit is
 [Core and Press TC3 feature gaps](../../../Specification/Reports/TC3_CORE_PRESS_FEATURE_AUDIT_2026-10-06.md).
 
 > **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their

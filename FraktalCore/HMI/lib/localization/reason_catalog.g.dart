@@ -259,6 +259,18 @@ const generatedReasonEnglish = <String, String>{
   "std.reason.10802": "Analog output configuration invalid.",
   "std.reason.10802.action": "Correct the scaling, band and safe-value configuration and reload the recipe.",
   "std.reason.10802.consequence": "The channel cannot be commanded with valid supervision.",
+  "std.reason.10901": "Curve window violated.",
+  "std.reason.10901.action": "Inspect the part and the process for the measured curve; check the window against the process before changing it.",
+  "std.reason.10901.consequence": "The measured curve missed a window, or crossed it through an edge it must not.",
+  "std.reason.10902": "Curve envelope violated.",
+  "std.reason.10902.action": "Inspect the part and the process for the measured curve; check the envelope against the process before changing it.",
+  "std.reason.10902.consequence": "The measured curve crossed an envelope it must stay inside.",
+  "std.reason.10903": "Curve incomplete.",
+  "std.reason.10903.action": "Check why the stroke or the measurement ended early, then repeat the cycle.",
+  "std.reason.10903.consequence": "The curve ended before every window and envelope was reached, so it could not be judged OK.",
+  "std.reason.10904": "Curve specification invalid.",
+  "std.reason.10904.action": "Correct the curve specification (real windows, envelopes with increasing X, at least one rule) and reload the recipe.",
+  "std.reason.10904.consequence": "The curve cannot be judged; the recipe was not applied.",
   "std.reason.11001": "Clamp not confirmed.",
   "std.reason.11001.action": "Inspect every clamp child and restore the first unconfirmed clamp condition.",
   "std.reason.11001.consequence": "The equipment module cannot prove the requested clamp state.",
@@ -352,6 +364,10 @@ const generatedReasonSymbolByCode = <int, String>{
   10705: "AI_NOT_STABLE",
   10801: "AO_TARGET_OOR",
   10802: "AO_CFG_INVALID",
+  10901: "CURVE_WINDOW_VIOLATED",
+  10902: "CURVE_ENVELOPE_VIOLATED",
+  10903: "CURVE_INCOMPLETE",
+  10904: "CURVE_SPEC_INVALID",
   11001: "CLAMP_NOT_CONFIRMED",
 };
 
@@ -443,6 +459,10 @@ const generatedReasonPriorityByCode = <int, int>{
   10705: 0,
   10801: 1,
   10802: 1,
+  10901: 1,
+  10902: 1,
+  10903: 1,
+  10904: 1,
   11001: 1,
 };
 
@@ -534,6 +554,10 @@ const generatedReasonCategoryByCode = <int, int>{
   10705: 0,
   10801: 0,
   10802: 2,
+  10901: 0,
+  10902: 0,
+  10903: 0,
+  10904: 2,
   11001: 0,
 };
 
@@ -625,6 +649,10 @@ const generatedReasonShelvableByCode = <int, bool>{
   10705: false,
   10801: false,
   10802: false,
+  10901: false,
+  10902: false,
+  10903: false,
+  10904: false,
   11001: false,
 };
 
@@ -710,6 +738,10 @@ const generatedReasonHasOperatorAction = <int>{
   10705,
   10801,
   10802,
+  10901,
+  10902,
+  10903,
+  10904,
   11001,
 };
 

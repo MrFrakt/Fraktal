@@ -7,6 +7,34 @@
     "shelving": "Shelving suppresses annunciation only, never control, and expires automatically."
   },
   "reasons": {
+    "CURVE_WINDOW_VIOLATED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Inspect the part and the process for the measured curve; check the window against the process before changing it.",
+      "consequence": "The measured curve missed a window, or crossed it through an edge it must not."
+    },
+    "CURVE_ENVELOPE_VIOLATED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Inspect the part and the process for the measured curve; check the envelope against the process before changing it.",
+      "consequence": "The measured curve crossed an envelope it must stay inside."
+    },
+    "CURVE_INCOMPLETE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check why the stroke or the measurement ended early, then repeat the cycle.",
+      "consequence": "The curve ended before every window and envelope was reached, so it could not be judged OK."
+    },
+    "CURVE_SPEC_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Correct the curve specification (real windows, envelopes with increasing X, at least one rule) and reload the recipe.",
+      "consequence": "The curve cannot be judged; the recipe was not applied."
+    },
     "AXIS_POSITION_UNDECLARED": {
       "priority": "LOW",
       "category": "PROCESS",

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_CurveResult" Id="{ddbb5b61-66c2-4905-b25c-ae8eab27d901}">
+    <Declaration><![CDATA[// The verdict on one finished curve (FB_CurveMonitor.M_Finish). Reason names the
+// first failing rule - incomplete before window before envelope - and
+// DescriptionKey its operator text, so an owner faults or records it as is.
+TYPE ST_CurveResult :
+STRUCT
+    Complete       : BOOL;     // the curve reached every window's XMax and every envelope's last X
+    Verdict        : E_Verdict;
+    Reason         : DINT;     // 0 when OK
+    DescriptionKey : STRING(80);
+    WindowPassed   : ARRAY[1..PL_Curve.MAX_WINDOWS] OF BOOL;
+    EnvelopeCutIdx : ARRAY[1..2] OF INT;   // the first sample past envelope n, 0 = none
+    Samples        : INT;      // samples judged (saturates at 32767)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

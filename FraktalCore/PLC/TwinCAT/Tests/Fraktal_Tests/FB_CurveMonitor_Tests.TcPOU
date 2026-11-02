@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_CurveMonitor_Tests" Id="{93e7d170-14f2-4dea-aaba-d56cae3a048b}" SpecialFunc="None">
+    <Declaration><![CDATA[// FB_CurveMonitor: spec validation, windows (ANY_EDGE, entry and exit edges),
+// envelopes (upper, lower, interpolated), completeness and verdict precedence.
+// Pure logic: every row feeds a whole curve and judges it in one scan.
+FUNCTION_BLOCK FB_CurveMonitor_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _m1, _m2, _m3, _m4, _m4b, _m5, _m5b, _m6, _m6b, _m7, _m7b, _m8, _m9, _m10, _m11 : FB_CurveMonitor;
+    _s1, _s2, _s3, _s4, _s4b, _s5, _s5b, _s6, _s6b, _s7, _s8, _s9, _s10, _s11 : ST_CurveSpec;
+    _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _r10, _r11 : ST_CurveResult;
+    _done : ARRAY[1..11] OF BOOL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[Spec_validation_refuses_what_cannot_be_judged();
+Any_window_passes_on_one_inside_sample();
+Any_window_missed_fails();
+Entry_and_exit_through_the_declared_edges_pass();
+Entry_through_another_edge_fails();
+Exit_through_another_edge_or_none_fails();
+Upper_envelope_cut_is_interpolated();
+Lower_envelope_cut();
+Incomplete_curve_is_NOK();
+Verdict_precedence_incomplete_window_envelope();
+Begin_resets_the_previous_curve();]]></ST>
+    </Implementation>
+    <Method Name="Spec_validation_refuses_what_cannot_be_judged" Id="{082622ab-014f-4b8c-ab09-4a536d967b0d}">
+      <Declaration><![CDATA[METHOD Spec_validation_refuses_what_cannot_be_judged]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Spec_validation_refuses_what_cannot_be_judged');
+IF _done[1] THEN
+    RETURN;
+END_IF
+_s1.WindowCount := 1;
+_s1.Windows[1].XMin := 2.0;  _s1.Windows[1].XMax := 4.0;
+_s1.Windows[1].YMin := 1.0;  _s1.Windows[1].YMax := 3.0;
+AssertTrue(Condition := _m1.M_Validate(Spec := _s1), Message := 'a real window is a valid spec');
+_s1.Windows[1].XMax := 2.0;
+AssertFalse(Condition := _m1.M_Validate(Spec := _s1), Message := 'a window without width is refused');
+_s1.Windows[1].XMax := 4.0;
+_s1.WindowCount := PL_Curve.MAX_WINDOWS + 1;
+AssertFalse(Condition := _m1.M_Validate(Spec := _s1), Message := 'more windows than the type holds are refused');
+_s1.WindowCount := 0;
+_s1.EnvelopeCount := 1;
+_s1.Envelopes[1].Count := 3;
+_s1.Envelopes[1].Points[1].X := 0.0;  _s1.Envelopes[1].Points[1].Y := 1.0;
+_s1.Envelopes[1].Points[2].X := 5.0;  _s1.Envelopes[1].Points[2].Y := 2.0;
+_s1.Envelopes[1].Points[3].X := 5.0;  _s1.Envelopes[1].Points[3].Y := 3.0;
+AssertFalse(Condition := _m1.M_Validate(Spec := _s1), Message := 'an envelope whose X does not increase is refused');
+_s1.Envelopes[1].Points[3].X := 6.0;
+AssertTrue(Condition := _m1.M_Validate(Spec := _s1), Message := 'a strictly increasing envelope is valid');
+_s1.Envelopes[1].Count := 1;
+AssertFalse(Condition := _m1.M_Validate(Spec := _s1), Message := 'a one-point envelope is refused');
+_s1.Envelopes[1].Count := 3;
+_s1.EnvelopeCount := 3;
+AssertFalse(Condition := _m1.M_Validate(Spec := _s1), Message := 'more than two envelopes are refused');
+_s1.EnvelopeCount := 0;
+AssertFalse(Condition := _m1.M_Validate(Spec := _s1), Message := 'a spec with no rule judges nothing and is refused');
+_s1.EnvelopeCount := 1;
+_s1.SchemaVersion := 0;
+AssertFalse(Condition := _m1.M_Validate(Spec := _s1), Message := 'a spec of another schema is refused');
+// An invalid spec is judged by nobody: Begin accepts it, Finish refuses it.
+_m1.M_Begin(Spec := _s1);
+_m1.M_Sample(X := 1.0, Y := 1.0);
+_r1 := _m1.M_Finish();
+AssertTrue(Condition := _r1.Verdict = E_Verdict.NOK, Message := 'a curve judged against an invalid spec is NOK');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_SPEC_INVALID, Actual := _r1.Reason,
+    Message := 'with CURVE_SPEC_INVALID');
+AssertEquals_INT(Expected := 0, Actual := _r1.Samples, Message := 'and no sample was judged');
+_done[1] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Any_window_passes_on_one_inside_sample" Id="{3d50c499-5e9e-42f6-9bfe-814a1799c4c8}">
+      <Declaration><![CDATA[METHOD Any_window_passes_on_one_inside_sample]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Any_window_passes_on_one_inside_sample');
+IF _done[2] THEN
+    RETURN;
+END_IF
+_s2.WindowCount := 1;
+_s2.Windows[1].XMin := 4.0;  _s2.Windows[1].XMax := 6.0;
+_s2.Windows[1].YMin := 4.0;  _s2.Windows[1].YMax := 6.0;
+_m2.M_Begin(Spec := _s2);
+_M_Line(Mon := _m2, X0 := 0.0, Y0 := 0.0, X1 := 10.0, Y1 := 10.0, Steps := 20);
+_r2 := _m2.M_Finish();
+AssertTrue(Condition := _r2.WindowPassed[1], Message := 'a sample inside passes an ANY_EDGE window');
+AssertTrue(Condition := _r2.Complete, Message := 'the curve got past the window');
+AssertTrue(Condition := _r2.Verdict = E_Verdict.OK, Message := 'so the curve is OK');
+AssertEquals_DINT(Expected := 0, Actual := _r2.Reason, Message := 'with no reason');
+AssertEquals_INT(Expected := 21, Actual := _r2.Samples, Message := 'every sample was judged');
+_done[2] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Any_window_missed_fails" Id="{77605f60-a112-4ac5-8ea1-63fae3c2cee3}">
+      <Declaration><![CDATA[METHOD Any_window_missed_fails]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Any_window_missed_fails');
+IF _done[3] THEN
+    RETURN;
+END_IF
+_s3.WindowCount := 1;
+_s3.Windows[1].XMin := 4.0;  _s3.Windows[1].XMax := 6.0;
+_s3.Windows[1].YMin := 4.0;  _s3.Windows[1].YMax := 6.0;
+_m3.M_Begin(Spec := _s3);
+_M_Line(Mon := _m3, X0 := 0.0, Y0 := 0.0, X1 := 10.0, Y1 := 2.0, Steps := 20);
+_r3 := _m3.M_Finish();
+AssertFalse(Condition := _r3.WindowPassed[1], Message := 'a curve passing beside the window misses it');
+AssertTrue(Condition := _r3.Complete, Message := 'although it is complete');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_WINDOW_VIOLATED, Actual := _r3.Reason,
+    Message := 'NOK with CURVE_WINDOW_VIOLATED');
+AssertEquals_STRING(Expected := 'std.error.curveWindowViolated', Actual := _r3.DescriptionKey,
+    Message := 'and the text an owner faults with');
+_done[3] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Entry_and_exit_through_the_declared_edges_pass" Id="{4ad5cfa9-4f0a-4b44-abbd-5f8ec8a6c5e0}">
+      <Declaration><![CDATA[METHOD Entry_and_exit_through_the_declared_edges_pass]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Entry_and_exit_through_the_declared_edges_pass');
+IF _done[4] THEN
+    RETURN;
+END_IF
+_s4.WindowCount := 1;
+_s4.Windows[1].XMin := 4.0;  _s4.Windows[1].XMax := 6.0;
+_s4.Windows[1].YMin := 2.0;  _s4.Windows[1].YMax := 8.0;
+_s4.Windows[1].EntryEdge := E_CurveEdge.LEFT;
+_s4.Windows[1].ExitEdge := E_CurveEdge.RIGHT;
+_m4.M_Begin(Spec := _s4);
+_M_Line(Mon := _m4, X0 := 0.0, Y0 := 5.0, X1 := 10.0, Y1 := 5.0, Steps := 20);
+_r4 := _m4.M_Finish();
+AssertTrue(Condition := _r4.WindowPassed[1], Message := 'in through LEFT and out through RIGHT passes');
+AssertTrue(Condition := _r4.Verdict = E_Verdict.OK, Message := 'and the curve is OK');
+// BOTTOM in, TOP out: a steep curve, judged by the edge each segment crosses.
+_s4b.WindowCount := 1;
+_s4b.Windows[1].XMin := 4.0;  _s4b.Windows[1].XMax := 6.0;
+_s4b.Windows[1].YMin := 4.0;  _s4b.Windows[1].YMax := 6.0;
+_s4b.Windows[1].EntryEdge := E_CurveEdge.BOTTOM;
+_s4b.Windows[1].ExitEdge := E_CurveEdge.TOP;
+_m4b.M_Begin(Spec := _s4b);
+_M_Line(Mon := _m4b, X0 := 3.0, Y0 := 0.0, X1 := 7.0, Y1 := 10.0, Steps := 20);
+_r4 := _m4b.M_Finish();
+AssertTrue(Condition := _r4.WindowPassed[1], Message := 'in through BOTTOM and out through TOP passes');
+_done[4] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Entry_through_another_edge_fails" Id="{079e6a7b-86ba-42cc-8576-3f0f7c6cec89}">
+      <Declaration><![CDATA[METHOD Entry_through_another_edge_fails]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Entry_through_another_edge_fails');
+IF _done[5] THEN
+    RETURN;
+END_IF
+_s5.WindowCount := 1;
+_s5.Windows[1].XMin := 4.0;  _s5.Windows[1].XMax := 6.0;
+_s5.Windows[1].YMin := 2.0;  _s5.Windows[1].YMax := 8.0;
+_s5.Windows[1].EntryEdge := E_CurveEdge.BOTTOM;
+_m5.M_Begin(Spec := _s5);
+_M_Line(Mon := _m5, X0 := 0.0, Y0 := 5.0, X1 := 10.0, Y1 := 5.0, Steps := 20);
+_r5 := _m5.M_Finish();
+AssertFalse(Condition := _r5.WindowPassed[1], Message := 'entering through LEFT where BOTTOM is declared fails');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_WINDOW_VIOLATED, Actual := _r5.Reason,
+    Message := 'with CURVE_WINDOW_VIOLATED');
+// A curve that starts inside never crossed the declared edge at all.
+_s5b.WindowCount := 1;
+_s5b.Windows[1].XMin := 0.0;  _s5b.Windows[1].XMax := 6.0;
+_s5b.Windows[1].YMin := 2.0;  _s5b.Windows[1].YMax := 8.0;
+_s5b.Windows[1].EntryEdge := E_CurveEdge.LEFT;
+_m5b.M_Begin(Spec := _s5b);
+_M_Line(Mon := _m5b, X0 := 0.0, Y0 := 5.0, X1 := 10.0, Y1 := 5.0, Steps := 20);
+_r5 := _m5b.M_Finish();
+AssertFalse(Condition := _r5.WindowPassed[1], Message := 'a curve that starts inside was never entered through LEFT');
+_done[5] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Exit_through_another_edge_or_none_fails" Id="{afba65e0-14e0-4bb9-9586-97503c55c9be}">
+      <Declaration><![CDATA[METHOD Exit_through_another_edge_or_none_fails]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Exit_through_another_edge_or_none_fails');
+IF _done[6] THEN
+    RETURN;
+END_IF
+_s6.WindowCount := 1;
+_s6.Windows[1].XMin := 4.0;  _s6.Windows[1].XMax := 6.0;
+_s6.Windows[1].YMin := 4.0;  _s6.Windows[1].YMax := 6.0;
+_s6.Windows[1].ExitEdge := E_CurveEdge.RIGHT;
+_m6.M_Begin(Spec := _s6);
+_M_Line(Mon := _m6, X0 := 3.0, Y0 := 0.0, X1 := 7.0, Y1 := 10.0, Steps := 20);
+_r6 := _m6.M_Finish();
+AssertFalse(Condition := _r6.WindowPassed[1], Message := 'leaving through TOP where RIGHT is declared fails');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_WINDOW_VIOLATED, Actual := _r6.Reason,
+    Message := 'with CURVE_WINDOW_VIOLATED');
+// Ending on the window's far bound is complete, but the declared exit was never taken.
+_s6b.WindowCount := 1;
+_s6b.Windows[1].XMin := 4.0;  _s6b.Windows[1].XMax := 9.0;
+_s6b.Windows[1].YMin := 0.0;  _s6b.Windows[1].YMax := 10.0;
+_s6b.Windows[1].ExitEdge := E_CurveEdge.RIGHT;
+_m6b.M_Begin(Spec := _s6b);
+_M_Line(Mon := _m6b, X0 := 0.0, Y0 := 5.0, X1 := 9.0, Y1 := 5.0, Steps := 18);
+_r6 := _m6b.M_Finish();
+AssertTrue(Condition := _r6.Complete, Message := 'a curve reaching XMax inclusive is complete');
+AssertFalse(Condition := _r6.WindowPassed[1], Message := 'but ending inside is not leaving through RIGHT');
+_done[6] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Upper_envelope_cut_is_interpolated" Id="{f871f324-a445-4118-97e0-fc7e09a9190d}">
+      <Declaration><![CDATA[METHOD Upper_envelope_cut_is_interpolated]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Upper_envelope_cut_is_interpolated');
+IF _done[7] THEN
+    RETURN;
+END_IF
+_s7.EnvelopeCount := 1;
+_s7.Envelopes[1].Upper := TRUE;
+_s7.Envelopes[1].Count := 3;
+_s7.Envelopes[1].Points[1].X := 0.0;   _s7.Envelopes[1].Points[1].Y := 10.0;
+_s7.Envelopes[1].Points[2].X := 5.0;   _s7.Envelopes[1].Points[2].Y := 15.0;
+_s7.Envelopes[1].Points[3].X := 10.0;  _s7.Envelopes[1].Points[3].Y := 30.0;
+// At X 4 the bound is 14, at X 7.5 (second segment) it is 22.5.
+_m7.M_Begin(Spec := _s7);
+_m7.M_Sample(X := 0.0, Y := 0.0);
+_m7.M_Sample(X := 4.0, Y := 13.9);
+_m7.M_Sample(X := 7.5, Y := 22.4);
+_m7.M_Sample(X := 10.0, Y := 0.0);
+_r7 := _m7.M_Finish();
+AssertTrue(Condition := _r7.Verdict = E_Verdict.OK, Message := 'just under the interpolated bound is OK');
+AssertEquals_INT(Expected := 0, Actual := _r7.EnvelopeCutIdx[1], Message := 'and nothing is cut');
+_m7b.M_Begin(Spec := _s7);
+_m7b.M_Sample(X := 0.0, Y := 0.0);
+_m7b.M_Sample(X := 4.0, Y := 13.9);
+_m7b.M_Sample(X := 7.5, Y := 22.6);
+_m7b.M_Sample(X := 10.0, Y := 0.0);
+_r7 := _m7b.M_Finish();
+AssertEquals_INT(Expected := 3, Actual := _r7.EnvelopeCutIdx[1],
+    Message := 'just over it on the second segment cuts at that sample');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_ENVELOPE_VIOLATED, Actual := _r7.Reason,
+    Message := 'NOK with CURVE_ENVELOPE_VIOLATED');
+_done[7] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Lower_envelope_cut" Id="{b2cdf42d-35e4-45e8-9b4d-ed407aab66f1}">
+      <Declaration><![CDATA[METHOD Lower_envelope_cut]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Lower_envelope_cut');
+IF _done[8] THEN
+    RETURN;
+END_IF
+_s8.EnvelopeCount := 1;
+_s8.Envelopes[1].Upper := FALSE;
+_s8.Envelopes[1].Count := 2;
+_s8.Envelopes[1].Points[1].X := 0.0;   _s8.Envelopes[1].Points[1].Y := 0.0;
+_s8.Envelopes[1].Points[2].X := 10.0;  _s8.Envelopes[1].Points[2].Y := 10.0;
+_m8.M_Begin(Spec := _s8);
+_m8.M_Sample(X := 0.0, Y := 1.0);
+_m8.M_Sample(X := 5.0, Y := 5.5);
+_m8.M_Sample(X := 8.0, Y := 7.9);
+_m8.M_Sample(X := 10.0, Y := 12.0);
+_r8 := _m8.M_Finish();
+AssertEquals_INT(Expected := 3, Actual := _r8.EnvelopeCutIdx[1], Message := 'below a lower envelope cuts it');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_ENVELOPE_VIOLATED, Actual := _r8.Reason,
+    Message := 'NOK with CURVE_ENVELOPE_VIOLATED');
+_done[8] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Incomplete_curve_is_NOK" Id="{82c5edcf-516d-4e3c-81c1-6dce0da40f31}">
+      <Declaration><![CDATA[METHOD Incomplete_curve_is_NOK]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Incomplete_curve_is_NOK');
+IF _done[9] THEN
+    RETURN;
+END_IF
+_s9.WindowCount := 1;
+_s9.Windows[1].XMin := 4.0;  _s9.Windows[1].XMax := 6.0;
+_s9.Windows[1].YMin := 0.0;  _s9.Windows[1].YMax := 10.0;
+_s9.EnvelopeCount := 1;
+_s9.Envelopes[1].Upper := TRUE;
+_s9.Envelopes[1].Count := 2;
+_s9.Envelopes[1].Points[1].X := 0.0;   _s9.Envelopes[1].Points[1].Y := 100.0;
+_s9.Envelopes[1].Points[2].X := 20.0;  _s9.Envelopes[1].Points[2].Y := 100.0;
+_m9.M_Begin(Spec := _s9);
+_M_Line(Mon := _m9, X0 := 0.0, Y0 := 5.0, X1 := 10.0, Y1 := 5.0, Steps := 20);
+_r9 := _m9.M_Finish();
+AssertFalse(Condition := _r9.Complete, Message := 'stopping at 10 of an envelope reaching 20 is incomplete');
+AssertTrue(Condition := _r9.WindowPassed[1], Message := 'though the window itself passed');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_INCOMPLETE, Actual := _r9.Reason,
+    Message := 'NOK with CURVE_INCOMPLETE');
+_m9.M_Begin(Spec := _s9);
+_r9 := _m9.M_Finish();
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_INCOMPLETE, Actual := _r9.Reason,
+    Message := 'a curve with no sample is incomplete');
+_done[9] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Verdict_precedence_incomplete_window_envelope" Id="{7ef4b5e4-d570-45b8-813c-039885475f8a}">
+      <Declaration><![CDATA[METHOD Verdict_precedence_incomplete_window_envelope]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Verdict_precedence_incomplete_window_envelope');
+IF _done[10] THEN
+    RETURN;
+END_IF
+_s10.WindowCount := 1;
+_s10.Windows[1].XMin := 4.0;  _s10.Windows[1].XMax := 6.0;
+_s10.Windows[1].YMin := 4.0;  _s10.Windows[1].YMax := 6.0;
+_s10.EnvelopeCount := 1;
+_s10.Envelopes[1].Upper := TRUE;
+_s10.Envelopes[1].Count := 2;
+_s10.Envelopes[1].Points[1].X := 0.0;   _s10.Envelopes[1].Points[1].Y := 3.0;
+_s10.Envelopes[1].Points[2].X := 10.0;  _s10.Envelopes[1].Points[2].Y := 3.0;
+_m10.M_Begin(Spec := _s10);
+_M_Line(Mon := _m10, X0 := 0.0, Y0 := 0.0, X1 := 10.0, Y1 := 10.0, Steps := 20);
+_r10 := _m10.M_Finish();
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_ENVELOPE_VIOLATED, Actual := _r10.Reason,
+    Message := 'only the envelope fails: the envelope names it');
+_m10.M_Begin(Spec := _s10);
+_M_Line(Mon := _m10, X0 := 0.0, Y0 := 3.5, X1 := 10.0, Y1 := 3.5, Steps := 20);
+_r10 := _m10.M_Finish();
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_WINDOW_VIOLATED, Actual := _r10.Reason,
+    Message := 'window and envelope fail: the window names it');
+_m10.M_Begin(Spec := _s10);
+_M_Line(Mon := _m10, X0 := 0.0, Y0 := 3.5, X1 := 5.0, Y1 := 3.5, Steps := 10);
+_r10 := _m10.M_Finish();
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_INCOMPLETE, Actual := _r10.Reason,
+    Message := 'all three fail: incompleteness names it');
+_done[10] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Begin_resets_the_previous_curve" Id="{e197b203-16e5-4184-ad2d-ffd3a172595e}">
+      <Declaration><![CDATA[METHOD Begin_resets_the_previous_curve]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Begin_resets_the_previous_curve');
+IF _done[11] THEN
+    RETURN;
+END_IF
+_s11.WindowCount := 1;
+_s11.Windows[1].XMin := 4.0;  _s11.Windows[1].XMax := 6.0;
+_s11.Windows[1].YMin := 4.0;  _s11.Windows[1].YMax := 6.0;
+_s11.EnvelopeCount := 1;
+_s11.Envelopes[1].Upper := TRUE;
+_s11.Envelopes[1].Count := 2;
+_s11.Envelopes[1].Points[1].X := 0.0;   _s11.Envelopes[1].Points[1].Y := 8.0;
+_s11.Envelopes[1].Points[2].X := 10.0;  _s11.Envelopes[1].Points[2].Y := 8.0;
+_m11.M_Begin(Spec := _s11);
+_M_Line(Mon := _m11, X0 := 0.0, Y0 := 0.0, X1 := 10.0, Y1 := 10.0, Steps := 20);
+_r11 := _m11.M_Finish();
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_ENVELOPE_VIOLATED, Actual := _r11.Reason,
+    Message := 'the first curve cuts the envelope');
+_m11.M_Begin(Spec := _s11);
+_M_Line(Mon := _m11, X0 := 0.0, Y0 := 5.0, X1 := 10.0, Y1 := 5.0, Steps := 20);
+_r11 := _m11.M_Finish();
+AssertTrue(Condition := _r11.Verdict = E_Verdict.OK, Message := 'the next curve is judged on its own');
+AssertEquals_INT(Expected := 0, Actual := _r11.EnvelopeCutIdx[1], Message := 'no cut is carried over');
+AssertEquals_INT(Expected := 21, Actual := _r11.Samples, Message := 'and its samples are counted afresh');
+_m11.M_Sample(X := 5.0, Y := 100.0);
+_r11 := _m11.M_Finish();
+AssertTrue(Condition := _r11.Verdict = E_Verdict.OK, Message := 'a sample after Finish changes nothing');
+AssertEquals_INT(Expected := 21, Actual := _r11.Samples, Message := 'and is not counted');
+_done[11] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Line" Id="{1c329435-01a1-466a-a292-db39edf4fcb1}">
+      <Declaration><![CDATA[// Samples Steps + 1 evenly spaced points from (X0, Y0) to (X1, Y1), both ends.
+METHOD PRIVATE _M_Line
+VAR_INPUT
+    Mon   : REFERENCE TO FB_CurveMonitor;
+    X0    : LREAL;
+    Y0    : LREAL;
+    X1    : LREAL;
+    Y1    : LREAL;
+    Steps : INT;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[FOR i := 0 TO Steps DO
+    Mon.M_Sample(X := X0 + (X1 - X0) * INT_TO_LREAL(i) / INT_TO_LREAL(Steps),
+                 Y := Y0 + (Y1 - Y0) * INT_TO_LREAL(i) / INT_TO_LREAL(Steps));
+END_FOR]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

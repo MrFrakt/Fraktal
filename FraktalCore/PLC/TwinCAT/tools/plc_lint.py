@@ -210,6 +210,11 @@ RESERVED = {
     # A method input named `From` was rejected by 3.1.4026.24 with a C0009
     # cascade on the declaration and every call (FB_FilePersistMedium, 2026-10-06).
     "from",
+    # IEC generic data types. An enumeration member named ANY was rejected by
+    # 3.1.4026 with C0368/C0006/C0026 on the declaration and C0004 at every use
+    # (E_CurveEdge, 2026-11-02).
+    "any", "any_derived", "any_elementary", "any_magnitude", "any_num",
+    "any_real", "any_int", "any_bit", "any_string", "any_date",
 }
 
 

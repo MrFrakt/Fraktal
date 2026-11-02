@@ -57,6 +57,11 @@ VAR_GLOBAL CONSTANT
     // analog output CM 10800-10899
     AO_TARGET_OOR   : DINT := 10801;   // a SET target outside [Minimum, Maximum] (rejected before writing)
     AO_CFG_INVALID  : DINT := 10802;   // scaling/band/safe-value configuration the type cannot honour
+    // curve monitor 10900-10999: FB_CurveMonitor decides them, its owner raises them
+    CURVE_WINDOW_VIOLATED   : DINT := 10901;   // a window missed, or crossed through a wrong edge
+    CURVE_ENVELOPE_VIOLATED : DINT := 10902;   // a sample on the wrong side of an envelope
+    CURVE_INCOMPLETE        : DINT := 10903;   // the curve stopped before every rule's reach
+    CURVE_SPEC_INVALID      : DINT := 10904;   // a spec the helper cannot judge (refused at prepare)
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

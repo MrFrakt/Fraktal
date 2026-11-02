@@ -355,6 +355,7 @@ String _defaultText(String symbol) {
     'POS': 'position',
     'RESP': 'response',
     'RX': 'receive',
+    'SPEC': 'specification',
   };
   final normalized = [
     for (final word in words) replacements[word] ?? word.toLowerCase(),
