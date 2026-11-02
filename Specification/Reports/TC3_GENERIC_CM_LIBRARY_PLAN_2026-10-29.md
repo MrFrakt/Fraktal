@@ -11,6 +11,21 @@ Modules 0.13.0.1**, aggregate TcUnit inventory **269 tests / 51 suites**, Press
 Paths are relative to the repository root. `TC3/` abbreviates
 `FraktalCore/PLC/TwinCAT/`.
 
+**Progress, 2026-11-02:** L1–L6 are implemented and gated, L8 is written; L7 stays deferred
+(Q2). Each package's evidence under `Specification/Evidence/` records what changed from
+this plan and why:
+
+| Package | Result | Evidence | Notes |
+|---|---|---|---|
+| L1 | Modules 0.13.1.0 / Core 0.26.2.0 | `2026-10-30_TC3_GenericCM_AnalogInput.md` | §168 |
+| L2 | Modules 0.13.2.0 / Core 0.26.3.0 | `2026-10-30_TC3_GenericCM_AnalogOutput.md` | §169 |
+| L3 | Modules 0.14.0.0 / Core 0.26.4.0 | `2026-11-02_TC3_GenericCM_AxisDepth.md` | §170; four review defects fixed before commit |
+| L4 | Modules 0.15.0.0 | `2026-11-02_TC3_GenericCM_ConfigurableCylinderTiming.md` | §171; pulsing additionally needs both positions sensed |
+| L5 | Modules 0.15.1.0 / Core 0.26.5.0 | `2026-11-02_TC3_GenericCM_CurveMonitor.md` | §172; `EntryEdge`/`ExitEdge`, `ANY_EDGE`, result carries `DescriptionKey` |
+| L6 | Modules 0.15.2.0 + HMI | `2026-11-02_TC3_GenericCM_CurveRecord.md` | §173 |
+| L7 | deferred (Q2) | — | — |
+| L8 | paper | `Reports/TC3_CODE_READER_PARITY_AUDIT_2026-11-02.md`, `Reports/TC3_ROBOT_USER_CHANNEL_AUDIT_2026-11-02.md` | the robot audit finds Annex I claiming a mode-request half `FB_RobotCM` does not have; the owner chooses implement or correct |
+
 ---
 
 ## 0. Owner decisions that bind this plan
