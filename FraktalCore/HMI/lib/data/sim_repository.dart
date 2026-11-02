@@ -2415,12 +2415,47 @@ class SimRepository implements PlcRepository {
             type: ModuleType.controlModule,
             state: chain.currentStep?.stepNo == 40 && unit.running
                 ? ExecState.busy
-                : ExecState.done),
+                : ExecState.done,
+            curve: _sealerCurve),
       ],
     );
   }
 
   static double _round(double v) => (v * 10).roundToDouble() / 10;
+
+  /// A sealing jaw's force over its travel (Modules `ST_CurveRecord`), judged
+  /// against one window entered LEFT and left RIGHT and an upper envelope: the
+  /// Curve tab's demo record. Force starts at contact (6 mm) and passes the
+  /// window between 8.5 and 9.5 mm, so the verdict is OK.
+  static final _sealerCurve = () {
+    final samples = [
+      for (var i = 0; i <= 40; i++)
+        CurvePoint(
+            i * 0.25,
+            i * 0.25 < 6
+                ? 0.0
+                : 300 * math.pow((i * 0.25 - 6) / 4, 1.5).toDouble()),
+    ];
+    return CurveFacet(
+      loaded: true,
+      sampleCount: samples.length,
+      samples: samples,
+      windows: const [
+        CurveWindow(8.5, 9.5, 140, 260,
+            entryEdge: CurveEdge.left, exitEdge: CurveEdge.right, passed: true),
+      ],
+      envelopes: const [
+        CurveEnvelope(upper: true, points: [
+          CurvePoint(0, 60),
+          CurvePoint(6, 60),
+          CurvePoint(10, 330),
+        ]),
+      ],
+      complete: true,
+      verdict: Verdict.ok,
+      judgedSamples: samples.length,
+    );
+  }();
 
   /// §8.9 rationalization records for the reasons this demo raises.
   static const _alarmMeta = [

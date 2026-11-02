@@ -168,6 +168,75 @@ void main() {
     expect(projection.forest, isEmpty);
   });
 
+  test('maps a curve record: its length always, the record once it is read', () {
+    const unit = {
+      'PLC1/MAIN/Packer/Status/Name': 'Packer',
+      'PLC1/MAIN/Packer/Status/ModuleType': 1,
+      'PLC1/MAIN/Packer/Sealer/Status/Name': 'Packer.Sealer',
+      'PLC1/MAIN/Packer/Sealer/Status/ModuleType': 3,
+      'PLC1/MAIN/Packer/Sealer/OutImm/Curve/SampleCount': 3,
+    };
+    ModuleNode sealer(Map<String, Object?> values) => OpcUaSnapshotMapper()
+        .map({'values': values})
+        .forest
+        .single
+        .children
+        .single;
+
+    // The tab is closed: only the live length arrived.
+    final pending = sealer(unit).curve!;
+    expect(pending.loaded, isFalse);
+    expect(pending.sampleCount, 3);
+    expect(pending.samples, isEmpty);
+
+    const base = 'PLC1/MAIN/Packer/Sealer/OutImm/Curve';
+    final curve = sealer({
+      ...unit,
+      '$base/Truncated': false,
+      for (var i = 1; i <= 3; i++) ...{
+        '$base/Samples[$i]/X': i * 1.0,
+        '$base/Samples[$i]/Y': i * 10.0,
+      },
+      '$base/Spec/WindowCount': 1,
+      '$base/Spec/Windows[1]/XMin': 1.5,
+      '$base/Spec/Windows[1]/XMax': 2.5,
+      '$base/Spec/Windows[1]/YMin': 15.0,
+      '$base/Spec/Windows[1]/YMax': 25.0,
+      '$base/Spec/Windows[1]/EntryEdge': 1,
+      '$base/Spec/Windows[1]/ExitEdge': 2,
+      '$base/Spec/EnvelopeCount': 1,
+      '$base/Spec/Envelopes[1]/Count': 2,
+      '$base/Spec/Envelopes[1]/Upper': true,
+      '$base/Spec/Envelopes[1]/Points[1]/X': 0.0,
+      '$base/Spec/Envelopes[1]/Points[1]/Y': 25.0,
+      '$base/Spec/Envelopes[1]/Points[2]/X': 3.0,
+      '$base/Spec/Envelopes[1]/Points[2]/Y': 25.0,
+      '$base/Result/Complete': true,
+      '$base/Result/Verdict': 2,
+      '$base/Result/DescriptionKey': 'std.error.curveEnvelopeViolated',
+      '$base/Result/WindowPassed': [true, false, false, false],
+      '$base/Result/EnvelopeCutIdx[1]': 3,
+      '$base/Result/EnvelopeCutIdx[2]': 0,
+      '$base/Result/Samples': 3,
+    }).curve!;
+    expect(curve.loaded, isTrue);
+    expect(curve.samples.map((s) => s.y), [10.0, 20.0, 30.0]);
+    expect(curve.windows.single.entryEdge, CurveEdge.left);
+    expect(curve.windows.single.exitEdge, CurveEdge.right);
+    expect(curve.windows.single.passed, isTrue);
+    expect(curve.envelopes.single.upper, isTrue);
+    expect(curve.envelopes.single.points, hasLength(2));
+    expect(curve.envelopes.single.cutIndex, 3);
+    expect(curve.verdict, Verdict.nok);
+    expect(curve.reason, 'std.error.curveEnvelopeViolated');
+    expect(curve.judgedSamples, 3);
+
+    // A module that publishes no record has no facet.
+    expect(sealer(Map.of(unit)..remove(
+            'PLC1/MAIN/Packer/Sealer/OutImm/Curve/SampleCount')).curve,
+        isNull);
+  });
+
   test('maps system health, time quality, and signal tower generically', () {
     final projection = OpcUaSnapshotMapper().map({
       'values': {

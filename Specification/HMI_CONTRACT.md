@@ -613,6 +613,28 @@ stay gated.
 A leaf-level `liveLeaves` rule is checked **before** the container rules, which is
 what lets it outrank the subtree it belongs to.
 
+## Curve record (Modules `ST_CurveRecord`)
+
+A module that judges a measured curve with `FB_CurveMonitor` may publish the last
+finished one as `OutImm.Curve`. The HMI then offers a read-only **Curve** tab:
+windows as rectangles in their pass/fail colour, envelopes as polylines, the
+measured samples, the first envelope cut and the PLC's verdict. Nothing is
+recomputed and nothing is written.
+
+| PLC symbol | Type | HMI use |
+|---|---|---|
+| `<module>/OutImm/Curve/SampleCount` | INT | **live** - its presence is what makes the tab exist |
+| `<module>/OutImm/Curve/Truncated` | BOOL | the PLC kept only the first samples; the verdict still covers all |
+| `<module>/OutImm/Curve/Samples[i]/X`, `/Y` | LREAL | the measured curve, `i` = 1..`SampleCount` |
+| `<module>/OutImm/Curve/Spec/Windows[i]/…` | `ST_CurveWindow` | `XMin/XMax/YMin/YMax`, `EntryEdge`/`ExitEdge` (`E_CurveEdge`), `i` = 1..`WindowCount` |
+| `<module>/OutImm/Curve/Spec/Envelopes[i]/…` | `ST_CurveEnvelope` | `Upper`, `Count`, `Points[k]/X`, `/Y` |
+| `<module>/OutImm/Curve/Result/…` | `ST_CurveResult` | `Verdict` (`E_Verdict`), `DescriptionKey`, `WindowPassed[i]`, `EnvelopeCutIdx[i]`, `Samples` (judged) |
+
+Everything under `Curve` except `SampleCount` is **on demand**: read only while the
+tab is open (`OpcUaFieldTier`), never cyclically - a record is several thousand
+leaves. Geometry is fractions of the chart's box and every colour a semantic token
+measured against its card in every theme.
+
 ## Derived state flags (§3.12)
 
 | PLC symbol | Type | HMI use |

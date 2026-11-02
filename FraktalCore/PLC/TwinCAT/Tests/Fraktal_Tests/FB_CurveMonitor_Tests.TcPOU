@@ -9,7 +9,12 @@ VAR
     _m1, _m2, _m3, _m4, _m4b, _m5, _m5b, _m6, _m6b, _m7, _m7b, _m8, _m9, _m10, _m11 : FB_CurveMonitor;
     _s1, _s2, _s3, _s4, _s4b, _s5, _s5b, _s6, _s6b, _s7, _s8, _s9, _s10, _s11 : ST_CurveSpec;
     _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _r10, _r11 : ST_CurveResult;
-    _done : ARRAY[1..11] OF BOOL;
+    _m12, _m13 : FB_CurveMonitor;
+    _s12, _s13 : ST_CurveSpec;
+    _r12, _r13 : ST_CurveResult;
+    _rec12, _rec13 : ST_CurveRecord;
+    _i : INT;
+    _done : ARRAY[1..13] OF BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Spec_validation_refuses_what_cannot_be_judged();
@@ -22,7 +27,9 @@ Upper_envelope_cut_is_interpolated();
 Lower_envelope_cut();
 Incomplete_curve_is_NOK();
 Verdict_precedence_incomplete_window_envelope();
-Begin_resets_the_previous_curve();]]></ST>
+Begin_resets_the_previous_curve();
+Record_copies_the_finished_curve();
+Truncated_record_keeps_the_whole_verdict();]]></ST>
     </Implementation>
     <Method Name="Spec_validation_refuses_what_cannot_be_judged" Id="{082622ab-014f-4b8c-ab09-4a536d967b0d}">
       <Declaration><![CDATA[METHOD Spec_validation_refuses_what_cannot_be_judged]]></Declaration>
@@ -343,6 +350,73 @@ _r11 := _m11.M_Finish();
 AssertTrue(Condition := _r11.Verdict = E_Verdict.OK, Message := 'a sample after Finish changes nothing');
 AssertEquals_INT(Expected := 21, Actual := _r11.Samples, Message := 'and is not counted');
 _done[11] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Record_copies_the_finished_curve" Id="{a04e9913-3ad9-4bb6-b257-91ef0f8dc798}">
+      <Declaration><![CDATA[METHOD Record_copies_the_finished_curve]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Record_copies_the_finished_curve');
+IF _done[12] THEN
+    RETURN;
+END_IF
+_s12.WindowCount := 1;
+_s12.Windows[1].XMin := 4.0;  _s12.Windows[1].XMax := 6.0;
+_s12.Windows[1].YMin := 4.0;  _s12.Windows[1].YMax := 6.0;
+AssertFalse(Condition := _m12.M_Record(Target := _rec12), Message := 'nothing to record before a curve finishes');
+_m12.M_Begin(Spec := _s12);
+_M_Line(Mon := _m12, X0 := 0.0, Y0 := 0.0, X1 := 10.0, Y1 := 10.0, Steps := 20);
+AssertFalse(Condition := _m12.M_Record(Target := _rec12), Message := 'nor while it runs');
+AssertEquals_INT(Expected := 0, Actual := _rec12.SampleCount, Message := 'and the record is left untouched');
+_r12 := _m12.M_Finish();
+AssertTrue(Condition := _m12.M_Record(Target := _rec12), Message := 'a finished curve is recorded');
+AssertEquals_INT(Expected := 21, Actual := _rec12.SampleCount, Message := 'every sample');
+AssertFalse(Condition := _rec12.Truncated, Message := 'none missing');
+AssertEquals_LREAL(Expected := 10.0, Actual := _rec12.Samples[21].X, Delta := 0.000001,
+    Message := 'in order');
+AssertEquals_LREAL(Expected := 6.0, Actual := _rec12.Spec.Windows[1].XMax, Delta := 0.000001,
+    Message := 'with the spec it was judged against');
+AssertTrue(Condition := _rec12.Result.Verdict = E_Verdict.OK, Message := 'and its verdict');
+// A shorter curve clears the rows the longer one left behind.
+_m12.M_Begin(Spec := _s12);
+_M_Line(Mon := _m12, X0 := 0.0, Y0 := 5.0, X1 := 10.0, Y1 := 5.0, Steps := 4);
+_r12 := _m12.M_Finish();
+AssertTrue(Condition := _m12.M_Record(Target := _rec12), Message := 'the next curve is recorded');
+AssertEquals_INT(Expected := 5, Actual := _rec12.SampleCount, Message := 'with its own count');
+AssertEquals_LREAL(Expected := 0.0, Actual := _rec12.Samples[6].X, Delta := 0.000001,
+    Message := 'and no row of the previous curve behind it');
+_done[12] := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Truncated_record_keeps_the_whole_verdict" Id="{16f7650d-0382-42a2-ade9-f3d1efffb96e}">
+      <Declaration><![CDATA[METHOD Truncated_record_keeps_the_whole_verdict]]></Declaration>
+      <Implementation><ST><![CDATA[// More samples than the record holds: the record is truncated, the verdict is
+// not - a cut after the last kept sample still fails the curve.
+TEST('Truncated_record_keeps_the_whole_verdict');
+IF _done[13] THEN
+    RETURN;
+END_IF
+_s13.EnvelopeCount := 1;
+_s13.Envelopes[1].Upper := TRUE;
+_s13.Envelopes[1].Count := 2;
+_s13.Envelopes[1].Points[1].X := 0.0;    _s13.Envelopes[1].Points[1].Y := 10.0;
+_s13.Envelopes[1].Points[2].X := 300.0;  _s13.Envelopes[1].Points[2].Y := 10.0;
+_m13.M_Begin(Spec := _s13);
+FOR _i := 1 TO 300 DO
+    IF _i = 280 THEN
+        _m13.M_Sample(X := INT_TO_LREAL(_i), Y := 11.0);
+    ELSE
+        _m13.M_Sample(X := INT_TO_LREAL(_i), Y := 5.0);
+    END_IF
+END_FOR
+_r13 := _m13.M_Finish();
+AssertTrue(Condition := _m13.M_Record(Target := _rec13), Message := 'the curve is recorded');
+AssertEquals_INT(Expected := PL_Curve.MAX_SAMPLES, Actual := _rec13.SampleCount, Message := 'up to the buffer');
+AssertTrue(Condition := _rec13.Truncated, Message := 'and says the rest is missing');
+AssertEquals_INT(Expected := 300, Actual := _rec13.Result.Samples, Message := 'while every sample was judged');
+AssertEquals_INT(Expected := 280, Actual := _rec13.Result.EnvelopeCutIdx[1],
+    Message := 'including the cut past the kept ones');
+AssertEquals_DINT(Expected := PL_ModuleReasons.CURVE_ENVELOPE_VIOLATED, Actual := _rec13.Result.Reason,
+    Message := 'so the curve is NOK');
+_done[13] := TRUE;
 TEST_FINISHED();]]></ST></Implementation>
     </Method>
     <Method Name="_M_Line" Id="{1c329435-01a1-466a-a292-db39edf4fcb1}">

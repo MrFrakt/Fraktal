@@ -12,7 +12,9 @@
 //
 // Every rule is decided as the samples arrive, O(windows + envelopes) per
 // sample, so the verdict needs no sample buffer. A window is judged on its
-// samples: a curve sampled too sparsely to land one inside it misses it.
+// samples: a curve sampled too sparsely to land one inside it misses it. The
+// first PL_Curve.MAX_SAMPLES samples are kept only so M_Record can publish what
+// was measured.
 FUNCTION_BLOCK FB_CurveMonitor
 VAR
     _spec    : ST_CurveSpec;     // copied at M_Begin: a recipe committed mid-curve cannot move this verdict
@@ -28,6 +30,10 @@ VAR
     _seen    : ARRAY[1..PL_Curve.MAX_WINDOWS] OF BOOL;   // some sample was inside window i
     _broken  : ARRAY[1..PL_Curve.MAX_WINDOWS] OF BOOL;   // window i was crossed through a wrong edge
     _seg     : ARRAY[1..2] OF INT;                       // each envelope's current segment
+    _kept    : INT;                                      // samples kept for the record
+    _truncated : BOOL;                                   // a sample arrived after the buffer filled
+    _samples : ARRAY[1..PL_Curve.MAX_SAMPLES] OF ST_CurvePoint;
+    _finished : BOOL;                                    // a curve has finished since the last M_Begin
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[]]></ST></Implementation>
     <Method Name="M_Validate" Id="{350801d9-1875-4239-aecf-795ce6145b1f}">
@@ -90,6 +96,9 @@ IF _specOk THEN
     _spec := Spec;
 END_IF
 _active := TRUE;
+_finished := FALSE;
+_kept := 0;
+_truncated := FALSE;
 _hasLast := FALSE;
 _maxX := 0.0;
 FOR i := 1 TO PL_Curve.MAX_WINDOWS DO
@@ -134,6 +143,13 @@ END_VAR]]></Declaration>
 END_IF
 IF _result.Samples < 32767 THEN
     _result.Samples := _result.Samples + 1;
+END_IF
+IF _kept < PL_Curve.MAX_SAMPLES THEN
+    _kept := _kept + 1;
+    _samples[_kept].X := X;
+    _samples[_kept].Y := Y;
+ELSE
+    _truncated := TRUE;
 END_IF
 IF (NOT _hasLast) OR (X > _maxX) THEN
     _maxX := X;
@@ -186,6 +202,7 @@ END_VAR]]></Declaration>
     _result.Reason := PL_ModuleReasons.CURVE_SPEC_INVALID;
     _result.DescriptionKey := 'std.error.curveSpecInvalid';
     _active := FALSE;
+    _finished := TRUE;
     M_Finish := _result;
     RETURN;
 END_IF
@@ -214,7 +231,48 @@ ELSE
     _result.DescriptionKey := '';
 END_IF
 _active := FALSE;
+_finished := TRUE;
 M_Finish := _result;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Record" Id="{384a0615-3a00-411b-a15e-9b053c5cc804}">
+      <Declaration><![CDATA[// Copy the last FINISHED curve into the owner's published record (once per
+// curve, after M_Finish): the kept samples, the spec it was judged against and
+// the verdict. Refused (FALSE, Target untouched) while a curve runs or before
+// the first one finishes, so a record never shows half a curve. Rows past
+// SampleCount are cleared, and a curve judged against an invalid spec is
+// recorded with an empty spec rather than a stale one.
+METHOD M_Record : BOOL
+VAR_INPUT
+    Target : REFERENCE TO ST_CurveRecord;
+END_VAR
+VAR
+    blankPoint : ST_CurvePoint;
+    blankSpec : ST_CurveSpec;
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Record := FALSE;
+IF NOT __ISVALIDREF(Target) THEN
+    RETURN;
+END_IF
+IF _active OR NOT _finished THEN
+    RETURN;
+END_IF
+Target.SampleCount := _kept;
+Target.Truncated := _truncated;
+FOR i := 1 TO PL_Curve.MAX_SAMPLES DO
+    IF i <= _kept THEN
+        Target.Samples[i] := _samples[i];
+    ELSE
+        Target.Samples[i] := blankPoint;
+    END_IF
+END_FOR
+IF _specOk THEN
+    Target.Spec := _spec;
+ELSE
+    Target.Spec := blankSpec;
+END_IF
+Target.Result := _result;
+M_Record := TRUE;]]></ST></Implementation>
     </Method>
     <Method Name="_M_EdgeKnown" Id="{9d91b8b2-eabd-4fee-89fb-c109d2af05ea}">
       <Declaration><![CDATA[METHOD PRIVATE _M_EdgeKnown : BOOL

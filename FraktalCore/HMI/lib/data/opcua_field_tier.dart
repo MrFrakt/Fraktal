@@ -91,6 +91,10 @@ class OpcUaFieldTier {
     // §6.9 error/message notes for those rows: same view, same lifetime.
     'SequenceAnnotations',
     'Topology', // GVL_<Project>Fieldbus.Topology live I/O (fieldbus page)
+    // Modules ST_CurveRecord (OutImm.Curve): up to 256 samples plus the spec
+    // they were judged against - several thousand leaves that only the Curve
+    // tab draws. Its SampleCount stays live (liveLeaves) so the tab can exist.
+    'Curve',
   };
 
   /// Implementation definitions whose consumed form lives under another path.
@@ -190,6 +194,9 @@ class OpcUaFieldTier {
   static const Set<String> liveLeaves = {
     'BoolValue', // digital channel state
     'AnalogValue', // the analog channel's equivalent — same role, same argument
+    // A curve record's length: one leaf per curve-publishing module, and the
+    // only one the Curve tab's existence depends on (the record is on demand).
+    'SampleCount',
   };
 
   /// True when [browsePath] lies inside a subtree the PLC marks

@@ -5873,3 +5873,63 @@ contract gate green; HMI analyzer clean, 622 passed / 12 skipped on
 Flutter 3.44.6. On the isolated UmRT: aggregate 328/328 in 54 suites and
 Press 9/9 in 2 suites. Scope and artifacts:
 `Specification/Evidence/2026-11-02_TC3_GenericCM_CurveMonitor.md`.
+
+## 173. The curve record and the HMI Curve tab (Modules 0.15.2.0, 2026-11-02)
+
+L6 of the remaining-library plan: the last judged curve becomes visible to
+the generic HMI without a per-station screen.
+
+- **PLC.** `ST_CurveRecord` (`SampleCount`, `Truncated`,
+  `Samples[1..PL_Curve.MAX_SAMPLES]`, `Spec`, `Result`) and
+  `FB_CurveMonitor.M_Record(Target)`. The helper now keeps the first 256
+  samples while it judges; later samples are still judged
+  (`Result.Samples` counts all, an envelope cut past the buffer still
+  fails the curve) and only `Truncated` says they are missing from the
+  record. `M_Record` copies the last **finished** curve and is refused
+  while a curve runs or before the first finishes, so a published record
+  never shows half a curve; rows past `SampleCount` are cleared, and a
+  curve judged against an invalid spec is recorded with an empty spec
+  rather than a stale one. The owner publishes the record as
+  `OutImm.Curve` and calls `M_Record` once per curve after `M_Finish`.
+- **HMI.** `CurveFacet` (with `CurvePoint`, `CurveWindow`, `CurveEnvelope`
+  and `CurveEdge`, whose ordinals are `E_CurveEdge`'s) on
+  `ModuleNode.curve`. The read tier puts everything under `Curve` on
+  demand - a record is several thousand leaves - except `SampleCount`, a
+  live leaf, so the tab exists before its record has been read (the §3.13
+  flow chart's pattern). The new built-in `curve` tab kind (appended;
+  kinds persist by name) appears for any module publishing the record,
+  demands `{Curve}` only while it is open, and draws the windows in their
+  pass/fail colour, the envelopes, the samples, the first envelope cut and
+  the PLC's verdict with its reason text. Nothing is recomputed, nothing
+  is written. Geometry is fractions of the chart box; every colour is a
+  semantic token (`CurvePalette`) measured at 3:1 against the card in
+  every theme. The simulator's `PackerC.Sealer` publishes a synthetic
+  sealing-force curve.
+- **Cross-binding.** The strict read-surface gate requires every path the
+  HMI reads to be published by the AB projection or declared absent:
+  `OutImm/Curve` is declared absent (no AB type publishes a curve record;
+  the helper is a recorded AB gap). The mapper reads the record through
+  the file's own binding idiom (`final curve = '$base/OutImm/Curve'`,
+  `_indexedPrefix`, `_arrayElement`), which is what lets that gate resolve
+  each read.
+- **Upgrade cost.** Modules *patch* 0.15.2.0 (additive: a new record type,
+  a method and a constant; the helper's own state grows by the sample
+  buffer). Core unchanged. The HMI tab is additive; a stored layout that
+  predates it gets the tab appended, as for every built-in tab.
+- **Tests.** PLC: two rows in `FB_CurveMonitor_Tests` (the record copies
+  the finished curve, is refused before and during one, and clears the
+  previous curve's rows; a truncated record keeps the whole verdict). HMI:
+  a field-tier row, a mapper row (length only, then the read record, then
+  no record), widget rows for every theme, the not-yet-read and
+  unpublished states and the tab's demand set, and a contrast row for
+  every chart role.
+
+Final: Core 0.26.5.0 / Modules 0.15.2.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 628 passed / 12 skipped on
+Flutter 3.44.6 (three earlier full runs each failed a wall-clock test in
+`opcua_freshness_test` under load, which the baseline without this change
+reproduces; it passes alone). On the isolated UmRT: aggregate 330/330 in
+54 suites and Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-02_TC3_GenericCM_CurveRecord.md`.

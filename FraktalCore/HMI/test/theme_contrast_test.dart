@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fraktal_hmi/content/module_layout.dart';
 import 'package:fraktal_hmi/ui/app_theme.dart';
+import 'package:fraktal_hmi/ui/curve_view.dart';
 import 'package:fraktal_hmi/domain/types.dart';
 
 double _contrast(Color a, Color b) {
@@ -248,6 +249,36 @@ void main() {
             // pair with THAT fill, not with the page.
             expect(_contrast(foregroundOn(ctx, glyph), glyph), greaterThan(4.5),
                 reason: '$label: the +N alarm count is unreadable on $sev');
+          }
+          return const SizedBox();
+        })),
+      ));
+      await tester.pump();
+    }
+  });
+
+  testWidgets('every curve chart role stays visible on the card it is drawn on',
+      (tester) async {
+    // The Curve tab draws on a card: the measured curve, the envelopes, a
+    // window in its pass/fail colour and the chart frame are all glyphs, so
+    // each is held to 3:1 against that card in every theme.
+    for (var i = 0; i < kThemes.length; i++) {
+      final label = kThemes[i].nameKey;
+      await tester.pumpWidget(MaterialApp(
+        key: ValueKey(i),
+        theme: themeAt(i),
+        home: Scaffold(body: Builder(builder: (ctx) {
+          final card = Theme.of(ctx).colorScheme.surfaceContainerLow;
+          final palette = CurvePalette.of(ctx);
+          for (final entry in {
+            'curve': palette.curve,
+            'envelope': palette.envelope,
+            'window passed': palette.windowPassed,
+            'window failed': palette.windowFailed,
+            'frame': palette.frame,
+          }.entries) {
+            expect(_contrast(entry.value, card), greaterThan(3.0),
+                reason: '$label: the ${entry.key} line is invisible on a card');
           }
           return const SizedBox();
         })),

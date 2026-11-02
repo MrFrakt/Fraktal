@@ -560,6 +560,8 @@ AB_ABSENT = {
     "Profiler/StepStats[*]/Class": _NOT_PROJECTED,
     "HostEvents": "the reference declaration does not enable the optional host ring",
     "Nameplate": "the reference declaration has no commissioned asset nameplate",
+    "OutImm/Curve": ("no AB module type publishes a curve record: FB_CurveMonitor is "
+                     "a recorded gap in AB_MISSING_FEATURES_HANDOVER"),
     "Part": "the reference declaration does not inject the optional local carrier",
     "RunningPublished": ("the projection derives Status/State from the "
                          "context's Running rather than republishing it"),

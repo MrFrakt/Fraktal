@@ -18,6 +18,19 @@ void main() {
       expect(OpcUaFieldTier.isRequestPayload(path), isFalse);
     }
   });
+  test('a curve record is on demand except the length that makes its tab', () {
+    const base = 'PLC1/MAIN/Packer/Sealer/OutImm/Curve';
+    expect(OpcUaFieldTier.classify('$base/SampleCount'), FieldTier.live);
+    for (final path in [
+      '$base/Samples[1]/X',
+      '$base/Spec/Windows[1]/XMin',
+      '$base/Result/Verdict',
+      '$base/Truncated',
+    ]) {
+      expect(OpcUaFieldTier.classify(path), FieldTier.onDemand, reason: path);
+    }
+    expect(OpcUaFieldTier.demandedContainers(['$base/Samples[3]/Y']), {'Curve'});
+  });
   test('detail demand matches exact dotted or indexed contract segments', () {
     expect(OpcUaFieldTier.demandedContainers([
       'Profiler.History[1].CycleNo',
