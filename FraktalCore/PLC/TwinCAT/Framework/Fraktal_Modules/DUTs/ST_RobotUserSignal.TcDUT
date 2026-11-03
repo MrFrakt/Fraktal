@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotUserSignal" Id="{4d721b42-65f9-42a4-9fe5-b3e79943cad0}">
+    <Declaration><![CDATA[// Annex I I.3 - one declared user signal as FB_RobotCM publishes it. Empty Key
+// = slot not declared. Data the robot program reads or reports, never a command.
+TYPE ST_RobotUserSignal :
+STRUCT
+    Key     : STRING(80);          // localization key naming the signal
+    ToRobot : BOOL;                // TRUE: the PLC writes it; FALSE: the robot reports it
+    Kind    : E_RobotSignalKind;
+    Value   : LREAL;               // last written (to robot) or last reported (from robot)
+    Valid   : BOOL;                // FALSE while the link is down: never a stale value as fresh
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

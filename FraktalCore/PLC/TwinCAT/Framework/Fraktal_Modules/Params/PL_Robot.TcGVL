@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="PL_Robot" Id="{60011b9f-d90e-42a5-b6b6-823816846d87}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Robot CM sizing (Annex I). The user channel is a small DECLARED set, not a
+// mailbox: eight signals cover a gripper, a program flag or two and a counter,
+// and a bound is what keeps it from becoming a second command surface.
+VAR_GLOBAL CONSTANT
+    MAX_USER_SIGNALS : INT := 8;
+    MAX_JOG_AXES     : INT := 7;   // joint jog addresses axes 1..7; Cartesian/tool 1..6
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

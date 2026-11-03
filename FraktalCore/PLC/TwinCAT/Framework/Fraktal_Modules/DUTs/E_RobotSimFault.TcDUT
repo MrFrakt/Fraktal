@@ -14,7 +14,8 @@ TYPE E_RobotSimFault :
     NO_ROUTE          := 2,   // the next template move finds no path (I.9)
     LINK_LOSS         := 3,   // the heartbeat fails; the base drops and re-backs off
     PROTECTIVE_STOP   := 4,   // the crash device trips, in motion or at rest
-    NOT_RESUMABLE     := 5    // a held move cannot resume - the arm left the path (I.4b)
+    NOT_RESUMABLE     := 5,   // a held move cannot resume - the arm left the path (I.4b)
+    MODE_NOT_GRANTED  := 6    // a mode request is accepted but the reported mode never changes (I.4a(a))
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>

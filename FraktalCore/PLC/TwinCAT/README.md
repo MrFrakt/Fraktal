@@ -2,7 +2,10 @@
 
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
-Modules `0.15.2.0` lets the curve monitor's owner publish the last judged curve
+Modules `0.16.0.0` completes the robot CM (`FB_RobotCM`: the requested operating mode
+beside the reported one, the S9 safety alias, held jog, payload, arm power, a declared
+user-signal channel and an abort that stops the arm; Core `0.26.6.0` carries the grown
+reason catalog). Modules `0.15.2.0` lets the curve monitor's owner publish the last judged curve
 (`ST_CurveRecord`, `M_Record`) for the generic HMI's read-only Curve tab. Modules
 `0.15.1.0` adds the owner-private curve monitor (`FB_CurveMonitor`: windows
 with entry/exit edges and envelopes, judged online per sample; Core `0.26.5.0` carries
@@ -35,7 +38,7 @@ the user table outside the symbol table, controller/IPC health from the Beckhoff
 Device Manager and the EtherCAT master's own state, frame and CRC counters (§160-§162).
 The Windows clock adapter observes the target's existing time service and expires
 missing quality; see the [build and installation guide](../../../Specification/Guides/TC3_WINDOWS_CLOCK.md).
-Modules `0.15.2.0` pins Core `0.26.5.0`. The latest source audit is
+Modules `0.16.0.0` pins Core `0.26.6.0`. The latest source audit is
 [Core and Press TC3 feature gaps](../../../Specification/Reports/TC3_CORE_PRESS_FEATURE_AUDIT_2026-10-06.md).
 
 > **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their

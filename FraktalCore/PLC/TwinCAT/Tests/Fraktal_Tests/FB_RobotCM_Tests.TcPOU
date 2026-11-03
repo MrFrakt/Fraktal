@@ -25,7 +25,25 @@ VAR
     _cmF : FB_RobotCM;  _rbF : FB_SimRobotConnector;  _sF : INT;  _nF : INT;
     _cmG : FB_RobotCM;  _rbG : FB_SimRobotConnector;  _sG : INT;  _nG : INT;
     _cmH : FB_RobotCM;  _rbH : FB_SimRobotConnector;  _sH : INT;  _nH : INT;
+    _cmI : FB_RobotCM;  _rbI : FB_SimRobotConnector;  _sI : INT;  _nI : INT;
+    _cmJ : FB_RobotCM;  _rbJ : FB_SimRobotConnector;  _sJ : INT;  _nJ : INT;
+    _cmK : FB_RobotCM;  _rbK : FB_SimRobotConnector;  _sK : INT;  _nK : INT;
+    _cmL : FB_RobotCM;  _rbL : FB_SimRobotConnector;  _sL : INT;  _nL : INT;
+    _cmM : FB_RobotCM;  _rbM : FB_SimRobotConnector;  _sM : INT;  _nM : INT;
+    _cmN : FB_RobotCM;  _rbN : FB_SimRobotConnector;  _sN : INT;  _nN : INT;
+    _cmO : FB_RobotCM;  _rbO : FB_SimRobotConnector;  _sO : INT;  _nO : INT;
+    _cmP : FB_RobotCM;  _rbP : FB_SimRobotConnector;  _sP : INT;  _nP : INT;
+    _cmQ : FB_RobotCM;  _rbQ : FB_SimRobotConnector;  _sQ : INT;  _nQ : INT;
+    _cmR : FB_RobotCM;  _rbR : FB_SimRobotConnector;  _sR : INT;  _nR : INT;
+    _cmS : FB_RobotCM;  _rbS : FB_SimRobotConnector;  _sS : INT;  _nS : INT;
+    _cmT : FB_RobotCM;  _rbT : FB_SimRobotConnector;  _sT : INT;  _nT : INT;
     _diag : ST_Diagnostic;   // C0185: cannot access .member on a property result
+    _model : ST_ModelId;
+    _enP : ST_ManualEnableStatus;
+    _poseP0, _poseP : ST_RobotPose;
+    _seenJ, _declR : BOOL;
+    _kT : INT;
+    _cmU : FB_RobotCM;  _rbU : FB_SimRobotConnector;  _sU : INT;  _nU : INT;  _idxU : DINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Command_on_a_down_link_faults_with_the_link_reason();
@@ -35,7 +53,20 @@ Speed_scale_outside_its_band_is_refused_before_motion();
 Mode_that_does_not_permit_motion_is_refused();
 Lost_permissive_holds_on_path_rather_than_faulting();
 Completion_publishes_the_reached_position();
-Protective_stop_aborts_with_its_own_reason();]]></ST>
+Protective_stop_aborts_with_its_own_reason();
+Default_mode_is_requested_at_link_up_and_published();
+Request_mode_completes_only_when_the_controller_reports_it();
+Configuration_the_type_cannot_honour_is_refused();
+Set_payload_reaches_the_controller();
+Safety_alias_lost_mid_move_stops_powers_off_and_stays_off();
+Power_on_is_refused_without_the_safety_alias();
+Aborting_a_command_stops_the_arm();
+Jog_needs_a_manual_mode_the_enabling_device_and_a_fresh_request();
+Jog_selection_is_validated_and_published();
+User_signals_are_declared_published_and_written();
+Arm_power_and_the_applied_speed_are_published();
+A_repeated_refusal_keeps_its_own_reason_and_a_success_follows();
+An_aborted_path_reports_its_progress_for_a_deliberate_continue();]]></ST>
     </Implementation>
       <Method Name="Command_on_a_down_link_faults_with_the_link_reason" Id="{744a01e7-6ead-4f66-b518-a75649c37cc2}">
         <Declaration><![CDATA[METHOD PRIVATE Command_on_a_down_link_faults_with_the_link_reason]]></Declaration>
@@ -87,6 +118,7 @@ _rbB.Cyclic();
 CASE _sB OF
     0:
         _cmB.Setup(Name := 'Test.RobotB', Robot := _rbB);
+        _cmB.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmB.ParCfg.SpeedScaleMin := 1.0;
         _cmB.ParCfg.SpeedScaleMax := 100.0;
         _cmB.ParCfg.MoveTimeout   := T#2S;
@@ -146,6 +178,7 @@ _rbC.Cyclic();
 CASE _sC OF
     0:
         _cmC.Setup(Name := 'Test.RobotC', Robot := _rbC);
+        _cmC.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmC.ParCfg.SpeedScaleMin := 1.0;
         _cmC.ParCfg.SpeedScaleMax := 100.0;
         _cmC.ParCfg.MoveTimeout   := T#2S;
@@ -201,6 +234,7 @@ _rbD.Cyclic();
 CASE _sD OF
     0:
         _cmD.Setup(Name := 'Test.RobotD', Robot := _rbD);
+        _cmD.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmD.ParCfg.SpeedScaleMin := 10.0;
         _cmD.ParCfg.SpeedScaleMax := 80.0;
         _cmD.ParCfg.MoveTimeout   := T#2S;
@@ -267,6 +301,7 @@ _rbE.Cyclic();
 CASE _sE OF
     0:
         _cmE.Setup(Name := 'Test.RobotE', Robot := _rbE);
+        _cmE.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmE.ParCfg.SpeedScaleMin := 1.0;
         _cmE.ParCfg.SpeedScaleMax := 100.0;
         _cmE.ParCfg.MoveTimeout   := T#2S;
@@ -339,6 +374,7 @@ _rbF.Cyclic();
 CASE _sF OF
     0:
         _cmF.Setup(Name := 'Test.RobotF', Robot := _rbF);
+        _cmF.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmF.DeclareCondition(Index := 1, DescriptionKey := 'std.interlock.areaSafe',
             Reason := E_Reason.INTERLOCK_DROPPED, Bypassable := FALSE);
         _cmF.SetCondition(Index := 1, Ok := TRUE);
@@ -435,6 +471,7 @@ _rbG.Cyclic();
 CASE _sG OF
     0:
         _cmG.Setup(Name := 'Test.RobotG', Robot := _rbG);
+        _cmG.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmG.ParCfg.SpeedScaleMin := 1.0;
         _cmG.ParCfg.SpeedScaleMax := 100.0;
         _cmG.ParCfg.MoveTimeout   := T#5S;
@@ -509,6 +546,7 @@ _rbH.Cyclic();
 CASE _sH OF
     0:
         _cmH.Setup(Name := 'Test.RobotH', Robot := _rbH);
+        _cmH.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmH.ParCfg.SpeedScaleMin := 1.0;
         _cmH.ParCfg.SpeedScaleMax := 100.0;
         _cmH.ParCfg.MoveTimeout   := T#5S;
@@ -571,6 +609,852 @@ IF _nH > 2000 THEN
     TEST_FINISHED();
 END_IF
         END_IF
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Default_mode_is_requested_at_link_up_and_published" Id="{2dd4b74a-8089-46f9-bce8-498432c87d0d}">
+        <Declaration><![CDATA[METHOD PRIVATE Default_mode_is_requested_at_link_up_and_published]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Default_mode_is_requested_at_link_up_and_published');
+IF _sI = 99 THEN
+    RETURN;
+END_IF
+_rbI.Connect();
+_rbI.Cyclic();
+CASE _sI OF
+    0:
+        _cmI.Setup(Name := 'Test.RobotI', Robot := _rbI);
+        _cmI.ParCfg.MoveTimeout := T#3S;
+        _cmI.ParCfg.HomeTimeout := T#3S;
+        _cmI();
+        IF _rbI.Linked THEN
+            _sI := 1;
+        END_IF
+        _nI := _nI + 1;
+        IF _nI > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sI := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmI();
+        AssertTrue(Condition := _cmI.OutImm.RequestedMode = E_RobotOpMode.MANUAL_REDUCED,
+            Message := 'the most restrictive mode is requested the moment the link is up');
+        AssertTrue(Condition := _cmI.OutImm.ActualMode = E_RobotOpMode.MANUAL_REDUCED,
+            Message := 'and the controller reports it granted');
+        _sI := 99;
+        TEST_FINISHED();
+ELSE
+    _sI := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Request_mode_completes_only_when_the_controller_reports_it" Id="{484620f6-c91d-408a-b557-2be6f2ed915f}">
+        <Declaration><![CDATA[METHOD PRIVATE Request_mode_completes_only_when_the_controller_reports_it]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Request_mode_completes_only_when_the_controller_reports_it');
+IF _sJ = 99 THEN
+    RETURN;
+END_IF
+_rbJ.Connect();
+_rbJ.Cyclic();
+CASE _sJ OF
+    0:
+        _cmJ.Setup(Name := 'Test.RobotJ', Robot := _rbJ);
+        _cmJ.ParCfg.MoveTimeout := T#3S;
+        _cmJ.ParCfg.HomeTimeout := T#3S;
+        _cmJ();
+        IF _rbJ.Linked THEN
+            _sJ := 1;
+        END_IF
+        _nJ := _nJ + 1;
+        IF _nJ > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sJ := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmJ.Command := E_RobotCommand.REQUEST_MODE;
+        _cmJ.ParCmd.Mode := E_RobotOpMode.AUTO_REMOTE;
+        _cmJ.Execute := TRUE;
+        _cmJ();
+        _sJ := 2;
+    2:
+        _cmJ();
+        IF _cmJ.Done THEN
+            AssertTrue(Condition := _cmJ.OutImm.ActualMode = E_RobotOpMode.AUTO_REMOTE,
+                Message := 'Done only once the controller reports the mode');
+            AssertTrue(Condition := _cmJ.OutImm.RequestedMode = E_RobotOpMode.AUTO_REMOTE,
+                Message := 'and the request is published beside the report');
+            _cmJ.Execute := FALSE;
+            _cmJ();
+            _sJ := 3;
+        ELSIF _cmJ.Error THEN
+            AssertTrue(Condition := FALSE, Message := 'a granted request faulted');
+            _sJ := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        // A controller that accepts and stays put (a key switch, say).
+        _rbJ.Inject := E_RobotSimFault.MODE_NOT_GRANTED;
+        _cmJ.ParCfg.ModeTimeout := T#200MS;
+        _cmJ.ParCmd.Mode := E_RobotOpMode.MANUAL_HIGH;
+        _cmJ.Execute := TRUE;
+        _cmJ();
+        _sJ := 4;
+    4:
+        _cmJ();
+        IF _cmJ.Busy AND NOT _seenJ THEN
+            AssertTrue(Condition := (_cmJ.OutImm.RequestedMode = E_RobotOpMode.MANUAL_HIGH)
+                AND (_cmJ.OutImm.ActualMode = E_RobotOpMode.AUTO_REMOTE),
+                Message := 'an ungranted request stays visibly ungranted while it waits');
+            _seenJ := TRUE;
+        END_IF
+        IF _cmJ.Error THEN
+            _diag := _cmJ.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED, Actual := _diag.ReasonCode,
+                Message := 'and faults when the controller never grants it');
+            AssertTrue(Condition := _seenJ, Message := 'after waiting, not at once');
+            _rbJ.Inject := E_RobotSimFault.NONE;
+            _sJ := 99;
+            TEST_FINISHED();
+        END_IF
+        _nJ := _nJ + 1;
+        IF _nJ > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the mode request never resolved');
+            _sJ := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sJ := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Configuration_the_type_cannot_honour_is_refused" Id="{35dad777-162a-4c36-bee5-9b4ec7e4e7eb}">
+        <Declaration><![CDATA[METHOD PRIVATE Configuration_the_type_cannot_honour_is_refused]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Configuration_the_type_cannot_honour_is_refused');
+IF _sK = 99 THEN
+    RETURN;
+END_IF
+_cmK.ParCfg.SpeedScaleMin := 0.0;
+AssertFalse(Condition := _cmK.Setup(Name := 'Test.RobotK', Robot := _rbK),
+    Message := 'a non-positive speed band refuses Setup');
+_cmK();
+_diag := _cmK.Status.Diagnostic;
+AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_CFG_INVALID, Actual := _diag.ReasonCode,
+    Message := 'with the configuration reason');
+_cmK.ParCfg.SpeedScaleMin := 1.0;
+_cmK.ParCfg.DefaultMode := E_RobotOpMode.UNKNOWN;
+AssertFalse(Condition := _cmK.PrepareRecipe(Model := _model), Message := 'UNKNOWN is not a default request');
+_cmK.ParCfg.DefaultMode := E_RobotOpMode.MANUAL_REDUCED;
+_cmK.ParCfg.SpeedCeiling[1] := 150.0;
+AssertFalse(Condition := _cmK.PrepareRecipe(Model := _model), Message := 'a ceiling above 100 percent is refused');
+_cmK.ParCfg.SpeedCeiling[1] := 100.0;
+_cmK.ParCfg.ModeTimeout := T#0S;
+AssertFalse(Condition := _cmK.PrepareRecipe(Model := _model), Message := 'a zero mode timeout is refused');
+_cmK.ParCfg.ModeTimeout := T#10S;
+AssertTrue(Condition := _cmK.PrepareRecipe(Model := _model), Message := 'and a sound configuration is accepted');
+_sK := 99;
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Set_payload_reaches_the_controller" Id="{57d94393-b02c-441b-9dcd-b68f1c2e8da7}">
+        <Declaration><![CDATA[METHOD PRIVATE Set_payload_reaches_the_controller]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Set_payload_reaches_the_controller');
+IF _sL = 99 THEN
+    RETURN;
+END_IF
+_rbL.Connect();
+_rbL.Cyclic();
+CASE _sL OF
+    0:
+        _cmL.Setup(Name := 'Test.RobotL', Robot := _rbL);
+        _cmL.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmL.ParCfg.MoveTimeout := T#3S;
+        _cmL.ParCfg.HomeTimeout := T#3S;
+        _cmL();
+        IF _rbL.Linked THEN
+            _sL := 1;
+        END_IF
+        _nL := _nL + 1;
+        IF _nL > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sL := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmL.Command := E_RobotCommand.SET_PAYLOAD;
+        _cmL.ParCmd.TargetId := 7;
+        _cmL.Execute := TRUE;
+        _cmL();
+        _sL := 2;
+    2:
+        _cmL();
+        IF _cmL.Done OR _cmL.Error THEN
+            AssertTrue(Condition := _cmL.Done, Message := 'selecting a load case completes');
+            AssertEquals_DWORD(Expected := 7, Actual := _rbL.ActivePayload,
+                Message := 'and the controller holds that load case');
+            _sL := 99;
+            TEST_FINISHED();
+        END_IF
+        _nL := _nL + 1;
+        IF _nL > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'SET_PAYLOAD never completed');
+            _sL := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sL := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Safety_alias_lost_mid_move_stops_powers_off_and_stays_off" Id="{12956ac4-549c-42ad-aced-0d7eb6d68ba7}">
+        <Declaration><![CDATA[METHOD PRIVATE Safety_alias_lost_mid_move_stops_powers_off_and_stays_off]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Safety_alias_lost_mid_move_stops_powers_off_and_stays_off');
+IF _sM = 99 THEN
+    RETURN;
+END_IF
+_rbM.Connect();
+_rbM.Cyclic();
+CASE _sM OF
+    0:
+        _cmM.Setup(Name := 'Test.RobotM', Robot := _rbM);
+        _cmM.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmM.ParCfg.MoveTimeout := T#3S;
+        _cmM.ParCfg.HomeTimeout := T#3S;
+        _cmM();
+        IF _rbM.Linked THEN
+            _sM := 1;
+        END_IF
+        _nM := _nM + 1;
+        IF _nM > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sM := 99;
+            TEST_FINISHED();
+        END_IF    1:
+        _rbM.PowerOn();
+        _rbM.Home();
+        _sM := 2;
+    2:
+        _cmM();
+        IF _rbM.Referenced AND NOT _rbM.MotionBusy THEN
+            _rbM.MoveTime := T#2S;
+            _cmM.Command := E_RobotCommand.MOVE_TO;
+            _cmM.ParCmd.TargetId := 4;
+            _cmM.ParCmd.SpeedScale := 50.0;
+            _cmM.Execute := TRUE;
+            _cmM();
+            _sM := 3;
+        END_IF
+        _nM := _nM + 1;
+        IF _nM > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sM := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        _cmM();
+        IF _cmM.Busy AND _rbM.MotionBusy THEN
+            _cmM.SetSafetyPermit(Permit := FALSE, DescriptionKey := '');
+            _cmM();
+            _sM := 4;
+        END_IF
+        _nM := _nM + 1;
+        IF _nM > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the move never started');
+            _sM := 99;
+            TEST_FINISHED();
+        END_IF
+    4:
+        _cmM();
+        IF _cmM.Error THEN
+            _diag := _cmM.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_SAFETY_DROPPED, Actual := _diag.ReasonCode,
+                Message := 'a lost safety alias stops the command with the SAFETY reason');
+            AssertFalse(Condition := _rbM.MotionBusy, Message := 'the arm was stopped');
+            AssertFalse(Condition := _cmM.OutImm.ArmPowerOn, Message := 'and its power dropped');
+            _cmM.Execute := FALSE;
+            _cmM.SetSafetyPermit(Permit := TRUE, DescriptionKey := '');
+            _cmM();
+            _nM := 0;
+            _sM := 5;
+        END_IF
+        _nM := _nM + 1;
+        IF _nM > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the safety drop never faulted the command');
+            _sM := 99;
+            TEST_FINISHED();
+        END_IF
+    5:
+        _cmM();
+        _nM := _nM + 1;
+        IF _nM > 50 THEN
+            AssertFalse(Condition := _cmM.OutImm.ArmPowerOn,
+                Message := 'regaining the alias powers nothing on: that is a deliberate POWER_ON');
+            AssertTrue(Condition := _cmM.OutImm.SafetyPermit, Message := 'though the alias is published back');
+            _sM := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sM := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Power_on_is_refused_without_the_safety_alias" Id="{911ae33b-8393-46af-8392-a993436121a9}">
+        <Declaration><![CDATA[METHOD PRIVATE Power_on_is_refused_without_the_safety_alias]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Power_on_is_refused_without_the_safety_alias');
+IF _sN = 99 THEN
+    RETURN;
+END_IF
+_rbN.Connect();
+_rbN.Cyclic();
+CASE _sN OF
+    0:
+        _cmN.Setup(Name := 'Test.RobotN', Robot := _rbN);
+        _cmN.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmN.ParCfg.MoveTimeout := T#3S;
+        _cmN.ParCfg.HomeTimeout := T#3S;
+        _cmN();
+        IF _rbN.Linked THEN
+            _cmN.SetSafetyPermit(Permit := FALSE, DescriptionKey := 'project.safety.cellGuard');
+            _sN := 1;
+        END_IF
+        _nN := _nN + 1;
+        IF _nN > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sN := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmN.Command := E_RobotCommand.POWER_ON;
+        _cmN.Execute := TRUE;
+        _cmN();
+        _sN := 2;
+    2:
+        _cmN();
+        IF _cmN.Error OR _cmN.Done THEN
+            _diag := _cmN.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_SAFETY_DROPPED, Actual := _diag.ReasonCode,
+                Message := 'no power is requested while the safety alias is absent');
+            AssertFalse(Condition := _cmN.OutImm.ArmPowerOn, Message := 'and none arrives');
+            AssertFalse(Condition := _cmN.OutImm.SafetyPermit, Message := 'the absent alias is published');
+            _sN := 99;
+            TEST_FINISHED();
+        END_IF
+        _nN := _nN + 1;
+        IF _nN > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'POWER_ON neither refused nor completed');
+            _sN := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sN := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Aborting_a_command_stops_the_arm" Id="{43e368fc-650b-4ea6-933b-c437f4050452}">
+        <Declaration><![CDATA[METHOD PRIVATE Aborting_a_command_stops_the_arm]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Aborting_a_command_stops_the_arm');
+IF _sO = 99 THEN
+    RETURN;
+END_IF
+_rbO.Connect();
+_rbO.Cyclic();
+CASE _sO OF
+    0:
+        _cmO.Setup(Name := 'Test.RobotO', Robot := _rbO);
+        _cmO.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmO.ParCfg.MoveTimeout := T#3S;
+        _cmO.ParCfg.HomeTimeout := T#3S;
+        _cmO();
+        IF _rbO.Linked THEN
+            _sO := 1;
+        END_IF
+        _nO := _nO + 1;
+        IF _nO > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sO := 99;
+            TEST_FINISHED();
+        END_IF    1:
+        _rbO.PowerOn();
+        _rbO.Home();
+        _sO := 2;
+    2:
+        _cmO();
+        IF _rbO.Referenced AND NOT _rbO.MotionBusy THEN
+            _rbO.MoveTime := T#2S;
+            _cmO.Command := E_RobotCommand.MOVE_TO;
+            _cmO.ParCmd.TargetId := 4;
+            _cmO.ParCmd.SpeedScale := 50.0;
+            _cmO.Execute := TRUE;
+            _cmO();
+            _sO := 3;
+        END_IF
+        _nO := _nO + 1;
+        IF _nO > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sO := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        _cmO();
+        IF _cmO.Busy AND _rbO.MotionBusy THEN
+            _cmO.Abort := TRUE;
+            _cmO();
+            _sO := 4;
+        END_IF
+        _nO := _nO + 1;
+        IF _nO > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the move never started');
+            _sO := 99;
+            TEST_FINISHED();
+        END_IF
+    4:
+        _cmO();
+        IF _cmO.Aborted OR _cmO.Error THEN
+            AssertTrue(Condition := _cmO.Aborted, Message := 'the command is aborted');
+            AssertFalse(Condition := _rbO.MotionBusy, Message := 'and so is the motion it commanded');
+            _cmO.Abort := FALSE;
+            _cmO.Execute := FALSE;
+            _cmO();
+            _sO := 99;
+            TEST_FINISHED();
+        END_IF
+        _nO := _nO + 1;
+        IF _nO > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the abort never completed');
+            _sO := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sO := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Jog_needs_a_manual_mode_the_enabling_device_and_a_fresh_request" Id="{86ef6c95-9029-4d5b-b2c7-d06772b510fa}">
+        <Declaration><![CDATA[METHOD PRIVATE Jog_needs_a_manual_mode_the_enabling_device_and_a_fresh_request]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Jog_needs_a_manual_mode_the_enabling_device_and_a_fresh_request');
+IF _sP = 99 THEN
+    RETURN;
+END_IF
+_rbP.Connect();
+_rbP.Cyclic();
+CASE _sP OF
+    0:
+        _cmP.Setup(Name := 'Test.RobotP', Robot := _rbP);
+        _cmP.ParCfg.MoveTimeout := T#3S;
+        _cmP.ParCfg.HomeTimeout := T#3S;
+        _cmP();
+        IF _rbP.Linked THEN
+            _sP := 1;
+        END_IF
+        _nP := _nP + 1;
+        IF _nP > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sP := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmP();
+        _enP.Present := TRUE;
+        _enP.Held := FALSE;
+        AssertFalse(Condition := _cmP.RequestHeldCommand(Value := TO_DINT(E_RobotCommand.JOG_POS), Enable := _enP),
+            Message := 'no jog without the enabling device held');
+        AssertEquals_DINT(Expected := TO_DINT(E_Reason.PERMISSIVE_NOT_MET), Actual := _cmP.OutImm.JogStopReason,
+            Message := 'and the reason is published');
+        _enP.Held := TRUE;
+        _poseP0 := _rbP.ActualPosition;
+        _nP := 0;
+        _sP := 2;
+    2:
+        AssertTrue(Condition := _cmP.RequestHeldCommand(Value := TO_DINT(E_RobotCommand.JOG_POS), Enable := _enP),
+            Message := 'a held request in a manual mode is accepted');
+        _cmP();
+        _nP := _nP + 1;
+        IF _nP > 10 THEN
+            AssertTrue(Condition := _cmP.OutImm.Jogging, Message := 'and the arm jogs while it keeps arriving');
+            _poseP := _rbP.ActualPosition;
+            AssertTrue(Condition := _poseP.X > _poseP0.X, Message := 'in the asked direction');
+            _nP := 0;
+            _sP := 3;
+        END_IF
+    3:
+        // Nobody asks any more: the jog must stop by itself.
+        _cmP();
+        IF NOT _cmP.OutImm.Jogging THEN
+            AssertEquals_DINT(Expected := 0, Actual := _cmP.OutImm.JogStopReason,
+                Message := 'a request that stops arriving stops the jog, as a release');
+            _rbP.RequestMode(Mode := E_RobotOpMode.AUTO_REMOTE);
+            _cmP();
+            AssertFalse(Condition := _cmP.RequestHeldCommand(Value := TO_DINT(E_RobotCommand.JOG_NEG), Enable := _enP),
+                Message := 'and no jog is accepted in automatic');
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED, Actual := _cmP.OutImm.JogStopReason,
+                Message := 'with the mode as the reason');
+            _sP := 99;
+            TEST_FINISHED();
+        END_IF
+        _nP := _nP + 1;
+        IF _nP > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the jog never stopped');
+            _sP := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sP := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Jog_selection_is_validated_and_published" Id="{930c8112-598c-430b-9165-94f8a3319a8a}">
+        <Declaration><![CDATA[METHOD PRIVATE Jog_selection_is_validated_and_published]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Jog_selection_is_validated_and_published');
+IF _sQ = 99 THEN
+    RETURN;
+END_IF
+AssertFalse(Condition := _cmQ.SetJogSelection(Mode := E_RobotJogMode.JOINT, Axis := 0),
+    Message := 'axis 0 is refused');
+AssertFalse(Condition := _cmQ.SetJogSelection(Mode := E_RobotJogMode.JOINT, Axis := PL_Robot.MAX_JOG_AXES + 1),
+    Message := 'an axis beyond the type bound is refused');
+AssertTrue(Condition := _cmQ.SetJogSelection(Mode := E_RobotJogMode.CARTESIAN, Axis := 3),
+    Message := 'a real selection is accepted');
+AssertEquals_INT(Expected := 3, Actual := _cmQ.OutImm.JogAxis, Message := 'and the axis is published');
+AssertTrue(Condition := _cmQ.OutImm.JogMode = E_RobotJogMode.CARTESIAN, Message := 'with its frame');
+_sQ := 99;
+TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="User_signals_are_declared_published_and_written" Id="{fc366431-237c-411d-a67f-f7968562cb8d}">
+        <Declaration><![CDATA[METHOD PRIVATE User_signals_are_declared_published_and_written]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('User_signals_are_declared_published_and_written');
+IF _sR = 99 THEN
+    RETURN;
+END_IF
+_rbR.Connect();
+_rbR.Cyclic();
+CASE _sR OF
+    0:
+        IF NOT _declR THEN
+            AssertTrue(Condition := _cmR.M_DeclareUserSignal(Index := 1, Key := 'project.robot.gripClosed',
+                ToRobot := FALSE, Kind := E_RobotSignalKind.BOOL_SIGNAL), Message := 'a from-robot flag is declared');
+            AssertTrue(Condition := _cmR.M_DeclareUserSignal(Index := 2, Key := 'project.robot.partCount',
+                ToRobot := TRUE, Kind := E_RobotSignalKind.INT_SIGNAL), Message := 'a to-robot integer is declared');
+            AssertFalse(Condition := _cmR.M_DeclareUserSignal(Index := 1, Key := 'project.robot.again',
+                ToRobot := FALSE, Kind := E_RobotSignalKind.BOOL_SIGNAL), Message := 'a slot is declared once');
+            AssertFalse(Condition := _cmR.M_DeclareUserSignal(Index := PL_Robot.MAX_USER_SIGNALS + 1,
+                Key := 'project.robot.beyond', ToRobot := FALSE, Kind := E_RobotSignalKind.BOOL_SIGNAL),
+                Message := 'a slot beyond the bound is refused');
+            AssertFalse(Condition := _cmR.M_DeclareUserSignal(Index := 3, Key := '',
+                ToRobot := FALSE, Kind := E_RobotSignalKind.BOOL_SIGNAL), Message := 'a nameless signal is refused');
+            _declR := TRUE;
+        END_IF
+        _cmR.Setup(Name := 'Test.RobotR', Robot := _rbR);
+        _cmR.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;
+        _cmR();
+        IF _rbR.Linked THEN
+            _sR := 1;
+        END_IF
+        _nR := _nR + 1;
+        IF _nR > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sR := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _rbR.UserIn[1] := 1.0;
+        _cmR();
+        AssertTrue(Condition := _cmR.OutImm.UserSignals[1].Valid, Message := 'a declared signal is valid while linked');
+        AssertEquals_LREAL(Expected := 1.0, Actual := _cmR.OutImm.UserSignals[1].Value, Delta := 0.0001,
+            Message := 'and publishes what the robot program reports');
+        AssertTrue(Condition := _cmR.M_WriteUserSignal(Index := 2, Value := 42.0),
+            Message := 'a to-robot integer is written');
+        AssertEquals_LREAL(Expected := 42.0, Actual := _rbR.UserOut[2], Delta := 0.0001,
+            Message := 'and reaches the robot program');
+        AssertFalse(Condition := _cmR.M_WriteUserSignal(Index := 2, Value := 2.5),
+            Message := 'an integer signal refuses a fraction rather than rounding it');
+        AssertFalse(Condition := _cmR.M_WriteUserSignal(Index := 1, Value := 1.0),
+            Message := 'a from-robot signal is never written');
+        AssertFalse(Condition := _cmR.M_WriteUserSignal(Index := 3, Value := 1.0),
+            Message := 'nor is an undeclared slot');
+        AssertFalse(Condition := _cmR.OutImm.UserSignals[3].Valid, Message := 'which publishes nothing');
+        _sR := 99;
+        TEST_FINISHED();
+ELSE
+    _sR := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Arm_power_and_the_applied_speed_are_published" Id="{99bf9939-4020-4f47-b0e6-8a0b15ad28e2}">
+        <Declaration><![CDATA[METHOD PRIVATE Arm_power_and_the_applied_speed_are_published]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Arm_power_and_the_applied_speed_are_published');
+IF _sS = 99 THEN
+    RETURN;
+END_IF
+_rbS.Connect();
+_rbS.Cyclic();
+CASE _sS OF
+    0:
+        _cmS.Setup(Name := 'Test.RobotS', Robot := _rbS);
+        _cmS.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmS.ParCfg.MoveTimeout := T#3S;
+        _cmS.ParCfg.HomeTimeout := T#3S;
+        _cmS();
+        IF _rbS.Linked THEN
+            _cmS.ParCfg.SpeedCeiling[E_RobotOpMode.AUTO_REMOTE] := 40.0;
+            _sS := 1;
+        END_IF
+        _nS := _nS + 1;
+        IF _nS > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sS := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmS.Command := E_RobotCommand.POWER_ON;
+        _cmS.Execute := TRUE;
+        _cmS();
+        _sS := 2;
+    2:
+        _cmS();
+        IF _cmS.Done THEN
+            AssertTrue(Condition := _cmS.OutImm.ArmPowerOn, Message := 'the reported arm power is published');
+            _cmS.Execute := FALSE;
+            _cmS();
+            _rbS.Home();
+            _sS := 3;
+        END_IF
+        _nS := _nS + 1;
+        IF _nS > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'POWER_ON never completed');
+            _sS := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        _cmS();
+        IF _rbS.Referenced AND NOT _rbS.MotionBusy THEN
+            _cmS.Command := E_RobotCommand.MOVE_TO;
+            _cmS.ParCmd.TargetId := 2;
+            _cmS.ParCmd.SpeedScale := 50.0;
+            _cmS.Execute := TRUE;
+            _cmS();
+            _sS := 4;
+        END_IF
+        _nS := _nS + 1;
+        IF _nS > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sS := 99;
+            TEST_FINISHED();
+        END_IF
+    4:
+        _cmS();
+        IF _cmS.Done OR _cmS.Error THEN
+            AssertTrue(Condition := _cmS.Done, Message := 'the move completes');
+            AssertEquals_REAL(Expected := 40.0, Actual := _cmS.OutImm.SpeedScale, Delta := 0.001,
+                Message := 'and the published scale is the one sent: MIN(ceiling, recipe)');
+            _sS := 99;
+            TEST_FINISHED();
+        END_IF
+        _nS := _nS + 1;
+        IF _nS > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'MOVE_TO never completed');
+            _sS := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sS := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_repeated_refusal_keeps_its_own_reason_and_a_success_follows" Id="{603b8186-959a-4df8-bccb-7440ef5faf48}">
+        <Declaration><![CDATA[METHOD PRIVATE A_repeated_refusal_keeps_its_own_reason_and_a_success_follows]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_repeated_refusal_keeps_its_own_reason_and_a_success_follows');
+IF _sT = 99 THEN
+    RETURN;
+END_IF
+_rbT.Connect();
+_rbT.Cyclic();
+CASE _sT OF
+    0:
+        _cmT.Setup(Name := 'Test.RobotT', Robot := _rbT);
+        _cmT.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmT.ParCfg.MoveTimeout := T#3S;
+        _cmT.ParCfg.HomeTimeout := T#3S;
+        _cmT();
+        IF _rbT.Linked THEN
+            _sT := 1;
+        END_IF
+        _nT := _nT + 1;
+        IF _nT > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sT := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _rbT.PowerOn();
+        _rbT.Home();
+        _sT := 2;
+    2:
+        _cmT();
+        IF _rbT.Referenced AND NOT _rbT.MotionBusy THEN
+            _rbT.Inject := E_RobotSimFault.POINT_UNREACHABLE;
+            _cmT.Command := E_RobotCommand.MOVE_TO;
+            _cmT.ParCmd.TargetId := 3;
+            _cmT.ParCmd.SpeedScale := 50.0;
+            _cmT.Execute := TRUE;
+            _cmT();
+            _kT := 0;
+            _sT := 3;
+        END_IF
+        _nT := _nT + 1;
+        IF _nT > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sT := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        _cmT();
+        IF _cmT.Error THEN
+            _diag := _cmT.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_POINT_UNREACHABLE, Actual := _diag.ReasonCode,
+                Message := 'every refusal carries the connector reason, the repeated one too');
+            _cmT.Execute := FALSE;
+            _cmT();
+            _kT := _kT + 1;
+            IF _kT >= 2 THEN
+                _rbT.Inject := E_RobotSimFault.NONE;
+                _sT := 5;
+            ELSE
+                _sT := 4;
+            END_IF
+        END_IF
+        _nT := _nT + 1;
+        IF _nT > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'a refused move never faulted');
+            _sT := 99;
+            TEST_FINISHED();
+        END_IF
+    4:
+        _cmT.Execute := TRUE;
+        _cmT();
+        _sT := 3;
+    5:
+        _cmT.Execute := TRUE;
+        _cmT();
+        _sT := 6;
+    6:
+        _cmT();
+        IF _cmT.Done OR _cmT.Error THEN
+            AssertTrue(Condition := _cmT.Done,
+                Message := 'and an accepted move after them completes - no stale reason adopted');
+            _sT := 99;
+            TEST_FINISHED();
+        END_IF
+        _nT := _nT + 1;
+        IF _nT > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the accepted move never completed');
+            _sT := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sT := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="An_aborted_path_reports_its_progress_for_a_deliberate_continue" Id="{88301521-0390-4599-ba39-1633855b05b2}">
+        <Declaration><![CDATA[METHOD PRIVATE An_aborted_path_reports_its_progress_for_a_deliberate_continue]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('An_aborted_path_reports_its_progress_for_a_deliberate_continue');
+IF _sU = 99 THEN
+    RETURN;
+END_IF
+_rbU.Connect();
+_rbU.Cyclic();
+CASE _sU OF
+    0:
+        _cmU.Setup(Name := 'Test.RobotU', Robot := _rbU);
+        _cmU.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmU.ParCfg.MoveTimeout := T#5S;
+        _cmU.ParCfg.HomeTimeout := T#3S;
+        _cmU();
+        IF _rbU.Linked THEN
+            _rbU.PowerOn();
+            _rbU.Home();
+            _sU := 1;
+        END_IF
+        _nU := _nU + 1;
+        IF _nU > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sU := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmU();
+        IF _rbU.Referenced AND NOT _rbU.MotionBusy THEN
+            _rbU.MoveTime := T#2S;
+            _cmU.Command := E_RobotCommand.RUN_PATH;
+            _cmU.ParCmd.TargetId := 1;
+            _cmU.ParCmd.StartIdx := 0;
+            _cmU.ParCmd.EndIdx := 9;
+            _cmU.ParCmd.SpeedScale := 50.0;
+            _cmU.Execute := TRUE;
+            _cmU();
+            _sU := 2;
+        END_IF
+    2:
+        _cmU();
+        IF _rbU.PathIndex >= 2 THEN
+            _cmU.Abort := TRUE;
+            _cmU();
+            _sU := 3;
+        END_IF
+    3:
+        _cmU();
+        IF _cmU.Aborted THEN
+            _idxU := _cmU.OutImm.PathIndex;
+            AssertTrue(Condition := (_idxU >= 0) AND (_idxU < 9),
+                Message := 'the abort left the path part-way, and says how far it got');
+            AssertFalse(Condition := _rbU.MotionBusy, Message := 'nothing continues by itself');
+            _cmU.Abort := FALSE;
+            _cmU.Execute := FALSE;
+            _cmU();
+            _sU := 4;
+        END_IF
+    4:
+        // The deliberate continue: the remaining points, from where the path stopped.
+        _rbU.MoveTime := T#200MS;
+        _cmU.ParCmd.StartIdx := _idxU + 1;
+        _cmU.Execute := TRUE;
+        _cmU();
+        _sU := 5;
+    5:
+        _cmU();
+        IF _cmU.Done OR _cmU.Error THEN
+            AssertTrue(Condition := _cmU.Done, Message := 'a RUN_PATH from the next point continues it');
+            AssertEquals_DINT(Expected := 9, Actual := _cmU.OutImm.PathIndex, Message := 'to the end of the path');
+            _sU := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sU := 99;
+    TEST_FINISHED();
 END_CASE]]></ST>
         </Implementation>
       </Method>

@@ -24,7 +24,9 @@ this plan and why:
 | L5 | Modules 0.15.1.0 / Core 0.26.5.0 | `2026-11-02_TC3_GenericCM_CurveMonitor.md` | §172; `EntryEdge`/`ExitEdge`, `ANY_EDGE`, result carries `DescriptionKey` |
 | L6 | Modules 0.15.2.0 + HMI | `2026-11-02_TC3_GenericCM_CurveRecord.md` | §173 |
 | L7 | deferred (Q2) | — | — |
-| L8 | paper | `Reports/TC3_CODE_READER_PARITY_AUDIT_2026-11-02.md`, `Reports/TC3_ROBOT_USER_CHANNEL_AUDIT_2026-11-02.md` | the robot audit finds Annex I claiming a mode-request half `FB_RobotCM` does not have; the owner chooses implement or correct |
+| L8 | paper | `Reports/TC3_CODE_READER_PARITY_AUDIT_2026-11-02.md`, `Reports/TC3_ROBOT_USER_CHANNEL_AUDIT_2026-11-02.md` | the robot audit finds Annex I claiming a mode-request half `FB_RobotCM` does not have; the owner chose implement |
+| Robot | Modules 0.16.0.0 / Core 0.26.6.0 | `2026-11-03_TC3_RobotCompletion.md` | §174; the audit's gaps plus the safety-alias stop and the arm-power fact |
+| Audit | plan | `Reports/TC3_GENERIC_CM_AUDIT_PLAN_2026-11-03.md` | an independent audit of the whole branch, ready to execute |
 
 ---
 

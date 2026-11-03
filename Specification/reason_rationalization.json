@@ -7,6 +7,20 @@
     "shelving": "Shelving suppresses annunciation only, never control, and expires automatically."
   },
   "reasons": {
+    "ROBOT_SAFETY_DROPPED": {
+      "priority": "HIGH",
+      "category": "SAFETY",
+      "shelvable": false,
+      "action": "Find why the safety function stopped the robot (guard, E-stop, safe zone); once the safety system is reset, power the robot on deliberately and restart from a defined position.",
+      "consequence": "The robot was stopped and its drives switched off; it does not restart by itself."
+    },
+    "ROBOT_CFG_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Correct the robot configuration (positive, ordered speed band at most 100 percent, ceilings 0-100, a real default mode, non-zero timeouts) and reload it.",
+      "consequence": "The robot module cannot run with valid supervision; its configuration was not applied."
+    },
     "CURVE_WINDOW_VIOLATED": {
       "priority": "MED",
       "category": "PROCESS",

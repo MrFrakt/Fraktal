@@ -1265,6 +1265,8 @@ const standardEnglish = <String, String>{
   'std.command.robotSetTool': 'Select tool',
   'std.command.robotSetFrame': 'Select frame',
   'std.command.robotReconnect': 'Reconnect',
+  'std.command.robotRequestMode': 'Request mode',
+  'std.command.robotSetPayload': 'Set payload',
   'std.error.unsupportedAxisCommand': 'Unsupported axis command',
   'std.error.axisNotBound': 'Axis reference not bound',
   'std.error.axisDriveFault': 'Drive reported a fault',
@@ -1292,6 +1294,17 @@ const standardEnglish = <String, String>{
   'std.error.unsupportedRobotCommand': 'Unsupported robot command',
   'std.error.robotNoRoute': 'No route between these positions',
   'std.error.robotNoHelpForNest': 'No approach path for this position',
+  'std.error.robotConfigurationInvalid':
+      'The robot configuration is invalid (speed band, ceilings, default mode or timeouts).',
+  'std.error.robotSafetyDropped':
+      'The robot safety signal dropped; the robot was stopped and its power switched off.',
+  'std.error.robotSafetyNotPermitted':
+      'The robot safety signal is not present; power and motion are not requested.',
+  'std.error.robotModeNotGranted':
+      'The robot controller did not grant the requested operating mode.',
+  'std.error.robotModeRequestInvalid': 'The requested operating mode is not a valid mode.',
+  'std.error.robotRequestRefused':
+      'The robot connector refused the request without giving a reason.',
   'std.error.axisTargetOutOfRange': 'Target outside soft limits',
   'std.error.axisNotHomed': 'Move requested before homing',
 };
@@ -2409,6 +2422,8 @@ const standardSpanish = <String, String>{
   'std.command.robotSetTool': 'Seleccionar herramienta',
   'std.command.robotSetFrame': 'Seleccionar marco',
   'std.command.robotReconnect': 'Reconectar',
+  'std.command.robotRequestMode': 'Solicitar modo',
+  'std.command.robotSetPayload': 'Seleccionar carga',
   'std.error.unsupportedAxisCommand': 'Comando de eje no admitido',
   'std.error.axisNotBound': 'Referencia de eje no vinculada',
   'std.error.axisDriveFault': 'El variador notificó un fallo',
@@ -2446,6 +2461,17 @@ const standardSpanish = <String, String>{
   'std.error.robotNoRoute': 'No hay ruta entre estas posiciones',
   'std.error.robotNoHelpForNest':
       'No hay trayecto de aproximación para esta posición',
+  'std.error.robotConfigurationInvalid':
+      'La configuración del robot no es válida (banda de velocidad, límites, modo por defecto o tiempos).',
+  'std.error.robotSafetyDropped':
+      'Se perdió la señal de seguridad del robot; se detuvo y se desconectó su potencia.',
+  'std.error.robotSafetyNotPermitted':
+      'La señal de seguridad del robot no está presente; no se solicita potencia ni movimiento.',
+  'std.error.robotModeNotGranted':
+      'El controlador del robot no concedió el modo de operación solicitado.',
+  'std.error.robotModeRequestInvalid': 'El modo de operación solicitado no es válido.',
+  'std.error.robotRequestRefused':
+      'El conector del robot rechazó la solicitud sin indicar el motivo.',
   'std.error.axisTargetOutOfRange': 'Destino fuera de los límites de software',
   'std.error.axisNotHomed': 'Movimiento solicitado antes de referenciar',
 };

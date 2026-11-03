@@ -5933,3 +5933,110 @@ Flutter 3.44.6 (three earlier full runs each failed a wall-clock test in
 reproduces; it passes alone). On the isolated UmRT: aggregate 330/330 in
 54 suites and Press 9/9 in 2 suites. Scope and artifacts:
 `Specification/Evidence/2026-11-02_TC3_GenericCM_CurveRecord.md`.
+
+## 174. The robot CM completed (Modules 0.16.0.0, 2026-11-03)
+
+Closes the gaps the robot user-channel audit named
+(`Specification/Reports/TC3_ROBOT_USER_CHANNEL_AUDIT_2026-11-02.md`) and
+builds two of the three items Annex I had left unbuilt; the bounded vision
+offset (I.8a) stays deferred until a vision path needs it.
+
+- **The mode request half (I.4a(a)).** `ParCfg` v2 appends `DefaultMode`
+  (the most restrictive mode this cell supports, `MANUAL_REDUCED` unless
+  configured), `ModeTimeout` and `JogTimeout`. The default is requested at
+  link-up and whenever a reported mode is lost; `REQUEST_MODE`
+  (`ParCmd.Mode`) asks for another and completes only when the controller
+  REPORTS it, faulting `ROBOT_MODE_NOT_PERMITTED` after `ModeTimeout`;
+  `OutImm.RequestedMode` stands beside `ActualMode` so an ungranted
+  request is visibly ungranted.
+- **Configuration validation.** `PrepareRecipe` refuses a non-positive,
+  inverted or over-100 speed band, a ceiling outside 0..100, an UNKNOWN or
+  unknown default mode and any zero timeout with the new
+  `ROBOT_CFG_INVALID` (10316); `Setup` runs it, as for every CM.
+- **The §9 safety alias.** `SetSafetyPermit(Permit, DescriptionKey)`,
+  read-only, deliberately separate from `Intlk` (a lost application
+  permissive HOLDS on path; a lost safety alias does not). Losing it stops
+  a running command first, then asks power off on the falling edge and
+  every 500 ms while power is still reported; regaining it re-enables
+  nothing. `POWER_ON` and motion are refused without it. Raises
+  `ROBOT_SAFETY_DROPPED` (10307, registered in Annex I, now in
+  `PL_ModuleReasons`, SAFETY category, never shelvable).
+- **Held jog.** `JOG_POS`/`JOG_NEG` held commands (§7.6.1) in the manual
+  catalog, accepted only in a manual mode the controller reports, only
+  with the enabling device held (no station opt-out, unlike the axis),
+  never while a command runs, never through a lost interlock or safety
+  alias; started once and stopped with `Abort` when the request stops
+  arriving (`JogTimeout`). `SetJogSelection(Mode, Axis)` picks frame and
+  axis; `OutImm.Jogging`, `JogStopReason`, `JogMode`, `JogAxis` publish
+  it.
+- **`SET_PAYLOAD`, the arm-power fact and path progress.** `SET_PAYLOAD`
+  selects the load case by ID; `I_RobotConnector` gains `ArmPowerOn` and
+  `PathIndex` (last completed point of the current or most recent
+  `RUN_PATH`), published in `OutImm`. An aborted path is continued by a
+  DELIBERATE `RUN_PATH` from `PathIndex + 1`, never automatically.
+- **The user channel.** `M_DeclareUserSignal(Index, Key, ToRobot, Kind)`
+  declares up to `PL_Robot.MAX_USER_SIGNALS` (8) signals, published
+  read-only in `OutImm.UserSignals` with validity; `M_WriteUserSignal`
+  writes a declared to-robot signal and refuses a value that does not fit
+  its kind. The connector gains `WriteUserSignal`/`UserSignal`; it is not
+  a robot request and never touches `LastResult`. Annex I states the rule
+  that it carries no positions, modes, speeds or "go" requests.
+- **Defects found while finishing, and fixed.**
+  - *Abort did not stop the arm.* The type had no `OnAbort`, so an aborted
+    command left the module ABORTED with the robot still moving. `OnAbort`
+    now sends `Abort` to the connector.
+  - *Refusal adoption compared against a stale snapshot.* The CM compared
+    the connector's `LastResult` with the value at command start: an
+    accepted command after a refused one faulted with a zero code, and a
+    repeated refusal with the same code read as "unsupported command". The
+    contract is now explicit (I.3): `LastResult` describes the most recent
+    request - empty when accepted, its reason when refused - and the CM
+    adopts any reason after the accept. Unsupported commands are refused
+    before anything is issued.
+  - *The TCP connector could never run a move.* Step 10 sends the speed
+    and then the move in one scan, and the connector allowed one
+    outstanding request, so the move was always refused - as a lost link.
+    The heartbeat's status poll caused the same refusal intermittently.
+    The connector now has a one-deep queue (a request arriving while the
+    slot is taken waits and is sent when the reply lands; a second waiting
+    request is still refused), `Abort` empties the queue first, and every
+    refusal leaves a reason (mode UNKNOWN, jog outside manual, resume off
+    path, speed out of range used to refuse silently).
+  - `OutImm.SpeedScale` published the requested scale; it now publishes
+    the one sent.
+- **Wire protocol (TCP connector).** The status poll carries the to-robot
+  user values (`STA,<out1>,...`); the reply appends
+  `<power>,<pathIdx>,<in1>,...`. A server that predates them omits them,
+  which reads as power not reported, no path progress and inputs 0. Whole
+  numbers go on the wire without a fraction (`SPD,50`).
+- **Improvement candidates reviewed.** A commercial robot-integration
+  package was reviewed for ideas. Path progress was adopted now; the rest
+  are listed with a disposition in the generic-CM audit plan (capability
+  discovery, brake test and safe reference run, a fast-input position
+  latch, never-taught point refusal, tool/frame consistency, declared
+  manual moves, controller identity). Continuous streaming and PLC-side
+  kinematics are not adopted: they put coordinates into PLC code (I.1).
+- **Upgrade cost.** Modules *minor* 0.16.0.0: `ST_RobotParCfg` v2,
+  `E_RobotCommand` appends, `ST_RobotParCmd`/`ST_RobotOutImm` grow, and
+  `I_RobotConnector` gains members - a third-party connector must
+  implement `ArmPowerOn`, `PathIndex`, `WriteUserSignal` and `UserSignal`.
+  Core *patch* 0.26.6.0 carries the regenerated catalog (92 -> 94). TIA:
+  hash-only, regenerated.
+- **Tests.** `FB_RobotCM_Tests` 8 -> 21 and `FB_RobotConnector_Tests` 6 ->
+  9 (the existing CM rows now run as an auto-only cell, which is what
+  their fixtures assumed): default and requested modes and an ungranted
+  request; configuration refusal; `SET_PAYLOAD`; the safety stop with no
+  re-enable; `POWER_ON` refused without the alias; abort stopping the arm;
+  the jog's gates and freshness; jog selection; user signals; arm power
+  and applied speed; a repeated refusal keeping its reason; an aborted
+  path continued deliberately; on the wire, power, path index and inputs
+  decoded, outputs riding the status poll, and a speed and a move in one
+  scan both reaching the wire.
+
+Final: Core 0.26.6.0 / Modules 0.16.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 628 passed / 12 skipped on
+Flutter 3.44.6. On the isolated UmRT: aggregate 346/346 in 54 suites and
+Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-03_TC3_RobotCompletion.md`.

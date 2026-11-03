@@ -29,8 +29,10 @@ void main() {
     // CM block 10801-10802 (AO_TARGET_OOR, AO_CFG_INVALID). 88 adds the axis
     // depth block 10207-10209 (AXIS_POSITION_UNDECLARED, AXIS_PARAM_OOR,
     // AXIS_CFG_INVALID). 92 adds the curve monitor block 10901-10904
-    // (CURVE_WINDOW_VIOLATED..CURVE_SPEC_INVALID).
-    expect(generatedReasonSymbolByCode, hasLength(92));
+    // (CURVE_WINDOW_VIOLATED..CURVE_SPEC_INVALID). 94 adds the robot's
+    // ROBOT_SAFETY_DROPPED (10307, registered earlier, raised now) and
+    // ROBOT_CFG_INVALID (10316).
+    expect(generatedReasonSymbolByCode, hasLength(94));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

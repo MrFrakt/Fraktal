@@ -22,6 +22,11 @@ VAR_INPUT
     HomeTime : TIME  := T#500MS;
     HomeArea : DWORD := 1;                    // area reported once homed (I.11)
     Inject   : E_RobotSimFault;               // I.5c - level, cleared by the caller
+    UserIn   : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // what the robot program reports (I.3)
+END_VAR
+VAR_OUTPUT
+    UserOut       : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // what the robot program was handed
+    ActivePayload : DWORD;                    // the load case the simulated controller holds
 END_VAR
 VAR
     _busy       : BOOL;
@@ -41,7 +46,9 @@ VAR
     _speed      : REAL := 100.0;
     _tool       : DWORD;
     _frame      : DWORD;
-    _payload    : DWORD;
+    _pathFrom   : DINT;                       // first index of the running path
+    _pathTo     : DINT;                       // last index of the running path; -1 = not a path
+    _pathIdx    : DINT := -1;                 // last completed point (PathIndex)
     _res        : ST_Diagnostic;              // LastResult
     _ctrl       : ST_Diagnostic;              // ControllerMessage
     _f          : LREAL;
@@ -129,11 +136,21 @@ IF _busy AND NOT _held THEN
     _pose.RX := _from.RX + (_to.RX - _from.RX) * _f;
     _pose.RY := _from.RY + (_to.RY - _from.RY) * _f;
     _pose.RZ := _from.RZ + (_to.RZ - _from.RZ) * _f;
+    // A path completes its points in proportion to the move time.
+    IF _pathTo >= 0 THEN
+        _pathIdx := _pathFrom - 1 + LREAL_TO_DINT(_f * DINT_TO_LREAL(_pathTo - _pathFrom + 1) - 0.4999);   // floor
+        IF _pathIdx > _pathTo THEN
+            _pathIdx := _pathTo;
+        END_IF
+    END_IF
     IF _tMove.Q THEN
         _tMove(IN := FALSE);
         _busy  := FALSE;
         _pose  := _to;
         _area  := _toArea;
+        IF _pathTo >= 0 THEN
+            _pathIdx := _pathTo;
+        END_IF
         IF _homing THEN
             _homing     := FALSE;
             _referenced := TRUE;     // homing is what ESTABLISHES the reference
@@ -231,6 +248,7 @@ IF Routed AND (Inject = E_RobotSimFault.NO_ROUTE) THEN
 END_IF
 _from   := _pose;
 _to     := _M_PoseOf(ToPosId);
+_pathTo := -1;                       // RunPath sets the range after a successful start
 _toArea := ToPosId;                  // the sim treats each position as its own area
 _pt     := PT;
 _held   := FALSE;
@@ -298,7 +316,21 @@ END_VAR]]></Declaration>
     RunPath := _M_Refuse(PL_ModuleReasons.ROBOT_PARAM_OOR, 'std.error.robotPathRangeInvalid');
     RETURN;
 END_IF
-RunPath := _M_Start(ToPosId := ListId, PT := MoveTime, Routed := FALSE);]]></ST>
+RunPath := _M_Start(ToPosId := ListId, PT := MoveTime, Routed := FALSE);
+IF RunPath THEN
+    // (-1,-1) is the whole list; the simulated list has ten points, 0..9.
+    IF StartIdx < 0 THEN
+        _pathFrom := 0;
+    ELSE
+        _pathFrom := StartIdx;
+    END_IF
+    IF EndIdx < 0 THEN
+        _pathTo := 9;
+    ELSE
+        _pathTo := EndIdx;
+    END_IF
+    _pathIdx := _pathFrom - 1;
+END_IF]]></ST>
         </Implementation>
       </Method>
       <Method Name="RunPallet" Id="{631272cd-6af3-4dd2-94d1-4bdc11add5e4}">
@@ -402,7 +434,11 @@ IF NOT Linked THEN
     RequestMode := _M_Refuse(E_Reason.LINK_TIMEOUT, 'std.error.robotLinkDown');
     RETURN;
 END_IF
-_mode := Mode;
+// A controller that accepts the request and then stays where it is - a key
+// switch on the pendant, say - is the case MODE_NOT_GRANTED rehearses.
+IF Inject <> E_RobotSimFault.MODE_NOT_GRANTED THEN
+    _mode := Mode;
+END_IF
 RequestMode := _M_Accept();]]></ST>
         </Implementation>
       </Method>
@@ -458,7 +494,7 @@ END_VAR]]></Declaration>
     SetPayload := FALSE;
     RETURN;
 END_IF
-_payload := LoadId;
+ActivePayload := LoadId;
 SetPayload := _M_Accept();]]></ST>
         </Implementation>
       </Method>
@@ -489,6 +525,56 @@ _pose.X := _pose.X + DINT_TO_LREAL(Dir) * 10.0;
 Jog := _M_Accept();]]></ST>
         </Implementation>
       </Method>
+      <Method Name="WriteUserSignal" Id="{d57440b5-c314-442c-86fe-437b353756f0}">
+        <Declaration><![CDATA[// The robot program sees the value at once. Not a robot request: LastResult
+// is left as it was.
+METHOD WriteUserSignal : BOOL
+VAR_INPUT
+    Index : INT;
+    Value : LREAL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (NOT Linked) OR (Index < 1) OR (Index > PL_Robot.MAX_USER_SIGNALS) THEN
+    WriteUserSignal := FALSE;
+    RETURN;
+END_IF
+UserOut[Index] := Value;
+WriteUserSignal := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="UserSignal" Id="{8b2cbdc8-28fd-49ba-9ead-b44b5df35cc2}">
+        <Declaration><![CDATA[METHOD UserSignal : LREAL
+VAR_INPUT
+    Index : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Index < 1) OR (Index > PL_Robot.MAX_USER_SIGNALS) THEN
+    UserSignal := 0.0;
+    RETURN;
+END_IF
+UserSignal := UserIn[Index];]]></ST>
+        </Implementation>
+      </Method>
+      <Property Name="PathIndex" Id="{128cbba7-4129-4dc4-9a3a-e6fec3e8abe0}">
+        <Declaration><![CDATA[PROPERTY PathIndex : DINT]]></Declaration>
+        <Get Name="Get" Id="{5455954d-a487-47f0-85dc-8af13ba8bc98}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[PathIndex := _pathIdx;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ArmPowerOn" Id="{8d5f4273-e471-4513-bf19-68e4cb310c56}">
+        <Declaration><![CDATA[PROPERTY ArmPowerOn : BOOL]]></Declaration>
+        <Get Name="Get" Id="{fcf4c4cc-49f4-4fc6-90d0-c5b0345f7107}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ArmPowerOn := _powered;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
       <Property Name="MotionBusy" Id="{ba307395-ae98-400c-aa53-a460ea50f9fa}">
         <Declaration><![CDATA[PROPERTY MotionBusy : BOOL]]></Declaration>
         <Get Name="Get" Id="{7ae9472a-8e43-4d60-89df-fac38bf247e7}">

@@ -26,10 +26,25 @@
 //   request   <CMD>[,<arg>]...
 //   response  <CMD>,OK[,<payload>]...   accepted / completed
 //             <CMD>,ERR,<code>,<text>   refused or faulted by the controller
+//   status    STA[,<out1>,...,<outN>]   the poll carries the to-robot user signals
+//             STA,OK,<busy>,<ref>,<mode>,<area>,<prot>,<resumable>,<x>,<y>,<z>,
+//                    <rx>,<ry>,<rz>,<power>,<pathIdx>,<in1>,...,<inN>
+//   <power>, <pathIdx> and the user values are appended fields: a server that
+//   predates them omits them, which reads as drives not reported powered, no path
+//   progress (-1) and inputs 0. Riding
+//   the status poll costs the user channel no request slot of its own, so it can
+//   never refuse a motion command for being busy.
 // Commands are ID-ADDRESSED (I.1): a point, list, pallet, tool, frame or load is
 // named by its identifier and never by a coordinate. The single exception the
 // standard permits - a bounded offset correction for a runtime-located target
 // (I.8a) - is not implemented here yet and is not smuggled in.
+//
+// ONE ON THE WIRE, ONE WAITING. The link allows one outstanding request, but the
+// CM sends the speed and then the move in the same scan, and the heartbeat's STA
+// holds the slot for a few milliseconds every period. A request arriving while
+// the slot is taken waits in a one-deep queue and is sent the moment the reply
+// lands; only a request beyond that is refused. Abort empties the queue first,
+// so a stop never sits behind the move it is stopping.
 //
 // STATUS IS THE HEARTBEAT: every ParCfg.StatusPeriod the connector issues STA, so
 // MotionBusy/Referenced/ActualMode/CurrentArea/ProtectiveStop/Resumable/pose stay
@@ -58,6 +73,13 @@ VAR
     _lastResult  : ST_Diagnostic;
     _statusPend  : BOOL;   // the outstanding request is the heartbeat's STA
     _hbReply     : BOOL;   // a well-formed reply arrived since the heartbeat asked
+    _power       : BOOL;   // drives reported powered (STA field 15)
+    _pathIdx     : DINT := -1;   // last completed path point (STA field 16); -1 = none
+    _userIn      : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // reported by the robot program
+    _userOut     : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // handed to it with every poll
+    _userOutCount : INT;   // highest to-robot index ever written; 0 = plain STA
+    _queued      : STRING(255);   // the one request waiting for the slot
+    _hasQueued   : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -92,6 +114,7 @@ SetupLink := _link.M_Bind(Chan := Chan);]]></ST>
 METHOD Cyclic : BOOL
 VAR
     evt : E_AsciiLinkEvent;
+    i   : INT;
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[_link.Terminator := ParCfg.Terminator;
@@ -129,6 +152,17 @@ END_CASE
 IF _sessionUp AND (LinkState = E_ByteChannelState.CLOSED) THEN
     _M_Lost(Reason := E_Reason.LINK_TIMEOUT, Text := 'std.error.robotLinkDown');
 END_IF
+// The waiting request goes out the moment the slot frees - before the heartbeat
+// can take it again.
+IF _hasQueued AND Linked AND NOT _link.Pending THEN
+    _hasQueued := FALSE;
+    IF _link.M_Send(Text := _queued) THEN
+        _statusPend := FALSE;
+    ELSE
+        _lastResult := _M_MakeLinkDiag();
+        _busy := FALSE;
+    END_IF
+END_IF
 Cyclic := SUPER^.Cyclic();
 // A lost link invalidates every cached fact. Publishing a stale pose or a stale
 // "not in protective stop" while disconnected would be worse than publishing
@@ -139,6 +173,11 @@ IF NOT Linked THEN
     _mode       := E_RobotOpMode.UNKNOWN;
     _area       := 0;
     _resumable  := FALSE;
+    _power      := FALSE;
+    _hasQueued  := FALSE;
+    FOR i := 1 TO PL_Robot.MAX_USER_SIGNALS DO
+        _userIn[i] := 0.0;
+    END_FOR
 END_IF]]></ST>
         </Implementation>
       </Method>
@@ -155,6 +194,7 @@ _M_Open := _link.M_Open(Host := ParCfg.Host, Port := ParCfg.Port);]]></ST>
         <Implementation>
           <ST><![CDATA[_link.M_Close();
 _statusPend := FALSE;
+_hasQueued := FALSE;
 _busy := FALSE;
 _M_Close := TRUE;]]></ST>
         </Implementation>
@@ -171,7 +211,7 @@ IF _link.Pending THEN
     _M_HbStart := TRUE;
     RETURN;
 END_IF
-_M_HbStart := _link.M_Send(Text := 'STA');
+_M_HbStart := _link.M_Send(Text := _M_StatusRequest());
 _statusPend := _M_HbStart;]]></ST>
         </Implementation>
       </Method>
@@ -195,6 +235,7 @@ END_VAR
 VAR
     _cmd  : STRING(16);
     _stat : STRING(16);
+    i     : INT;
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[// Any well-formed reply is evidence the controller is alive (§3.15.2).
@@ -229,6 +270,15 @@ IF _cmd = 'STA' THEN
     _pose.RX    := STRING_TO_LREAL(_M_Field(Response, 12));
     _pose.RY    := STRING_TO_LREAL(_M_Field(Response, 13));
     _pose.RZ    := STRING_TO_LREAL(_M_Field(Response, 14));
+    _power      := (_M_Field(Response, 15) = '1');
+    IF _M_Field(Response, 16) = '' THEN
+        _pathIdx := -1;
+    ELSE
+        _pathIdx := STRING_TO_DINT(_M_Field(Response, 16));
+    END_IF
+    FOR i := 1 TO PL_Robot.MAX_USER_SIGNALS DO
+        _userIn[i] := STRING_TO_LREAL(_M_Field(Response, 16 + i));
+    END_FOR
     _statusPend := FALSE;
     RETURN;
 END_IF
@@ -252,16 +302,26 @@ IF NOT Linked THEN
     RETURN;
 END_IF
 IF _link.Pending THEN
-    // One outstanding request is the link's rule; refusing here keeps the caller
-    // honest instead of silently dropping the command.
+    // The slot is taken: wait in the queue, once. A second waiting request is
+    // refused rather than silently dropped.
+    IF _hasQueued THEN
+        _lastResult := _M_MakeLinkDiag();
+        RETURN;
+    END_IF
+    _queued := Text;
+    _hasQueued := TRUE;
+ELSIF NOT _link.M_Send(Text := Text) THEN
     _lastResult := _M_MakeLinkDiag();
     RETURN;
+ELSE
+    _statusPend := FALSE;
 END_IF
-IF NOT _link.M_Send(Text := Text) THEN
-    _lastResult := _M_MakeLinkDiag();
-    RETURN;
-END_IF
-_statusPend := FALSE;
+// Accepted for sending: this request has no reason against it (I.3 LastResult).
+// A reply ERR sets one; a stale reason from an EARLIER request must not be
+// adopted as this one's.
+_lastResult.ReasonCode  := E_Reason.NONE;
+_lastResult.Description := '';
+_lastResult.SourcePath  := Name;
 _busy := TRUE;
 _M_Request := TRUE;]]></ST>
         </Implementation>
@@ -392,6 +452,9 @@ END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[// Refuse rather than execute when the arm has left the retained path (I.4b).
 IF NOT _resumable THEN
+    _lastResult.ReasonCode  := PL_ModuleReasons.ROBOT_RESUME_INVALID;
+    _lastResult.Description := 'std.error.robotResumeInvalid';
+    _lastResult.SourcePath  := Name;
     Resume := FALSE;
     RETURN;
 END_IF
@@ -401,7 +464,9 @@ Resume := _M_Request('RES');]]></ST>
       <Method Name="Abort" Id="{7a25c84d-c5d6-4caa-9b67-4021e7088ac1}">
         <Declaration><![CDATA[METHOD Abort : BOOL]]></Declaration>
         <Implementation>
-          <ST><![CDATA[Abort := _M_Request('ABT');
+          <ST><![CDATA[// A stop never waits behind the move it stops: whatever was queued is dropped.
+_hasQueued := FALSE;
+Abort := _M_Request('ABT');
 _busy := FALSE;]]></ST>
         </Implementation>
       </Method>
@@ -425,7 +490,11 @@ END_VAR]]></Declaration>
     E_RobotOpMode.MANUAL_REDUCED: _s := 'MANR';
     E_RobotOpMode.MANUAL_HIGH:    _s := 'MANH';
 ELSE
-    // Requesting UNKNOWN is meaningless and must not reach the controller.
+    // Requesting UNKNOWN is meaningless and must not reach the controller. The
+    // refusal carries its reason, as every refusal must (I.3 LastResult).
+    _lastResult.ReasonCode  := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED;
+    _lastResult.Description := 'std.error.robotModeNotPermitted';
+    _lastResult.SourcePath  := Name;
     RequestMode := FALSE;
     RETURN;
 END_CASE
@@ -473,6 +542,9 @@ END_VAR]]></Declaration>
           <ST><![CDATA[// Jogging requires a manual mode on the CONTROLLER, not merely a PLC release:
 // the mode is what physically bounds the motion (I.4a(a)).
 IF (_mode <> E_RobotOpMode.MANUAL_REDUCED) AND (_mode <> E_RobotOpMode.MANUAL_HIGH) THEN
+    _lastResult.ReasonCode  := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED;
+    _lastResult.Description := 'std.error.robotModeNotPermitted';
+    _lastResult.SourcePath  := Name;
     Jog := FALSE;
     RETURN;
 END_IF
@@ -519,12 +591,98 @@ VAR_INPUT
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[IF (Percent < 0.0) OR (Percent > 100.0) THEN
+    _lastResult.ReasonCode  := PL_ModuleReasons.ROBOT_PARAM_OOR;
+    _lastResult.Description := 'std.error.robotSpeedScaleOutOfRange';
+    _lastResult.SourcePath  := Name;
     SetSpeedScale := FALSE;
     RETURN;
 END_IF
-SetSpeedScale := _M_Request(CONCAT('SPD,', REAL_TO_STRING(Percent)));]]></ST>
+SetSpeedScale := _M_Request(CONCAT('SPD,', _M_Num(Value := REAL_TO_LREAL(Percent))));]]></ST>
         </Implementation>
       </Method>
+      <Method Name="_M_StatusRequest" Id="{1a70f706-97d1-42e3-a7ec-fc69715e9e19}">
+        <Declaration><![CDATA[// The status poll, carrying every to-robot user value written so far: level
+// semantics, re-sent each poll, so a reconnect restores them with no extra step.
+METHOD PRIVATE _M_StatusRequest : STRING(255)
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_StatusRequest := 'STA';
+FOR i := 1 TO _userOutCount DO
+    _M_StatusRequest := CONCAT(CONCAT(_M_StatusRequest, ','), _M_Num(Value := _userOut[i]));
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Num" Id="{40064bff-1188-4436-8936-a109ea9d0ed9}">
+        <Declaration><![CDATA[// A user value on the wire: a whole number without a fraction (flags and
+// integers are exact), anything else as LREAL text.
+METHOD PRIVATE _M_Num : STRING(32)
+VAR_INPUT
+    Value : LREAL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Value >= -2147483648.0) AND_THEN (Value <= 2147483647.0)
+    AND_THEN (Value = DINT_TO_LREAL(LREAL_TO_DINT(Value))) THEN
+    _M_Num := DINT_TO_STRING(LREAL_TO_DINT(Value));
+ELSE
+    _M_Num := LREAL_TO_STRING(Value);
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="WriteUserSignal" Id="{e64b4ed3-b170-46f1-880b-fc252684a0b3}">
+        <Declaration><![CDATA[// Recorded and sent with the next status poll. Not a robot request: LastResult
+// is left as it was, and no request slot is taken.
+METHOD WriteUserSignal : BOOL
+VAR_INPUT
+    Index : INT;
+    Value : LREAL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (NOT Linked) OR (Index < 1) OR (Index > PL_Robot.MAX_USER_SIGNALS) THEN
+    WriteUserSignal := FALSE;
+    RETURN;
+END_IF
+_userOut[Index] := Value;
+IF Index > _userOutCount THEN
+    _userOutCount := Index;
+END_IF
+WriteUserSignal := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="UserSignal" Id="{03ea983e-2019-4190-a233-520854f0aec6}">
+        <Declaration><![CDATA[METHOD UserSignal : LREAL
+VAR_INPUT
+    Index : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Index < 1) OR (Index > PL_Robot.MAX_USER_SIGNALS) THEN
+    UserSignal := 0.0;
+    RETURN;
+END_IF
+UserSignal := _userIn[Index];]]></ST>
+        </Implementation>
+      </Method>
+      <Property Name="PathIndex" Id="{30cc0fb0-79b2-42f2-bec5-e2246c1b9cca}">
+        <Declaration><![CDATA[PROPERTY PathIndex : DINT]]></Declaration>
+        <Get Name="Get" Id="{fc0ddd12-eb5c-4389-97da-adc7a642c673}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[PathIndex := _pathIdx;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="ArmPowerOn" Id="{8d7edeaa-ef08-4f82-8e93-7ee0a01ae201}">
+        <Declaration><![CDATA[PROPERTY ArmPowerOn : BOOL]]></Declaration>
+        <Get Name="Get" Id="{5fad7ff0-4a9b-48d0-8669-c04b5e9ac394}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[ArmPowerOn := _power;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
       <Property Name="MotionBusy" Id="{f0956d54-6d38-48f0-9562-e484f5918809}">
         <Declaration><![CDATA[// The ROBOT is moving. The base already owns Busy for its own command handshake;
 // conflating the two would make "is the arm moving" unanswerable.
