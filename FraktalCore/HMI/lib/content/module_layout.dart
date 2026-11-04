@@ -55,7 +55,9 @@ enum ModuleTabKind {
   configuration,
   hardware,
   statistics,
-  events;
+  events,
+  // Modules ST_CurveRecord: the last judged curve, drawn read-only.
+  curve;
 
   /// The one tab kind that may carry a background picture: a tab an
   /// administrator authors, with controls placed on the picture. The Overview
@@ -884,6 +886,9 @@ class ModuleTabCapabilities {
   final bool codeReader;
   final bool rfid;
 
+  /// The module publishes a curve record (Modules `ST_CurveRecord`).
+  final bool curve;
+
   /// The module publishes editable configuration (Core §3.10.2 capabilities).
   final bool configuration;
 
@@ -894,6 +899,7 @@ class ModuleTabCapabilities {
     this.vision = false,
     this.codeReader = false,
     this.rfid = false,
+    this.curve = false,
     this.configuration = false,
   });
 }
@@ -1534,6 +1540,7 @@ class ModuleTabDefinition {
         ModuleTabKind.hardware => ModuleTabIcon.electrical,
         ModuleTabKind.statistics => ModuleTabIcon.chart,
         ModuleTabKind.events => ModuleTabIcon.events,
+        ModuleTabKind.curve => ModuleTabIcon.monitoring,
       };
 
   bool get builtIn => const {
@@ -1548,6 +1555,7 @@ class ModuleTabDefinition {
         'hardware',
         'statistics',
         'events',
+        'curve',
       }.contains(id);
 
   /// Whether this guidance tab should auto-open for the given live step.
@@ -1857,6 +1865,13 @@ class ModuleTabDefinition {
           id: 'rfid',
           title: 'std.module.tab.rfid',
           kind: ModuleTabKind.rfid,
+          requiredLevel: AccessLevel.operator,
+        ),
+      if (capabilities.curve)
+        const ModuleTabDefinition(
+          id: 'curve',
+          title: 'std.module.tab.curve',
+          kind: ModuleTabKind.curve,
           requiredLevel: AccessLevel.operator,
         ),
       if (capabilities.unit)

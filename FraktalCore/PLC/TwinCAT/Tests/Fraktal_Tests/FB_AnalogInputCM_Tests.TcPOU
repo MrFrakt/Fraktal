@@ -1,0 +1,570 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AnalogInputCM_Tests" Id="{02289ae1-89d3-4484-91f2-eb038e30221e}" SpecialFunc="None">
+    <Declaration><![CDATA[// Generic analog-input CM rows. T1/T4 are proven once in FB_Base_Tests; these
+// prove T2 (first-out reason with the implicated tag), T3 n/a (an input owns
+// no output) and T5 (an implausible adjustment is refused, typed or captured).
+// One instance per multi-scan row: TcUnit runs a suite's rows side by side,
+// and timed rows assert elapsed TIME(), never scan counts.
+FUNCTION_BLOCK FB_AnalogInputCM_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    _cm : FB_AnalogInputCM;          // shared by the single-scan rows only
+    _hal : ST_AnalogInputHal;
+    _d : ST_Diagnostic;
+    _ok : BOOL;
+    _wired : BOOL;
+    _inv, _bad, _lossy : FB_AnalogInputCM;
+    _meas, _measBad, _measOor : FB_AnalogInputCM;
+    _adj, _cap, _imp, _tare : FB_AnalogInputCM;
+    _filt, _stab, _mto, _fb, _uns : FB_AnalogInputCM;
+    _invHal, _badHal, _lossyHal : ST_AnalogInputHal;
+    _measHal, _measBadHal, _measOorHal : ST_AnalogInputHal;
+    _adjHal, _capHal, _impHal, _tareHal : ST_AnalogInputHal;
+    _filtHal, _stabHal, _mtoHal, _fbHal, _unsHal : ST_AnalogInputHal;
+    _identity, _identityBad : ST_IoPointIdentity;
+    _badSetup : BOOL;
+    _measStep, _measBadStep, _measOorStep : INT;
+    _filtStep, _stabStep, _mtoStep : INT;
+    _filtSince, _stabSince, _mtoSince : TIME;
+    _tMeas, _tMeasBad, _tMeasOor : TON;
+    _tFilt, _tStab, _tMto : TON;
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#5S;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF NOT _wired THEN
+    _cm.ParCfg.RawMax := 200.0;
+    _cm.ParCfg.UnderRange := 10.0;
+    _cm.ParCfg.OverRange := 90.0;
+    _cm.Setup(Name := 'Test.AI', HalRef := _hal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _identity.Tag := '_101B601';
+    _identity.Address := 'EL3xxx Ch1';
+    _cm.ConfigureIoIdentity(Identity := _identity);
+    _inv.ParCfg.RawMin := 200.0;
+    _inv.ParCfg.RawMax := 0.0;
+    _inv.ParCfg.EngMin := 100.0;
+    _inv.ParCfg.EngMax := 0.0;
+    _inv.Setup(Name := 'Test.AIInv', HalRef := _invHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _bad.ParCfg.RawMax := 0.0;    // RawMin = RawMax: no function to scale with
+    _badSetup := _bad.Setup(Name := 'Test.AIBad', HalRef := _badHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _lossy.ParCfg.RawMax := 200.0;
+    _lossy.Setup(Name := 'Test.AILoss', HalRef := _lossyHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _meas.ParCfg.RawMax := 200.0;
+    _meas.Setup(Name := 'Test.AIMeas', HalRef := _measHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _measBad.ParCfg.RawMax := 200.0;
+    _measBad.Setup(Name := 'Test.AIBadSig', HalRef := _measBadHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _identityBad.Tag := '_101B602';
+    _identityBad.Address := 'EL3xxx Ch2';
+    _measBad.ConfigureIoIdentity(Identity := _identityBad);
+    _measOor.ParCfg.RawMax := 200.0;
+    _measOor.ParCfg.UnderRange := 10.0;
+    _measOor.ParCfg.OverRange := 90.0;
+    _measOor.Setup(Name := 'Test.AIOor', HalRef := _measOorHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _adj.ParCfg.RawMax := 400.0;
+    _adj.Setup(Name := 'Test.AIAdj', HalRef := _adjHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _cap.ParCfg.RawMax := 200.0;
+    _cap.Setup(Name := 'Test.AICap', HalRef := _capHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _imp.ParCfg.RawMax := 200.0;
+    _imp.Setup(Name := 'Test.AIImp', HalRef := _impHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _tare.ParCfg.RawMax := 200.0;
+    _tare.Setup(Name := 'Test.AITare', HalRef := _tareHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _filt.ParCfg.RawMax := 200.0;
+    _filt.ParCfg.FilterTime := T#400MS;
+    _filt.Setup(Name := 'Test.AIFilt', HalRef := _filtHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _stab.ParCfg.RawMax := 200.0;
+    _stab.ParCfg.StableBand := 2.0;
+    _stab.ParCfg.StableTime := T#300MS;
+    _stab.Setup(Name := 'Test.AIStab', HalRef := _stabHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _mto.ParCfg.RawMax := 200.0;
+    _mto.ParCfg.StableBand := 1.0;
+    _mto.ParCfg.StableTime := T#150MS;
+    _mto.ParCfg.MeasureTimeout := T#400MS;
+    _mto.Setup(Name := 'Test.AIMto', HalRef := _mtoHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    // Fresh instance: StationCfg.SchemaVersion = 0, the first-boot image.
+    _fb.Setup(Name := 'Test.AIFb', HalRef := _fbHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _uns.Setup(Name := 'Test.AIUns', HalRef := _unsHal,
+        DisplayNameKey := 'std.moduleType.analogInput.name',
+        DescriptionKey := 'std.moduleType.analogInput.description');
+    _hal.Quality := TRUE;
+    _invHal.Quality := TRUE;
+    _badHal.Quality := TRUE;
+    _lossyHal.Quality := TRUE;
+    _measHal.Quality := TRUE;
+    _adjHal.Quality := TRUE;
+    _capHal.Quality := TRUE;
+    _impHal.Quality := TRUE;
+    _tareHal.Quality := TRUE;
+    _filtHal.Quality := TRUE;
+    _stabHal.Quality := TRUE;
+    _mtoHal.Quality := TRUE;
+    _fbHal.Quality := TRUE;
+    _unsHal.Quality := TRUE;
+    _wired := TRUE;
+ELSE
+    ;
+END_IF
+Linear_scaling_and_inverted_ranges();
+Invalid_parcfg_refused_at_setup_and_published_invalid();
+Bad_quality_publishes_invalid_never_the_last_value();
+In_range_is_derived_every_scan();
+Measure_completes_with_the_value_when_valid();
+Measure_refuses_an_invalid_signal_with_its_tag();
+Measure_under_and_over_range_fault();
+Two_point_adjustment_applies_when_both_points_are_set();
+Points_are_captured_from_the_live_raw_value();
+An_implausible_pair_is_refused_typed_or_captured();
+Tare_is_captured_from_gross_and_subtracted();
+Filter_settles_over_FilterTime();
+Stable_needs_the_band_for_StableTime();
+Measure_waits_for_stable_then_times_out();
+A_first_boot_initializes_station_data_without_a_loss();
+Unsupported_command_is_refused();]]></ST></Implementation>
+    <Method Name="Linear_scaling_and_inverted_ranges" Id="{ba2e05a8-4c33-49c2-89a8-cda7ccd5c30a}">
+      <Declaration><![CDATA[METHOD Linear_scaling_and_inverted_ranges]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Linear_scaling_and_inverted_ranges');
+_hal.Raw := 100.0;
+_cm();
+AssertTrue(Condition := _cm.OutImm.Valid, Message := 'quality and a good ParCfg publish valid');
+AssertEquals_LREAL(Expected := 50.0, Actual := _cm.OutImm.Value, Delta := 0.0001,
+    Message := 'linear scaling maps raw to engineering units');
+_invHal.Raw := 100.0;
+_inv();
+AssertTrue(Condition := _inv.OutImm.Valid, Message := 'inverted ranges are still a function');
+AssertEquals_LREAL(Expected := 50.0, Actual := _inv.OutImm.Value, Delta := 0.0001,
+    Message := 'the same rule scales an inverted range');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Invalid_parcfg_refused_at_setup_and_published_invalid" Id="{6f42eb9a-2595-4983-a34d-5ba89d6ef206}">
+      <Declaration><![CDATA[METHOD Invalid_parcfg_refused_at_setup_and_published_invalid]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Invalid_parcfg_refused_at_setup_and_published_invalid');
+AssertFalse(Condition := _badSetup, Message := 'a ParCfg the type cannot honour refuses Setup');
+_bad();
+AssertFalse(Condition := _bad.OutImm.Valid, Message := 'and publishes invalid every scan');
+AssertEquals_LREAL(Expected := 0.0, Actual := _bad.OutImm.Value, Delta := 0.0001,
+    Message := 'fail closed: zero, never a scaled number from a bad config');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Bad_quality_publishes_invalid_never_the_last_value" Id="{e9719705-38aa-4c61-b82a-d8eed42579e7}">
+      <Declaration><![CDATA[METHOD Bad_quality_publishes_invalid_never_the_last_value]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Bad_quality_publishes_invalid_never_the_last_value');
+_lossyHal.Raw := 120.0;
+_lossy();
+AssertTrue(Condition := _lossy.OutImm.Valid, Message := 'a good scan first, so the loss is observable');
+_lossyHal.Quality := FALSE;
+_lossy();
+AssertFalse(Condition := _lossy.OutImm.Valid, Message := 'quality loss publishes invalid');
+AssertEquals_LREAL(Expected := 0.0, Actual := _lossy.OutImm.Value, Delta := 0.0001,
+    Message := 'never the last good value: that would be a measurement nobody made');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="In_range_is_derived_every_scan" Id="{bc76583e-2317-4fb6-81b6-9534087a3a36}">
+      <Declaration><![CDATA[METHOD In_range_is_derived_every_scan]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('In_range_is_derived_every_scan');
+_hal.Raw := 140.0;    // 70, inside [10, 90]
+_cm();
+AssertTrue(Condition := _cm.OutImm.InRange, Message := 'a value inside the band is in range');
+_hal.Raw := 200.0;    // 100, above OverRange
+_cm();
+AssertFalse(Condition := _cm.OutImm.InRange, Message := 'range is derived, not latched');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Measure_completes_with_the_value_when_valid" Id="{8313fa86-c7f6-4de3-9322-fb1e79592e05}">
+      <Declaration><![CDATA[METHOD Measure_completes_with_the_value_when_valid]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Measure_completes_with_the_value_when_valid');
+IF _measStep = 99 THEN
+    RETURN;
+END_IF
+_tMeas(IN := TRUE, PT := TEST_TIMEOUT);
+CASE _measStep OF
+    0:
+        _measHal.Raw := 100.0;
+        _meas.Command := E_AnalogInputCommand.MEASURE;
+        _meas.Execute := TRUE;
+        _meas();      // start scan: valid, no band configured, so Stable = Valid
+        AssertFalse(Condition := _meas.Done, Message := 'not done in the start scan');
+        _measStep := 1;
+    1:
+        _meas();
+        IF _meas.Done THEN
+            AssertEquals_LREAL(Expected := 50.0, Actual := _meas.OutCmd.Value, Delta := 0.0001,
+                Message := 'Done carries the measured value in OutCmd');
+            _meas.Execute := FALSE;
+            _meas();
+            _measStep := 99;
+            TEST_FINISHED();
+        ELSIF _tMeas.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'MEASURE never completed on a valid stable signal');
+            _measStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _measStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Measure_refuses_an_invalid_signal_with_its_tag" Id="{5b2184f3-7c9f-42e7-82ea-fdd39b2c4bfa}">
+      <Declaration><![CDATA[METHOD Measure_refuses_an_invalid_signal_with_its_tag]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Measure_refuses_an_invalid_signal_with_its_tag');
+IF _measBadStep = 99 THEN
+    RETURN;
+END_IF
+_tMeasBad(IN := TRUE, PT := TEST_TIMEOUT);
+CASE _measBadStep OF
+    0:
+        _measBadHal.Quality := FALSE;
+        _measBad.Command := E_AnalogInputCommand.MEASURE;
+        _measBad.Execute := TRUE;
+        _measBadStep := 1;
+    1:
+        _measBad();
+        IF _measBad.Error THEN
+            AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AI_SIGNAL_INVALID),
+                Actual := _measBad.ErrorID, Message := 'an invalid signal is a type-band fault');
+            _d := _measBad.GetFaultSummary();
+            AssertEquals_STRING(Expected := '_101B602', Actual := _d.IoTag,
+                Message := 'the diagnostic names the implicated schematic tag');
+            AssertEquals_STRING(Expected := 'Test.AIBadSig', Actual := _d.SourcePath,
+                Message := 'first-out names the owning module');
+            _measBad.Execute := FALSE;
+            _measBad();
+            _measBadStep := 99;
+            TEST_FINISHED();
+        ELSIF _tMeasBad.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the invalid signal never faulted');
+            _measBadStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _measBadStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Measure_under_and_over_range_fault" Id="{46fce6ad-5b4b-421e-a84b-cef5c25d3670}">
+      <Declaration><![CDATA[METHOD Measure_under_and_over_range_fault]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Measure_under_and_over_range_fault');
+IF _measOorStep = 99 THEN
+    RETURN;
+END_IF
+_tMeasOor(IN := TRUE, PT := TEST_TIMEOUT);
+CASE _measOorStep OF
+    0:
+        _measOorHal.Raw := -20.0;    // -10: below UnderRange
+        _measOor.Command := E_AnalogInputCommand.MEASURE;
+        _measOor.Execute := TRUE;
+        _measOorStep := 1;
+    1:
+        _measOor();
+        IF _measOor.Error THEN
+            AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AI_UNDER_RANGE),
+                Actual := _measOor.ErrorID, Message := 'a stable value under the band faults UNDER');
+            _measOor.Execute := FALSE;
+            _measOor();              // Execute-drop reset (S6.1)
+            _measOorHal.Raw := 200.0;   // 100: above OverRange
+            _measOor.Execute := TRUE;
+            _measOorStep := 2;
+        ELSIF _tMeasOor.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the under-range fault never came');
+            _measOorStep := 99;
+            TEST_FINISHED();
+        END_IF
+    2:
+        _measOor();
+        IF _measOor.Error THEN
+            AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AI_OVER_RANGE),
+                Actual := _measOor.ErrorID, Message := 'a stable value over the band faults OVER');
+            _measOor.Execute := FALSE;
+            _measOor();
+            _measOorStep := 99;
+            TEST_FINISHED();
+        ELSIF _tMeasOor.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the over-range fault never came');
+            _measOorStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _measOorStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Two_point_adjustment_applies_when_both_points_are_set" Id="{7e148de4-1db7-47c0-98db-0e3adcf94b36}">
+      <Declaration><![CDATA[METHOD Two_point_adjustment_applies_when_both_points_are_set]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Two_point_adjustment_applies_when_both_points_are_set');
+// Typed through the registered write: the station path, not the retained image.
+_ok := _adj.M_ApplyConfigWrite(Scope := 'Test.AIAdj', WriteKey := 'analogInput.ref1',
+    Revision := 1, TextValue := '0', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'ref1 accepted while the pair is inactive');
+_ok := _adj.M_ApplyConfigWrite(Scope := 'Test.AIAdj', WriteKey := 'analogInput.ref2',
+    Revision := 1, TextValue := '50', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'ref2 accepted while the pair is inactive');
+_ok := _adj.M_ApplyConfigWrite(Scope := 'Test.AIAdj', WriteKey := 'analogInput.meas1',
+    Revision := 1, TextValue := '0', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'meas1 accepted while the pair is inactive');
+_ok := _adj.M_ApplyConfigWrite(Scope := 'Test.AIAdj', WriteKey := 'analogInput.meas2',
+    Revision := 1, TextValue := '200', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'a plausible pair is accepted and becomes active');
+_adjHal.Raw := 100.0;
+_adj();
+AssertTrue(Condition := _adj.OutImm.Valid, Message := 'a plausible active adjustment keeps the signal valid');
+AssertEquals_LREAL(Expected := 25.0, Actual := _adj.OutImm.Gross, Delta := 0.0001,
+    Message := 'the active pair replaces the nominal gain');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Points_are_captured_from_the_live_raw_value" Id="{e509076d-99fb-40ef-9f2e-97426d2f724d}">
+      <Declaration><![CDATA[METHOD Points_are_captured_from_the_live_raw_value]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Points_are_captured_from_the_live_raw_value');
+_capHal.Raw := 40.0;
+_cap();
+_ok := _cap.M_ApplyCapture(Scope := 'Test.AICap', WriteKey := 'analogInput.meas1',
+    Revision := 1, RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'meas1 captured');
+AssertEquals_LREAL(Expected := 40.0, Actual := _cap.StationCfg.Meas1, Delta := 0.0001,
+    Message := 'the captured point is the live raw value the operator sees');
+_capHal.Raw := 80.0;
+_cap();
+_ok := _cap.M_ApplyCapture(Scope := 'Test.AICap', WriteKey := 'analogInput.meas2',
+    Revision := 1, RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'meas2 captured');
+AssertEquals_LREAL(Expected := 80.0, Actual := _cap.StationCfg.Meas2, Delta := 0.0001,
+    Message := 'the second point is captured the same way');
+_ok := _cap.M_ApplyConfigWrite(Scope := 'Test.AICap', WriteKey := 'analogInput.ref1',
+    Revision := 1, TextValue := '0', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'references are typed, not captured');
+_ok := _cap.M_ApplyConfigWrite(Scope := 'Test.AICap', WriteKey := 'analogInput.ref2',
+    Revision := 1, TextValue := '40', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'the captured pair with typed references is plausible');
+_capHal.Raw := 60.0;
+_cap();
+AssertEquals_LREAL(Expected := 20.0, Actual := _cap.OutImm.Gross, Delta := 0.0001,
+    Message := 'captured points drive the adjustment exactly as typed ones');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="An_implausible_pair_is_refused_typed_or_captured" Id="{9cacd916-9284-4053-8a35-9b3959b0f14a}">
+      <Declaration><![CDATA[METHOD An_implausible_pair_is_refused_typed_or_captured]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('An_implausible_pair_is_refused_typed_or_captured');
+_ok := _imp.M_ApplyConfigWrite(Scope := 'Test.AIImp', WriteKey := 'analogInput.ref1',
+    Revision := 1, TextValue := '0', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'one point at a time is accepted');
+_ok := _imp.M_ApplyConfigWrite(Scope := 'Test.AIImp', WriteKey := 'analogInput.ref2',
+    Revision := 1, TextValue := '100', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'the second reference still leaves the pair inactive');
+_ok := _imp.M_ApplyConfigWrite(Scope := 'Test.AIImp', WriteKey := 'analogInput.meas1',
+    Revision := 1, TextValue := '0', RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'the first measured point still leaves the pair inactive');
+_ok := _imp.M_ApplyConfigWrite(Scope := 'Test.AIImp', WriteKey := 'analogInput.meas2',
+    Revision := 1, TextValue := '10', RootReady := TRUE);
+AssertFalse(Condition := _ok, Message := 'a typed point that would make the pair implausible is refused');
+AssertEquals_LREAL(Expected := 0.0, Actual := _imp.StationCfg.Meas2, Delta := 0.0001,
+    Message := 'the refused candidate changed nothing');
+_impHal.Raw := 10.0;
+_imp();
+_ok := _imp.M_ApplyCapture(Scope := 'Test.AIImp', WriteKey := 'analogInput.meas2',
+    Revision := 1, RootReady := TRUE);
+AssertFalse(Condition := _ok, Message := 'a captured candidate is judged by the same rule');
+AssertEquals_LREAL(Expected := 0.0, Actual := _imp.StationCfg.Meas2, Delta := 0.0001,
+    Message := 'the refused capture changed nothing');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Tare_is_captured_from_gross_and_subtracted" Id="{d35793e8-1a4d-4831-94d8-768864b50e3e}">
+      <Declaration><![CDATA[METHOD Tare_is_captured_from_gross_and_subtracted]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Tare_is_captured_from_gross_and_subtracted');
+_tareHal.Raw := 100.0;
+_tare();
+AssertEquals_LREAL(Expected := 50.0, Actual := _tare.OutImm.Gross, Delta := 0.0001,
+    Message := 'Gross is the untared value the operator is about to store');
+_ok := _tare.M_ApplyCapture(Scope := 'Test.AITare', WriteKey := 'analogInput.tare',
+    Revision := 1, RootReady := TRUE);
+AssertTrue(Condition := _ok, Message := 'the tare is captured');
+AssertEquals_LREAL(Expected := 50.0, Actual := _tare.StationCfg.Tare, Delta := 0.0001,
+    Message := 'the stored tare is the captured Gross');
+_tare();
+AssertEquals_LREAL(Expected := 0.0, Actual := _tare.OutImm.Value, Delta := 0.0001,
+    Message := 'Value is Gross minus tare');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Filter_settles_over_FilterTime" Id="{3c63270f-0d1c-41dd-bc9c-686e24322324}">
+      <Declaration><![CDATA[METHOD Filter_settles_over_FilterTime]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Filter_settles_over_FilterTime');
+IF _filtStep = 99 THEN
+    RETURN;
+END_IF
+_tFilt(IN := TRUE, PT := TEST_TIMEOUT);
+CASE _filtStep OF
+    0:
+        _filtHal.Raw := 0.0;
+        _filt();      // prime the filter at zero
+        _filtHal.Raw := 200.0;    // target 100
+        _filtSince := TIME();
+        _filtStep := 1;
+    1:
+        _filt();
+        IF TIME() - _filtSince >= T#450MS THEN
+            AssertTrue(Condition := _filt.OutImm.Value > 30.0,
+                Message := 'the filter is a lag, not a pass-through');
+            AssertTrue(Condition := _filt.OutImm.Value < 85.0,
+                Message := 'and it has not settled early');
+            _filtStep := 2;
+        ELSIF _tFilt.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the filter never reached its first checkpoint');
+            _filtStep := 99;
+            TEST_FINISHED();
+        END_IF
+    2:
+        _filt();
+        IF TIME() - _filtSince >= T#1600MS THEN
+            AssertTrue(Condition := _filt.OutImm.Value > 90.0,
+                Message := 'and settles toward the target over FilterTime constants');
+            _filtStep := 99;
+            TEST_FINISHED();
+        ELSIF _tFilt.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the filter never settled');
+            _filtStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _filtStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Stable_needs_the_band_for_StableTime" Id="{94e56e36-1720-4be4-8f14-20e476705339}">
+      <Declaration><![CDATA[METHOD Stable_needs_the_band_for_StableTime]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Stable_needs_the_band_for_StableTime');
+IF _stabStep = 99 THEN
+    RETURN;
+END_IF
+_tStab(IN := TRUE, PT := TEST_TIMEOUT);
+CASE _stabStep OF
+    0:
+        _stabHal.Raw := 100.0;    // Value 50
+        _stab();
+        _stabSince := TIME();
+        _stabStep := 1;
+    1:
+        _stab();
+        IF _stab.OutImm.Stable THEN
+            AssertTrue(Condition := TIME() - _stabSince >= T#300MS,
+                Message := 'Stable needs StableTime inside the band');
+            _stabHal.Raw := 140.0;    // Value 70: far outside the band
+            _stab();
+            AssertFalse(Condition := _stab.OutImm.Stable,
+                Message := 'a band exit withdraws Stable in the same scan');
+            _stabSince := TIME();
+            _stabStep := 2;
+        ELSIF _tStab.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the value never became stable');
+            _stabStep := 99;
+            TEST_FINISHED();
+        END_IF
+    2:
+        _stab();
+        IF _stab.OutImm.Stable THEN
+            AssertTrue(Condition := TIME() - _stabSince >= T#300MS,
+                Message := 'the re-anchored timer runs the full StableTime again');
+            _stabStep := 99;
+            TEST_FINISHED();
+        ELSIF _tStab.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the re-anchored value never became stable');
+            _stabStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _stabStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Measure_waits_for_stable_then_times_out" Id="{2bf9304d-c8ce-454a-b5f0-d42d55bc61fa}">
+      <Declaration><![CDATA[METHOD Measure_waits_for_stable_then_times_out]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Measure_waits_for_stable_then_times_out');
+IF _mtoStep = 99 THEN
+    RETURN;
+END_IF
+_tMto(IN := TRUE, PT := TEST_TIMEOUT);
+CASE _mtoStep OF
+    0:
+        _mtoHal.Raw := 0.0;
+        _mto();
+        _mto.Command := E_AnalogInputCommand.MEASURE;
+        _mto.Execute := TRUE;
+        _mto();
+        _mtoSince := TIME();
+        _mtoStep := 1;
+    1:
+        // Walk the value across the band every scan: valid, never stable.
+        _mtoHal.Raw := 200.0 - _mtoHal.Raw;
+        _mto();
+        IF _mto.Error THEN
+            AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AI_NOT_STABLE),
+                Actual := _mto.ErrorID, Message := 'the wait ends in AI_NOT_STABLE, not a silent hang');
+            AssertTrue(Condition := TIME() - _mtoSince >= T#400MS,
+                Message := 'and never before the configured MeasureTimeout');
+            _mto.Execute := FALSE;
+            _mto();
+            _mtoStep := 99;
+            TEST_FINISHED();
+        ELSIF _tMto.Q THEN
+            AssertTrue(Condition := FALSE, Message := 'the unstable wait never ended');
+            _mtoStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _mtoStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_first_boot_initializes_station_data_without_a_loss" Id="{4b5a8d02-9c32-4fab-886e-3b71c2264c09}">
+      <Declaration><![CDATA[METHOD A_first_boot_initializes_station_data_without_a_loss]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_first_boot_initializes_station_data_without_a_loss');
+AssertEquals_UINT(Expected := 1, Actual := _fb.StationCfg.SchemaVersion,
+    Message := 'a first boot (version 0) initializes the layout');
+AssertEquals_LREAL(Expected := 0.0, Actual := _fb.StationCfg.Tare, Delta := 0.0001,
+    Message := 'the initialized image is the unadjusted, untared default');
+_fbHal.Raw := 100.0;
+_fb();
+AssertTrue(Condition := _fb.OutImm.Valid, Message := 'and measures with the nominal scaling');
+AssertFalse(Condition := _fb.Error, Message := 'a first boot loses nothing and announces nothing');
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Unsupported_command_is_refused" Id="{a83818e2-5d2c-4817-b0a0-a51f9f4cf8e7}">
+      <Declaration><![CDATA[METHOD Unsupported_command_is_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Unsupported_command_is_refused');
+_uns.Command := E_AnalogInputCommand.NONE;
+_uns.Execute := TRUE;
+_uns();
+AssertTrue(Condition := _uns.Error, Message := 'an unknown command is refused');
+AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.UNSUPPORTED_COMMAND),
+    Actual := _uns.ErrorID, Message := 'with the framework reason, not a type one');
+_uns.Execute := FALSE;
+_uns();
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

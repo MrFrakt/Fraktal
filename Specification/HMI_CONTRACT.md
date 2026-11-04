@@ -405,7 +405,7 @@ gates, which — gates being build constants — means a new download.
 
 ## Fieldbus and I/O identity
 
-The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Nodes[] : ST_BusNode`, `MappingValid`, and `MappingDiagnostic`. An invalid mapping is a commissioning fault and shall be displayed rather than treated as an empty/healthy bus. Discovery reads `NodeCount` and each active node's `ChannelCount` before traversing the bounded arrays; unused fixed-array elements are not part of an HMI snapshot. For every `ST_IoChannel`, the client maps `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Dir`, `Kind`, values, `Unit`, `Forced`, `Quality`, `FaultActive`, `Diagnostic`, and `Forceable`. `Name` is the exact approved electrical/I/O-list tag and is shown verbatim in monospace; `DescriptionKey` and `Diagnostic` are localized by the project catalog. `Address` shows the terminal/channel locator. `Path` remains the unique forcing/audit identity, while `ModulePath` opens the owning module and defines the HMI assignment boundary. `Forceable` is an explicit PLC capability and defaults false when absent; output direction by itself never creates a force control. It is additionally FALSE on every channel unless the deployed image carries an active §7.5 `OUTPUT_FORCING` commissioning gate, so on a production station the client renders **no force affordance at all** — absent, not greyed (§3.9). The client shall not offer a local switch to reveal it: the capability is a property of the controller image, and a client that could turn it on would be exactly the authority §7.5.1 denies. The force dialog states both why the control exists (a commissioning gate) and how far it reaches (only while the owning Unit is idle in `MANUAL`; starting it or leaving `MANUAL` withdraws every force), so it can never be mistaken for the manual-command path that goes *through* a module. A snapshot marked `truncated=true` is rejected before mapping and shall never produce a `LIVE` repository or an empty-but-healthy fieldbus view.
+The physical topology binds `Topology : ST_FieldbusTopology`: `NodeCount`, `Nodes[] : ST_BusNode`, `MappingValid`, and `MappingDiagnostic`. An invalid mapping is a commissioning fault and shall be displayed rather than treated as an empty/healthy bus. Discovery reads `NodeCount` and each active node's `ChannelCount` before traversing the bounded arrays; unused fixed-array elements are not part of an HMI snapshot. For every `ST_IoChannel`, the client maps `Name`, `DescriptionKey`, `Address`, `Path`, `ModulePath`, `Dir`, `Kind`, values, `Unit`, `UnitCode`, `Forced`, `Quality`, `FaultActive`, `Diagnostic`, and `Forceable`. `UnitCode` (`E_EngUnit`, Core 0.26) is read exactly like a configuration value's: the client shows its own translated symbol (`std.unit.<name>`) after an analog value. On TC3 it is manifest-only and exported only for a channel the catalog gave a code; a binding that publishes the whole struct sends `NONE` for the others. When it is absent, `NONE`, or newer than the client's `EngUnit`, the legacy `Unit` text is shown as it is — for a channel, `NONE` means the catalog gave the unit as text, if at all (a current PLC derives the text from any code). `Name` is the exact approved electrical/I/O-list tag and is shown verbatim in monospace; `DescriptionKey` and `Diagnostic` are localized by the project catalog. `Address` shows the terminal/channel locator. `Path` remains the unique forcing/audit identity, while `ModulePath` opens the owning module and defines the HMI assignment boundary. `Forceable` is an explicit PLC capability and defaults false when absent; output direction by itself never creates a force control. It is additionally FALSE on every channel unless the deployed image carries an active §7.5 `OUTPUT_FORCING` commissioning gate, so on a production station the client renders **no force affordance at all** — absent, not greyed (§3.9). The client shall not offer a local switch to reveal it: the capability is a property of the controller image, and a client that could turn it on would be exactly the authority §7.5.1 denies. The force dialog states both why the control exists (a commissioning gate) and how far it reaches (only while the owning Unit is idle in `MANUAL`; starting it or leaving `MANUAL` withdraws every force), so it can never be mistaken for the manual-command path that goes *through* a module. A snapshot marked `truncated=true` is rejected before mapping and shall never produce a `LIVE` repository or an empty-but-healthy fieldbus view.
 
 When `FaultActive` is true the channel and its diagnostic are highlighted. A module alarm simultaneously shows `ST_Diagnostic.IoTag`/`IoAddress`, so a cylinder timeout can read, for example, “press did not reach DOWN” plus `_101B202A · EL1809 Ch5`; the same exact tag is highlighted in the fieldbus tree. Transport adapters shall copy these fields without normalizing case, stripping the leading mapping marker, translating, or substituting a friendly label.
 
@@ -612,6 +612,28 @@ stay gated.
 
 A leaf-level `liveLeaves` rule is checked **before** the container rules, which is
 what lets it outrank the subtree it belongs to.
+
+## Curve record (Modules `ST_CurveRecord`)
+
+A module that judges a measured curve with `FB_CurveMonitor` may publish the last
+finished one as `OutImm.Curve`. The HMI then offers a read-only **Curve** tab:
+windows as rectangles in their pass/fail colour, envelopes as polylines, the
+measured samples, the first envelope cut and the PLC's verdict. Nothing is
+recomputed and nothing is written.
+
+| PLC symbol | Type | HMI use |
+|---|---|---|
+| `<module>/OutImm/Curve/SampleCount` | INT | **live** - its presence is what makes the tab exist |
+| `<module>/OutImm/Curve/Truncated` | BOOL | the PLC kept only the first samples; the verdict still covers all |
+| `<module>/OutImm/Curve/Samples[i]/X`, `/Y` | LREAL | the measured curve, `i` = 1..`SampleCount` |
+| `<module>/OutImm/Curve/Spec/Windows[i]/…` | `ST_CurveWindow` | `XMin/XMax/YMin/YMax`, `EntryEdge`/`ExitEdge` (`E_CurveEdge`), `i` = 1..`WindowCount` |
+| `<module>/OutImm/Curve/Spec/Envelopes[i]/…` | `ST_CurveEnvelope` | `Upper`, `Count`, `Points[k]/X`, `/Y` |
+| `<module>/OutImm/Curve/Result/…` | `ST_CurveResult` | `Verdict` (`E_Verdict`), `DescriptionKey`, `WindowPassed[i]`, `EnvelopeCutIdx[i]`, `Samples` (judged) |
+
+Everything under `Curve` except `SampleCount` is **on demand**: read only while the
+tab is open (`OpcUaFieldTier`), never cyclically - a record is several thousand
+leaves. Geometry is fractions of the chart's box and every colour a semantic token
+measured against its card in every theme.
 
 ## Derived state flags (§3.12)
 

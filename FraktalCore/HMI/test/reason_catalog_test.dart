@@ -23,8 +23,17 @@ void main() {
     // 74 the catalog then held): a count assertion nobody updates stops being a
     // check. 77 = 74 + CONFIG_RESTORE_LOST, CONFIG_PERSIST_FAILED,
     // CONFIG_SET_REJECTED, EVENT_CONFIG_SET_APPLIED, minus the retired
-    // AXIS_TEACH_LOST, which the framework band now owns (§8.8).
-    expect(generatedReasonSymbolByCode, hasLength(77));
+    // AXIS_TEACH_LOST, which the framework band now owns (§8.8). 78 adds
+    // NOK_LIMIT_REACHED (§3.16.5). 83 adds the analog input CM block
+    // 10701-10705 (AI_UNDER_RANGE..AI_NOT_STABLE). 85 adds the analog output
+    // CM block 10801-10802 (AO_TARGET_OOR, AO_CFG_INVALID). 88 adds the axis
+    // depth block 10207-10209 (AXIS_POSITION_UNDECLARED, AXIS_PARAM_OOR,
+    // AXIS_CFG_INVALID). 92 adds the curve monitor block 10901-10904
+    // (CURVE_WINDOW_VIOLATED..CURVE_SPEC_INVALID). 94 adds the robot's
+    // ROBOT_SAFETY_DROPPED (10307, registered earlier, raised now) and
+    // ROBOT_CFG_INVALID (10316). 96 adds ROBOT_POINT_UNKNOWN (10302, registered
+    // earlier, raised now) and ROBOT_ROUTINE_FAILED (10317).
+    expect(generatedReasonSymbolByCode, hasLength(96));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');

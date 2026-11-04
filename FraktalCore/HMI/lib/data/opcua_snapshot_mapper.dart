@@ -864,6 +864,12 @@ class OpcUaSnapshotMapper {
         );
       }
 
+      // Modules ST_CurveRecord. SampleCount is live; the rest arrives only
+      // while the Curve tab is open, so a facet can exist before its record.
+      final curve = candidatePaths.contains('$base/OutImm/Curve/SampleCount')
+          ? _curve(values, base, parentPaths)
+          : null;
+
       return ModuleNode(
         path: path,
         name: candidate.name,
@@ -959,6 +965,7 @@ class OpcUaSnapshotMapper {
         controlPower: controlPower,
         systemHealth: systemHealth,
         signalTower: signalTower,
+        curve: curve,
         config: [
           for (final field in configByModulePath[path] ?? const <CfgField>[])
             // A binding may publish the current value alongside the manifest.
@@ -1051,6 +1058,7 @@ class OpcUaSnapshotMapper {
           boolValue: _boolean(values['$channelPrefix/BoolValue']),
           analogValue: _number(values['$channelPrefix/AnalogValue']),
           unit: _string(values['$channelPrefix/Unit']),
+          unitCode: _channelUnitCode(values['$channelPrefix/UnitCode']),
           forced: _boolean(values['$channelPrefix/Forced']),
           quality: _boolean(values['$channelPrefix/Quality']) &&
               usable('$channelPrefix/Quality') &&
@@ -1267,6 +1275,15 @@ double _number(Object? value) => value is num ? value.toDouble() : 0;
 Duration _duration(Object? value) =>
     Duration(milliseconds: _number(value).round());
 
+/// A channel's published `UnitCode`, or null - the legacy `Unit` text then
+/// stands - when it is absent (TC3 exports it only for a coded channel), NONE
+/// (the catalog gave the unit as text, if at all; a binding that publishes the
+/// whole struct sends 0) or newer than this HMI (the PLC derived the text).
+EngUnit? _channelUnitCode(Object? published) =>
+    published is num && published > 0 && published < EngUnit.values.length
+        ? EngUnit.values[published.toInt()]
+        : null;
+
 T _enumAt<T>(List<T> values, int index, T fallback) =>
     index >= 0 && index < values.length ? values[index] : fallback;
 
@@ -1323,6 +1340,82 @@ String? _indexedPrefix(
     }
   }
   return null;
+}
+
+/// Modules `ST_CurveRecord` published as `OutImm.Curve` by the module at
+/// [base]. Only `SampleCount` is live; the rest is read while the Curve tab is
+/// open, so an unread record is a facet with nothing but its length.
+CurveFacet _curve(
+    Map<String, Object?> values, String base, Set<String> parentPaths) {
+  final curve = '$base/OutImm/Curve';
+  final count = _integer(values['$curve/SampleCount']).clamp(0, 256);
+  if (!values.containsKey('$curve/Result/Verdict')) {
+    return CurveFacet(sampleCount: count);
+  }
+  final samples = <CurvePoint>[];
+  for (var i = 1; i <= count; i++) {
+    final sample = _indexedPrefix(values, '$curve/Samples', i,
+        parentPaths: parentPaths);
+    if (sample == null) continue;
+    samples.add(CurvePoint(
+        _number(values['$sample/X']), _number(values['$sample/Y'])));
+  }
+  final windows = <CurveWindow>[];
+  final windowCount = _integer(values['$curve/Spec/WindowCount']).clamp(0, 4);
+  for (var i = 1; i <= windowCount; i++) {
+    final window = _indexedPrefix(values, '$curve/Spec/Windows', i,
+        parentPaths: parentPaths);
+    if (window == null) continue;
+    windows.add(CurveWindow(
+      _number(values['$window/XMin']),
+      _number(values['$window/XMax']),
+      _number(values['$window/YMin']),
+      _number(values['$window/YMax']),
+      entryEdge: _enumAt(CurveEdge.values,
+          _integer(values['$window/EntryEdge']), CurveEdge.anyEdge),
+      exitEdge: _enumAt(CurveEdge.values,
+          _integer(values['$window/ExitEdge']), CurveEdge.anyEdge),
+      passed: _boolean(_arrayElement(values, '$curve/Result/WindowPassed',
+          i - 1, parentPaths: parentPaths)),
+    ));
+  }
+  final envelopes = <CurveEnvelope>[];
+  final envelopeCount =
+      _integer(values['$curve/Spec/EnvelopeCount']).clamp(0, 2);
+  for (var e = 1; e <= envelopeCount; e++) {
+    final envelope = _indexedPrefix(values, '$curve/Spec/Envelopes', e,
+        parentPaths: parentPaths);
+    if (envelope == null) continue;
+    final points = <CurvePoint>[];
+    final pointCount = _integer(values['$envelope/Count']).clamp(0, 32);
+    for (var k = 1; k <= pointCount; k++) {
+      final point = _indexedPrefix(values, '$envelope/Points', k,
+          parentPaths: parentPaths);
+      if (point == null) continue;
+      points.add(CurvePoint(
+          _number(values['$point/X']), _number(values['$point/Y'])));
+    }
+    envelopes.add(CurveEnvelope(
+      upper: _boolean(values['$envelope/Upper']),
+      points: points,
+      cutIndex: _integer(_arrayElement(
+          values, '$curve/Result/EnvelopeCutIdx', e - 1,
+          parentPaths: parentPaths)),
+    ));
+  }
+  return CurveFacet(
+    loaded: true,
+    sampleCount: count,
+    truncated: _boolean(values['$curve/Truncated']),
+    samples: samples,
+    windows: windows,
+    envelopes: envelopes,
+    complete: _boolean(values['$curve/Result/Complete']),
+    verdict: _enumAt(Verdict.values,
+        _integer(values['$curve/Result/Verdict']), Verdict.none),
+    reason: _string(values['$curve/Result/DescriptionKey']),
+    judgedSamples: _integer(values['$curve/Result/Samples']),
+  );
 }
 
 /// True when some key is a descendant of [path]. Uses the precomputed

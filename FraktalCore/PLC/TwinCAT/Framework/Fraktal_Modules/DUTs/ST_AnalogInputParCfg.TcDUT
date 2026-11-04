@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AnalogInputParCfg" Id="{2bd2b541-a7a0-46f7-a11d-3696ff22f60d}">
+    <Declaration><![CDATA[// Core S3.8 - one-time configuration of one analog input. Scaling is linear
+// over [RawMin, RawMax] -> [EngMin, EngMax] until a two-point adjustment is
+// active (StationCfg); both ranges may be inverted. SchemaVersion first
+// (S3.8): the layout this type validates is its own initializer.
+TYPE ST_AnalogInputParCfg :
+STRUCT
+    SchemaVersion  : UINT := 1;
+    RawMin         : LREAL := 0.0;
+    RawMax         : LREAL := 32767.0;
+    EngMin         : LREAL := 0.0;
+    EngMax         : LREAL := 100.0;
+    UnitCode       : E_EngUnit := E_EngUnit.NONE;
+    UnderRange     : LREAL := 0.0;    // engineering units, judged after tare
+    OverRange      : LREAL := 100.0;
+    FilterTime     : TIME := T#0MS;   // first-order, 0 = off
+    StableBand     : LREAL := 0.0;    // engineering units, 0 = no stability wait
+    StableTime     : TIME := T#0MS;
+    MeasureTimeout : TIME := T#5S;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

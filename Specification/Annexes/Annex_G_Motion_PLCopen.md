@@ -156,6 +156,29 @@ cares that a servo is involved (§6.1).
 ---
 
 
+### G.3a Relative and step moves (v0.14)
+
+`MOVE_REL` runs `MC_MoveRelative` behind the same handshake mapping as `MOVE_TO`;
+it is a sequence command (it needs a distance) and is deliberately absent from
+the manual catalog. `STEP_POS`/`STEP_NEG` move by the retained `ManualStep` and
+ARE in the manual catalog, so an operator gets two ordinary manual buttons whose
+distance is deployment data, not recipe data. Validation order mirrors `MOVE_TO`
+- request before state - with one addition: a zero distance completes at once
+without any `MC_*` call and without a datum, because going nowhere is not motion.
+
+### G.3b Named positions (v0.14)
+
+`ParCmd.PositionIdx` selects the target: 0 is `ParCmd.Target`, 1 the standing
+taught position, and 2..8 a position the composition root declared with
+`M_DeclarePosition` before `Setup` - which turns each declaration into an
+ordinary editable value with a capture from the live position. An undeclared
+index is refused FIRST (`AXIS_POSITION_UNDECLARED`), before the soft limits and
+the datum: a request naming a position this installation never has is malformed
+whatever the axis state. A stored position is judged against the LIVE soft
+limits, so narrowing the limits refuses a stale taught number instead of moving
+through it. The positions live in a second retained image (`ST_AxisTeachCfg`)
+so the v2 StationCfg - and every deployed image of it - is unchanged.
+
 ## G.4 Safe stop on a dropped alias (§9)
 
 Safe-motion stays in the safety system; the CM only **reads** its status and reacts:
@@ -266,6 +289,16 @@ M_RegisterCapture(WriteKey := 'axis.taughtPosition',
 > as load, so that load is refused rather than performed the forbidden way.
 
 ---
+
+### G.4c Speed scale and override (v0.14)
+
+`ParCmd.SpeedScale` is a percentage of `ParCfg.Velocity`, refused outside the
+configured band (`[SpeedScaleMin, SpeedScaleMax]`, itself validated at prepare:
+positive, ordered, at most 100). The band check runs before the datum check so
+a mis-scaled request is provable without a licensed NC axis. `SetOverride` is
+the set-and-hold override: accepted only inside 0..100, kept on refusal, scaled
+into `_power`'s override so it acts on a running move and on jog, and published
+as `OutImm.Override`. A silent owner can only leave an already accepted value.
 
 ## G.5 HMI (§3.13)
 

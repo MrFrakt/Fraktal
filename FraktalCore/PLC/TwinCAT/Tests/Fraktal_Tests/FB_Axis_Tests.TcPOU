@@ -22,12 +22,38 @@ VAR
     _ax4 : AXIS_REF;
     _cm4 : FB_AxisCM;
     _w1, _w2, _w3, _w4 : BOOL;
+    // WP3 rows (one instance per stateful row; TcUnit runs rows side by side).
+    _ax5 : AXIS_REF;   _cm5 : FB_AxisCM;   _w5, _d5 : BOOL;
+    _ax6 : AXIS_REF;   _cm6 : FB_AxisCM;   _w6, _dStore : BOOL;
+    _ax7 : AXIS_REF;   _cm7 : FB_AxisCM;   _w7 : BOOL;
+    _ax8 : AXIS_REF;   _cm8 : FB_AxisCM;   _w8, _d8 : BOOL;
+    _ax9 : AXIS_REF;   _cm9 : FB_AxisCM;   _w9, _d9 : BOOL;   _cfg9 : ST_AxisParCfg;
+    _ax10 : AXIS_REF;  _cm10 : FB_AxisCM;  _w10, _d10 : BOOL;
+    _dRel, _dRelHome, _dZero, _dStep, _dSpeed, _dOvr, _dOvrKeep, _dNarrow : BOOL;
+    _prAxis : FB_LocalRecipeProvider;
+    _v1 : ST_ProbeAxisParCfgV1;
+    _model : ST_ModelId;
+    _ok : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Library_declares_no_interlocks_and_the_application_owns_safe_motion_status();
 Target_outside_soft_limits_is_rejected_before_any_motion();
 Move_before_home_is_rejected();
-Unsupported_command_is_rejected();]]></ST>
+Unsupported_command_is_rejected();
+Undeclared_index_refused_before_motion();
+A_declared_index_resolves_inside_the_soft_limits();
+A_stored_position_outside_new_limits_is_refused();
+Index_one_is_the_taught_position();
+Relative_target_outside_limits_refused_before_motion();
+Relative_move_before_home_refused();
+Zero_distance_completes_without_motion();
+Step_without_a_manual_step_refused();
+Speed_scale_outside_its_band_refused_before_motion();
+Override_is_set_and_held_and_published();
+Override_outside_of_0_100_refused_and_kept();
+Invalid_speed_band_refused_at_prepare();
+Stored_v1_parcfg_record_refused();
+]]></ST>
     </Implementation>
     <Method Name="Library_declares_no_interlocks_and_the_application_owns_safe_motion_status" Id="{dc7882ed-4046-424d-8286-f48c13823ecd}">
       <Declaration><![CDATA[METHOD Library_declares_no_interlocks_and_the_application_owns_safe_motion_status]]></Declaration>
@@ -117,6 +143,260 @@ IF NOT _w4 THEN
 END_IF
 TEST_FINISHED();]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="Undeclared_index_refused_before_motion" Id="{b9f8be77-7409-4230-a111-4338815a1e15}">
+      <Declaration><![CDATA[METHOD Undeclared_index_refused_before_motion]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Undeclared_index_refused_before_motion');
+IF NOT _d5 THEN
+    IF NOT _w5 THEN
+        _w5 := _cm5.Setup(Name := 'Axis5', AxisRef := _ax5, Recipe := 0);
+        _cm5();
+    END_IF
+    _cm5.ParCmd.PositionIdx := 4;    // never declared by this installation
+    _cm5.ParCmd.Target := 50.0;
+    _cm5.Command := E_AxisCommand.MOVE_TO;
+    _cm5.Execute := TRUE;
+    _cm5();
+    AssertTrue(Condition := _cm5.Error, Message := 'an undeclared index is refused');
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_POSITION_UNDECLARED),
+        Actual := _cm5.ErrorID,
+        Message := 'before the soft limits and the datum, so no MC_* call is reached');
+    _cm5.Execute := FALSE;
+    _cm5();
+    IF _w5 THEN
+        _d5 := TRUE;
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="A_declared_index_resolves_inside_the_soft_limits" Id="{1447e7bf-341c-42e9-acc4-68c860f7b122}">
+      <Declaration><![CDATA[METHOD A_declared_index_resolves_inside_the_soft_limits]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_declared_index_resolves_inside_the_soft_limits');
+IF NOT _dStore THEN
+    IF NOT _w6 THEN
+        _ok := _cm6.M_DeclarePosition(Index := 3, LabelKey := 'project.position.load');
+        AssertTrue(Condition := _ok, Message := 'a declared position is accepted before Setup');
+        _w6 := _cm6.Setup(Name := 'Axis6', AxisRef := _ax6, Recipe := 0);
+        _ok := _cm6.M_ApplyConfigWrite(Scope := 'Axis6', WriteKey := 'axis.position3',
+            Revision := 1, TextValue := '50', RootReady := TRUE);
+        AssertTrue(Condition := _ok, Message := 'the declared position is an editable value');
+        _cm6();
+    END_IF
+    _cm6.ParCmd.PositionIdx := 3;
+    _cm6.Command := E_AxisCommand.MOVE_TO;
+    _cm6.Execute := TRUE;
+    _cm6();
+    // 50 is inside the soft limits, so the resolved target passes AXIS_TARGET_OOR
+    // and reaches the datum check instead: the index resolved to the stored value.
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_NOT_HOMED),
+        Actual := _cm6.ErrorID, Message := 'a declared index resolves and passes the limits');
+    _cm6.Execute := FALSE;
+    _cm6();
+    _dStore := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="A_stored_position_outside_new_limits_is_refused" Id="{c909bcbe-727f-4957-8292-e1cdb3083af1}">
+      <Declaration><![CDATA[METHOD A_stored_position_outside_new_limits_is_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_stored_position_outside_new_limits_is_refused');
+IF _dStore AND (NOT _dNarrow) THEN
+    _cm6.ParCfg.SoftMax := 40.0;     // the stored 50 no longer fits
+    _cm6.ParCmd.PositionIdx := 3;
+    _cm6.Command := E_AxisCommand.MOVE_TO;
+    _cm6.Execute := TRUE;
+    _cm6();
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_TARGET_OOR),
+        Actual := _cm6.ErrorID,
+        Message := 'a stored position is judged against the live soft limits');
+    _cm6.Execute := FALSE;
+    _cm6();
+    IF NOT _cm6.Busy THEN
+        _dNarrow := TRUE;
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Index_one_is_the_taught_position" Id="{8fbe5c13-6329-49f8-af83-8b42a9b7a96a}">
+      <Declaration><![CDATA[METHOD Index_one_is_the_taught_position]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Index_one_is_the_taught_position');
+IF NOT _d10 THEN
+    IF NOT _w10 THEN
+        _w10 := _cm10.Setup(Name := 'Axis10', AxisRef := _ax10, Recipe := 0);
+        _ok := _cm10.M_ApplyConfigWrite(Scope := 'Axis10', WriteKey := 'axis.taughtPosition',
+            Revision := 1, TextValue := '70', RootReady := TRUE);
+        AssertTrue(Condition := _ok, Message := 'the taught position is written');
+        _cm10();
+    END_IF
+    _cm10.ParCmd.PositionIdx := 1;
+    _cm10.Command := E_AxisCommand.MOVE_TO;
+    _cm10.Execute := TRUE;
+    _cm10();
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_NOT_HOMED),
+        Actual := _cm10.ErrorID,
+        Message := 'index 1 resolves to the standing taught position');
+    _cm10.Execute := FALSE;
+    _cm10();
+    IF _w10 THEN
+        _d10 := TRUE;
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Relative_target_outside_limits_refused_before_motion" Id="{603297c7-edce-419f-8ed0-99f827cd3e05}">
+      <Declaration><![CDATA[METHOD Relative_target_outside_limits_refused_before_motion]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Relative_target_outside_limits_refused_before_motion');
+IF NOT _w7 THEN
+    // _cm7 carries the next six rows too, one after another (default soft
+    // limits 0..100, not homed, no manual step).
+    _w7 := _cm7.Setup(Name := 'Axis7', AxisRef := _ax7, Recipe := 0);
+    _cm7();
+END_IF
+IF (NOT _dRel) AND _w7 THEN
+    _cm7.ParCmd.Distance := 500.0;  // 0 + 500 is outside the soft limits
+    _cm7.Command := E_AxisCommand.MOVE_REL;
+    _cm7.Execute := TRUE;
+    _cm7();
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_TARGET_OOR),
+        Actual := _cm7.ErrorID, Message := 'the resolved relative target is judged');
+    _cm7.Execute := FALSE;
+    _cm7();
+    IF NOT _cm7.Busy THEN
+        _dRel := TRUE;
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Relative_move_before_home_refused" Id="{e2a55d89-899f-4677-8488-7f88712fa85e}">
+      <Declaration><![CDATA[METHOD Relative_move_before_home_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Relative_move_before_home_refused');
+IF _dRel AND (NOT _dRelHome) THEN
+    _cm7.ParCmd.Distance := 50.0;
+    _cm7.Command := E_AxisCommand.MOVE_REL;
+    _cm7.Execute := TRUE;
+    _cm7();
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_NOT_HOMED),
+        Actual := _cm7.ErrorID, Message := 'a relative move still needs a datum');
+    _cm7.Execute := FALSE;
+    _cm7();
+    IF NOT _cm7.Busy THEN
+        _dRelHome := TRUE;
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Zero_distance_completes_without_motion" Id="{0618a84b-4591-46b0-8eef-dbdd92ff14c5}">
+      <Declaration><![CDATA[METHOD Zero_distance_completes_without_motion]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Zero_distance_completes_without_motion');
+IF _dRelHome AND (NOT _dZero) THEN
+    _cm7.ParCmd.Distance := 0.0;
+    _cm7.Command := E_AxisCommand.MOVE_REL;
+    _cm7.Execute := TRUE;
+    _cm7();
+    AssertTrue(Condition := _cm7.Done, Message := 'a zero distance completes at once');
+    AssertTrue(Condition := _cm7.OutCmd.InPosition, Message := 'and reports in position');
+    _cm7.Execute := FALSE;
+    _cm7();
+    _dZero := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Step_without_a_manual_step_refused" Id="{cd47d989-b14d-4fc5-bfee-0ab140e36546}">
+      <Declaration><![CDATA[METHOD Step_without_a_manual_step_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Step_without_a_manual_step_refused');
+IF _dZero AND (NOT _dStep) THEN
+    _cm7.Command := E_AxisCommand.STEP_POS;
+    _cm7.Execute := TRUE;
+    _cm7();
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_PARAM_OOR),
+        Actual := _cm7.ErrorID, Message := 'stepping with no manual step set is refused');
+    _cm7.Execute := FALSE;
+    _cm7();
+    IF NOT _cm7.Busy THEN
+        _dStep := TRUE;
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Speed_scale_outside_its_band_refused_before_motion" Id="{3f57ca35-ee51-4913-9dff-2bf4a1d02372}">
+      <Declaration><![CDATA[METHOD Speed_scale_outside_its_band_refused_before_motion]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Speed_scale_outside_its_band_refused_before_motion');
+IF _dStep AND (NOT _dSpeed) THEN
+    _cm7.ParCmd.Target := 50.0;
+    _cm7.ParCmd.PositionIdx := 0;
+    _cm7.ParCmd.SpeedScale := 200.0;
+    _cm7.Command := E_AxisCommand.MOVE_TO;
+    _cm7.Execute := TRUE;
+    _cm7();
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_PARAM_OOR),
+        Actual := _cm7.ErrorID, Message := 'a mis-scaled request is refused before the datum');
+    _cm7.Execute := FALSE;
+    _cm7();
+    IF NOT _cm7.Busy THEN
+        _cm7.ParCmd.SpeedScale := 100.0;
+        _dSpeed := TRUE;
+        TEST_FINISHED();
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Override_is_set_and_held_and_published" Id="{22d1a41a-e3e3-4abf-8ef7-2c5377c8366c}">
+      <Declaration><![CDATA[METHOD Override_is_set_and_held_and_published]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Override_is_set_and_held_and_published');
+IF _dSpeed AND (NOT _dOvr) THEN
+    _ok := _cm7.SetOverride(Percent := 37.5);
+    AssertTrue(Condition := _ok, Message := 'an override inside 0..100 is accepted');
+    _cm7();
+    AssertEquals_LREAL(Expected := 37.5, Actual := _cm7.OutImm.Override, Delta := 0.0001,
+        Message := 'the accepted override is published');
+    _ok := _cm7.SetOverride(Percent := 0.0);
+    AssertTrue(Condition := _ok, Message := 'zero is inside the band');
+    _dOvr := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Override_outside_of_0_100_refused_and_kept" Id="{73a38400-bc7f-49b1-b685-d21117d79342}">
+      <Declaration><![CDATA[METHOD Override_outside_of_0_100_refused_and_kept]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Override_outside_of_0_100_refused_and_kept');
+IF _dOvr AND (NOT _dOvrKeep) THEN
+    _ok := _cm7.SetOverride(Percent := 150.0);
+    AssertFalse(Condition := _ok, Message := 'an override above 100 is refused');
+    _cm7();
+    AssertEquals_LREAL(Expected := 0.0, Actual := _cm7.OutImm.Override, Delta := 0.0001,
+        Message := 'and the previous value is kept');
+    _dOvrKeep := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Invalid_speed_band_refused_at_prepare" Id="{63950913-5f1a-41b1-881b-aac95bf17b15}">
+      <Declaration><![CDATA[METHOD Invalid_speed_band_refused_at_prepare]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Invalid_speed_band_refused_at_prepare');
+IF NOT _d8 THEN
+    _cm8.ParCfg.SpeedScaleMin := 0.0;    // a non-positive minimum
+    _w8 := _cm8.Setup(Name := 'Axis8', AxisRef := _ax8, Recipe := 0);
+    AssertFalse(Condition := _w8, Message := 'a band the type cannot honour refuses Setup');
+    _cm8();
+    AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.AXIS_CFG_INVALID),
+        Actual := _cm8.ErrorID, Message := 'with the configuration reason');
+    _d8 := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="Stored_v1_parcfg_record_refused" Id="{37f8e868-804b-43ad-962d-4def40b1aa32}">
+      <Declaration><![CDATA[METHOD Stored_v1_parcfg_record_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Stored_v1_parcfg_record_refused');
+IF NOT _d9 THEN
+    _prAxis.Register(ModelCode := '', RecipeKey := 'AxisCM', pData := ADR(_cfg9), Size := SIZEOF(_cfg9));
+    _prAxis.Register(ModelCode := 'V1', RecipeKey := 'AxisCM', pData := ADR(_v1), Size := SIZEOF(_v1));
+    _w9 := _cm9.Setup(Name := 'Axis9', AxisRef := _ax9, Recipe := _prAxis);
+    AssertTrue(Condition := _w9, Message := 'the current-layout default record is accepted');
+    _model.ModelCode := 'V1';
+    AssertFalse(Condition := _cm9.PrepareRecipe(Model := _model),
+        Message := 'a stored v1 record is refused');
+    _cm9();
+    AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.RECIPE_INVALID), Actual := _cm9.ErrorID,
+        Message := 'with RECIPE_INVALID, migrate-or-fault (3.8)');
+    _d9 := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

@@ -560,6 +560,8 @@ AB_ABSENT = {
     "Profiler/StepStats[*]/Class": _NOT_PROJECTED,
     "HostEvents": "the reference declaration does not enable the optional host ring",
     "Nameplate": "the reference declaration has no commissioned asset nameplate",
+    "OutImm/Curve": ("no AB module type publishes a curve record: FB_CurveMonitor is "
+                     "a recorded gap in AB_MISSING_FEATURES_HANDOVER"),
     "Part": "the reference declaration does not inject the optional local carrier",
     "RunningPublished": ("the projection derives Status/State from the "
                          "context's Running rather than republishing it"),
@@ -570,6 +572,9 @@ AB_ABSENT = {
                               "which is what the projection publishes"),
     "Status/TileEnable": _NOT_PROJECTED,
     "StopPendingPublished": _NOT_PROJECTED,
+    "Topology/Nodes[*]/Channels[*]/UnitCode": (
+        "AB channels carry unit text only; the Core 0.26 code is a recorded gap "
+        "in AB_MISSING_FEATURES_HANDOVER"),
 }
 
 # Published for `opcua_repository.dart`, which writes the request and polls the
@@ -902,8 +907,14 @@ def check_read_surface(root: Path) -> list[Finding]:
             "publishes it nor declares it absent - publish it, or add it to "
             "AB_ABSENT with the reason"))
 
+    # An entry is judged against the surface it names: a 'Topology/...' entry
+    # against the fieldbus reads and publications, everything else against the
+    # module ones. Judging both against the module surface alone reported every
+    # fieldbus absence as unread, which only stayed hidden while there was none.
+    reads = modules | {"Topology/" + s for s in topology}
+    publications = published | {"Topology/" + s for s in fieldbus}
     for prefix, reason in sorted(AB_ABSENT.items()):
-        covered = {s for s in modules
+        covered = {s for s in reads
                    if s == prefix or s.startswith(prefix + "/")
                    or s.startswith(prefix + "[")}
         if not covered:
@@ -911,7 +922,7 @@ def check_read_surface(root: Path) -> list[Finding]:
                 "readsurface", "error", gate,
                 f"AB_ABSENT declares '{prefix}' absent ({reason}) but the HMI "
                 "no longer reads it - delete the entry"))
-        conflict = sorted(covered & published)
+        conflict = sorted(covered & publications)
         if conflict:
             findings.append(Finding(
                 "readsurface", "error", gate,

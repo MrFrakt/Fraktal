@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_CurveEnvelope" Id="{5f482c13-9ef6-4116-bad5-3f6e1acdb661}">
+    <Declaration><![CDATA[// A polyline the curve must stay on one side of, wherever their X spans overlap:
+// Upper = the curve stays at or below it, otherwise at or above. Count points,
+// X strictly increasing, linear interpolation between them.
+TYPE ST_CurveEnvelope :
+STRUCT
+    Count  : INT;
+    Upper  : BOOL;
+    Points : ARRAY[1..PL_Curve.MAX_POINTS] OF ST_CurvePoint;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

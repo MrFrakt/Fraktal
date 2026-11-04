@@ -131,6 +131,16 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _awaits   : I_Module;              // module the current step awaits (0 = none)
     _faultEvt : INT;                   // open ERROR event slot in AlarmLog (0 = none)
+    // §3.16.5 - the NOK-part limit (SetNokPolicy). Counted on the one verdict path
+    // (CountGood/CountNok), so a Unit with or without a part carrier gets it alike.
+    {attribute 'OPC.UA.DA' := '0'}
+    _nokPolicy : ST_NokPolicyParCfg;
+    {attribute 'OPC.UA.DA' := '0'}
+    _nokRing : ARRAY[1..PL_Fraktal.NOK_WINDOW_MAX] OF BOOL;   // the window; the oldest at _nokNext
+    _nokSeries, _nokInWindow, _nokFill : INT;
+    _nokNext : INT := 1;
+    _nokTripped : BOOL;                // latched until the operator's reset closes the trip alarm
+    _nokSlot : INT;                    // the trip alarm's AlarmLog slot (0 = not raised yet)
     _tStall   : TON;
     _seqIndex : INT;                   // row recorded LAST, i.e. the step action running now
     _stepSinceMs : DWORD;              // monotonic start of the main-line step
@@ -1772,6 +1782,7 @@ END_IF]]></ST>
 METHOD CountGood : BOOL]]></Declaration>
       <Implementation>
         <ST><![CDATA[GoodCount := GoodCount + 1;
+_M_NokCount(IsNok := FALSE);
 CountGood := TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -1796,6 +1807,7 @@ IF NOT _M_HostEvent(Kind := E_HostEventKind.NOK, PartUid := Part.Uid,
 END_IF
 NokCount := NokCount + 1;
 NokReason := Reason;
+_M_NokCount(IsNok := TRUE);
 CountNok := TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -4147,6 +4159,7 @@ _M_ConfigPersistCyclic();                             // §3.8b durability windo
 _M_DrainRestoreLoss();                                // §3.8b restore annunciation
 _M_HandleHmiRequest();                                // §3.10 request mailbox
 _M_DecisionCyclic();                                  // §6.11 timeout/default/overlap resolver
+_M_NokCyclic();                                       // §3.16.5 NOK-limit alarm upkeep
 Access.Cyclic();
 alarmActive := _M_HighestSeverity(Highest := highestSeverity);
 _towerMapper.Cyclic(MachineState := MachineState, AlarmActive := alarmActive,
@@ -4440,7 +4453,8 @@ METHOD OperatorReset : BOOL]]></Declaration>
     RETURN;
 END_IF
 OperatorReset := _M_RecoverState();
-OperatorReset := AlarmLog.OperatorReset() OR OperatorReset;]]></ST>
+OperatorReset := AlarmLog.OperatorReset() OR OperatorReset;
+_M_NokCyclic();                        // §3.16.5 re-arm the limit this reset closed]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_RecoverState" Id="{2d0b998f-abd6-473c-8cb5-b6b35c39d09a}">
@@ -5087,6 +5101,118 @@ VAR_INPUT
     Sink : I_HostEventSink;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[M_SetHostEventSink := HostEvents.SetSink(Sink := Sink);]]></ST></Implementation>
+    </Method>
+    <Method Name="SetNokPolicy" Id="{b8ed19fb-eed3-46a9-abd2-6c98edc899a8}">
+      <Declaration><![CDATA[// Core §3.16.5 - the Unit's NOK-part limit, given by the composition root (editing
+// it on site waits for a station that asks). Refused - policy unchanged - unless it
+// is the layout this Unit was compiled against and each rule is off or well formed:
+// InSeries >= 0, and the window either off (WindowCount = WindowNok = 0) or
+// 1 <= WindowNok <= WindowCount <= NOK_WINDOW_MAX. An accepted policy counts
+// afresh; a trip already raised stays until the operator resets it.
+METHOD SetNokPolicy : BOOL
+VAR_INPUT
+    Cfg : ST_NokPolicyParCfg;
+END_VAR
+VAR
+    compiled : ST_NokPolicyParCfg;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[SetNokPolicy := (Cfg.SchemaVersion = compiled.SchemaVersion)
+    AND (Cfg.InSeries >= 0)
+    AND (((Cfg.WindowCount = 0) AND (Cfg.WindowNok = 0))
+      OR ((Cfg.WindowNok >= 1) AND (Cfg.WindowNok <= Cfg.WindowCount)
+        AND (Cfg.WindowCount <= PL_Fraktal.NOK_WINDOW_MAX)));
+IF SetNokPolicy THEN
+    _nokPolicy := Cfg;
+    _M_NokClearCounts();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_NokCount" Id="{bef846cb-7913-407c-ba81-13a44e32fdde}">
+      <Declaration><![CDATA[// §3.16.5 - one judged part. NOK extends the series and enters the window as NOK;
+// OK ends the series and enters it as OK; REWORK is not counted here at all. On a
+// trip the Unit raises one MANUAL_RESET alarm - the release report then refuses
+// Start, as for any blocking alarm - and a running Unit finishes the cycle at its
+// stop point (§8.11.1) instead of producing the next reject.
+METHOD PRIVATE _M_NokCount
+VAR_INPUT
+    IsNok : BOOL;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT IsNok THEN
+    _nokSeries := 0;
+ELSIF _nokSeries < 32767 THEN
+    _nokSeries := _nokSeries + 1;
+END_IF
+IF _nokPolicy.WindowCount > 0 THEN
+    IF _nokFill >= _nokPolicy.WindowCount THEN
+        IF _nokRing[_nokNext] THEN
+            _nokInWindow := _nokInWindow - 1;      // the oldest part leaves the window
+        END_IF
+    ELSE
+        _nokFill := _nokFill + 1;
+    END_IF
+    _nokRing[_nokNext] := IsNok;
+    IF IsNok THEN
+        _nokInWindow := _nokInWindow + 1;
+    END_IF
+    _nokNext := _nokNext MOD _nokPolicy.WindowCount + 1;
+END_IF
+IF NOT _nokTripped
+AND (((_nokPolicy.InSeries > 0) AND (_nokSeries >= _nokPolicy.InSeries))
+  OR ((_nokPolicy.WindowCount > 0) AND (_nokInWindow >= _nokPolicy.WindowNok))) THEN
+    _nokTripped := TRUE;
+    _M_NokRaise();
+    IF _exec = E_ExecState.BUSY THEN
+        _stopReq := TRUE;                          // finish the cycle at its stop point
+    END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_NokRaise" Id="{cbdb0345-cde8-49fb-b481-7136448b3c71}">
+      <Declaration><![CDATA[// §3.16.5 - the trip alarm. Severity and category come from the §8.9
+// rationalization of NOK_LIMIT_REACHED; the values here are only its proposal.
+METHOD PRIVATE _M_NokRaise]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_nokSlot := AlarmLog.Raise(Reason := E_Reason.NOK_LIMIT_REACHED,
+    Text := 'std.error.nokLimitReached', Source := _name,
+    Severity := E_Severity.MED, Category := E_Category.PROCESS,
+    ResetClass := E_ResetClass.MANUAL_RESET);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_NokCyclic" Id="{9773e2c5-7f73-4666-9960-b81a6bfda461}">
+      <Declaration><![CDATA[// §3.16.5 - a trip is never lost and never outlives its alarm. Raised again while
+// the alarm table had no room (fail closed: no alarm means no refused Start), and
+// re-armed - series and window cleared - once the operator's reset has closed it.
+METHOD PRIVATE _M_NokCyclic]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT _nokTripped THEN
+    RETURN;
+END_IF
+IF _nokSlot = 0 THEN
+    _M_NokRaise();
+ELSIF (AlarmLog.Active[_nokSlot].State = E_AlarmState.CLOSED)
+   OR (AlarmLog.Active[_nokSlot].ReasonCode <> E_Reason.NOK_LIMIT_REACHED) THEN
+    _M_NokClearCounts();
+    _nokTripped := FALSE;
+    _nokSlot := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_M_NokClearCounts" Id="{3db680b6-4624-40aa-8bf6-2d24e4806d8a}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_NokClearCounts
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_nokSeries := 0;
+_nokInWindow := 0;
+_nokFill := 0;
+_nokNext := 1;
+FOR i := 1 TO PL_Fraktal.NOK_WINDOW_MAX DO
+    _nokRing[i] := FALSE;
+END_FOR]]></ST>
+      </Implementation>
     </Method>
     <Method Name="SetPartCarrier" Id="{6a3e9c15-2f84-4b0d-9c17-d84f5e21ab63}">
       <Declaration><![CDATA[// §3.16.2 — inject the part carrier at the composition root (0 = traceability off).

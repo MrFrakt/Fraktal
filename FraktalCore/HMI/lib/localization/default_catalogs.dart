@@ -188,6 +188,8 @@ const standardEnglish = <String, String>{
       'The sequence asked for a decision it did not define. Check the step.',
   'std.error.hostEventRejected':
       'The host rejected this record. Check the MES link, then reset.',
+  'std.error.nokLimitReached':
+      'Too many NOK parts. The station stops at the end of its cycle; find the cause, then reset.',
   'std.error.nokReasonRequired':
       'A NOK result needs a reason before it can be recorded.',
   'std.error.parallelBranchOutOfRange':
@@ -368,6 +370,17 @@ const standardEnglish = <String, String>{
   'std.gatedAction.powerControl': 'Control power',
   'std.gatedAction.configSet': 'Parameter sets',
   'std.config.airPressure.conflictTime': 'Switch conflict qualification',
+  'std.state.analogInputValid': 'Signal valid',
+  'std.state.analogInputInRange': 'In range',
+  'std.state.analogInputStable': 'Stable',
+  'std.state.robotBrakeTestDue': 'Brake test due',
+  'std.state.robotSafeReferenceDue': 'Safe reference run due',
+  'std.config.analogInputRef1': 'Adjustment reference 1',
+  'std.config.analogInputRef2': 'Adjustment reference 2',
+  'std.config.analogInputMeas1': 'Adjustment measured 1',
+  'std.config.analogInputMeas2': 'Adjustment measured 2',
+  'std.config.analogInputTare': 'Tare',
+  'std.config.analogOutputManualTarget': 'Manual set point',
   'std.access.machineActions': 'Machine actions',
   'std.access.panelActions': 'Panel actions',
   'std.access.plcStillDecides':
@@ -461,6 +474,14 @@ const standardEnglish = <String, String>{
   'std.moduleType.twoHand.description':
       'Publishes raw button status and a functional start edge from the certified two-hand-control result.',
   'std.moduleType.digitalInput': 'Digital input',
+  'std.moduleType.analogInput': 'Analog input',
+  'std.moduleType.analogOutput': 'Analog output',
+  'std.moduleType.analogOutput.name': 'Analog output',
+  'std.moduleType.analogOutput.description':
+      'Drives one analog channel to a bounded, release-gated set point.',
+  'std.moduleType.analogInput.name': 'Analog input',
+  'std.moduleType.analogInput.description':
+      'Measures one analog channel: scaled, adjusted, tared and judged for stability.',
   'std.access.none': 'Open',
   'std.access.operator': 'Operator',
   'std.access.technician': 'Technician',
@@ -580,6 +601,36 @@ const standardEnglish = <String, String>{
       'Manual command rejected. Review the release conditions.',
   'std.error.recipeSchemaInvalid': 'Recipe schema validation failed.',
   'std.error.unsupportedCylinderCommand': 'Unsupported cylinder command.',
+  'std.error.unsupportedAnalogInputCommand': 'Unsupported analog-input command.',
+  'std.error.unsupportedAnalogOutputCommand': 'Unsupported analog-output command.',
+  'std.error.analogOutputTargetOutOfRange':
+      'The set point is outside the accepted band.',
+  'std.error.analogOutputConfigurationInvalid':
+      'The analog output configuration is invalid.',
+  'std.error.analogInputUnderRange':
+      'The measured value is below the configured range.',
+  'std.error.analogInputOverRange':
+      'The measured value is above the configured range.',
+  'std.error.analogInputSignalInvalid': 'The analog input signal is invalid.',
+  'std.error.analogInputAdjustmentInvalid':
+      'The two-point adjustment is implausible and was refused.',
+  'std.error.analogInputNotStable':
+      'The analog input did not become stable within the measure timeout.',
+  'std.error.axisPositionUndeclared':
+      'The move names a position this installation never declared.',
+  'std.error.axisSpeedScaleOutOfRange':
+      'The speed scale is outside the configured band.',
+  'std.error.axisConfigurationInvalid':
+      'The axis speed-scale configuration is invalid.',
+  'std.error.axisManualStepNotSet':
+      'The manual step is not set; stepping is refused.',
+  'std.error.curveWindowViolated':
+      'The measured curve missed a window or crossed it through a wrong edge.',
+  'std.error.curveEnvelopeViolated':
+      'The measured curve crossed its envelope.',
+  'std.error.curveIncomplete':
+      'The measured curve ended before it could be judged.',
+  'std.error.curveSpecInvalid': 'The curve specification is invalid.',
   'std.error.unsupportedManualTarget': 'Unsupported manual-command target.',
   'std.error.cylinderBothSensors': 'Both cylinder position sensors are active.',
   'std.error.cylinderRetractTimeout':
@@ -679,6 +730,7 @@ const standardEnglish = <String, String>{
   'std.module.tab.description': 'Description',
   'std.module.tab.configuration': 'Configuration',
   'std.module.tab.motion': 'Motion',
+  'std.module.tab.curve': 'Curve',
   'std.module.tab.sequence': 'Sequence',
   'std.module.sequence.empty': 'This module has not published any steps yet.',
   'std.module.sequence.name': 'Step',
@@ -1114,6 +1166,16 @@ const standardEnglish = <String, String>{
   'std.module.motion.nonSafetyNotice':
       'Motion controls shown by the standard HMI are not safety functions.',
   'std.module.motion.notPublished': 'No motion facet is published.',
+  'std.module.curve.notPublished': 'No curve record is published.',
+  'std.module.curve.loading': 'Reading the last curve…',
+  'std.module.curve.title': 'Last curve',
+  'std.module.curve.legendCurve': 'Measured',
+  'std.module.curve.legendEnvelope': 'Envelope',
+  'std.module.curve.legendWindowPassed': 'Window passed',
+  'std.module.curve.legendWindowFailed': 'Window failed',
+  'std.module.curve.samples': '{count} samples shown, {judged} judged',
+  'std.module.curve.truncated':
+      'Only the first {count} samples are kept; the verdict covers all of them.',
   'std.module.vision.noResult': 'No inspection result',
   'std.module.vision.ok': 'Inspection OK',
   'std.module.vision.ng': 'Inspection NG',
@@ -1188,8 +1250,14 @@ const standardEnglish = <String, String>{
   'std.moduleType.robot.description':
       'Robot commanded by position identifiers through its connector',
   'std.command.home': 'Home',
+  'std.command.measure': 'Measure',
+  'std.command.moveRelative': 'Move relative',
+  'std.command.stepPositive': 'Step +',
+  'std.command.stepNegative': 'Step -',
+  'std.command.set': 'Set',
   'std.command.moveTo': 'Move to',
   'std.config.axisTaughtPosition': 'Taught position',
+  'std.config.axisManualStep': 'Manual step',
   'std.command.jogPositive': 'Jog +',
   'std.command.jogNegative': 'Jog −',
   'std.command.robotRunPath': 'Run path',
@@ -1199,6 +1267,10 @@ const standardEnglish = <String, String>{
   'std.command.robotSetTool': 'Select tool',
   'std.command.robotSetFrame': 'Select frame',
   'std.command.robotReconnect': 'Reconnect',
+  'std.command.robotRequestMode': 'Request mode',
+  'std.command.robotSetPayload': 'Set payload',
+  'std.command.robotBrakeTest': 'Brake test',
+  'std.command.robotSafeReference': 'Safe reference run',
   'std.error.unsupportedAxisCommand': 'Unsupported axis command',
   'std.error.axisNotBound': 'Axis reference not bound',
   'std.error.axisDriveFault': 'Drive reported a fault',
@@ -1226,6 +1298,24 @@ const standardEnglish = <String, String>{
   'std.error.unsupportedRobotCommand': 'Unsupported robot command',
   'std.error.robotNoRoute': 'No route between these positions',
   'std.error.robotNoHelpForNest': 'No approach path for this position',
+  'std.error.robotConfigurationInvalid':
+      'The robot configuration is invalid (speed band, ceilings, default mode or timeouts).',
+  'std.error.robotSafetyDropped':
+      'The robot safety signal dropped; the robot was stopped and its power switched off.',
+  'std.error.robotSafetyNotPermitted':
+      'The robot safety signal is not present; power and motion are not requested.',
+  'std.error.robotModeNotGranted':
+      'The robot controller did not grant the requested operating mode.',
+  'std.error.robotModeRequestInvalid': 'The requested operating mode is not a valid mode.',
+  'std.error.robotRequestRefused':
+      'The robot connector refused the request without giving a reason.',
+  'std.error.robotCommandNotOffered':
+      'The connected robot controller does not offer this command.',
+  'std.error.robotPointNotGiven': 'The command names no point, path or pallet.',
+  'std.error.robotPointUnknown':
+      'The point, path or pallet is not taught on the robot controller.',
+  'std.error.robotRoutineNotPassed':
+      'The brake test or safe reference run ended with the controller still asking for it.',
   'std.error.axisTargetOutOfRange': 'Target outside soft limits',
   'std.error.axisNotHomed': 'Move requested before homing',
 };
@@ -1386,6 +1476,8 @@ const standardSpanish = <String, String>{
       'La secuencia pidió una decisión que no definió. Revise el paso.',
   'std.error.hostEventRejected':
       'El host rechazó este registro. Revise el enlace MES y reinicie.',
+  'std.error.nokLimitReached':
+      'Demasiadas piezas NOK. La estación se detiene al final de su ciclo; busque la causa y reinicie.',
   'std.error.nokReasonRequired':
       'Un resultado NOK necesita un motivo antes de poder registrarse.',
   'std.error.parallelBranchOutOfRange':
@@ -1724,6 +1816,7 @@ const standardSpanish = <String, String>{
   'std.module.tab.description': 'Descripción',
   'std.module.tab.configuration': 'Configuración',
   'std.module.tab.motion': 'Movimiento',
+  'std.module.tab.curve': 'Curva',
   'std.module.tab.sequence': 'Secuencia',
   'std.module.sequence.empty': 'Este módulo aún no ha publicado ningún paso.',
   'std.module.sequence.name': 'Paso',
@@ -2188,6 +2281,16 @@ const standardSpanish = <String, String>{
   'std.module.motion.nonSafetyNotice':
       'Los controles de movimiento de la HMI estándar no son funciones de seguridad.',
   'std.module.motion.notPublished': 'No se publicó la faceta de movimiento.',
+  'std.module.curve.notPublished': 'No se publica ningún registro de curva.',
+  'std.module.curve.loading': 'Leyendo la última curva…',
+  'std.module.curve.title': 'Última curva',
+  'std.module.curve.legendCurve': 'Medida',
+  'std.module.curve.legendEnvelope': 'Envolvente',
+  'std.module.curve.legendWindowPassed': 'Ventana superada',
+  'std.module.curve.legendWindowFailed': 'Ventana no superada',
+  'std.module.curve.samples': '{count} muestras mostradas, {judged} evaluadas',
+  'std.module.curve.truncated':
+      'Solo se conservan las primeras {count} muestras; el veredicto las cubre todas.',
   'std.module.vision.noResult': 'Sin resultado de inspección',
   'std.module.vision.ok': 'Inspección OK',
   'std.module.vision.ng': 'Inspección NG',
@@ -2266,6 +2369,61 @@ const standardSpanish = <String, String>{
   'std.moduleType.robot.description':
       'Robot mandado por identificadores de posición a través de su conector',
   'std.command.home': 'Referenciar',
+  'std.command.measure': 'Medir',
+  'std.state.analogInputValid': 'Señal válida',
+  'std.state.analogInputInRange': 'En rango',
+  'std.state.analogInputStable': 'Estable',
+  'std.state.robotBrakeTestDue': 'Prueba de frenos pendiente',
+  'std.state.robotSafeReferenceDue': 'Recorrido de referencia seguro pendiente',
+  'std.config.analogInputRef1': 'Referencia de ajuste 1',
+  'std.config.analogInputRef2': 'Referencia de ajuste 2',
+  'std.config.analogInputMeas1': 'Medido de ajuste 1',
+  'std.config.analogInputMeas2': 'Medido de ajuste 2',
+  'std.config.analogInputTare': 'Tara',
+  'std.moduleType.analogInput': 'Entrada analógica',
+  'std.moduleType.analogInput.name': 'Entrada analógica',
+  'std.moduleType.analogInput.description':
+      'Mide un canal analógico: escalado, ajustado, tarado y juzgado por estabilidad.',
+  'std.error.unsupportedAnalogInputCommand': 'Comando de entrada analógica no admitido.',
+  'std.error.analogInputUnderRange':
+      'El valor medido está por debajo del rango configurado.',
+  'std.error.analogInputOverRange':
+      'El valor medido está por encima del rango configurado.',
+  'std.error.analogInputSignalInvalid': 'La señal de entrada analógica no es válida.',
+  'std.error.analogInputAdjustmentInvalid':
+      'El ajuste de dos puntos es implausible y fue rechazado.',
+  'std.error.analogInputNotStable':
+      'La entrada analógica no se estabilizó dentro del tiempo de medida.',
+  'std.moduleType.analogOutput': 'Salida analógica',
+  'std.moduleType.analogOutput.name': 'Salida analógica',
+  'std.moduleType.analogOutput.description':
+      'Impulsa un canal analógico a un punto de consigna acotado y liberado.',
+  'std.command.set': 'Fijar',
+  'std.command.moveRelative': 'Mover relativo',
+  'std.command.stepPositive': 'Paso +',
+  'std.command.stepNegative': 'Paso -',
+  'std.config.analogOutputManualTarget': 'Punto de consigna manual',
+  'std.config.axisManualStep': 'Paso manual',
+  'std.error.unsupportedAnalogOutputCommand': 'Comando de salida analógica no admitido.',
+  'std.error.analogOutputTargetOutOfRange':
+      'El punto de consigna está fuera de la banda aceptada.',
+  'std.error.analogOutputConfigurationInvalid':
+      'La configuración de la salida analógica no es válida.',
+  'std.error.axisPositionUndeclared':
+      'El movimiento nombra una posición que esta instalación nunca declaró.',
+  'std.error.axisSpeedScaleOutOfRange':
+      'La escala de velocidad está fuera de la banda configurada.',
+  'std.error.axisConfigurationInvalid':
+      'La configuración de la banda de velocidad del eje no es válida.',
+  'std.error.axisManualStepNotSet':
+      'El paso manual no está fijado; se rechaza el paso.',
+  'std.error.curveWindowViolated':
+      'La curva medida no pasó por una ventana o la cruzó por un borde incorrecto.',
+  'std.error.curveEnvelopeViolated':
+      'La curva medida cruzó su envolvente.',
+  'std.error.curveIncomplete':
+      'La curva medida terminó antes de poder evaluarse.',
+  'std.error.curveSpecInvalid': 'La especificación de la curva no es válida.',
   'std.command.moveTo': 'Mover a',
   'std.config.axisTaughtPosition': 'Posición enseñada',
   'std.command.jogPositive': 'Mover +',
@@ -2277,6 +2435,10 @@ const standardSpanish = <String, String>{
   'std.command.robotSetTool': 'Seleccionar herramienta',
   'std.command.robotSetFrame': 'Seleccionar marco',
   'std.command.robotReconnect': 'Reconectar',
+  'std.command.robotRequestMode': 'Solicitar modo',
+  'std.command.robotSetPayload': 'Seleccionar carga',
+  'std.command.robotBrakeTest': 'Prueba de frenos',
+  'std.command.robotSafeReference': 'Recorrido de referencia seguro',
   'std.error.unsupportedAxisCommand': 'Comando de eje no admitido',
   'std.error.axisNotBound': 'Referencia de eje no vinculada',
   'std.error.axisDriveFault': 'El variador notificó un fallo',
@@ -2314,6 +2476,24 @@ const standardSpanish = <String, String>{
   'std.error.robotNoRoute': 'No hay ruta entre estas posiciones',
   'std.error.robotNoHelpForNest':
       'No hay trayecto de aproximación para esta posición',
+  'std.error.robotConfigurationInvalid':
+      'La configuración del robot no es válida (banda de velocidad, límites, modo por defecto o tiempos).',
+  'std.error.robotSafetyDropped':
+      'Se perdió la señal de seguridad del robot; se detuvo y se desconectó su potencia.',
+  'std.error.robotSafetyNotPermitted':
+      'La señal de seguridad del robot no está presente; no se solicita potencia ni movimiento.',
+  'std.error.robotModeNotGranted':
+      'El controlador del robot no concedió el modo de operación solicitado.',
+  'std.error.robotModeRequestInvalid': 'El modo de operación solicitado no es válido.',
+  'std.error.robotRequestRefused':
+      'El conector del robot rechazó la solicitud sin indicar el motivo.',
+  'std.error.robotCommandNotOffered':
+      'El controlador del robot conectado no ofrece este comando.',
+  'std.error.robotPointNotGiven': 'El comando no indica ningún punto, trayectoria o palé.',
+  'std.error.robotPointUnknown':
+      'El punto, la trayectoria o el palé no está programado en el controlador del robot.',
+  'std.error.robotRoutineNotPassed':
+      'La prueba de frenos o el recorrido de referencia seguro terminó con el controlador aún solicitándolo.',
   'std.error.axisTargetOutOfRange': 'Destino fuera de los límites de software',
   'std.error.axisNotHomed': 'Movimiento solicitado antes de referenciar',
 };

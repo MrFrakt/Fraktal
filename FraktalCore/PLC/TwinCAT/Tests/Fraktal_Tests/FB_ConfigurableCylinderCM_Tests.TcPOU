@@ -2,7 +2,8 @@
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_ConfigurableCylinderCM_Tests" Id="{3f168567-7c2e-4cf8-afa3-1a97ac3a7359}" SpecialFunc="None">
     <Declaration><![CDATA[// FB_ConfigurableCylinderCM redundant-sensor suite: duplex AND-arrival, discrepancy fault,
-// sensorless time-based, timeout, bad config. T1/T4 inherited (§5.7).
+// sensorless time-based, timeout, bad config, and the v2 valve timing it shares with
+// FB_CylinderCM. T1/T4 inherited (§5.7).
 FUNCTION_BLOCK FB_ConfigurableCylinderCM_Tests EXTENDS TcUnit.FB_TestSuite
 VAR
     _cm  : FB_ConfigurableCylinderCM;   _h  : ST_ConfigurableCylinderHal;   _sim : FB_ConfigurableCylinderSim;   _pr : FB_LocalRecipeProvider;  _cfg : ST_ConfigurableCylinderParCfg;
@@ -11,6 +12,22 @@ VAR
     _cmT : FB_ConfigurableCylinderCM;   _hT : ST_ConfigurableCylinderHal;
     _d : ST_Diagnostic;  _w : BOOL;  _i : INT;
     _dupScans, _discScans, _noSensScans : INT;   // multi-scan budgets (time-based sims, §5.7)
+    // Valve-timing rows (ParCfg v2), one instance each: TcUnit runs a suite's rows
+    // side by side. No sim - each row sets the sensors it needs, so a position is
+    // exactly what the row says it is.
+    _cmMin, _cmPulse, _cmEnd, _cmReset, _cmToReset, _cmToHold, _cmV1, _cmStored, _cmBad : FB_ConfigurableCylinderCM;
+    _hMin, _hPulse, _hEnd, _hReset, _hToReset, _hToHold, _hV1, _hStored, _hBad : ST_ConfigurableCylinderHal;
+    _defaults, _recOk, _recMin, _recPulse, _recBlind, _recSpring : ST_ConfigurableCylinderParCfg;
+    _v1 : ST_ProbeConfigurableCylinderParCfgV1;
+    _prRecords : FB_LocalRecipeProvider;
+    _model : ST_ModelId;
+    _minStep, _pulseStep, _endStep, _v1Step, _rises : INT;
+    _minT0, _pulseT0, _endT0, _v1T0 : TIME;
+    _was, _sawOff, _minSawOff, _endSawOff, _v1SawOff : BOOL;
+    _resetDone, _timeoutDone, _storedDone, _badDone : BOOL;
+END_VAR
+VAR CONSTANT
+    TEST_TIMEOUT : TIME := T#5S;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF NOT _w THEN
@@ -31,12 +48,55 @@ END_VAR]]></Declaration>
     _cmN.Setup(Name := 'Test.NoSens', HalRef := _hN, Recipe := _prN);
     _simN.Setup(HalRef := _hN, TravelTime := T#20MS, Home := 1, Work := 0);
     _cmT.Setup(Name := 'Test.TO', HalRef := _hT, Recipe := 0); // local defaults, no sim
+    _cmMin.ParCfg.MinOutputTime := T#80MS;            // outlasts the 30 ms settle
+    _cmMin.ParCfg.ResetOnEndPos := TRUE;
+    _cmMin.Setup(Name := 'Test.Min', HalRef := _hMin, Recipe := 0);
+    _cmPulse.ParCfg.SettleTime := T#0MS;
+    _cmPulse.ParCfg.PulsingWidth := T#20MS;
+    _cmPulse.ParCfg.PulsingPeriod := T#100MS;
+    _cmPulse.Setup(Name := 'Test.Pulse', HalRef := _hPulse, Recipe := 0);
+    _cmEnd.ParCfg := _cmPulse.ParCfg;
+    _cmEnd.Setup(Name := 'Test.End', HalRef := _hEnd, Recipe := 0);
+    _cmReset.ParCfg.SettleTime := T#0MS;
+    _cmReset.ParCfg.ResetOnEndPos := TRUE;
+    _cmReset.Setup(Name := 'Test.Reset', HalRef := _hReset, Recipe := 0);
+    _cmToReset.Setup(Name := 'Test.TimeoutReset', HalRef := _hToReset, Recipe := 0);
+    _cmToReset.ParCfg.MoveTimeout := T#0S;            // after Setup: a one-scan timeout
+    _cmToReset.ParCfg.ResetOnTimeout := TRUE;
+    _cmToHold.Setup(Name := 'Test.TimeoutHold', HalRef := _hToHold, Recipe := 0);
+    _cmToHold.ParCfg.MoveTimeout := T#0S;
+    _cmV1.Setup(Name := 'Test.V1', HalRef := _hV1, Recipe := 0);
+    // One provider, one record per refusal; the default ('') record is valid.
+    _recMin.MinOutputTime := T#5S;                    // = MoveTimeout: Done could never come
+    _recPulse.PulsingWidth := T#100MS;                // = PulsingPeriod: never switches off
+    _recPulse.PulsingPeriod := T#100MS;
+    _recBlind.PulsingWidth := T#20MS;                 // pulsing towards an unsensed end
+    _recBlind.PulsingPeriod := T#100MS;
+    _recBlind.WorkSensorCount := 0;
+    _recSpring.SingleActing := TRUE;                  // withdrawing a spring-return coil at
+    _recSpring.ResetOnEndPos := TRUE;                 // its end would return the cylinder
+    _prRecords.Register(ModelCode := '', RecipeKey := 'ConfigurableCylinderCM', pData := ADR(_recOk), Size := SIZEOF(_recOk));
+    _prRecords.Register(ModelCode := 'MIN', RecipeKey := 'ConfigurableCylinderCM', pData := ADR(_recMin), Size := SIZEOF(_recMin));
+    _prRecords.Register(ModelCode := 'PULSE', RecipeKey := 'ConfigurableCylinderCM', pData := ADR(_recPulse), Size := SIZEOF(_recPulse));
+    _prRecords.Register(ModelCode := 'BLIND', RecipeKey := 'ConfigurableCylinderCM', pData := ADR(_recBlind), Size := SIZEOF(_recBlind));
+    _prRecords.Register(ModelCode := 'SPRING', RecipeKey := 'ConfigurableCylinderCM', pData := ADR(_recSpring), Size := SIZEOF(_recSpring));
+    _prRecords.Register(ModelCode := 'V1', RecipeKey := 'ConfigurableCylinderCM', pData := ADR(_v1), Size := SIZEOF(_v1));
+    _cmStored.Setup(Name := 'Test.StoredV1', HalRef := _hStored, Recipe := _prRecords);
+    _cmBad.Setup(Name := 'Test.BadTiming', HalRef := _hBad, Recipe := _prRecords);
     _w := TRUE;
 END_IF
 Duplex_all_agree_completes();
 Discrepancy_faults();
 Sensorless_completes_on_time();
-Timeout_faults();]]></ST>
+Timeout_faults();
+Settle_and_min_output_time_gate_done();
+Pulsing_from_the_middle();
+A_move_from_an_end_position_does_not_pulse();
+ResetOnEndPos_withdraws_after_done();
+ResetOnTimeout_withdraws_on_fault();
+Invalid_timing_refused_CYL_CFG_INVALID();
+Declared_defaults_reproduce_v1_behaviour();
+Stored_v1_record_refused_RECIPE_INVALID();]]></ST>
     </Implementation>
     <Method Name="Duplex_all_agree_completes" Id="{4cd651d8-c97a-457c-b614-42e72c838bec}">
       <Declaration><![CDATA[METHOD Duplex_all_agree_completes]]></Declaration>
@@ -101,6 +161,265 @@ AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.CYL_WORK_NOT_REACHED),
                    Actual := _cmT.ErrorID, Message := 'work timeout code 10112');
 TEST_FINISHED();]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="Settle_and_min_output_time_gate_done" Id="{a9de9e6c-786c-46be-b9a4-0b1aa9fbf37a}">
+      <Declaration><![CDATA[METHOD Settle_and_min_output_time_gate_done]]></Declaration>
+      <Implementation><ST><![CDATA[// An impulse valve (ResetOnEndPos) at a target already confirmed: Done needs the
+// settle AND MinOutputTime of commanding, with the coil on until then.
+TEST('Settle_and_min_output_time_gate_done');
+IF _minStep = 99 THEN
+    RETURN;
+END_IF
+CASE _minStep OF
+    0:
+        _hMin.WorkFb[1] := TRUE;
+        _cmMin.Command := E_ConfigurableCylinderCommand.TO_WORK;
+        _cmMin.Execute := TRUE;
+        _minT0 := TIME();
+        _cmMin();
+        _minStep := 1;
+    1:
+        IF TIME() - _minT0 > TEST_TIMEOUT THEN
+            AssertTrue(Condition := FALSE, Message := 'the move never completed');
+            _minStep := 99;
+            TEST_FINISHED();
+            RETURN;
+        END_IF
+        _cmMin();
+        IF _cmMin.Done THEN
+            AssertTrue(Condition := TIME() - _minT0 >= T#80MS,
+                Message := 'Done only after MinOutputTime, not at the 30 ms settle');
+            AssertFalse(Condition := _minSawOff, Message := 'the coil stayed on until then');
+            AssertFalse(Condition := _hMin.ToWorkOut OR _hMin.ToHomeOut,
+                Message := 'and is withdrawn at Done (ResetOnEndPos)');
+            _cmMin.Execute := FALSE;
+            _cmMin();
+            _minStep := 99;
+            TEST_FINISHED();
+        ELSE
+            _minSawOff := _minSawOff OR NOT _hMin.ToWorkOut;
+        END_IF
+ELSE
+    _minStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Pulsing_from_the_middle" Id="{03450dbd-978d-4ace-80e8-5a968e524d61}">
+      <Declaration><![CDATA[METHOD Pulsing_from_the_middle]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Pulsing_from_the_middle');
+IF _pulseStep = 99 THEN
+    RETURN;
+END_IF
+CASE _pulseStep OF
+    0:                                           // no sensor made: the sensed middle
+        _cmPulse.Command := E_ConfigurableCylinderCommand.TO_WORK;
+        _cmPulse.Execute := TRUE;
+        _cmPulse();
+        AssertTrue(Condition := _hPulse.ToWorkOut, Message := 'a move from the middle opens with a pulse');
+        _was := TRUE;
+        _pulseT0 := TIME();
+        _pulseStep := 1;
+    1:
+        _cmPulse();
+        IF _hPulse.ToWorkOut AND NOT _was THEN
+            _rises := _rises + 1;
+        END_IF
+        _sawOff := _sawOff OR NOT _hPulse.ToWorkOut;
+        _was := _hPulse.ToWorkOut;
+        AssertFalse(Condition := _hPulse.ToHomeOut, Message := 'only the commanded output is ever driven');
+        IF TIME() - _pulseT0 >= T#350MS THEN
+            AssertTrue(Condition := _sawOff, Message := 'the output is off between pulses');
+            AssertTrue(Condition := _rises >= 2, Message := 'and pulses again every period');
+            AssertTrue(Condition := _cmPulse.Busy, Message := 'pulsing is travel, not completion');
+            _hPulse.WorkFb[1] := TRUE;
+            _cmPulse();                          // arrived: settle step, held steadily
+            _cmPulse();
+            AssertTrue(Condition := _cmPulse.Done, Message := 'the confirmed target completes the move');
+            AssertTrue(Condition := _hPulse.ToWorkOut, Message := 'and the output is then held steadily');
+            _cmPulse.Execute := FALSE;
+            _cmPulse();
+            _pulseStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _pulseStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="A_move_from_an_end_position_does_not_pulse" Id="{887caf1c-25c8-47fe-8e49-988d9136b898}">
+      <Declaration><![CDATA[METHOD A_move_from_an_end_position_does_not_pulse]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_move_from_an_end_position_does_not_pulse');
+IF _endStep = 99 THEN
+    RETURN;
+END_IF
+CASE _endStep OF
+    0:
+        _hEnd.HomeFb[1] := TRUE;                 // starts at home
+        _cmEnd.Command := E_ConfigurableCylinderCommand.TO_WORK;
+        _cmEnd.Execute := TRUE;
+        _cmEnd();
+        _endT0 := TIME();
+        _endStep := 1;
+    1:
+        _cmEnd();
+        _endSawOff := _endSawOff OR NOT _hEnd.ToWorkOut;
+        IF TIME() - _endT0 >= T#250MS THEN
+            AssertFalse(Condition := _endSawOff,
+                Message := 'a stroke from an end position is driven steadily');
+            _hEnd.HomeFb[1] := FALSE;
+            _hEnd.WorkFb[1] := TRUE;
+            _cmEnd();
+            _cmEnd();
+            AssertTrue(Condition := _cmEnd.Done, Message := 'and completes as before');
+            _cmEnd.Execute := FALSE;
+            _cmEnd();
+            _endStep := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _endStep := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="ResetOnEndPos_withdraws_after_done" Id="{a1424992-cea0-46f1-ab73-a08ab4589a0f}">
+      <Declaration><![CDATA[METHOD ResetOnEndPos_withdraws_after_done]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('ResetOnEndPos_withdraws_after_done');
+IF _resetDone THEN
+    RETURN;
+END_IF
+_hReset.WorkFb[1] := TRUE;
+_cmReset.Command := E_ConfigurableCylinderCommand.TO_WORK;
+_cmReset.Execute := TRUE;
+_cmReset();                                      // step 10 energizes
+AssertTrue(Condition := _hReset.ToWorkOut, Message := 'the move is commanded');
+FOR _i := 1 TO 5 DO
+    IF NOT _cmReset.Done THEN
+        _cmReset();
+    END_IF
+END_FOR
+AssertTrue(Condition := _cmReset.Done, Message := 'the move completes');
+AssertFalse(Condition := _hReset.ToWorkOut OR _hReset.ToHomeOut,
+    Message := 'both outputs are off at the end position');
+_cmReset.Execute := FALSE;
+_cmReset();
+AssertFalse(Condition := _hReset.ToWorkOut, Message := 'and stay off after the handshake resets');
+_resetDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="ResetOnTimeout_withdraws_on_fault" Id="{bb07cb16-6576-4527-b900-8a223a4720ea}">
+      <Declaration><![CDATA[METHOD ResetOnTimeout_withdraws_on_fault]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('ResetOnTimeout_withdraws_on_fault');
+IF _timeoutDone THEN
+    RETURN;
+END_IF
+_cmToReset.Command := E_ConfigurableCylinderCommand.TO_WORK;
+_cmToReset.Execute := TRUE;
+_cmToHold.Command := E_ConfigurableCylinderCommand.TO_WORK;
+_cmToHold.Execute := TRUE;
+_cmToReset();
+_cmToHold();
+_cmToReset();                                    // MoveTimeout T#0S expires
+_cmToHold();
+AssertTrue(Condition := _cmToReset.Error AND _cmToHold.Error, Message := 'both moves time out');
+AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.CYL_WORK_NOT_REACHED),
+    Actual := _cmToReset.ErrorID, Message := 'with the work timeout reason');
+AssertFalse(Condition := _hToReset.ToWorkOut, Message := 'ResetOnTimeout withdraws the output');
+AssertTrue(Condition := _hToHold.ToWorkOut, Message := 'the default keeps it, as v1 did');
+_timeoutDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Invalid_timing_refused_CYL_CFG_INVALID" Id="{fc6a857b-d158-493a-96d9-0314d0e3ecd9}">
+      <Declaration><![CDATA[METHOD Invalid_timing_refused_CYL_CFG_INVALID]]></Declaration>
+      <Implementation><ST><![CDATA[// Each refusal follows an accepted prepare, so a CommitRecipe after them proves a
+// refused record can never be applied by a commit that was meant for another.
+TEST('Invalid_timing_refused_CYL_CFG_INVALID');
+IF _badDone THEN
+    RETURN;
+END_IF
+_model.ModelCode := '';
+AssertTrue(Condition := _cmBad.PrepareRecipe(Model := _model), Message := 'the default record is accepted');
+_model.ModelCode := 'MIN';
+AssertFalse(Condition := _cmBad.PrepareRecipe(Model := _model),
+    Message := 'a MinOutputTime the move timeout cannot contain is refused');
+_model.ModelCode := 'PULSE';
+AssertFalse(Condition := _cmBad.PrepareRecipe(Model := _model),
+    Message := 'a pulse as long as its period is refused');
+_model.ModelCode := 'BLIND';
+AssertFalse(Condition := _cmBad.PrepareRecipe(Model := _model),
+    Message := 'pulsing without a sensor on both positions is refused');
+_model.ModelCode := 'SPRING';
+AssertFalse(Condition := _cmBad.PrepareRecipe(Model := _model),
+    Message := 'ResetOnEndPos on a single-acting cylinder is refused');
+_cmBad.CommitRecipe();
+_cmBad();
+AssertEquals_DWORD(Expected := TO_DWORD(PL_ModuleReasons.CYL_CFG_INVALID), Actual := _cmBad.ErrorID,
+    Message := 'with the type configuration reason (8.8)');
+AssertTrue(Condition := (_cmBad.ParCfg.MinOutputTime = T#0MS) AND (_cmBad.ParCfg.PulsingWidth = T#0MS)
+    AND (_cmBad.ParCfg.WorkSensorCount = 1) AND NOT _cmBad.ParCfg.SingleActing
+    AND NOT _cmBad.ParCfg.ResetOnEndPos,
+    Message := 'no refused record is applied, even by a later commit');
+_badDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Declared_defaults_reproduce_v1_behaviour" Id="{c3e5072f-81ee-43ea-9788-bb7aec5cfb97}">
+      <Declaration><![CDATA[METHOD Declared_defaults_reproduce_v1_behaviour]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Declared_defaults_reproduce_v1_behaviour');
+IF _v1Step = 99 THEN
+    RETURN;
+END_IF
+CASE _v1Step OF
+    0:
+        AssertEquals_UINT(Expected := 2, Actual := _defaults.SchemaVersion, Message := 'the v2 layout');
+        AssertTrue(Condition := (_defaults.SettleTime = T#30MS) AND (_defaults.MinOutputTime = T#0MS)
+            AND (_defaults.PulsingWidth = T#0MS) AND (_defaults.PulsingPeriod = T#0MS),
+            Message := 'the v1 settle stays and every new time defaults to off');
+        AssertFalse(Condition := _defaults.ResetOnEndPos OR _defaults.ResetOnTimeout,
+            Message := 'every new policy defaults to the v1 hold');
+        _hV1.WorkFb[1] := TRUE;
+        _cmV1.Command := E_ConfigurableCylinderCommand.TO_WORK;
+        _cmV1.Execute := TRUE;
+        _v1T0 := TIME();
+        _cmV1();
+        _v1Step := 1;
+    1:
+        IF TIME() - _v1T0 > TEST_TIMEOUT THEN
+            AssertTrue(Condition := FALSE, Message := 'the move never completed');
+            _v1Step := 99;
+            TEST_FINISHED();
+            RETURN;
+        END_IF
+        _cmV1();
+        IF _cmV1.Done THEN
+            AssertFalse(Condition := _v1SawOff, Message := 'the output is driven steadily, as v1');
+            _cmV1.Execute := FALSE;
+            _cmV1();
+            AssertTrue(Condition := _hV1.ToWorkOut AND NOT _hV1.ToHomeOut,
+                Message := 'and held after Done, as v1');
+            _v1Step := 99;
+            TEST_FINISHED();
+        ELSE
+            _v1SawOff := _v1SawOff OR NOT _hV1.ToWorkOut;
+        END_IF
+ELSE
+    _v1Step := 99;
+    TEST_FINISHED();
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="Stored_v1_record_refused_RECIPE_INVALID" Id="{df008ced-93b4-42af-8b38-875c669805fd}">
+      <Declaration><![CDATA[METHOD Stored_v1_record_refused_RECIPE_INVALID]]></Declaration>
+      <Implementation><ST><![CDATA[// The upgrade cost of the v2 layout, stated as a test: a record a station stored
+// before the upgrade is refused at the next prepare, never interpreted (§3.8).
+TEST('Stored_v1_record_refused_RECIPE_INVALID');
+IF _storedDone THEN
+    RETURN;
+END_IF
+_model.ModelCode := 'V1';
+AssertFalse(Condition := _cmStored.PrepareRecipe(Model := _model), Message := 'a v1 record is refused');
+_cmStored();
+AssertEquals_DWORD(Expected := TO_DWORD(E_Reason.RECIPE_INVALID), Actual := _cmStored.ErrorID,
+    Message := 'with RECIPE_INVALID, migrate-or-fault (3.8)');
+_storedDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

@@ -425,6 +425,24 @@ class ReadSurfaceTests(unittest.TestCase):
         self.assertTrue(findings)
         self.assertIn("nothing was compared", findings[0].message)
 
+    def test_a_fieldbus_absence_is_judged_against_the_fieldbus_surface(self):
+        """A 'Topology/...' entry is read through the fieldbus root, so the
+        staleness check must look there too - and a publication there makes
+        the declaration stale like any other."""
+        import tools.check_consistency as cc
+        self.assertIn("Topology/Nodes[*]/Channels[*]/UnitCode", cc.AB_ABSENT)
+        self.assertEqual([f for f in cc.check_read_surface(Path("."))
+                          if "UnitCode" in f.message], [])
+        topology = cc._ab_topology()
+        original = cc._ab_topology
+        cc._ab_topology = lambda: topology | {"Nodes[*]/Channels[*]/UnitCode"}
+        try:
+            findings = cc.check_read_surface(Path("."))
+        finally:
+            cc._ab_topology = original
+        self.assertEqual(len(findings), 1)
+        self.assertIn("the reason is stale", findings[0].message)
+
     def test_the_tree_agrees_today(self):
         self.assertEqual([str(f) for f in check_read_surface(Path("."))], [])
 

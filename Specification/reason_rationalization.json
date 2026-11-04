@@ -7,6 +7,132 @@
     "shelving": "Shelving suppresses annunciation only, never control, and expires automatically."
   },
   "reasons": {
+    "ROBOT_POINT_UNKNOWN": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the point, path or pallet number the command names; teach it on the robot controller, or correct the number in the program or in the manual move declaration.",
+      "consequence": "The move is refused before the robot moves; it is never sent to a default position."
+    },
+    "ROBOT_ROUTINE_FAILED": {
+      "priority": "HIGH",
+      "category": "SAFETY",
+      "shelvable": false,
+      "action": "Read the robot controller's own report of the brake test or safe reference run, and have the brakes or the position sensing checked by a qualified person before the robot runs again.",
+      "consequence": "The controller still asks for the routine; it decides what the robot may do until the routine passes."
+    },
+    "ROBOT_SAFETY_DROPPED": {
+      "priority": "HIGH",
+      "category": "SAFETY",
+      "shelvable": false,
+      "action": "Find why the safety function stopped the robot (guard, E-stop, safe zone); once the safety system is reset, power the robot on deliberately and restart from a defined position.",
+      "consequence": "The robot was stopped and its drives switched off; it does not restart by itself."
+    },
+    "ROBOT_CFG_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Correct the robot configuration (positive, ordered speed band at most 100 percent, ceilings 0-100, a real default mode, non-zero timeouts) and reload it.",
+      "consequence": "The robot module cannot run with valid supervision; its configuration was not applied."
+    },
+    "CURVE_WINDOW_VIOLATED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Inspect the part and the process for the measured curve; check the window against the process before changing it.",
+      "consequence": "The measured curve missed a window, or crossed it through an edge it must not."
+    },
+    "CURVE_ENVELOPE_VIOLATED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Inspect the part and the process for the measured curve; check the envelope against the process before changing it.",
+      "consequence": "The measured curve crossed an envelope it must stay inside."
+    },
+    "CURVE_INCOMPLETE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check why the stroke or the measurement ended early, then repeat the cycle.",
+      "consequence": "The curve ended before every window and envelope was reached, so it could not be judged OK."
+    },
+    "CURVE_SPEC_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Correct the curve specification (real windows, envelopes with increasing X, at least one rule) and reload the recipe.",
+      "consequence": "The curve cannot be judged; the recipe was not applied."
+    },
+    "AXIS_POSITION_UNDECLARED": {
+      "priority": "LOW",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Declare the position in the composition root, or command one that is declared.",
+      "consequence": "The move named a position this installation never declared."
+    },
+    "AXIS_PARAM_OOR": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Command a speed scale inside the configured band, or set the manual step before stepping.",
+      "consequence": "The move was refused before motion; the axis did not start."
+    },
+    "AXIS_CFG_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Correct the speed-scale band (positive minimum, ordered, at most 100 percent) and reload the recipe.",
+      "consequence": "The axis command cannot be executed with valid supervision."
+    },
+    "AO_TARGET_OOR": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Command a target inside the accepted band, or have engineering widen it.",
+      "consequence": "The channel was not driven; it keeps its previous state."
+    },
+    "AO_CFG_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Correct the scaling, band and safe-value configuration and reload the recipe.",
+      "consequence": "The channel cannot be commanded with valid supervision."
+    },
+    "AI_UNDER_RANGE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the sensor, its wiring, and the scaled range, then remeasure.",
+      "consequence": "The measured value is below the range the station accepts."
+    },
+    "AI_OVER_RANGE": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the sensor, its wiring, and the scaled range, then remeasure.",
+      "consequence": "The measured value is above the range the station accepts."
+    },
+    "AI_SIGNAL_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Inspect the input channel's quality, wiring, and the module's configuration.",
+      "consequence": "No measurement can be taken from an invalid signal."
+    },
+    "AI_ADJUSTMENT_INVALID": {
+      "priority": "MED",
+      "category": "SYSTEM",
+      "shelvable": false,
+      "action": "Repeat the two-point adjustment; a plausible pair is refused only after a corrupted restore or a layout change.",
+      "consequence": "Measuring through an implausible adjustment would publish values nobody calibrated."
+    },
+    "AI_NOT_STABLE": {
+      "priority": "LOW",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Let the value settle within the configured band, or widen the band or the measure timeout.",
+      "consequence": "An unstable value cannot be recorded as a measurement."
+    },
     "TASK_OVERRUN": {
       "priority": "MED",
       "category": "SYSTEM",
@@ -223,6 +349,13 @@
       "shelvable": false,
       "action": "",
       "consequence": "The part left processing without a completed result."
+    },
+    "NOK_LIMIT_REACHED": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Contain the parts made since the first reject and find the cause before resetting.",
+      "consequence": "The station would keep producing rejects."
     },
     "COMMISSIONING_GATE_ACTIVE": {
       "priority": "LOW",

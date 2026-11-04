@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="PL_Axis" Id="{5f619c52-f749-472e-836c-7c621ffd5a6c}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// Axis CM sizing (S1.6): position 1 is StationCfg.TaughtPosition, so the
+// teach image holds 2..MAX_POSITIONS and the registration budget stays
+// 2 standing + manualStep + up to 7 positions = 10 of 12 (S3.8b).
+VAR_GLOBAL CONSTANT
+    MAX_POSITIONS      : INT := 8;
+    AXIS_TEACHCFG_SCHEMA : UINT := 1;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

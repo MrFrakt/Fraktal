@@ -99,7 +99,7 @@ Speed : LREAL; SchemaVersion : UINT; END_STRUCT END_TYPE]]></Declaration></DUT>
         self.assertIn("C5", self._rules(root))
 
     def test_c2_rejects_reserved_enum_member(self):
-        for keyword in ("TIME", "CLASS"):
+        for keyword in ("TIME", "CLASS", "ANY"):
             root = self._root()
             path = self._write(root, "Framework/E_Bad.TcDUT", f'''<TcPlcObject>
 <DUT Name="E_Bad"><Declaration><![CDATA[{{attribute 'qualified_only'}}

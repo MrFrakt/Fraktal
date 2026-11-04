@@ -5,7 +5,7 @@
 // REDUNDANT, position sensors. Values live in the module that needs them (§3.8a).
 TYPE ST_ConfigurableCylinderParCfg :
 STRUCT
-    SchemaVersion     : UINT := 1;
+    SchemaVersion     : UINT := 2;      // v2 appended the valve timing
 
     // --- optional & redundant sensors ---
     // count of sensors wired for each position: 0 = sensorless (time-based),
@@ -23,6 +23,15 @@ STRUCT
     SingleActing      : BOOL := FALSE;   // TRUE: only ToWorkOut driven; spring return home
     SafePosOnAbort    : E_CylinderPosition := E_CylinderPosition.HOME;
     DeenergizeOnAbort : BOOL := TRUE;
+
+    // --- valve timing (v2, the FB_CylinderCM members; every default is v1) ---
+    // Pulsing needs a sensor on BOTH positions: only then is "neither position
+    // confirmed" a known middle rather than an unsensed end (CYL_CFG_INVALID).
+    MinOutputTime     : TIME := T#0MS;   // a move is commanded at least this long before Done
+    PulsingWidth      : TIME := T#0MS;   // a move started from the middle pulses its coil...
+    PulsingPeriod     : TIME := T#0MS;   // ...for PulsingWidth of every PulsingPeriod until the target makes
+    ResetOnEndPos     : BOOL := FALSE;   // withdraw the coil at Done (refused with SingleActing)
+    ResetOnTimeout    : BOOL := FALSE;   // withdraw the coil when the move times out
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

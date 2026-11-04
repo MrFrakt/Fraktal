@@ -447,6 +447,68 @@ class MotionFacet {
       this.homed = true});
 }
 
+/// One point of a published curve or envelope (Modules `ST_CurvePoint`).
+class CurvePoint {
+  final double x, y;
+  const CurvePoint(this.x, this.y);
+}
+
+/// Modules `E_CurveEdge` — ordinals are the PLC contract.
+enum CurveEdge { anyEdge, left, right, bottom, top }
+
+/// A window the curve had to pass through (Modules `ST_CurveWindow`), with
+/// whether this curve passed it (`Result.WindowPassed`).
+class CurveWindow {
+  final double xMin, xMax, yMin, yMax;
+  final CurveEdge entryEdge, exitEdge;
+  final bool passed;
+  const CurveWindow(this.xMin, this.xMax, this.yMin, this.yMax,
+      {this.entryEdge = CurveEdge.anyEdge,
+      this.exitEdge = CurveEdge.anyEdge,
+      this.passed = false});
+}
+
+/// An envelope the curve had to stay on one side of (Modules
+/// `ST_CurveEnvelope`); [cutIndex] is the first sample past it, 0 = none.
+class CurveEnvelope {
+  final bool upper;
+  final List<CurvePoint> points;
+  final int cutIndex;
+  const CurveEnvelope(
+      {required this.upper, this.points = const [], this.cutIndex = 0});
+}
+
+/// Modules `ST_CurveRecord` — the last curve a module judged with
+/// `FB_CurveMonitor` and published as `OutImm.Curve`: what was measured, the
+/// windows and envelopes it was judged against, and the verdict. Only
+/// `SampleCount` is read cyclically (it is what makes the Curve tab exist); the
+/// record itself is read on demand while that tab is open, so until then
+/// [loaded] is false and every list is empty.
+class CurveFacet {
+  final bool loaded;
+  final int sampleCount;
+  final bool truncated; // the PLC kept only the first samples
+  final List<CurvePoint> samples;
+  final List<CurveWindow> windows;
+  final List<CurveEnvelope> envelopes;
+  final bool complete;
+  final Verdict verdict;
+  final String reason; // operator text of the first failing rule; '' when OK
+  final int judgedSamples; // every sample the verdict covers, kept or not
+  const CurveFacet({
+    this.loaded = false,
+    this.sampleCount = 0,
+    this.truncated = false,
+    this.samples = const [],
+    this.windows = const [],
+    this.envelopes = const [],
+    this.complete = false,
+    this.verdict = Verdict.none,
+    this.reason = '',
+    this.judgedSamples = 0,
+  });
+}
+
 /// §8.11.4 — one step of the cycle profile (Gantt row) with time class.
 enum TimeClass {
   work,
@@ -629,6 +691,16 @@ enum EngUnit {
   piecePerHour,
 }
 
+/// The catalog key of the unit to show, or '' for none: a code the PLC
+/// published wins; without one (an older controller, or a unit the vocabulary
+/// lacks) the legacy [legacyText] stands as it is. Shared by every published
+/// unit - a configuration value and a fieldbus channel read the same way.
+String engUnitKey(EngUnit? code, String legacyText) => switch (code) {
+      null => legacyText,
+      EngUnit.none => '',
+      final EngUnit known => 'std.unit.${known.name}',
+    };
+
 class CfgField {
   /// Portable weekly calendar V2, Monday bit 0 through Sunday bit 6.
   bool get isWeekdayMask => kind == CfgKind.lineCfg &&
@@ -690,13 +762,8 @@ class CfgField {
       this.readable = true,
       this.modelScoped = false});
 
-  /// The catalog key of the unit to show, or '' for none: a code the PLC
-  /// published wins; without one (an older controller) the legacy text stands.
-  String get unitKey => switch (unitCode) {
-        null => unit,
-        EngUnit.none => '',
-        final EngUnit code => 'std.unit.${code.name}',
-      };
+  /// The catalog key of the unit to show, or '' for none ([engUnitKey]).
+  String get unitKey => engUnitKey(unitCode, unit);
 
   /// A true/false value: edited with a checkbox, never typed.
   bool get isFlag => type == CfgType.boolean;

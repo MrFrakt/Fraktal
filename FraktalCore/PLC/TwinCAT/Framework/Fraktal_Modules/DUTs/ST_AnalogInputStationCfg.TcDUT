@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AnalogInputStationCfg" Id="{7f6187e5-5ca4-4aa3-8614-334a66ce9dff}">
+    <Declaration><![CDATA[// Core S3.8a/S3.8b - the installed sensor's two-point adjustment and tare:
+// deployment data, retained across a restart, never part of a model recipe.
+// An adjustment is ACTIVE when both references and both measured points
+// differ; single points may be written while the pair is inactive, so an
+// operator captures one point at a time. SchemaVersion first (S3.8b):
+// 0 = never written, 1 = this layout.
+TYPE ST_AnalogInputStationCfg :
+STRUCT
+    SchemaVersion : UINT;
+    Ref1  : LREAL;
+    Ref2  : LREAL;
+    Meas1 : LREAL;
+    Meas2 : LREAL;
+    Tare  : LREAL;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

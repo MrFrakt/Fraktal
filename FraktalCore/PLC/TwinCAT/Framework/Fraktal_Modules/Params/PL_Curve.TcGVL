@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="PL_Curve" Id="{eae75602-79ef-495e-b913-443c4ad99a62}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+// FB_CurveMonitor sizing. A spec is embedded in its owner's ParCfg, so these
+// bound every owner's recipe record: four windows and two envelopes of 32
+// points each judge a press or joining curve without a sample buffer.
+VAR_GLOBAL CONSTANT
+    MAX_WINDOWS : INT := 4;
+    MAX_POINTS  : INT := 32;
+    SPEC_SCHEMA : UINT := 1;   // ST_CurveSpec.SchemaVersion this helper judges
+    MAX_SAMPLES : INT := 256;  // samples a published ST_CurveRecord keeps (the verdict needs none)
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_CurveSpec" Id="{ad6c231c-e644-47df-bb55-efb2660e869e}">
+    <Declaration><![CDATA[// Core §3.8 - what one curve is judged against. The owner embeds it in its own
+// ParCfg (so it travels with the recipe) and validates it in PrepareRecipe with
+// FB_CurveMonitor.M_Validate. SchemaVersion first.
+TYPE ST_CurveSpec :
+STRUCT
+    SchemaVersion : UINT := PL_Curve.SPEC_SCHEMA;
+    WindowCount   : INT;
+    Windows       : ARRAY[1..PL_Curve.MAX_WINDOWS] OF ST_CurveWindow;
+    EnvelopeCount : INT;
+    Envelopes     : ARRAY[1..2] OF ST_CurveEnvelope;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

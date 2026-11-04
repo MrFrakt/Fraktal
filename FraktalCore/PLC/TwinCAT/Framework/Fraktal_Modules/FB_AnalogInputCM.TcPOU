@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AnalogInputCM" Id="{edc21106-3baa-41c7-b4e6-24c20836e947}" SpecialFunc="None">
+    <Declaration><![CDATA[// Generic analog-input CM: one type covering a plain signal, a measuring
+// sensor (a value read once it is stable) and a scale (a tared reading) -
+// the differences are configuration, not types (S1.1 O9). Scaling, the
+// two-point adjustment, tare and a first-order filter are computed here, at
+// the signal's owner (S7.2.1), so no sequence re-derives engineering units.
+// Bad quality, a configuration the type cannot honour, or an implausible
+// retained adjustment publishes Valid FALSE and Value 0 (S5.6) - never the
+// last good value, which would be a measurement nobody made.
+FUNCTION_BLOCK FB_AnalogInputCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_AnalogInputCommand;
+    ParCfg : ST_AnalogInputParCfg;
+    ParCmd : ST_AnalogInputParCmd;
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_AnalogInputOutCmd;
+    OutImm : ST_AnalogInputOutImm;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _hal      : REFERENCE TO ST_AnalogInputHal;
+    _identity : ST_IoPointIdentity;
+    _filtered : LREAL;    // first-order filter state on Gross - Tare
+    _lastMs   : TIME;     // TIME() of the previous valid scan, for dt
+    _primed   : BOOL;     // FALSE until the first valid sample primes filter and anchor
+    _anchor   : LREAL;    // stability reference; re-anchored on a band exit
+    _tStable  : TON;
+    _tMeasure : TON;
+END_VAR
+VAR PERSISTENT
+    // S3.8a/S3.8b - deployment data: the adjustment and tare belong to the
+    // installed sensor, not to any model recipe. The Setup registration, not
+    // this declaration, is what permits a write (S3.10.2).
+    StationCfg : ST_AnalogInputStationCfg;
+END_VAR
+VAR CONSTANT
+    AI_STATIONCFG_SCHEMA : UINT := 1;
+    AI_FILTER_MAX : TIME := T#10S;
+    AI_GAIN_MIN   : LREAL := 0.5;    // adjustment gain vs nominal, plausible band
+    AI_GAIN_MAX   : LREAL := 2.0;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
+    <Method Name="Setup" Id="{28c9cbee-ac40-4abb-8d6c-6a0add54806f}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name           : STRING(80);
+    HalRef         : REFERENCE TO ST_AnalogInputHal;
+    DisplayNameKey : STRING(160);
+    DescriptionKey : STRING(160);
+END_VAR
+VAR
+    engLo, engHi : LREAL;
+    rawLo, rawHi : LREAL;
+    tareLim      : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_SetName(Name);
+_M_SetPresentation(DisplayNameKey := DisplayNameKey, DescriptionKey := DescriptionKey,
+    TypeKey := 'std.moduleType.analogInput');
+_hal REF= HalRef;
+// S3.8b - a retained image from an unrecognized layout is re-initialized, and
+// this type's declared default is unadjusted and untared.
+IF NOT M_RestoreStationCfg(pVersion := ADR(StationCfg.SchemaVersion),
+        SchemaVersion := AI_STATIONCFG_SCHEMA) THEN
+    StationCfg.Ref1 := 0.0;
+    StationCfg.Ref2 := 0.0;
+    StationCfg.Meas1 := 0.0;
+    StationCfg.Meas2 := 0.0;
+    StationCfg.Tare := 0.0;
+END_IF
+_M_PublishCommand(Value := TO_DINT(E_AnalogInputCommand.MEASURE), Label := 'std.command.measure');
+engLo := MIN(ParCfg.EngMin, ParCfg.EngMax);
+engHi := MAX(ParCfg.EngMin, ParCfg.EngMax);
+rawLo := MIN(ParCfg.RawMin, ParCfg.RawMax);
+rawHi := MAX(ParCfg.RawMin, ParCfg.RawMax);
+tareLim := ABS(ParCfg.EngMax - ParCfg.EngMin);
+// S3.8a - the two-point adjustment and the tare are ordinary editable values:
+// typed by an engineer, or demonstrated by a capture (S3.8c), both through
+// the same validation. READY is required: re-adjusting underneath a running
+// measurement would change what is being measured while it is judged.
+Setup := __ISVALIDREF(_hal) AND _M_ParCfgValid();
+Setup := M_RegisterConfigNumber(Key := 'analogInput.ref1',
+    Item := 'StationCfg/Ref1', LabelKey := 'std.config.analogInputRef1',
+    Unit := ParCfg.UnitCode, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(StationCfg.Ref1), Minimum := engLo, Maximum := engHi,
+    RequiresReady := TRUE) AND Setup;
+Setup := M_RegisterConfigNumber(Key := 'analogInput.ref2',
+    Item := 'StationCfg/Ref2', LabelKey := 'std.config.analogInputRef2',
+    Unit := ParCfg.UnitCode, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(StationCfg.Ref2), Minimum := engLo, Maximum := engHi,
+    RequiresReady := TRUE) AND Setup;
+Setup := M_RegisterConfigNumber(Key := 'analogInput.meas1',
+    Item := 'StationCfg/Meas1', LabelKey := 'std.config.analogInputMeas1',
+    Unit := E_EngUnit.NONE, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(StationCfg.Meas1), Minimum := rawLo, Maximum := rawHi,
+    RequiresReady := TRUE) AND Setup;
+Setup := M_RegisterConfigNumber(Key := 'analogInput.meas2',
+    Item := 'StationCfg/Meas2', LabelKey := 'std.config.analogInputMeas2',
+    Unit := E_EngUnit.NONE, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(StationCfg.Meas2), Minimum := rawLo, Maximum := rawHi,
+    RequiresReady := TRUE) AND Setup;
+Setup := M_RegisterConfigNumber(Key := 'analogInput.tare',
+    Item := 'StationCfg/Tare', LabelKey := 'std.config.analogInputTare',
+    Unit := ParCfg.UnitCode, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(StationCfg.Tare), Minimum := -tareLim, Maximum := tareLim,
+    RequiresReady := TRUE) AND Setup;
+// S3.8c - the measured points and the tare can be DEMONSTRATED: the sources
+// are values this module already publishes, so the operator sees the number
+// before storing it (S3.8c(b)).
+Setup := M_RegisterCapture(WriteKey := 'analogInput.meas1',
+    pSource := ADR(OutImm.Raw), SourceStorage := E_ConfigStorage.AS_LREAL) AND Setup;
+Setup := M_RegisterCapture(WriteKey := 'analogInput.meas2',
+    pSource := ADR(OutImm.Raw), SourceStorage := E_ConfigStorage.AS_LREAL) AND Setup;
+Setup := M_RegisterCapture(WriteKey := 'analogInput.tare',
+    pSource := ADR(OutImm.Gross), SourceStorage := E_ConfigStorage.AS_LREAL) AND Setup;]]></ST></Implementation>
+    </Method>
+    <Method Name="ConfigureIoIdentity" Id="{a783ddb4-6c22-4b15-8a95-0de4761af0be}">
+      <Declaration><![CDATA[METHOD ConfigureIoIdentity
+VAR_INPUT
+    Identity : ST_IoPointIdentity;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_identity := Identity;]]></ST></Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{925a2e42-38e4-4a4e-b657-2766009d0589}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT
+VAR
+    cfgOk     : BOOL;
+    active    : BOOL;
+    plausible : BOOL;
+    valid     : BOOL;
+    inRange   : BOOL;
+    stable    : BOOL;
+    x          : LREAL;
+    elapsedMs  : LREAL;
+    now       : TIME;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+// Checked every scan, not only at Setup: ParCfg is an input the composition
+// root may assign later, and a bad value must not reach the scan as behaviour.
+cfgOk := _M_ParCfgValid();
+active := (StationCfg.Ref1 <> StationCfg.Ref2) AND (StationCfg.Meas1 <> StationCfg.Meas2);
+plausible := TRUE;
+IF active THEN
+    plausible := _M_AdjustmentPlausible(Ref1 := StationCfg.Ref1, Ref2 := StationCfg.Ref2,
+        Meas1 := StationCfg.Meas1, Meas2 := StationCfg.Meas2);
+END_IF
+valid := FALSE;
+IF __ISVALIDREF(_hal) THEN
+    IF _hal.Quality THEN
+        valid := cfgOk AND plausible;
+    END_IF
+END_IF
+IF valid THEN
+    OutImm.Raw := _hal.Raw;
+    IF active THEN
+        OutImm.Gross := StationCfg.Ref1 + (OutImm.Raw - StationCfg.Meas1)
+            * (StationCfg.Ref2 - StationCfg.Ref1) / (StationCfg.Meas2 - StationCfg.Meas1);
+    ELSE
+        OutImm.Gross := ParCfg.EngMin + (OutImm.Raw - ParCfg.RawMin)
+            * (ParCfg.EngMax - ParCfg.EngMin) / (ParCfg.RawMax - ParCfg.RawMin);
+    END_IF
+    x := OutImm.Gross - StationCfg.Tare;
+    now := TIME();
+    IF NOT _primed THEN
+        _filtered := x;
+        _anchor := x;
+        _primed := TRUE;
+    ELSIF ParCfg.FilterTime > T#0MS THEN
+        elapsedMs := TO_LREAL(TIME_TO_DINT(now - _lastMs));
+        _filtered := _filtered + (x - _filtered) * elapsedMs
+            / (TO_LREAL(TIME_TO_DINT(ParCfg.FilterTime)) + elapsedMs);
+    ELSE
+        _filtered := x;
+    END_IF
+    _lastMs := now;
+    OutImm.Value := _filtered;
+ELSE
+    // S5.6 fail closed: an invalid input publishes zero, never the last good
+    // value, and the filter re-initialises so returning quality is measured
+    // afresh rather than gliding from a number nobody measured.
+    OutImm.Raw := 0.0;
+    OutImm.Gross := 0.0;
+    OutImm.Value := 0.0;
+    _primed := FALSE;
+    _tStable(IN := FALSE);
+END_IF
+inRange := valid AND (OutImm.Value >= ParCfg.UnderRange) AND (OutImm.Value <= ParCfg.OverRange);
+IF valid AND (ParCfg.StableBand > 0.0) THEN
+    // Re-anchor on a band exit: the timer measures time since the last
+    // excursion, so a value that walks out and back restarts it.
+    IF ABS(OutImm.Value - _anchor) > ParCfg.StableBand THEN
+        _anchor := OutImm.Value;
+        _tStable(IN := FALSE);
+    END_IF
+    _tStable(IN := TRUE, PT := ParCfg.StableTime);
+    stable := _tStable.Q;
+ELSE
+    stable := valid;    // no band configured: validity is the whole question
+    _tStable(IN := FALSE);
+END_IF
+// S3.12 - derived state is published unconditionally every scan; a flag that
+// stops being published goes Stale and is forced FALSE.
+OutImm.Valid := _M_State(Idx := 1, Key := 'std.state.analogInputValid', Ok := valid);
+OutImm.InRange := _M_State(Idx := 2, Key := 'std.state.analogInputInRange', Ok := inRange);
+OutImm.Stable := _M_State(Idx := 3, Key := 'std.state.analogInputStable', Ok := stable);
+OutImm.IoTag := _identity.Tag;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{65a1d4fe-2ffc-4c74-80df-59ed0f80440d}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch
+VAR
+    implausible : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF Command <> E_AnalogInputCommand.MEASURE THEN
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedAnalogInputCommand');
+    RETURN;
+END_IF
+CASE _step OF
+    10:
+        // An active but implausible retained pair is a distinct, actionable
+        // defect: the operator is sent to the adjustment, not the wiring. The
+        // plausibility call is guarded by its own IF: IEC AND does not
+        // short-circuit, and evaluating it on an INACTIVE pair divides 0/0
+        // (FPU invalid operation, a task-halting exception).
+        implausible := FALSE;
+        IF (StationCfg.Ref1 <> StationCfg.Ref2) AND (StationCfg.Meas1 <> StationCfg.Meas2) THEN
+            implausible := NOT _M_AdjustmentPlausible(Ref1 := StationCfg.Ref1, Ref2 := StationCfg.Ref2,
+                Meas1 := StationCfg.Meas1, Meas2 := StationCfg.Meas2);
+        END_IF
+        IF implausible THEN
+            _M_FaultN(Code := PL_ModuleReasons.AI_ADJUSTMENT_INVALID,
+                Text := 'std.error.analogInputAdjustmentInvalid');
+        ELSIF NOT OutImm.Valid THEN
+            _M_FaultIoN(Code := PL_ModuleReasons.AI_SIGNAL_INVALID,
+                Text := 'std.error.analogInputSignalInvalid',
+                IoTag := _identity.Tag, IoAddress := _identity.Address);
+        ELSE
+            _tMeasure(IN := FALSE);
+            _step := 20;
+        END_IF
+    20:
+        _tMeasure(IN := TRUE, PT := ParCfg.MeasureTimeout);
+        IF NOT OutImm.Valid THEN
+            _M_FaultIoN(Code := PL_ModuleReasons.AI_SIGNAL_INVALID,
+                Text := 'std.error.analogInputSignalInvalid',
+                IoTag := _identity.Tag, IoAddress := _identity.Address);
+        ELSIF _tMeasure.Q AND NOT OutImm.Stable THEN
+            _M_FaultN(Code := PL_ModuleReasons.AI_NOT_STABLE, Text := 'std.error.analogInputNotStable');
+        ELSIF OutImm.Stable THEN
+            IF OutImm.Value < ParCfg.UnderRange THEN
+                _M_FaultN(Code := PL_ModuleReasons.AI_UNDER_RANGE,
+                    Text := 'std.error.analogInputUnderRange');
+            ELSIF OutImm.Value > ParCfg.OverRange THEN
+                _M_FaultN(Code := PL_ModuleReasons.AI_OVER_RANGE,
+                    Text := 'std.error.analogInputOverRange');
+            ELSE
+                OutCmd.Value := OutImm.Value;
+                _M_Complete();
+            END_IF
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_OnConfigWrite" Id="{948aedfe-baf0-415b-b5bd-b9750857b11a}">
+      <Declaration><![CDATA[// S3.10.2 - a ref*/meas* candidate that would make the pair ACTIVE and
+// implausible is refused here; anything that leaves the pair inactive is
+// accepted, so an operator can write or capture one point at a time. This
+// sees the RAW text and has no side effects: a non-number parses to 0 and is
+// judged by the same rule, and the framework's own type check still rejects
+// it after this returns TRUE. Captured candidates arrive by the same path.
+METHOD PROTECTED _M_OnConfigWrite : BOOL
+VAR_INPUT
+    WriteKey  : STRING(160);
+    TextValue : STRING(255);
+END_VAR
+VAR
+    ref1, ref2, meas1, meas2 : LREAL;
+    candidate : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_OnConfigWrite := TRUE;
+IF (WriteKey = 'analogInput.ref1') OR (WriteKey = 'analogInput.ref2')
+    OR (WriteKey = 'analogInput.meas1') OR (WriteKey = 'analogInput.meas2') THEN
+    ref1 := StationCfg.Ref1;
+    ref2 := StationCfg.Ref2;
+    meas1 := StationCfg.Meas1;
+    meas2 := StationCfg.Meas2;
+    candidate := STRING_TO_LREAL(TextValue);
+    IF WriteKey = 'analogInput.ref1' THEN
+        ref1 := candidate;
+    ELSIF WriteKey = 'analogInput.ref2' THEN
+        ref2 := candidate;
+    ELSIF WriteKey = 'analogInput.meas1' THEN
+        meas1 := candidate;
+    ELSE
+        meas2 := candidate;
+    END_IF
+    IF (ref1 <> ref2) AND (meas1 <> meas2) THEN
+        _M_OnConfigWrite := _M_AdjustmentPlausible(Ref1 := ref1, Ref2 := ref2,
+            Meas1 := meas1, Meas2 := meas2);
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ParCfgValid" Id="{d348138b-55f7-4b03-a5a4-73869805c820}">
+      <Declaration><![CDATA[// S3.8/S5.6 - the layout this type was compiled against, ranges that define
+// a function, and a filter that is a filter rather than a delay. Anything
+// else is refused, never clamped. The DUT's own initializer is the layout
+// version, so it is stated once.
+METHOD PRIVATE _M_ParCfgValid : BOOL
+VAR
+    compiled : ST_AnalogInputParCfg;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ParCfgValid := (ParCfg.SchemaVersion = compiled.SchemaVersion)
+    AND (ParCfg.RawMin <> ParCfg.RawMax)
+    AND (ParCfg.EngMin <> ParCfg.EngMax)
+    AND (ParCfg.UnderRange < ParCfg.OverRange)
+    AND (ParCfg.FilterTime <= AI_FILTER_MAX)
+    AND (ParCfg.StableBand >= 0.0)
+    AND (ParCfg.MeasureTimeout > T#0MS)
+    AND ((ParCfg.StableBand = 0.0) OR (ParCfg.StableTime < ParCfg.MeasureTimeout));]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_AdjustmentPlausible" Id="{d521abdc-aca2-4cfb-9eaa-e02bf9e4c124}">
+      <Declaration><![CDATA[// The retained pair is plausible when its gain lies within [AI_GAIN_MIN,
+// AI_GAIN_MAX] of the nominal gain. The RATIO is compared, not its absolute
+// value, so a reversed sign is implausible too. A pair outside the band is
+// not a calibration; it is what a corrupted restore or a layout change
+// leaves behind, and measuring through it would publish a number nobody
+// calibrated.
+METHOD PRIVATE _M_AdjustmentPlausible : BOOL
+VAR_INPUT
+    Ref1, Ref2, Meas1, Meas2 : LREAL;
+END_VAR
+VAR
+    nominal   : LREAL;
+    adjusted  : LREAL;
+    ratio     : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[nominal := (ParCfg.EngMax - ParCfg.EngMin) / (ParCfg.RawMax - ParCfg.RawMin);
+adjusted := (Ref2 - Ref1) / (Meas2 - Meas1);
+ratio := adjusted / nominal;
+_M_AdjustmentPlausible := (ratio >= AI_GAIN_MIN) AND (ratio <= AI_GAIN_MAX);]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,49 @@
+== plc_lint modern
+plc_lint: 452 file(s) clean (profile: modern).
+exit=0
+== plc_lint 4024
+plc_lint: 452 file(s) clean (profile: 4024).
+exit=0
+== TC3 tool tests
+Ran 79 tests in 1.206s
+OK (skipped=1)
+exit=0
+== check_consistency --strict
+check_consistency: 0 error(s), 0 warning(s) across inventory, localization, parity, readsurface
+exit=0
+== repo gate tests
+python.exe -m unittest: error: argument checks: invalid choice: 'bogus' (choose from inventory, localization, parity, readsurface)
+Ran 85 tests in 4.762s
+OK
+exit=0
+== check_ab_spec
+Fraktal/AB specification gate: clean.
+exit=0
+== check_ab_contracts
+Fraktal/AB frozen-contract gate: clean.
+exit=0
+== check_tia_contracts
+Fraktal/TIA candidate V2 contract: clean (31 records, 22 enums; ). R3 remains partial.
+exit=0
+== check_tia_contracts --generated
+Fraktal/TIA candidate V2 contract: clean (31 records, 22 enums; generated=31). R3 remains partial.
+exit=0
+== tia_lint
+tia_lint: 0 finding(s); pending (need the generator's declaration model): T-TIER, T-IO, T-WIDTH, T-GEN
+exit=0
+== tia generate verify
+{"verified_sources": 24}
+exit=0
+== tia examples verify
+  "replayed_sources": 286,
+exit=0
+== tia io bridge
+{"replayed_sources": 5, "physical": true}
+exit=0
+== Siemens tool tests
+Ran 271 tests in 114.714s
+OK
+exit=0
+== reason generator --check
+exit=0
+ALL=0

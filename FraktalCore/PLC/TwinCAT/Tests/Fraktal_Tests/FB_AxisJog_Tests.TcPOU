@@ -15,7 +15,10 @@ VAR
     _axA  : FB_AxisCM;   _refA : AXIS_REF;   _sA : INT;   _nA : INT;
     _axB  : FB_AxisCM;   _refB : AXIS_REF;   _sB : INT;   _nB : INT;
     _axC  : FB_AxisCM;   _refC : AXIS_REF;
-    _w1, _w2, _w3, _w4, _w5, _w6, _w7 : BOOL;
+    _axD  : FB_AxisCM;   _refD : AXIS_REF;
+    _axE  : FB_AxisCM;   _refE : AXIS_REF;
+    _ok : BOOL;
+    _w1, _w2, _w3, _w4, _w5, _w6, _w7, _w8, _w9, _d9 : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[No_enabling_device_mirrored_means_never_enabled();
@@ -25,7 +28,9 @@ A_safety_fault_withdraws_the_permission();
 Jog_is_refused_without_a_held_enabling_device();
 Jog_stops_when_the_request_stops_arriving();
 Capture_stores_the_modules_own_live_value();
-Capture_is_refused_for_a_key_that_offers_none();]]></ST>
+Capture_is_refused_for_a_key_that_offers_none();
+Declared_positions_register_and_capture();
+Declare_out_of_range_twice_or_after_setup_refused();]]></ST>
     </Implementation>
       <Method Name="_M_Enable" Id="{b5ab576b-add6-471a-83c9-321e73bc40d2}">
         <Declaration><![CDATA[// Build a safety facet carrying one enabling device in a given state.
@@ -261,5 +266,60 @@ END_IF
 TEST_FINISHED();]]></ST>
         </Implementation>
       </Method>
+    <Method Name="Declared_positions_register_and_capture" Id="{3a7c66cf-8538-4a19-8879-0fb28edde340}">
+      <Declaration><![CDATA[METHOD Declared_positions_register_and_capture]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Declared_positions_register_and_capture');
+IF NOT _w8 THEN
+    _ok := _axD.M_DeclarePosition(Index := 2, LabelKey := 'project.position.pick');
+    AssertTrue(Condition := _ok, Message := 'position 2 declared');
+    _ok := _axD.M_DeclarePosition(Index := 3, LabelKey := 'project.position.place');
+    AssertTrue(Condition := _ok, Message := 'position 3 declared');
+    _w8 := _axD.Setup(Name := 'JogD', AxisRef := _refD, Recipe := 0);
+    AssertTrue(Condition := _w8, Message := 'Setup registers the declarations');
+    // Typed: an engineer's number, through the station path.
+    _ok := _axD.M_ApplyConfigWrite(Scope := 'JogD', WriteKey := 'axis.position2',
+        Revision := 1, TextValue := '50', RootReady := TRUE);
+    AssertTrue(Condition := _ok, Message := 'a declared position is typeable');
+    AssertEquals_LREAL(Expected := 50.0, Actual := _axD._teach.Positions[2], Delta := 0.0001,
+        Message := 'and stored');
+    _ok := _axD.M_ApplyConfigWrite(Scope := 'JogD', WriteKey := 'axis.manualStep',
+        Revision := 1, TextValue := '10', RootReady := TRUE);
+    AssertTrue(Condition := _ok, Message := 'the manual step is editable');
+    // Captured: the live position, the same source the taught position uses
+    // (3.8c(b)); without a licensed NC axis the live value is its initial 0.
+    _ok := _axD.M_ApplyCapture(Scope := 'JogD', WriteKey := 'axis.position3',
+        Revision := 1, RootReady := TRUE);
+    AssertTrue(Condition := _ok, Message := 'a declared position is capturable');
+    AssertEquals_LREAL(Expected := 0.0, Actual := _axD._teach.Positions[3], Delta := 0.0001,
+        Message := 'the capture stored the live position');
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Declare_out_of_range_twice_or_after_setup_refused" Id="{a6edebd7-d1b2-49fa-91f3-e24a9dc8b404}">
+      <Declaration><![CDATA[METHOD Declare_out_of_range_twice_or_after_setup_refused]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Declare_out_of_range_twice_or_after_setup_refused');
+IF NOT _d9 THEN
+    // A fresh instance: every refusal before Setup is judged by the rule it
+    // names, not masked by the after-Setup refusal.
+    AssertFalse(Condition := _axE.M_DeclarePosition(Index := 1, LabelKey := 'project.position.one'),
+        Message := 'position 1 is the standing taught position, not declarable');
+    AssertFalse(Condition := _axE.M_DeclarePosition(Index := 0, LabelKey := 'project.position.zero'),
+        Message := 'below the declarable range is refused');
+    AssertFalse(Condition := _axE.M_DeclarePosition(Index := 9, LabelKey := 'project.position.nine'),
+        Message := 'beyond MAX_POSITIONS is refused');
+    AssertFalse(Condition := _axE.M_DeclarePosition(Index := 5, LabelKey := ''),
+        Message := 'an empty label is refused');
+    AssertTrue(Condition := _axE.M_DeclarePosition(Index := 5, LabelKey := 'project.position.five'),
+        Message := 'none of the refusals took the index');
+    AssertFalse(Condition := _axE.M_DeclarePosition(Index := 5, LabelKey := 'project.position.again'),
+        Message := 'a second declaration of the same index is refused');
+    _w9 := _axE.Setup(Name := 'JogE', AxisRef := _refE, Recipe := 0);
+    AssertTrue(Condition := _w9, Message := 'Setup accepts the declaration');
+    AssertFalse(Condition := _axE.M_DeclarePosition(Index := 6, LabelKey := 'project.position.late'),
+        Message := 'a declaration after Setup is refused - it would be uneditable');
+    _d9 := TRUE;
+END_IF
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

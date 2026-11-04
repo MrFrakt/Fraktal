@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_AnalogOutputOutImm" Id="{47b3b289-487f-43e8-b7d1-b5df04f652ae}">
+    <Declaration><![CDATA[// Core S3.12 - cyclic status: what the channel is driving right now, at both
+// ends of the scaling. Withdrawn is the owner's functional stop (the same
+// latch the cylinder publishes); a suspended channel (S9.3) drives SafeValue
+// without setting Withdrawn, so the two states stay distinguishable.
+TYPE ST_AnalogOutputOutImm :
+STRUCT
+    Value     : LREAL;
+    Raw       : LREAL;
+    Withdrawn : BOOL;
+    IoTag     : STRING(80);
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -30,6 +30,11 @@ VAR
     _pose  : ST_RobotPose;
     _w1, _w2, _w3, _w4, _w5, _w6 : BOOL;
     _sent2, _sent4 : BOOL;
+    _chanE : FB_SimByteChannel;  _connE : FB_StaubliVal3Connector;  _iE : INT;  _wE : BOOL;
+    _chanF : FB_SimByteChannel;  _connF : FB_StaubliVal3Connector;  _iF : INT;  _wF, _sentF : BOOL;
+    _chanG : FB_SimByteChannel;  _connG : FB_StaubliVal3Connector;  _iG : INT;  _wG, _sentG : BOOL;
+    _chanH : FB_SimByteChannel;  _connH : FB_StaubliVal3Connector;  _iH : INT;  _wH : BOOL;  _capsH : ST_RobotCapabilities;
+    _chanI : FB_SimByteChannel;  _connI : FB_StaubliVal3Connector;  _iI : INT;  _wI, _sentI : BOOL;  _capsI : ST_RobotCapabilities;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Link_down_refuses_every_command_rather_than_dropping_it();
@@ -37,7 +42,12 @@ Id_addressed_commands_are_framed_on_the_wire();
 Status_poll_publishes_the_controllers_reported_facts();
 Controller_error_is_carried_verbatim_and_faults();
 Resume_is_refused_when_the_arm_left_the_retained_path();
-Unknown_mode_request_is_refused_outright();]]></ST>
+Unknown_mode_request_is_refused_outright();
+Status_reply_reports_arm_power_and_user_inputs();
+User_outputs_ride_the_status_poll();
+Speed_then_move_in_one_scan_both_reach_the_wire();
+The_controllers_offer_is_asked_once_and_its_demands_decoded();
+An_untaught_point_is_refused_with_its_own_reason_and_an_unanswered_offer_filters_nothing();]]></ST>
     </Implementation>
       <Method Name="Link_down_refuses_every_command_rather_than_dropping_it" Id="{ce24fe50-b1bd-4599-ac24-7c1223c8a3f1}">
         <Declaration><![CDATA[METHOD PRIVATE Link_down_refuses_every_command_rather_than_dropping_it]]></Declaration>
@@ -73,6 +83,7 @@ IF _i2 = 0 THEN
     // The channel only replies when the sent line matches EXACTLY, so a reply
     // proves the frame. Every argument is an identifier - never a coordinate (I.1).
     _chan.Script(Expect := 'STA$R', Reply := 'STA,OK,0,1,AUTO,4,0,1,0,0,0,0,0,0$R');
+    _chan.Script(Expect := 'CAP$R', Reply := 'CAP,OK,262142,7,8$R');
     _chan.Script(Expect := 'TPL,11,22$R', Reply := 'TPL,OK$R');
     _conn.SetupLink(Name := 'Test.Robot', Chan := _chan, DevHost := '10.0.0.20', DevPort := 11000);
     _conn.Connect();
@@ -109,6 +120,7 @@ IF _w3 THEN
 END_IF
 IF _i = 0 THEN
     // STA,OK,busy,ref,mode,area,prot,resumable,x,y,z,rx,ry,rz
+    _chanC.Script(Expect := 'CAP$R', Reply := 'CAP,OK,262142,7,8$R');
     _chanC.Script(Expect := 'STA$R',
         Reply := 'STA,OK,0,1,AUTO,4,0,1,100.5,200,300,0,0,90$R');
     _connC.SetupLink(Name := 'Test.RobotC', Chan := _chanC, DevHost := '10.0.0.21', DevPort := 11000);
@@ -160,6 +172,7 @@ IF _w4 THEN
 END_IF
 IF _i4 = 0 THEN
     _chanD.Script(Expect := 'STA$R', Reply := 'STA,OK,0,0,AUTO,0,0,0,0,0,0,0,0,0$R');
+    _chanD.Script(Expect := 'CAP$R', Reply := 'CAP,OK,262142,7,8$R');
     _chanD.Script(Expect := 'HOME$R', Reply := 'HOME,ERR,J12,joint 3 out of range$R');
     _connD.SetupLink(Name := 'Test.RobotD', Chan := _chanD, DevHost := '10.0.0.22', DevPort := 11000);
     _connD.Connect();
@@ -222,6 +235,186 @@ IF NOT _w6 THEN
     _w6 := TRUE;
 END_IF
 TEST_FINISHED();]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Status_reply_reports_arm_power_and_user_inputs" Id="{de7cf857-f37b-4dc1-b66a-d4a2a93fc47b}">
+        <Declaration><![CDATA[METHOD PRIVATE Status_reply_reports_arm_power_and_user_inputs]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Status_reply_reports_arm_power_and_user_inputs');
+IF _wE THEN
+    RETURN;
+END_IF
+IF _iE = 0 THEN
+    // ...,<rz>,<power>,<pathIdx>,<due>,<in1>,<in2>: the appended fields.
+    _chanE.Script(Expect := 'STA$R', Reply := 'STA,OK,0,1,AUTO,4,0,1,0,0,0,0,0,0,1,3,0,7,42$R');
+    _chanE.Script(Expect := 'CAP$R', Reply := 'CAP,OK,262142,7,8$R');
+    _connE.SetupLink(Name := 'Test.RobotE', Chan := _chanE, DevHost := '10.0.0.23', DevPort := 11000);
+    _connE.Connect();
+END_IF
+_connE.Cyclic();
+_iE := _iE + 1;
+IF _connE.Referenced THEN
+    AssertTrue(Condition := _connE.ArmPowerOn, Message := 'the reported drive power is published');
+    AssertEquals_DINT(Expected := 3, Actual := _connE.PathIndex, Message := 'and how far the path got');
+    AssertEquals_LREAL(Expected := 7.0, Actual := _connE.UserSignal(Index := 1), Delta := 0.0001,
+        Message := 'user input 1 is the first appended value');
+    AssertEquals_LREAL(Expected := 42.0, Actual := _connE.UserSignal(Index := 2), Delta := 0.0001,
+        Message := 'user input 2 the second');
+    AssertEquals_LREAL(Expected := 0.0, Actual := _connE.UserSignal(Index := 3), Delta := 0.0001,
+        Message := 'an absent field reads 0');
+    _wE := TRUE;
+    TEST_FINISHED();
+ELSIF _iE > 3000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the status reply never arrived');
+    _wE := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="User_outputs_ride_the_status_poll" Id="{c6065944-e1e4-4186-ba50-1a3cf898f9d6}">
+        <Declaration><![CDATA[METHOD PRIVATE User_outputs_ride_the_status_poll]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('User_outputs_ride_the_status_poll');
+IF _wF THEN
+    RETURN;
+END_IF
+IF _iF = 0 THEN
+    // Only the poll that carries the two outputs is answered with user input 9,
+    // so seeing 9 proves the frame STA,1,42 went out.
+    _chanF.Script(Expect := 'STA$R', Reply := 'STA,OK,0,1,AUTO,4,0,1,0,0,0,0,0,0,0$R');
+    _chanF.Script(Expect := 'STA,1,42$R', Reply := 'STA,OK,0,1,AUTO,4,0,1,0,0,0,0,0,0,1,-1,0,9$R');
+    _chanF.Script(Expect := 'CAP$R', Reply := 'CAP,OK,262142,7,8$R');
+    _connF.SetupLink(Name := 'Test.RobotF', Chan := _chanF, DevHost := '10.0.0.24', DevPort := 11000);
+    _connF.Connect();
+END_IF
+_connF.Cyclic();
+_iF := _iF + 1;
+IF _connF.Linked AND NOT _sentF THEN
+    AssertTrue(Condition := _connF.WriteUserSignal(Index := 1, Value := 1.0), Message := 'output 1 is accepted');
+    AssertTrue(Condition := _connF.WriteUserSignal(Index := 2, Value := 42.0), Message := 'output 2 is accepted');
+    AssertFalse(Condition := _connF.WriteUserSignal(Index := 0, Value := 1.0), Message := 'index 0 is refused');
+    _sentF := TRUE;
+ELSIF _sentF AND (_connF.UserSignal(Index := 1) = 9.0) THEN
+    AssertTrue(Condition := _connF.ArmPowerOn, Message := 'the poll carrying the outputs was answered');
+    AssertEquals_DINT(Expected := -1, Actual := _connF.PathIndex, Message := 'no path progress reads -1');
+    _wF := TRUE;
+    TEST_FINISHED();
+ELSIF _iF > 3000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the outputs never travelled with the status poll');
+    _wF := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Speed_then_move_in_one_scan_both_reach_the_wire" Id="{ce85a377-66d6-4446-8bf6-57caa0062906}">
+        <Declaration><![CDATA[METHOD PRIVATE Speed_then_move_in_one_scan_both_reach_the_wire]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Speed_then_move_in_one_scan_both_reach_the_wire');
+IF _wG THEN
+    RETURN;
+END_IF
+IF _iG = 0 THEN
+    // The CM sends the speed and the move in the same scan, and the link-up CAP
+    // question (or a status poll) may hold the slot at that very scan. Both must
+    // WAIT, not be refused as a lost link.
+    _chanG.Script(Expect := 'STA$R', Reply := 'STA,OK,0,1,AUTO,4,0,1,0,0,0,0,0,0,1$R');
+    _chanG.Script(Expect := 'CAP$R', Reply := 'CAP,OK,262142,7,8$R');
+    _chanG.Script(Expect := 'SPD,50$R', Reply := 'SPD,OK$R');
+    _chanG.Script(Expect := 'MOV,5$R', Reply := 'MOV,OK$R');
+    _connG.SetupLink(Name := 'Test.RobotG', Chan := _chanG, DevHost := '10.0.0.25', DevPort := 11000);
+    _connG.Connect();
+END_IF
+_connG.Cyclic();
+_iG := _iG + 1;
+IF _connG.Linked AND NOT _sentG THEN
+    AssertTrue(Condition := _connG.SetSpeedScale(Percent := 50.0), Message := 'the speed is accepted');
+    AssertTrue(Condition := _connG.MoveToPoint(PointId := 5), Message := 'and the move behind it is accepted, not refused');
+    _diag := _connG.LastResult;
+    AssertEquals_DINT(Expected := E_Reason.NONE, Actual := _diag.ReasonCode,
+        Message := 'with no reason against it');
+    _sentG := TRUE;
+ELSIF _sentG AND (_connG.LastResponse = 'MOV,OK') THEN
+    _wG := TRUE;
+    TEST_FINISHED();
+ELSIF _iG > 3000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the queued move never reached the wire');
+    _wG := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="The_controllers_offer_is_asked_once_and_its_demands_decoded" Id="{7007397d-e287-4fa9-8d47-06036e83040f}">
+        <Declaration><![CDATA[METHOD PRIVATE The_controllers_offer_is_asked_once_and_its_demands_decoded]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('The_controllers_offer_is_asked_once_and_its_demands_decoded');
+IF _wH THEN
+    RETURN;
+END_IF
+IF _iH = 0 THEN
+    // ...,<power>,<pathIdx>,<due>,<in1>: both routines asked for, input 1 = 5.
+    _chanH.Script(Expect := 'STA$R', Reply := 'STA,OK,0,1,AUTO,4,0,1,0,0,0,0,0,0,1,-1,3,5$R');
+    _chanH.Script(Expect := 'CAP$R', Reply := 'CAP,OK,40958,6,4$R');
+    _connH.SetupLink(Name := 'Test.RobotH', Chan := _chanH, DevHost := '10.0.0.26', DevPort := 11000);
+    _connH.Connect();
+END_IF
+_connH.Cyclic();
+_iH := _iH + 1;
+_capsH := _connH.Capabilities;
+IF _capsH.Reported THEN
+    AssertEquals_DWORD(Expected := 40958, Actual := _capsH.Commands, Message := 'the offered commands, as sent');
+    AssertEquals_INT(Expected := 6, Actual := _capsH.JogAxes, Message := 'the jog axes');
+    AssertEquals_INT(Expected := 4, Actual := _capsH.UserSignals, Message := 'the user-signal slots');
+    AssertTrue(Condition := _connH.BrakeTestDue, Message := 'due bit 1 is the brake test');
+    AssertTrue(Condition := _connH.SafeReferenceDue, Message := 'due bit 2 the safe reference run');
+    AssertEquals_LREAL(Expected := 5.0, Actual := _connH.UserSignal(Index := 1), Delta := 0.0001,
+        Message := 'and the user inputs follow the due field');
+    _diag := _connH.LastResult;
+    AssertEquals_DINT(Expected := E_Reason.NONE, Actual := _diag.ReasonCode,
+        Message := 'asking is housekeeping: it leaves no reason behind');
+    _wH := TRUE;
+    TEST_FINISHED();
+ELSIF _iH > 3000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the controller was never asked what it offers');
+    _wH := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="An_untaught_point_is_refused_with_its_own_reason_and_an_unanswered_offer_filters_nothing" Id="{fd3d6da8-f2c2-4b22-9b07-218412b75d1f}">
+        <Declaration><![CDATA[METHOD PRIVATE An_untaught_point_is_refused_with_its_own_reason_and_an_unanswered_offer_filters_nothing]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('An_untaught_point_is_refused_with_its_own_reason_and_an_unanswered_offer_filters_nothing');
+IF _wI THEN
+    RETURN;
+END_IF
+IF _iI = 0 THEN
+    // A server that predates CAP refuses it; the move is refused as untaught.
+    _chanI.Script(Expect := 'STA$R', Reply := 'STA,OK,0,1,AUTO,4,0,1,0,0,0,0,0,0,1$R');
+    _chanI.Script(Expect := 'CAP$R', Reply := 'CAP,ERR,E01,unknown request$R');
+    _chanI.Script(Expect := 'MOV,42$R', Reply := 'MOV,ERR,UNKNOWN_ID,point 42 not taught$R');
+    _connI.SetupLink(Name := 'Test.RobotI', Chan := _chanI, DevHost := '10.0.0.27', DevPort := 11000);
+    _connI.Connect();
+END_IF
+_connI.Cyclic();
+_iI := _iI + 1;
+_diag := _connI.LastResult;
+IF _connI.Linked AND NOT _sentI THEN
+    AssertTrue(Condition := _connI.MoveToPoint(PointId := 42), Message := 'the move is sent');
+    _sentI := TRUE;
+ELSIF _sentI AND (_diag.ReasonCode <> E_Reason.NONE) THEN
+    AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_POINT_UNKNOWN, Actual := _diag.ReasonCode,
+        Message := 'an untaught point carries its own reason, not a generic controller fault');
+    AssertEquals_STRING(Expected := 'UNKNOWN_ID point 42 not taught', Actual := _diag.Description,
+        Message := 'with the controller$'s own text');
+    _capsI := _connI.Capabilities;
+    AssertFalse(Condition := _capsI.Reported, Message := 'a refused CAP leaves the offer unreported');
+    _wI := TRUE;
+    TEST_FINISHED();
+ELSIF _iI > 3000 THEN
+    AssertTrue(Condition := FALSE, Message := 'the controller$'s refusal never arrived');
+    _wI := TRUE;
+    TEST_FINISHED();
+END_IF]]></ST>
         </Implementation>
       </Method>
   </POU>

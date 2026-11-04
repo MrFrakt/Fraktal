@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Itf Name="I_RobotRoutines" Id="{064cbde2-0ca8-4eef-9268-aefa167f17ac}">
+    <Declaration><![CDATA[// Annex I I.5b - the controller's OWN routines: the periodic brake test and the
+// safe reference run (the safety controller re-verifying the arm position). A
+// capability group, so a narrow secondary interface a robot connector MAY
+// implement beside I_RobotConnector, never a widening of it. The robot CM finds
+// it at Setup; without it BRAKE_TEST / SAFE_REFERENCE are not offered and
+// nothing is reported due.
+//
+// The controller owns, validates and paces each routine; Fraktal only asks for
+// it and reads its verdict. Progress is the connector's MotionBusy; a routine
+// has passed when the controller withdraws its demand. What the controller still
+// permits while a demand stands is its decision, not the PLC's.
+INTERFACE I_RobotRoutines EXTENDS __System.IQueryInterface]]></Declaration>
+      <Method Name="RunBrakeTest" Id="{50945001-2805-448c-b8ab-f88ff8df137a}">
+        <Declaration><![CDATA[// Start the controller's brake test. FALSE = refused, with the connector's
+// LastResult carrying the reason (I.3).
+METHOD RunBrakeTest : BOOL]]></Declaration>
+      </Method>
+      <Method Name="RunSafeReference" Id="{f686b707-fcfb-4409-a787-fd00f4316383}">
+        <Declaration><![CDATA[// Start the controller's safe reference run; as RunBrakeTest.
+METHOD RunSafeReference : BOOL]]></Declaration>
+      </Method>
+      <Property Name="BrakeTestDue" Id="{15764314-d735-4c7f-b9cc-79b20cc9d0a7}">
+        <Declaration><![CDATA[// The controller asks for its brake test.
+PROPERTY BrakeTestDue : BOOL]]></Declaration>
+        <Get Name="Get" Id="{d10b52c1-b012-4c44-ad03-cc17c9e4354e}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="SafeReferenceDue" Id="{6c63648a-4a1c-4f61-a491-58a705645393}">
+        <Declaration><![CDATA[// The controller asks for its safe reference run.
+PROPERTY SafeReferenceDue : BOOL]]></Declaration>
+        <Get Name="Get" Id="{efdd851e-f39e-4e73-8eb7-0c73aa6a887c}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+  </Itf>
+</TcPlcObject>

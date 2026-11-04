@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_ProbeAxisParCfgV1" Id="{8584621f-bff5-4ea2-b4e3-569347cb9d8e}">
+    <Declaration><![CDATA[// The axis ParCfg as v1 shipped it (no speed-scale band). A provider record
+// registered with this SIZE is what a station that stored v1 presents at the
+// next prepare: refused with RECIPE_INVALID, never interpreted by position.
+TYPE ST_ProbeAxisParCfgV1 :
+STRUCT
+    SchemaVersion : UINT := 1;
+    SoftMin       : LREAL := 0.0;
+    SoftMax       : LREAL := 100.0;
+    Velocity      : LREAL := 50.0;
+    Acceleration  : LREAL := 500.0;
+    Deceleration  : LREAL := 500.0;
+    MoveTimeout   : TIME := T#10S;
+    HomeTimeout   : TIME := T#30S;
+    JogVelocity     : LREAL := 5.0;
+    JogAcceleration : LREAL := 100.0;
+    JogTimeout      : TIME := T#200MS;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_NokPolicy_Tests" Id="{ede343db-8524-419c-8014-17acaf32e3e5}" SpecialFunc="None">
+    <Declaration><![CDATA[// Core §3.16.5 - the Unit's NOK-part limit: counted on the one verdict path, a trip
+// is one MANUAL_RESET alarm that refuses Start and ends a running cycle at its stop
+// point, and one operator reset re-arms both rules.
+FUNCTION_BLOCK FB_NokPolicy_Tests EXTENDS TcUnit.FB_TestSuite
+VAR
+    // One Unit serves the single-scan rows: each starts from a clean slate
+    // (_M_Fresh), so they share it safely. The running row needs its own.
+    _u, _run : FB_ProbeUnit;
+    _report : ST_ReleaseReport;
+    _wired : BOOL;
+    _offDone, _invalidDone, _seriesDone, _okDone, _reworkDone : BOOL;
+    _windowDone, _startDone, _rearmDone, _runDone : BOOL;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[IF NOT _wired THEN
+    _u.Setup(Name := 'Test.Nok');
+    _run.Setup(Name := 'Test.NokRun');
+    _wired := TRUE;
+END_IF
+Policy_is_off_by_default();
+Invalid_policy_refused();
+Nok_in_series_trips_once();
+Ok_clears_the_series();
+Rework_is_neutral();
+X_of_y_trips();
+Start_refused_with_manual_reset_after_a_trip();
+One_operator_reset_rearms_both_rules();
+A_trip_stops_a_running_unit_at_its_cycle_end();]]></ST></Implementation>
+    <Method Name="_M_Fresh" Id="{0de3bf32-c0dc-45ec-85f4-b16ff0024914}">
+      <Declaration><![CDATA[// Close any trip a previous row left and set this row's policy (which counts afresh).
+METHOD PRIVATE _M_Fresh : BOOL
+VAR_INPUT
+    InSeries : INT;
+    WindowCount : INT;
+    WindowNok : INT;
+END_VAR
+VAR
+    cfg : ST_NokPolicyParCfg;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_u.OperatorReset();
+cfg.InSeries := InSeries;
+cfg.WindowCount := WindowCount;
+cfg.WindowNok := WindowNok;
+_M_Fresh := _u.SetNokPolicy(Cfg := cfg) AND NOT _u.AlarmLog.Blocking;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Nok" Id="{8b94d31a-685a-4064-a2d5-a285ae018181}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_Nok
+VAR_INPUT
+    Count : INT;
+END_VAR
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[FOR i := 1 TO Count DO
+    _u.CountNok(Reason := E_Reason.TEST_FAULT);
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_TripAlarms" Id="{20d614ad-b113-4612-8436-6e23bad97f3f}">
+      <Declaration><![CDATA[// Open NOK_LIMIT_REACHED events on the shared Unit.
+METHOD PRIVATE _M_TripAlarms : INT
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_TripAlarms := 0;
+FOR i := 1 TO PL_Fraktal.MAX_ALARM_ACTIVE DO
+    IF (_u.AlarmLog.Active[i].State <> E_AlarmState.CLOSED)
+    AND (_u.AlarmLog.Active[i].ReasonCode = E_Reason.NOK_LIMIT_REACHED) THEN
+        _M_TripAlarms := _M_TripAlarms + 1;
+    END_IF
+END_FOR]]></ST></Implementation>
+    </Method>
+    <Method Name="Policy_is_off_by_default" Id="{f4f54ef7-40e3-4e07-bfb9-957ae78347a6}">
+      <Declaration><![CDATA[METHOD Policy_is_off_by_default]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Policy_is_off_by_default');
+IF _offDone THEN
+    RETURN;
+END_IF
+_M_Nok(Count := 10);
+AssertFalse(Condition := _u.AlarmLog.Blocking,
+    Message := 'no limit applies until the composition root sets one');
+AssertEquals_INT(Expected := 0, Actual := _M_TripAlarms(), Message := 'and no trip alarm is raised');
+_offDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Invalid_policy_refused" Id="{e99c9bd7-9fe3-4488-b53b-657472e35e12}">
+      <Declaration><![CDATA[METHOD Invalid_policy_refused
+VAR
+    fresh, cfg : ST_NokPolicyParCfg;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Invalid_policy_refused');
+IF _invalidDone THEN
+    RETURN;
+END_IF
+cfg := fresh;
+cfg.InSeries := -1;
+AssertFalse(Condition := _u.SetNokPolicy(Cfg := cfg), Message := 'a negative series is refused');
+cfg := fresh;
+cfg.WindowCount := 2;
+cfg.WindowNok := 3;
+AssertFalse(Condition := _u.SetNokPolicy(Cfg := cfg), Message := 'more NOK than the window holds is refused');
+cfg := fresh;
+cfg.WindowCount := PL_Fraktal.NOK_WINDOW_MAX + 1;
+cfg.WindowNok := 1;
+AssertFalse(Condition := _u.SetNokPolicy(Cfg := cfg), Message := 'a window beyond NOK_WINDOW_MAX is refused');
+cfg := fresh;
+cfg.WindowCount := 5;
+AssertFalse(Condition := _u.SetNokPolicy(Cfg := cfg), Message := 'a window without a limit is refused');
+cfg := fresh;
+cfg.SchemaVersion := 2;
+cfg.InSeries := 2;
+AssertFalse(Condition := _u.SetNokPolicy(Cfg := cfg), Message := 'another layout is refused, not interpreted');
+_M_Nok(Count := 5);
+AssertFalse(Condition := _u.AlarmLog.Blocking, Message := 'a refused policy changes nothing: still no limit');
+cfg := fresh;
+cfg.InSeries := 2;
+AssertTrue(Condition := _u.SetNokPolicy(Cfg := cfg), Message := 'a well-formed policy is accepted');
+_invalidDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Nok_in_series_trips_once" Id="{2ad0bc00-cbf0-4dd5-8b9e-818c92abdcf3}">
+      <Declaration><![CDATA[METHOD Nok_in_series_trips_once]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Nok_in_series_trips_once');
+IF _seriesDone THEN
+    RETURN;
+END_IF
+AssertTrue(Condition := _M_Fresh(InSeries := 3, WindowCount := 0, WindowNok := 0), Message := 'policy set');
+_M_Nok(Count := 2);
+AssertFalse(Condition := _u.AlarmLog.Blocking, Message := 'two in a row are below the limit');
+_M_Nok(Count := 1);
+AssertTrue(Condition := _u.AlarmLog.Blocking, Message := 'the third in a row trips');
+AssertTrue(Condition := F_ProbeAlarmActive(pLog := ADR(_u.AlarmLog),
+        Reason := E_Reason.NOK_LIMIT_REACHED, Source := 'Test.Nok'),
+    Message := 'as NOK_LIMIT_REACHED on the Unit');
+_M_Nok(Count := 2);
+AssertEquals_INT(Expected := 1, Actual := _M_TripAlarms(),
+    Message := 'one alarm per trip, however many rejects follow');
+_seriesDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Ok_clears_the_series" Id="{606810f5-5c28-4766-b90e-3d415e8ea177}">
+      <Declaration><![CDATA[METHOD Ok_clears_the_series]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Ok_clears_the_series');
+IF _okDone THEN
+    RETURN;
+END_IF
+AssertTrue(Condition := _M_Fresh(InSeries := 3, WindowCount := 0, WindowNok := 0), Message := 'policy set');
+_M_Nok(Count := 2);
+_u.CountGood();
+_M_Nok(Count := 2);
+AssertFalse(Condition := _u.AlarmLog.Blocking, Message := 'a good part ends the series');
+_M_Nok(Count := 1);
+AssertTrue(Condition := _u.AlarmLog.Blocking, Message := 'three in a row after it trip');
+_okDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Rework_is_neutral" Id="{d14bafe0-9f22-43b4-9bc4-f1f9ee15d3cd}">
+      <Declaration><![CDATA[METHOD Rework_is_neutral]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Rework_is_neutral');
+IF _reworkDone THEN
+    RETURN;
+END_IF
+AssertTrue(Condition := _M_Fresh(InSeries := 2, WindowCount := 0, WindowNok := 0), Message := 'policy set');
+_M_Nok(Count := 1);
+_u.CountRework();
+AssertFalse(Condition := _u.AlarmLog.Blocking, Message := 'a rework is not a reject');
+_M_Nok(Count := 1);
+AssertTrue(Condition := _u.AlarmLog.Blocking, Message := 'nor does it end the series');
+_reworkDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="X_of_y_trips" Id="{56bce4a1-fd43-495b-9bc0-ce79509934ca}">
+      <Declaration><![CDATA[METHOD X_of_y_trips
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('X_of_y_trips');
+IF _windowDone THEN
+    RETURN;
+END_IF
+AssertTrue(Condition := _M_Fresh(InSeries := 0, WindowCount := 5, WindowNok := 3), Message := 'policy set');
+_M_Nok(Count := 1);
+FOR i := 1 TO 5 DO
+    _u.CountGood();                              // the first reject leaves the window
+END_FOR
+_M_Nok(Count := 2);
+AssertFalse(Condition := _u.AlarmLog.Blocking, Message := 'two of the last five are below the limit');
+_M_Nok(Count := 1);
+AssertTrue(Condition := _u.AlarmLog.Blocking, Message := 'three of the last five trip');
+_windowDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="Start_refused_with_manual_reset_after_a_trip" Id="{150cd461-c655-45ad-b40b-7305b38d113a}">
+      <Declaration><![CDATA[METHOD Start_refused_with_manual_reset_after_a_trip
+VAR
+    i : INT;
+    named : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('Start_refused_with_manual_reset_after_a_trip');
+IF _startDone THEN
+    RETURN;
+END_IF
+AssertTrue(Condition := _M_Fresh(InSeries := 1, WindowCount := 0, WindowNok := 0), Message := 'policy set');
+_M_Nok(Count := 1);
+AssertFalse(Condition := _u.ReleaseReportStart(Report := _report), Message := 'a trip withholds the release');
+FOR i := 1 TO MIN(_report.Count, PL_Fraktal.MAX_RELEASE_REASONS) DO
+    named := named OR (_report.Reasons[i].Description = 'std.release.manualReset');
+END_FOR
+AssertTrue(Condition := named, Message := 'through the record every blocking alarm adds - no new gate');
+AssertFalse(Condition := _u.Start(), Message := 'and Start is refused');
+_startDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="One_operator_reset_rearms_both_rules" Id="{730a5f97-9f8b-4a5e-b5bc-ac4ac05e0e9f}">
+      <Declaration><![CDATA[METHOD One_operator_reset_rearms_both_rules]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('One_operator_reset_rearms_both_rules');
+IF _rearmDone THEN
+    RETURN;
+END_IF
+AssertTrue(Condition := _M_Fresh(InSeries := 2, WindowCount := 4, WindowNok := 2), Message := 'policy set');
+_M_Nok(Count := 2);
+AssertTrue(Condition := _u.AlarmLog.Blocking, Message := 'both rules trip');
+AssertTrue(Condition := _u.OperatorReset(), Message := 'the operator resets the trip');
+AssertFalse(Condition := _u.AlarmLog.Blocking, Message := 'and the alarm closes');
+_M_Nok(Count := 1);
+AssertFalse(Condition := _u.AlarmLog.Blocking,
+    Message := 'the series and the window start empty again');
+_M_Nok(Count := 1);
+AssertTrue(Condition := _u.AlarmLog.Blocking, Message := 'and trip again as configured');
+_rearmDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+    <Method Name="A_trip_stops_a_running_unit_at_its_cycle_end" Id="{f0a0b0a1-46cf-4089-8aa9-117d766c77a1}">
+      <Declaration><![CDATA[METHOD A_trip_stops_a_running_unit_at_its_cycle_end
+VAR
+    cfg : ST_NokPolicyParCfg;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[TEST('A_trip_stops_a_running_unit_at_its_cycle_end');
+IF _runDone THEN
+    RETURN;
+END_IF
+cfg.InSeries := 1;
+AssertTrue(Condition := _run.SetNokPolicy(Cfg := cfg), Message := 'policy set');
+_run.SimA := TRUE;
+AssertTrue(Condition := _run.Start(), Message := 'the Unit starts');
+_run();                                          // edge -> BUSY; step 10 -> 20
+_run();
+AssertTrue(Condition := _run.Busy, Message := 'a cycle is running');
+AssertTrue(Condition := _run.CountNok(Reason := E_Reason.TEST_FAULT), Message := 'a reject is counted');
+AssertTrue(Condition := _run.AlarmLog.Blocking, Message := 'the limit trips');
+_run();
+AssertTrue(Condition := _run.Busy, Message := 'the part in hand is finished first');
+_run.SimB := TRUE;
+_run();                                          // -> step 30
+_run();                                          // EndOfCycle: the stop is granted
+_run();                                          // reset -> READY
+AssertFalse(Condition := _run.Busy, Message := 'the Unit stops at the end of its cycle');
+AssertFalse(Condition := _run.Start(), Message := 'and cannot start again until the trip is reset');
+_runDone := TRUE;
+TEST_FINISHED();]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

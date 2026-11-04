@@ -77,9 +77,9 @@ link supervision reuses the Annex D Framework band (`LINK_TIMEOUT := 2010`, …)
 contributes only its own §8.8 band, in `PL_ModuleReasons` beside every other module type's:
 
 ```iecst
-    // robot CM 10301-10315 (Annex I)
+    // robot CM 10301-10317 (Annex I)
     ROBOT_POINT_UNREACHABLE   : DINT := 10301;   // taught point not reachable with active tool/frame (rejected, §5.6)
-    ROBOT_POINT_UNKNOWN       : DINT := 10302;   // point/list/pallet ID not in the controller's database
+    ROBOT_POINT_UNKNOWN       : DINT := 10302;   // point/list/pallet ID not in the controller's database, or none given
     ROBOT_MOVE_TIMEOUT        : DINT := 10303;   // point/path did not complete within ParCfg.MoveTimeout
     ROBOT_CONTROLLER_FAULT    : DINT := 10304;   // drive/controller fault reported by the robot
     ROBOT_NOT_REFERENCED      : DINT := 10305;   // MOVE/RUN before a valid home/reference
@@ -94,6 +94,8 @@ contributes only its own §8.8 band, in `PL_ModuleReasons` beside every other mo
     ROBOT_PARAM_OOR           : DINT := 10314;   // a supplied command parameter is outside its configured band —
                                                  //   speed scale (I.4a) or target offset (I.8a); rejected before motion (§5.6, §14)
     ROBOT_RESUME_INVALID      : DINT := 10315;   // resume requested but the arm is no longer on the retained path (I.4b)
+    ROBOT_CFG_INVALID         : DINT := 10316;   // speed band, ceilings, default mode or timeouts the type cannot honour (§5.6)
+    ROBOT_ROUTINE_FAILED      : DINT := 10317;   // brake test / safe reference run ended with its demand still standing (I.5b)
 ```
 
 Each code **shall** land together with its `reason_rationalization.json` entry (priority, category,
@@ -107,7 +109,10 @@ rationalization, and a rationalization without a reason, both fail the build (§
 {attribute 'qualified_only'}
 TYPE E_RobotCommand : (
     NONE := 0, POWER_ON := 1, POWER_OFF := 2, HOME := 3, MOVE_TO := 4, RUN_PATH := 5,
-    RUN_PALLET := 6, MOVE_TEMPLATE := 7, MOVE_FROM_AREA := 8, SET_TOOL := 9, SET_FRAME := 10
+    RUN_PALLET := 6, MOVE_TEMPLATE := 7, MOVE_FROM_AREA := 8, SET_TOOL := 9, SET_FRAME := 10,
+    RECONNECT := 11, REQUEST_MODE := 12, SET_PAYLOAD := 13,
+    JOG_POS := 14, JOG_NEG := 15,  // HELD manual commands (§7.6.1), never Execute
+    BRAKE_TEST := 16, SAFE_REFERENCE := 17   // the controller's own routines (I.5b)
 ) DINT;
 END_TYPE
 ```
@@ -150,7 +155,7 @@ The interface itself remains Fraktal's, because the seam must stay platform-neut
 connector speaking its own protocol is a conformant alternative (§I.5), and SRCI is PROFINET-centric
 where Fraktal is not. What the table removes is the *duplicate definition*, not the abstraction.
 
-**Five members have no SRCI equivalent, because they express this annex's own model:**
+**These members have no SRCI equivalent asserted, because they express this annex's own model:**
 
 ```iecst
 // One pose type serves live readback and runtime corrections (I.8a). The connector owns the
@@ -184,15 +189,66 @@ INTERFACE I_RobotConnector EXTENDS I_DeviceConnector
     PROPERTY CurrentArea : DWORD                                // planning area the TCP is in (0 = none) (I.11)
     PROPERTY ProtectiveStop : BOOL                              // crash device tripped — not §9 safety (I.4a)
     PROPERTY Resumable : BOOL                                   // resume still valid on the retained path (I.4b)
-    PROPERTY LastResult : ST_Diagnostic                         // first-out reason + SourcePath
+    PROPERTY LastResult : ST_Diagnostic                         // the most recent request: NONE if accepted, its reason if refused
+    PROPERTY ArmPowerOn : BOOL                                  // the controller reports its drives powered (I.4)
+    PROPERTY PathIndex : DINT                                   // last completed point of the current/last path; -1 = none
+    METHOD WriteUserSignal : BOOL (Index : INT; Value : LREAL)  // the user channel, to the robot program (below)
+    METHOD UserSignal : LREAL (Index : INT)                     // the user channel, from the robot program
+    PROPERTY Capabilities : ST_RobotCapabilities                // what the connected controller offers (below)
     // (Linked / LastSeen / LinkReason / Cyclic inherited from I_DeviceConnector, Annex D)
 END_INTERFACE
 ```
 
-That split is the useful summary of this annex: **seven members carry everything the standard adds
+That split is the useful summary of this annex: **these members carry everything the standard adds
 over an ordinary robot command interface** — pallets, generated routes, area-resolved motion and
-pose recovery, the protective-stop distinction, and the resumability guard. The rest is a published
-standard, cited rather than re-invented.
+pose recovery, the protective-stop distinction, the resumability guard, the arm-power fact, path
+progress, a bounded user channel and the controller's own account of what it offers.
+
+**Capabilities — what the connected controller offers.** Two controllers behind the same connector
+need not offer the same commands: one has no load cases, one changes mode only on its key switch,
+one carries an additional axis. `Capabilities` is the controller's own answer — which commands it
+offers (bit *n* = `E_RobotCommand` *n*), how many axes a jog may address, how many user-signal slots
+it exchanges — with `Reported` saying whether it has answered. The CM publishes it read-only and
+refuses a command the controller does not offer **before anything is sent** (`UNSUPPORTED_COMMAND`,
+*"not offered"*); it starts no jog the controller does not offer and bounds jog axes and user signals
+by what it carries. An unreported set filters nothing: until the controller has said, its own
+refusal is the authority, so a server that predates the question behaves as before. The command
+catalog is not edited at runtime — it is static configuration served by the manifest (§3.9,
+§3.10.2) — so a command that is not offered stays listed and is refused with that reason.
+
+**A point that was never taught.** A point, list or pallet ID the controller does not hold **shall**
+be refused with `ROBOT_POINT_UNKNOWN`, never driven to a default or synthesized pose — a controller
+that quietly resolves an unknown ID to zero sends the arm somewhere nobody taught. The CM refuses a
+point-addressed command that names no point (ID 0, or no `FromId` for `MOVE_TEMPLATE`) before
+anything is sent; an ID the controller never taught is the controller's to refuse, with the same
+reason and its own text.
+
+**Path progress, and why there is no automatic continue.** `PathIndex` reports how far the current or
+most recent `RUN_PATH` got. After an abort that is what an operator needs to finish the job: a
+deliberate `RUN_PATH` from `PathIndex + 1`, issued from wherever the arm stands, continues it. The
+type never re-issues the remainder itself — resumption after an abort is deliberate (Annex D, §9.3),
+unlike a §6.1 hold, which resumes on the retained path (I.4b). The rest is a published standard, cited rather than re-invented.
+
+**`LastResult` is per request.** It describes the most recent robot request: empty when it was
+accepted, its reason when it was refused or failed. Every refusal **shall** leave a reason, because
+the CM adopts it verbatim (§8.2); a connector that refuses silently makes the CM name the refusal
+itself (`ROBOT_CONTROLLER_FAULT`, *"request refused"*) rather than fault with a zero code. Because an
+accepted request clears it, anything in `LastResult` after an accept is that command's own failure —
+even the same code an earlier command had.
+
+**The user channel.** A cell needs a few plain signals beside the command surface — a gripper flag
+the robot program reads, a counter it reports. Without a channel every station adds them in project
+code, invisible to the generic HMI; with an unbounded one a station rebuilds a motion command surface
+out of bits, with no validation, mode check, speed band or hold. The channel is therefore **declared
+and bounded**: the composition root declares each signal (slot, name key, direction, kind:
+flag/integer/real) on the CM, up to `PL_Robot.MAX_USER_SIGNALS`; the CM publishes every declared signal
+read-only (value and validity) so the HMI shows it with no robot-specific screen; a to-robot signal is
+written only through a CM method the owning EM calls — never from the HMI and never as part of a
+motion command — and a value that does not fit its kind is refused, never rounded. It **shall not**
+carry positions, motion modes, speeds or "go" requests: those stay ID-addressed (§I.1). The user
+channel is not a robot request and does not change `LastResult`. A connector may carry it however its
+protocol allows; the TCP connector rides it on the status poll, so it never competes with a command
+for the request slot.
 
 **Payload should be kept current.** A robot's dynamics, accuracy and brake margin depend on what it
 carries, and the load changes the moment a part is gripped or released. An application **should**
@@ -230,12 +286,13 @@ STRUCT
     Nest       : DINT;  // nest index (RUN_PALLET only)
     StartIdx   : DINT;  // sub-path bounds (RUN_PATH; -1,-1 = whole list)
     EndIdx     : DINT;
+    Mode       : E_RobotOpMode; // REQUEST_MODE only; UNKNOWN is refused (I.4a(a))
 END_STRUCT
 END_TYPE
 
 TYPE ST_RobotParCfg :
 STRUCT
-    SchemaVersion : UINT := 1;      // recipe-class config is versioned (§3.8)
+    SchemaVersion : UINT := 2;      // recipe-class config is versioned (§3.8); v2 added the mode request
     MoveTimeout   : TIME := T#60S;  // per-command guard; the Unit step's ExpectedTime (§6.5) remains the outer one
     HomeTimeout   : TIME := T#120S;
     OffsetLimit   : ST_RobotPose;   // per-axis envelope for a runtime target correction (I.8a)
@@ -246,6 +303,9 @@ STRUCT
     // type name. UNKNOWN is 0.0 on purpose: a mode the controller has not reported
     // earns no speed allowance at all.
     SpeedCeiling  : ARRAY[0..3] OF REAL := [0.0, 100.0, 25.0, 100.0];   // I.4a(a),(b)
+    DefaultMode   : E_RobotOpMode := E_RobotOpMode.MANUAL_REDUCED;   // the most restrictive mode this cell supports (I.4a(a))
+    ModeTimeout   : TIME := T#10S;    // REQUEST_MODE faults when the controller has not granted it by then
+    JogTimeout    : TIME := T#200MS;  // a held jog stops when its request stops arriving this long (§7.6.1)
 END_STRUCT
 END_TYPE
 
@@ -264,8 +324,20 @@ STRUCT
     CurrentArea    : DWORD;         // planning area the TCP is in (0 = none/undefined)
     ProtectiveStop : BOOL;          // the robot's own crash device — NOT a §9 safety function
     Resumable      : BOOL;          // a held move can still resume on-path (I.4b)
-    SpeedScale     : REAL;          // scale actually in force = MIN(mode ceiling, recipe scale)
-    Diagnostic     : ST_Diagnostic; // republished first-out (§8.2)
+    SpeedScale     : REAL;          // scale last sent = MIN(mode ceiling, recipe scale)
+    RequestedMode  : E_RobotOpMode; // what the PLC last REQUESTED, beside ActualMode (I.4a(a))
+    ArmPowerOn     : BOOL;          // the controller reports its drives powered
+    PathIndex      : DINT;          // last completed point of the current/last RUN_PATH; -1 = none
+    SafetyPermit   : BOOL;          // the §9 alias as supplied — read-only status, never a grant
+    Jogging        : BOOL;          // a held jog is driving the arm (§7.6.1)
+    JogStopReason  : DINT;          // why the last jog stopped or was refused; 0 = released
+    JogMode        : E_RobotJogMode;
+    JogAxis        : INT;
+    UserSignals    : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF ST_RobotUserSignal;   // declared slots (I.3)
+    Capabilities   : ST_RobotCapabilities;   // what the connected controller offers (I.3)
+    BrakeTestDue   : BOOL;          // the controller asks for its brake test (also state flag 1, I.5b)
+    SafeReferenceDue : BOOL;        // the controller asks for its safe reference run (also state flag 2)
+    // the first-out is Status.Diagnostic, published once by the base (§6.9(a)) - never copied here
 END_STRUCT
 END_TYPE
 
@@ -284,15 +356,27 @@ END_VAR
 VAR  _conn : I_RobotConnector;  _tMove : TON;  END_VAR   // _step is base-owned (FB_ModuleBase) — re-declaring it collides
 ```
 
-`OnCyclic` runs the Annex D link supervision, mirrors the connector into `OutImm`, republishes the
-diagnostic, and applies the safe-stop — safety is read-only, so a dropped alias mid-command powers
-the arm down and faults with **no** automatic re-enable (§9.3/§9.4):
+`OnCyclic` runs the Annex D link supervision, mirrors the connector into `OutImm`, requests the
+default mode (I.4a(a)) and applies the safe-stop. The safety alias is **not** `Intlk`: `Intlk` holds
+the application's permissives, whose loss HOLDS on the path (I.4b), whereas the §9 alias arrives
+read-only through `SetSafetyPermit(Permit, DescriptionKey)`, which the application calls every scan
+like any condition it supplies. Losing it stops a running command first — the stop must not wait
+behind anything — then asks the arm's power off, on the falling edge and again while the controller
+still reports power; regaining it re-enables **nothing** (§9.3/§9.4). Without the alias, `POWER_ON`
+and motion are refused with the same reason before anything is requested:
 
 ```iecst
-IF NOT Intlk.AllOk AND Busy THEN
-    _conn.Abort();  _conn.PowerOff();
-    _M_FaultStopped(Code := PL_ModuleReasons.ROBOT_SAFETY_DROPPED, Text := 'std.error.robotSafetyDropped');
+IF NOT _safetyPermit THEN
+    IF _exec = E_ExecState.BUSY THEN
+        _M_FaultStopped(Code := PL_ModuleReasons.ROBOT_SAFETY_DROPPED, Text := 'std.error.robotSafetyDropped');
+    END_IF
+    _tPowerRetry(IN := _conn.ArmPowerOn AND NOT _safetyPrev, PT := POWER_RETRY);
+    IF _safetyPrev OR _tPowerRetry.Q THEN
+        _conn.PowerOff();
+        _tPowerRetry(IN := FALSE);
+    END_IF
 END_IF
+_safetyPrev := _safetyPermit;
 ```
 
 `_M_Dispatch` validates the **request** before the **state**, and both before commanding motion
@@ -346,7 +430,7 @@ CASE _step OF
          // a function result — read it into a help variable first. `MotionBusy`, not
          // `Busy`: the base already owns `Busy` for the CM's own handshake.
         _cd := _conn.LastResult;
-        IF _cd.ReasonCode <> _startResult.ReasonCode THEN
+        IF _cd.ReasonCode <> E_Reason.NONE THEN             // LastResult is per request (I.3): it is this command's
             _M_FaultDiag(Diag := _cd);                      // adopt the connector's first-out verbatim (§8.2)
         ELSIF NOT _conn.MotionBusy THEN
             _tMove(IN := FALSE);  OutCmd.ReachedId := ParCmd.TargetId;  _M_Complete();
@@ -358,29 +442,44 @@ ELSE
 END_CASE
 ```
 
-> **`_M_AdoptRefusal`** is the one-line helper the four routed commands share: it reads
-> `_conn.LastResult` into a variable and calls `_M_FaultDiag` with it, so a refusal keeps the
-> connector's own reason instead of being re-classified (§8.2). A refusal that carries *no* new
-> reason means nothing was sent, which is an unsupported command — adopting an empty diagnostic
-> there would erase the fault with a zero code.
+> **`_M_AdoptRefusal`** is the helper every refused request shares: it reads `_conn.LastResult` into
+> a variable and calls `_M_FaultDiag` with it, so a refusal keeps the connector's own reason instead
+> of being re-classified (§8.2). A refusal with no reason breaks I.3 and is still named, never left
+> as a fault with a zero code. An unsupported command is refused before anything is issued, so it is
+> never mistaken for a connector refusal.
 
 ### What the reference implementation realizes
 
-`FB_RobotCM` as shipped realizes this section, I.4a and I.4b in full, over `I_RobotConnector`, and
-is proven against `FB_SimRobotConnector` (I.5c) in `FB_RobotCM_Tests` (I.14). Three things I.4
-describes are **specified but not yet built**, each for the same reason — the trimming rule (§1.1
-O1) keeps a type free of members no code drives, and a reason lands with the code that raises it:
+`FB_RobotCM` as shipped realizes this section, I.3's user channel, I.4a and I.4b in full, over
+`I_RobotConnector`, and is proven against `FB_SimRobotConnector` (I.5c) in `FB_RobotCM_Tests` (I.14):
+the requested mode beside the reported one, the safety alias and its stop, the held jog, the load
+case, the arm-power fact, path progress, the declared user signals, the controller's capabilities,
+its routines (I.5b), the refusal of a missing or untaught point (I.3) and declared manual moves
+(below). One thing I.4 describes is **specified but not
+yet built**, for the trimming rule's reason (§1.1 O1) — a type stays free of members no code drives:
 
 | Specified | Status | Why |
 |---|---|---|
 | `ParCmd.Offset` / `ParCfg.OffsetLimit` / `_M_OffsetWithin` | not built | I.8a runtime-computed targets are unimplemented; the bounded-correction envelope arrives with the vision path that needs it, not before. |
-| `OutImm.ArmPowerOn` | not built | `I_RobotConnector` publishes no arm-power fact to mirror. Adding one to the interface is the prerequisite, not a field on the CM. |
-| `ROBOT_SAFETY_DROPPED` and the safe-stop block | not built | Safety status is read-only application input (§9.2) and nothing feeds this type a safety alias yet. The reason is registered in §I.2 and stays out of `PL_ModuleReasons` until code raises it. |
 
-An abort is routed through the base's own `AbortCommand()` rather than invented as a fault. A point,
+An abort is routed through the base's own `AbortCommand()` rather than invented as a fault, and the
+type's `OnAbort` sends the stop to the arm, so ABORTED never describes a robot still moving. A point,
 a 26-point path, a generated route, or a pallet nest is **one** command that runs to completion — so
 the robot looks identical to any other CM (§6.1). Commands are **not** auto-repeated on error;
 resumption is deliberate (Annex D / §9.3).
+
+**Declared manual moves.** A technician needs a few one-press moves — to the service position, to
+the pick point to check a gripper — and without them every station builds a screen for it. The
+composition root declares each with `M_DeclareManualMove(Slot, PointId, LabelKey)`, up to
+`PL_Robot.MAX_MANUAL_MOVES` (8), once after `Setup`: the move joins the §7.6.1 catalog under its
+label, so the generic HMI offers it with no station screen. A press runs **`MOVE_FROM_AREA` to that
+taught point** — the controller routes from wherever the arm stands (I.11) — through every gate a
+program command meets: the Unit's manual release, the link, the safety alias, `AUTO_REMOTE`, the
+reference and the interlocks. It carries no speed of its own and runs at `ParCfg.SpeedScaleMin`
+under the mode ceiling: the slowest the cell allows is the one nobody has to justify. A declaration is
+refused out of range, for point 0, without a label, for a slot already declared, or when the catalog
+is full; the catalog value of slot *n* is `PL_Robot.MANUAL_MOVE_BASE + n`, clear of every command. The
+jog stays HELD; the declared moves and the routines (I.5b) are one press each.
 
 ---
 
@@ -417,6 +516,13 @@ END_TYPE
 - Mode is **not** a substitute for §9. The enabling device, safe-reduced-speed monitoring and the
   E-stop chain stay in the certified system; `ActualMode` is published read-only status, and the PLC
   never infers "safe" from it.
+
+In the shipped type the most restrictive mode the cell supports is `ParCfg.DefaultMode`
+(`MANUAL_REDUCED` unless configured; `UNKNOWN` is refused at prepare). It is requested the moment the
+link comes up and again whenever a mode that was reported is reported no longer. `REQUEST_MODE` asks
+for another mode and completes only when the controller **reports** it; a request still ungranted
+after `ParCfg.ModeTimeout` faults with `ROBOT_MODE_NOT_PERMITTED`, and `OutImm.RequestedMode` stays
+published beside `OutImm.ActualMode` throughout, so it is visibly ungranted.
 
 ### (b) Speed is a bounded scale, held as configuration
 
@@ -561,13 +667,28 @@ while a cell that does not pays nothing — neither interface surface nor publis
 | **Work-area monitoring** | permitted/forbidden volumes, actively monitored — the basis of multi-robot zone interlocking | distinct from the planning areas of I.11: those resolve *where the robot is*, these forbid *where it may go*. Needed only where workspaces overlap |
 | **Force control** | force/torque limiting, compliant insertion, hard-stop search | assembly-specific; a handling cell has no use for it |
 | **Collision detection / free drive / singularity avoidance** | protective sensing without a hardware crash device; hand-guiding; joint-configuration recovery | free drive is a cobot concern, singularity a kinematics-dependent one |
-| **Brake test** | the periodic brake-integrity test required for arms carrying a hanging load | a maintenance obligation of *some* robots, driven by the machine's risk assessment |
+| **Brake test and safe reference run** | the periodic brake-integrity test, and the safety controller re-verifying the arm position | a maintenance obligation of *some* robots, driven by the machine's risk assessment — **realized** as `I_RobotRoutines` (below) |
 | **Trigger at position** | fire an output at a path position without stopping (dispensing, blow-off) | process-specific; the standard's step model already covers stop-and-act |
 | **Robot-hosted I/O** | read/write the controller's own digital and analog channels | where tool valves sit on the arm, this is the channel a HAL binds to (§10.2); the mapping stays the Hardware Driver's |
 
 A capability group that a project needs is added as a **narrow secondary interface** the connector
 may also implement, never by widening `I_RobotConnector` — the same rule §3.15 applies to every
 device concern, so the common case stays small.
+
+**Realized: the controller's own routines (`I_RobotRoutines`).** A controller that demands a brake
+test or a safe reference run says so (`BrakeTestDue`, `SafeReferenceDue`) and runs the routine on
+request (`RunBrakeTest`, `RunSafeReference`). The routine is the controller's: it owns, validates and
+paces it, so the CM sends **no speed scale** with it. The CM finds the interface at `Setup`; without
+it `BRAKE_TEST`/`SAFE_REFERENCE` are not offered and nothing is reported due. It publishes each demand
+as a state flag (`std.state.robotBrakeTestDue`, `…SafeReferenceDue`) — computed every scan, so a
+demand nobody reads any more stops claiming (§3.12) — and offers both routines as one-press manual
+commands, because they are how an operator answers a controller that asks. They are motion: link,
+safety alias, `AUTO_REMOTE` and reference are required, and they take `HomeTimeout`. A routine has
+**passed only when the controller withdraws its demand**; one that ends with the demand standing
+faults `ROBOT_ROUTINE_FAILED` (HIGH, SAFETY, never shelvable) — a finding, not a completion. What the
+controller still permits while a demand stands is its decision, not the PLC's: the CM does not invent
+a refusal of its own. An application that wants an event as well raises it from its sequence
+(§6.9(e)).
 
 ---
 
@@ -591,7 +712,7 @@ a kinematic simulator, and should not pretend to be one. It **shall**:
 - report `Referenced`, `ActualMode`, `Linked` and payload state consistently with the commands it has
   accepted; and
 - **inject failures on demand** — unreachable point, no route, link loss, protective stop,
-  non-resumable hold — because the reasons of §I.2 are exactly what cannot be proven against a real
+  non-resumable hold, a mode request never granted — because the reasons of §I.2 are exactly what cannot be proven against a real
   arm without deliberately breaking a cell.
 
 The reference framework supplies this from its own base, so the application's simulation object is an
@@ -1026,18 +1147,18 @@ TEST('SimConnector_injects_each_I2_reason_on_demand');                          
 
 ### Realized today
 
-The list above is the target. What runs in CI now is **24 tests across three suites**, all green on
+The list above is the target. What runs in CI now is **47 tests across three suites**, all green on
 the runtime, against `FB_SimRobotConnector` and `FB_SimByteChannel` — no arm, no emulator, no socket:
 
 | Suite | Tests | Covers |
 |---|---:|---|
 | `FB_RobotPlanner_Tests` | 10 | I.9 route graph — reachability, no-route, bounded search |
-| `FB_RobotConnector_Tests` | 6 | I.3/I.5 wire contract — ID-addressed framing, refusal on a down link, status decode, controller error carried verbatim, resume refused off-path, unknown mode refused |
-| `FB_RobotCM_Tests` | 8 | I.4 validation ladder (link, speed band, mode, reference), the HOME exemption, I.4b HELD-and-resume, completion, I.4a(c) protective stop |
+| `FB_RobotConnector_Tests` | 11 | I.3/I.5 wire contract — ID-addressed framing, refusal on a down link, status decode, controller error carried verbatim, resume refused off-path, unknown mode refused, arm power and user inputs decoded, user outputs riding the status poll, a speed and a move in one scan both reaching the wire behind the link-up question; the controller's offer asked once and its routine demands decoded; an untaught point refused with its own reason, and an unanswered offer filtering nothing |
+| `FB_RobotCM_Tests` | 21 | I.4 validation ladder (link, speed band, safety, mode, reference), the HOME exemption, I.4b HELD-and-resume, completion, I.4a(c) protective stop; the default and requested modes and an ungranted request; configuration refusal; `SET_PAYLOAD`; the safety-alias stop with no re-enable and `POWER_ON` refused without it; abort stopping the arm; the held jog's gates and freshness; jog selection; the user signals; published arm power and applied speed; a repeated refusal keeping its reason; an aborted path's progress and its deliberate continue; a command and a jog the controller does not offer refused before issuing; a missing and an untaught point refused with nothing moving; a due brake test published and withdrawn by running it; a routine that leaves its demand standing faulting; a declared manual move — its declaration bounds, its catalog entry, and one press running it to its point at the slowest speed |
 
-The frontier is where the code is: the help resolver (I.10), grip verification (I.6a), runtime
-offsets (I.8a) and the safety-alias stop (§9.3) have no tests because they have no implementation —
-see *What the reference implementation realizes* in I.4. Each lands with the code that raises it.
+The frontier is where the code is: the help resolver (I.10), grip verification (I.6a) and runtime
+offsets (I.8a) have no tests because they have no implementation — see *What the reference
+implementation realizes* in I.4. Each lands with the code that raises it.
 
 The multi-help resolver being a **tested type** (not per-station code) is the whole point of I.10 — a station that adds a two-approach nest adds a table row, not logic.
 
@@ -1051,10 +1172,15 @@ after commissioning. The right cut is between **kinematics** and **structured da
 
 | Stays with the robot's own tool | Rendered by the generic HMI (§3.13) |
 |---|---|
-| Jogging the arm; the enabling device; reachability and singularity checking; the kinematic model | Which points are in a list, and in what order |
+| The kinematics of jogging; the enabling device itself; reachability and singularity checking; the kinematic model | Which points are in a list, and in what order |
 | The safety-rated hand-guiding function | Pallet corner sets and the grid they generate |
 | Vendor calibration routines (mastering, absolute accuracy) | Tool and frame tables; planning-area definitions |
 | — | Motion parameters, speed ceilings, offsets, list selection and active-point counts |
+
+The PLC may *relay* a jog — the held `JOG_POS`/`JOG_NEG` commands (§7.6.1), accepted only in a manual
+mode the controller reports, only with the safety-rated enabling device held, only while no command
+runs, started once and stopped with `Abort` the moment the request stops arriving — but the motion of
+the jog is still the robot's own.
 
 Everything in the right-hand column is a **bounded collection capability** (§3.10.2a) or an ordinary
 scalar (§3.10.2) on the owning module. It therefore needs **no robot-specific HMI code at all**: the

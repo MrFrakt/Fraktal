@@ -4,7 +4,7 @@
     <Declaration><![CDATA[// Recipe-class configuration (S3.8), versioned.
 TYPE ST_RobotParCfg :
 STRUCT
-    SchemaVersion : UINT := 1;
+    SchemaVersion : UINT := 2;   // v2 appended DefaultMode, ModeTimeout, JogTimeout
     MoveTimeout   : TIME := T#60S;   // per-command guard; the Unit step's ExpectedTime (S6.5) remains the outer one
     HomeTimeout   : TIME := T#120S;
     SpeedScaleMin : REAL := 1.0;     // band a recipe SpeedScale is validated against (I.4a(b))
@@ -15,6 +15,13 @@ STRUCT
     // MANUAL_REDUCED, MANUAL_HIGH. UNKNOWN is 0.0 on purpose: a mode the
     // controller has not reported never earns a speed allowance.
     SpeedCeiling  : ARRAY[0..3] OF REAL := [0.0, 100.0, 25.0, 100.0];
+    // v2 - the request half of I.4a(a). DefaultMode is the most restrictive mode
+    // this cell supports: requested at link-up and whenever a reported mode is
+    // lost, so a freshly connected controller is never left where somebody asked
+    // before. UNKNOWN is refused at prepare (it is not a request).
+    DefaultMode   : E_RobotOpMode := E_RobotOpMode.MANUAL_REDUCED;
+    ModeTimeout   : TIME := T#10S;    // REQUEST_MODE faults when the controller has not granted it by then
+    JogTimeout    : TIME := T#200MS;  // a held jog stops when the request stops arriving this long (O10)
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

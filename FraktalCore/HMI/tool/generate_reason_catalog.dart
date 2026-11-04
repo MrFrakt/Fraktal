@@ -342,6 +342,8 @@ String _defaultText(String symbol) {
   var words = symbol.split('_');
   if (words.first == 'EVENT') words = words.skip(1).toList();
   const replacements = <String, String>{
+    'AI': 'analog input',
+    'AO': 'analog output',
     'AIR': 'air',
     'CFG': 'configuration',
     'CPU': 'CPU',
@@ -349,9 +351,11 @@ String _defaultText(String symbol) {
     'DC': 'DC',
     'DEV': 'device',
     'IPC': 'IPC',
+    'NOK': 'NOK',
     'POS': 'position',
     'RESP': 'response',
     'RX': 'receive',
+    'SPEC': 'specification',
   };
   final normalized = [
     for (final word in words) replacements[word] ?? word.toLowerCase(),

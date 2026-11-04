@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_AnalogOutputCM" Id="{d71e952d-1330-4474-954c-8c94aec8d7a6}" SpecialFunc="None">
+    <Declaration><![CDATA[// Generic analog-output CM. One command, SET, drives the channel to a target
+// inside [ParCfg.Minimum, ParCfg.Maximum] and the value then stays applied
+// until the next SET. Whatever state nobody stands behind drives SafeValue:
+// before the first SET, while an interlock withholds it (S6.1 HELD during the
+// command, no self-resume after Done - S9.3), while withdrawn by the owner's
+// functional stop, and after an abort. Not a certified safe output; the
+// safety system remains authoritative.
+FUNCTION_BLOCK FB_AnalogOutputCM EXTENDS FB_ControlModuleBase
+VAR_INPUT
+    Command : E_AnalogOutputCommand;
+    ParCfg  : ST_AnalogOutputParCfg;
+    ParCmd  : ST_AnalogOutputParCmd;
+END_VAR
+VAR_OUTPUT
+    OutCmd : ST_AnalogOutputOutCmd;
+    OutImm : ST_AnalogOutputOutImm;
+    Intlk  : FB_PermIntlk;
+END_VAR
+VAR
+    {attribute 'OPC.UA.DA' := '0'}
+    _hal : REFERENCE TO ST_AnalogOutputHal;
+    _identity : ST_IoPointIdentity;
+    _areaSafe : BOOL := TRUE;          // S7.2.1 - the application's area/process permit
+    _areaSafeKey : STRING(255);
+    _withdrawn : BOOL;                 // WithdrawOutputs latch: until restore or the next SET
+    _suspended : BOOL;                 // interlock lost after Done: SafeValue, no self-resume (S9.3)
+    _applied : BOOL;                   // a SET has completed and its value is held
+    _value : LREAL;                    // the applied engineering value
+    _useManualTarget : BOOL;           // this SET came through ManualCommand
+END_VAR
+VAR PERSISTENT
+    // S3.8a/S3.8b - the operator's manual set point: deployment data, editable
+    // from the HMI, retained across a restart, never part of a model recipe.
+    StationCfg : ST_AnalogOutputStationCfg;
+END_VAR
+VAR CONSTANT
+    AO_STATIONCFG_SCHEMA : UINT := 1;
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
+    <Method Name="Setup" Id="{cccaad74-069f-49e8-a3b7-6e8e97907b9d}">
+      <Declaration><![CDATA[METHOD Setup : BOOL
+VAR_INPUT
+    Name           : STRING(80);
+    HalRef         : REFERENCE TO ST_AnalogOutputHal;
+    DisplayNameKey : STRING(160);
+    DescriptionKey : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_SetName(Name);
+_M_SetPresentation(DisplayNameKey := DisplayNameKey, DescriptionKey := DescriptionKey,
+    TypeKey := 'std.moduleType.analogOutput');
+_hal REF= HalRef;
+// S3.8b - a retained image from an unrecognized layout is re-initialized; a
+// lost manual target is zero, which is inside every band whose Minimum <= 0.
+IF NOT M_RestoreStationCfg(pVersion := ADR(StationCfg.SchemaVersion),
+        SchemaVersion := AO_STATIONCFG_SCHEMA) THEN
+    StationCfg.ManualTarget := 0.0;
+END_IF
+_M_PublishCommand(Value := TO_DINT(E_AnalogOutputCommand.SET), Label := 'std.command.set');
+// S3.8a - the manual set point is an ordinary editable value, validated
+// against the same band whichever way it arrives. READY is required: moving
+// the operator's set point while a SET is running would change the value a
+// manual command applies without the command being re-issued.
+Setup := __ISVALIDREF(_hal) AND _M_ParCfgValid();
+Setup := M_RegisterConfigNumber(Key := 'analogOutput.manualTarget',
+    Item := 'StationCfg/ManualTarget', LabelKey := 'std.config.analogOutputManualTarget',
+    Unit := ParCfg.UnitCode, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(StationCfg.ManualTarget), Minimum := ParCfg.Minimum, Maximum := ParCfg.Maximum,
+    RequiresReady := TRUE) AND Setup;]]></ST></Implementation>
+    </Method>
+    <Method Name="ConfigureIoIdentity" Id="{1fbc5b5a-4290-471e-8306-6a48de0bcc21}">
+      <Declaration><![CDATA[METHOD ConfigureIoIdentity
+VAR_INPUT
+    Identity : ST_IoPointIdentity;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_identity := Identity;]]></ST></Implementation>
+    </Method>
+    <Method Name="SetAreaSafe" Id="{10904b13-74b9-4ad9-a46f-65a8b954044f}">
+      <Declaration><![CDATA[// Core S7.2/S7.2.1 - the application supplies this type's area/process
+// interlock, the same shape as FB_CylinderCM.SetAreaSafe: a method (not an
+// OPC UA write), and the condition is re-evaluated every scan so a manual
+// command obeys the same rule. Defaults TRUE: a station that declares no
+// area interlock is not gated by one.
+METHOD SetAreaSafe
+VAR_INPUT
+    Ok             : BOOL;
+    DescriptionKey : STRING(255);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_areaSafe := Ok;
+_areaSafeKey := DescriptionKey;
+IF _areaSafeKey <> '' THEN
+    Intlk.Define(Index := 1, Description := _areaSafeKey, Reason := E_Reason.INTERLOCK_DROPPED,
+        Bypassable := FALSE);
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="WithdrawOutputs" Id="{819e702e-ad4f-4cb0-8003-36843dd0aa80}">
+      <Declaration><![CDATA[// Functional stop used by an owning sequence: the channel drives SafeValue
+// and stays there until RestoreOutputs or the next SET. This is not a
+// certified stop; the safety system remains authoritative.
+METHOD WithdrawOutputs]]></Declaration>
+      <Implementation><ST><![CDATA[_withdrawn := TRUE;
+IF __ISVALIDREF(_hal) THEN
+    IF _M_ParCfgValid() THEN
+        _hal.Raw := _M_ScaleToRaw(Value := ParCfg.SafeValue);
+    ELSE
+        _hal.Raw := 0.0;
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="RestoreOutputs" Id="{418bc748-21e9-44ba-b514-9d82c3c9a217}">
+      <Declaration><![CDATA[// Symmetric counterpart to WithdrawOutputs. Re-asserts ONLY what the module
+// itself would drive, and ONLY while the interlock permits it: a suspended
+// channel (S9.3) is released, a withdrawn one re-applies its held value, and
+// a channel with nothing applied keeps driving SafeValue. Idempotent; safe
+// to call every scan. Not a certified enable - the safety system remains
+// authoritative (S9).
+METHOD RestoreOutputs]]></Declaration>
+      <Implementation><ST><![CDATA[_withdrawn := FALSE;
+_suspended := FALSE;
+IF __ISVALIDREF(_hal) THEN
+    IF _M_ParCfgValid() THEN
+        IF _applied AND Intlk.AllOk THEN
+            _hal.Raw := _M_ScaleToRaw(Value := _value);
+        ELSE
+            _hal.Raw := _M_ScaleToRaw(Value := ParCfg.SafeValue);
+        END_IF
+    ELSE
+        _hal.Raw := 0.0;
+    END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="OnAbort" Id="{b1b572cb-e9af-495c-a11b-efd6859facad}">
+      <Declaration><![CDATA[METHOD PROTECTED OnAbort : DINT]]></Declaration>
+      <Implementation><ST><![CDATA[OnAbort := SUPER^.OnAbort();            // base first (S3.14.2)
+// An aborted channel stands behind nothing: SafeValue until the next SET
+// or an explicit RestoreOutputs (S5.6/S6.1).
+_applied := FALSE;]]></ST></Implementation>
+    </Method>
+    <Method Name="OnCyclic" Id="{056f415e-1c52-4ec8-b2b5-2398c09cf969}">
+      <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT
+VAR
+    drive : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
+// Checked every scan: ParCfg is an input the composition root may assign
+// later, and a configuration the type cannot honour must not reach the
+// channel as behaviour. Fail closed to raw zero (S5.6).
+IF NOT _M_ParCfgValid() THEN
+    OutImm.Value := ParCfg.SafeValue;
+    OutImm.Raw := 0.0;
+    IF __ISVALIDREF(_hal) THEN
+        _hal.Raw := 0.0;
+    END_IF
+ELSE
+    Intlk.Cond[1] := _areaSafe;          // re-evaluated every scan (S7.2.1)
+    Intlk();
+    IF _applied AND (NOT Intlk.AllOk) AND (NOT _withdrawn) THEN
+        // S9.3 - a value applied and then withheld does not silently return
+        // when the condition does: only RestoreOutputs or a new SET re-applies.
+        _suspended := TRUE;
+    END_IF
+    IF (NOT _applied) OR _withdrawn OR _suspended OR (NOT Intlk.AllOk) THEN
+        drive := ParCfg.SafeValue;
+    ELSE
+        drive := _value;
+    END_IF
+    OutImm.Value := drive;
+    OutImm.Raw := _M_ScaleToRaw(Value := drive);
+    IF __ISVALIDREF(_hal) THEN
+        _hal.Raw := OutImm.Raw;
+    END_IF
+END_IF
+OutImm.Withdrawn := _withdrawn;
+OutImm.IoTag := _identity.Tag;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_Dispatch" Id="{6179cb2b-d4c8-460b-a40c-3b3daddd0143}">
+      <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch
+VAR
+    target : LREAL;
+    d      : ST_Diagnostic;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF _manualReq THEN
+    _manualReq := FALSE;
+    IF _manualCmd = TO_DINT(E_AnalogOutputCommand.SET) THEN
+        Command := _manualCmd;
+        _useManualTarget := TRUE;
+    ELSE
+        _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedAnalogOutputCommand');
+        RETURN;
+    END_IF
+END_IF
+_useManualTarget := _useManualTarget AND (Command = E_AnalogOutputCommand.SET);
+IF Command <> E_AnalogOutputCommand.SET THEN
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedAnalogOutputCommand');
+    RETURN;
+END_IF
+_M_TagCommand(Id := 1, Label := 'std.command.set');      // S8.11.4(a)
+CASE _step OF
+    10:
+        IF NOT _M_ParCfgValid() THEN
+            _M_FaultN(Code := PL_ModuleReasons.AO_CFG_INVALID,
+                Text := 'std.error.analogOutputConfigurationInvalid');
+        ELSE
+            IF _useManualTarget THEN
+                target := StationCfg.ManualTarget;
+            ELSE
+                target := ParCmd.Target;
+            END_IF
+            IF (target < ParCfg.Minimum) OR (target > ParCfg.Maximum) THEN
+                _M_FaultN(Code := PL_ModuleReasons.AO_TARGET_OOR,
+                    Text := 'std.error.analogOutputTargetOutOfRange');
+            ELSIF NOT Intlk.AllOk THEN
+                // S6.1 HELD, not a fault: the output is withdrawn by the same
+                // permit, and a resume re-applies the target through a fresh
+                // start of this step.
+                Intlk();
+                d := Intlk.Diagnostic;
+                d.SourcePath := _name;                    // owner sets the path (S7.2)
+                _M_HoldDiag(Diag := d);
+            ELSE
+                _value := target;
+                _applied := TRUE;
+                _suspended := FALSE;
+                _withdrawn := FALSE;      // the next SET releases a withdrawal
+                OutCmd.Applied := target;
+                IF __ISVALIDREF(_hal) THEN
+                    _hal.Raw := _M_ScaleToRaw(Value := target);
+                END_IF
+                _M_Complete();
+            END_IF
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ParCfgValid" Id="{07ab4b61-9ced-4f51-be7b-8cd3d6d08c46}">
+      <Declaration><![CDATA[// S3.8/S5.6 - the layout this type was compiled against, a scaling that is a
+// function, a band the channel can actually reach, and a safe value inside
+// that band. Anything else is refused, never clamped.
+METHOD PRIVATE _M_ParCfgValid : BOOL
+VAR
+    compiled : ST_AnalogOutputParCfg;
+    engLo, engHi : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[engLo := MIN(ParCfg.EngMin, ParCfg.EngMax);
+engHi := MAX(ParCfg.EngMin, ParCfg.EngMax);
+_M_ParCfgValid := (ParCfg.SchemaVersion = compiled.SchemaVersion)
+    AND (ParCfg.RawMin <> ParCfg.RawMax)
+    AND (ParCfg.EngMin <> ParCfg.EngMax)
+    AND (ParCfg.Minimum <= ParCfg.Maximum)
+    AND (ParCfg.Minimum <= ParCfg.SafeValue) AND (ParCfg.SafeValue <= ParCfg.Maximum)
+    AND (engLo <= ParCfg.Minimum) AND (ParCfg.Minimum <= engHi)
+    AND (engLo <= ParCfg.Maximum) AND (ParCfg.Maximum <= engHi);]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ScaleToRaw" Id="{b08c4098-775e-4745-a5d5-889cd10a2695}">
+      <Declaration><![CDATA[// One place states the channel's engineering-to-raw rule. Only called under
+// a valid ParCfg (the division is guarded by the caller's check).
+METHOD PRIVATE _M_ScaleToRaw : LREAL
+VAR_INPUT
+    Value : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ScaleToRaw := ParCfg.RawMin + (Value - ParCfg.EngMin)
+    * (ParCfg.RawMax - ParCfg.RawMin) / (ParCfg.EngMax - ParCfg.EngMin);]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

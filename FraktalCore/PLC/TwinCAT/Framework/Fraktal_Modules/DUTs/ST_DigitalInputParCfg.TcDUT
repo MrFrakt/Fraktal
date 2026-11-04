@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <DUT Name="ST_DigitalInputParCfg" Id="{f543db6b-e72f-4836-948c-3a931f60643d}">
-    <Declaration><![CDATA[TYPE ST_DigitalInputParCfg :
+    <Declaration><![CDATA[// Core §3.8 ParCfg (SchemaVersion first). The composition root assigns it; the
+// type has no recipe provider, so this initializer is the layout FB_DigitalInputCM
+// checks against. v2 appended DebounceTime; its default reproduces v1.
+TYPE ST_DigitalInputParCfg :
 STRUCT
-    SchemaVersion : UINT := 1; // §3.8: first member even when the passive type has no behavior parameter
+    SchemaVersion : UINT := 2;
+    // How long the HAL value must differ from the published Value, continuously,
+    // before Value follows it. T#0MS passes it through in the same scan. Above
+    // FB_DigitalInputCM.DI_DEBOUNCE_MAX it is a configuration defect, not a filter.
+    DebounceTime : TIME := T#0MS;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

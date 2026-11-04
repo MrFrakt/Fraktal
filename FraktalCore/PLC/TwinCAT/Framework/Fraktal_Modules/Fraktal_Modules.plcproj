@@ -17,7 +17,7 @@
     <Placeholder>Fraktal_Modules</Placeholder>
     <Company>fraktal-automation</Company>
     <Title>Fraktal_Modules</Title>
-    <ProjectVersion>0.11.0.3</ProjectVersion>
+    <ProjectVersion>0.17.0.0</ProjectVersion>
     <Released>false</Released>
     <Author>fraktal-automation</Author>
     <Description>Reusable Fraktal module library: cylinder CMs, clamp EM, simulation models, and configured device presets. Reason bands 10100s/11000s per Core 8.8.</Description>
@@ -112,6 +112,39 @@
     <Compile Include="DUTs\ST_AxisStationCfg.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\ST_AxisTeachCfg.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_CurveEdge.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_CurvePoint.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_CurveWindow.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_CurveEnvelope.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_CurveSpec.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_CurveResult.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_CurveRecord.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_RobotSignalKind.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_RobotUserSignal.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_RobotCapabilities.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="DUTs\E_RobotOpMode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -184,6 +217,9 @@
     <Compile Include="Interfaces\I_RobotConnector.TcIO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Interfaces\I_RobotRoutines.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="FB_StaubliVal3Connector.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -238,6 +274,48 @@
     <Compile Include="DUTs\ST_CylinderIoIdentity.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\ST_AnalogOutputHal.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogOutputParCfg.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogOutputParCmd.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogOutputOutCmd.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogOutputOutImm.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogOutputStationCfg.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_AnalogOutputCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogInputHal.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogInputParCfg.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogInputParCmd.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogInputOutCmd.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogInputOutImm.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_AnalogInputStationCfg.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\E_AnalogInputCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="DUTs\ST_DigitalInputHal.TcDUT">
       <SubType>Code</SubType>
     </Compile>
@@ -283,6 +361,12 @@
     <Compile Include="FB_CylinderCM.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="FB_AnalogInputCM.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_AnalogOutputCM.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="FB_DigitalInputCM.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -290,6 +374,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="FB_CylinderSim.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_ValveDrive.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FB_CurveMonitor.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="FB_Iv3VisionCM.TcPOU">
@@ -307,13 +397,22 @@
     <Compile Include="Params\PL_RobotPlanner.TcGVL">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Params\PL_Axis.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Params\PL_Curve.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Params\PL_Robot.TcGVL">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Params\PL_ModuleReasons.TcGVL">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Fraktal_Core">
-      <DefaultResolution>Fraktal_Core, 0.25.0.0 (fraktal-automation)</DefaultResolution>
+      <DefaultResolution>Fraktal_Core, 0.26.7.0 (fraktal-automation)</DefaultResolution>
       <Namespace>Fraktal_Core</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc2_MC2">

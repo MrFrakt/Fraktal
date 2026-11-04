@@ -286,7 +286,9 @@ class _FieldbusTreeState extends State<FieldbusTree> {
                 fontWeight: FontWeight.w600)),
       );
     } else {
-      value = LText('${c.analogValue.toStringAsFixed(2)} ${c.unit}',
+      final unitKey = c.unitKey;
+      final unit = unitKey.isEmpty ? '' : ' ${context.tr(unitKey)}';
+      value = LText('${c.analogValue.toStringAsFixed(2)}$unit',
           style: Theme.of(context).textTheme.titleMedium);
     }
     final isOutput = c.dir == ChannelDir.output;
@@ -401,7 +403,8 @@ class _FieldbusTreeState extends State<FieldbusTree> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                     labelText: context.tr('std.fieldbus.forceValue'),
-                    suffixText: c.unit)),
+                    suffixText:
+                        c.unitKey.isEmpty ? null : context.tr(c.unitKey))),
         ]),
         actions: [
           TextButton(

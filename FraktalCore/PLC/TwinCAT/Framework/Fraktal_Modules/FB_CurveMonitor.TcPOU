@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_CurveMonitor" Id="{353dbaa2-bf69-473f-8421-89d1471294f3}" SpecialFunc="None">
+    <Declaration><![CDATA[// The verdict on ONE measured curve - force over stroke, pressure over time -
+// judged against windows the curve must pass through and envelopes it must
+// stay on one side of. Owner-private, like FB_ValveDrive: no module identity,
+// no published state, no I/O, and it raises nothing. The owner validates the
+// spec in PrepareRecipe (M_Validate; refuse with CURVE_SPEC_INVALID), calls
+// M_Begin when the curve starts, M_Sample once per measured point and
+// M_Finish when it ends, then decides what a NOK means: a fault
+// (_M_FaultN(Result.Reason, Result.DescriptionKey)) or a part verdict.
+//
+// Every rule is decided as the samples arrive, O(windows + envelopes) per
+// sample, so the verdict needs no sample buffer. A window is judged on its
+// samples: a curve sampled too sparsely to land one inside it misses it. The
+// first PL_Curve.MAX_SAMPLES samples are kept only so M_Record can publish what
+// was measured.
+FUNCTION_BLOCK FB_CurveMonitor
+VAR
+    _spec    : ST_CurveSpec;     // copied at M_Begin: a recipe committed mid-curve cannot move this verdict
+    _specOk  : BOOL;
+    _active  : BOOL;             // between M_Begin and M_Finish
+    _result  : ST_CurveResult;
+    _reach   : LREAL;            // the X a complete curve reaches
+    _maxX    : LREAL;
+    _lastX   : LREAL;
+    _lastY   : LREAL;
+    _hasLast : BOOL;
+    _inside  : ARRAY[1..PL_Curve.MAX_WINDOWS] OF BOOL;   // the previous sample was inside window i
+    _seen    : ARRAY[1..PL_Curve.MAX_WINDOWS] OF BOOL;   // some sample was inside window i
+    _broken  : ARRAY[1..PL_Curve.MAX_WINDOWS] OF BOOL;   // window i was crossed through a wrong edge
+    _seg     : ARRAY[1..2] OF INT;                       // each envelope's current segment
+    _kept    : INT;                                      // samples kept for the record
+    _truncated : BOOL;                                   // a sample arrived after the buffer filled
+    _samples : ARRAY[1..PL_Curve.MAX_SAMPLES] OF ST_CurvePoint;
+    _finished : BOOL;                                    // a curve has finished since the last M_Begin
+END_VAR]]></Declaration>
+    <Implementation><ST><![CDATA[]]></ST></Implementation>
+    <Method Name="M_Validate" Id="{350801d9-1875-4239-aecf-795ce6145b1f}">
+      <Declaration><![CDATA[// Core §5.6 - a spec this helper can judge: counts in range, at least one rule,
+// every window a real rectangle with known edges, every envelope at least two
+// points with X strictly increasing. The owner refuses anything else at
+// PrepareRecipe, so it never reaches a curve as behaviour.
+METHOD M_Validate : BOOL
+VAR_INPUT
+    Spec : REFERENCE TO ST_CurveSpec;
+END_VAR
+VAR
+    i : INT;
+    k : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Validate := FALSE;
+IF NOT __ISVALIDREF(Spec) THEN
+    RETURN;
+END_IF
+IF (Spec.SchemaVersion <> PL_Curve.SPEC_SCHEMA)
+    OR (Spec.WindowCount < 0) OR (Spec.WindowCount > PL_Curve.MAX_WINDOWS)
+    OR (Spec.EnvelopeCount < 0) OR (Spec.EnvelopeCount > 2)
+    OR (Spec.WindowCount + Spec.EnvelopeCount = 0) THEN   // a check that checks nothing
+    RETURN;
+END_IF
+FOR i := 1 TO Spec.WindowCount DO
+    IF NOT ((Spec.Windows[i].XMin < Spec.Windows[i].XMax) AND (Spec.Windows[i].YMin < Spec.Windows[i].YMax)
+        AND _M_EdgeKnown(Edge := Spec.Windows[i].EntryEdge) AND _M_EdgeKnown(Edge := Spec.Windows[i].ExitEdge)) THEN
+        RETURN;
+    END_IF
+END_FOR
+FOR i := 1 TO Spec.EnvelopeCount DO
+    IF (Spec.Envelopes[i].Count < 2) OR (Spec.Envelopes[i].Count > PL_Curve.MAX_POINTS) THEN
+        RETURN;
+    END_IF
+    FOR k := 2 TO Spec.Envelopes[i].Count DO
+        IF NOT (Spec.Envelopes[i].Points[k].X > Spec.Envelopes[i].Points[k - 1].X) THEN
+            RETURN;
+        END_IF
+    END_FOR
+END_FOR
+M_Validate := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Begin" Id="{262764f3-f828-49ed-99bc-9c1a407a5807}">
+      <Declaration><![CDATA[// Start a curve: the spec is validated and copied, the previous curve forgotten.
+// An invalid spec judges nothing and finishes NOK with CURVE_SPEC_INVALID.
+METHOD M_Begin
+VAR_INPUT
+    Spec : REFERENCE TO ST_CurveSpec;
+END_VAR
+VAR
+    blank : ST_CurveResult;
+    i : INT;
+    first : BOOL := TRUE;
+    lastX : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_result := blank;
+_specOk := M_Validate(Spec := Spec);
+IF _specOk THEN
+    _spec := Spec;
+END_IF
+_active := TRUE;
+_finished := FALSE;
+_kept := 0;
+_truncated := FALSE;
+_hasLast := FALSE;
+_maxX := 0.0;
+FOR i := 1 TO PL_Curve.MAX_WINDOWS DO
+    _inside[i] := FALSE;
+    _seen[i] := FALSE;
+    _broken[i] := FALSE;
+END_FOR
+_seg[1] := 1;
+_seg[2] := 1;
+// Complete = the curve got as far as every rule reaches.
+_reach := 0.0;
+IF _specOk THEN
+    FOR i := 1 TO _spec.WindowCount DO
+        IF first OR (_spec.Windows[i].XMax > _reach) THEN
+            _reach := _spec.Windows[i].XMax;
+            first := FALSE;
+        END_IF
+    END_FOR
+    FOR i := 1 TO _spec.EnvelopeCount DO
+        lastX := _spec.Envelopes[i].Points[_spec.Envelopes[i].Count].X;
+        IF first OR (lastX > _reach) THEN
+            _reach := lastX;
+            first := FALSE;
+        END_IF
+    END_FOR
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Sample" Id="{9edd7c4b-1e21-4386-ba37-e2e96b72a5bc}">
+      <Declaration><![CDATA[// One measured point of the running curve. Ignored outside M_Begin..M_Finish
+// and for an invalid spec.
+METHOD M_Sample
+VAR_INPUT
+    X : LREAL;
+    Y : LREAL;
+END_VAR
+VAR
+    i : INT;
+    inNow : BOOL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT (_active AND _specOk) THEN
+    RETURN;
+END_IF
+IF _result.Samples < 32767 THEN
+    _result.Samples := _result.Samples + 1;
+END_IF
+IF _kept < PL_Curve.MAX_SAMPLES THEN
+    _kept := _kept + 1;
+    _samples[_kept].X := X;
+    _samples[_kept].Y := Y;
+ELSE
+    _truncated := TRUE;
+END_IF
+IF (NOT _hasLast) OR (X > _maxX) THEN
+    _maxX := X;
+END_IF
+FOR i := 1 TO _spec.WindowCount DO
+    inNow := (X >= _spec.Windows[i].XMin) AND (X <= _spec.Windows[i].XMax)
+        AND (Y >= _spec.Windows[i].YMin) AND (Y <= _spec.Windows[i].YMax);
+    IF inNow AND NOT _inside[i] THEN
+        _seen[i] := TRUE;
+        IF _spec.Windows[i].EntryEdge <> E_CurveEdge.ANY_EDGE THEN
+            // A curve that starts inside never crossed the declared edge.
+            IF NOT _hasLast THEN
+                _broken[i] := TRUE;
+            ELSIF _M_EntryEdge(Index := i, X := X, Y := Y) <> _spec.Windows[i].EntryEdge THEN
+                _broken[i] := TRUE;
+            END_IF
+        END_IF
+    ELSIF _inside[i] AND NOT inNow THEN
+        IF _spec.Windows[i].ExitEdge <> E_CurveEdge.ANY_EDGE THEN
+            IF _M_ExitEdge(Index := i, X := X, Y := Y) <> _spec.Windows[i].ExitEdge THEN
+                _broken[i] := TRUE;
+            END_IF
+        END_IF
+    END_IF
+    _inside[i] := inNow;
+END_FOR
+FOR i := 1 TO _spec.EnvelopeCount DO
+    IF _result.EnvelopeCutIdx[i] = 0 THEN
+        IF _M_EnvelopeCut(Index := i, X := X, Y := Y) THEN
+            _result.EnvelopeCutIdx[i] := _result.Samples;
+        END_IF
+    END_IF
+END_FOR
+_lastX := X;
+_lastY := Y;
+_hasLast := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Finish" Id="{e362388f-0472-49c6-98cd-032fd81b7bd5}">
+      <Declaration><![CDATA[// End the curve and return its verdict. OK only when complete, every window
+// passed and no envelope cut; otherwise NOK with the first failing rule.
+// Calling it again returns the same result; samples after it are ignored.
+METHOD M_Finish : ST_CurveResult
+VAR
+    i : INT;
+    windowsOk : BOOL := TRUE;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF NOT _specOk THEN
+    _result.Complete := FALSE;
+    _result.Verdict := E_Verdict.NOK;
+    _result.Reason := PL_ModuleReasons.CURVE_SPEC_INVALID;
+    _result.DescriptionKey := 'std.error.curveSpecInvalid';
+    _active := FALSE;
+    _finished := TRUE;
+    M_Finish := _result;
+    RETURN;
+END_IF
+_result.Complete := (_result.Samples > 0) AND (_maxX >= _reach);
+FOR i := 1 TO _spec.WindowCount DO
+    // A declared exit must actually be taken: ending inside is not leaving.
+    _result.WindowPassed[i] := _seen[i] AND NOT _broken[i]
+        AND ((_spec.Windows[i].ExitEdge = E_CurveEdge.ANY_EDGE) OR NOT _inside[i]);
+    windowsOk := windowsOk AND _result.WindowPassed[i];
+END_FOR
+IF NOT _result.Complete THEN
+    _result.Verdict := E_Verdict.NOK;
+    _result.Reason := PL_ModuleReasons.CURVE_INCOMPLETE;
+    _result.DescriptionKey := 'std.error.curveIncomplete';
+ELSIF NOT windowsOk THEN
+    _result.Verdict := E_Verdict.NOK;
+    _result.Reason := PL_ModuleReasons.CURVE_WINDOW_VIOLATED;
+    _result.DescriptionKey := 'std.error.curveWindowViolated';
+ELSIF (_result.EnvelopeCutIdx[1] > 0) OR (_result.EnvelopeCutIdx[2] > 0) THEN
+    _result.Verdict := E_Verdict.NOK;
+    _result.Reason := PL_ModuleReasons.CURVE_ENVELOPE_VIOLATED;
+    _result.DescriptionKey := 'std.error.curveEnvelopeViolated';
+ELSE
+    _result.Verdict := E_Verdict.OK;
+    _result.Reason := 0;
+    _result.DescriptionKey := '';
+END_IF
+_active := FALSE;
+_finished := TRUE;
+M_Finish := _result;]]></ST></Implementation>
+    </Method>
+    <Method Name="M_Record" Id="{384a0615-3a00-411b-a15e-9b053c5cc804}">
+      <Declaration><![CDATA[// Copy the last FINISHED curve into the owner's published record (once per
+// curve, after M_Finish): the kept samples, the spec it was judged against and
+// the verdict. Refused (FALSE, Target untouched) while a curve runs or before
+// the first one finishes, so a record never shows half a curve. Rows past
+// SampleCount are cleared, and a curve judged against an invalid spec is
+// recorded with an empty spec rather than a stale one.
+METHOD M_Record : BOOL
+VAR_INPUT
+    Target : REFERENCE TO ST_CurveRecord;
+END_VAR
+VAR
+    blankPoint : ST_CurvePoint;
+    blankSpec : ST_CurveSpec;
+    i : INT;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[M_Record := FALSE;
+IF NOT __ISVALIDREF(Target) THEN
+    RETURN;
+END_IF
+IF _active OR NOT _finished THEN
+    RETURN;
+END_IF
+Target.SampleCount := _kept;
+Target.Truncated := _truncated;
+FOR i := 1 TO PL_Curve.MAX_SAMPLES DO
+    IF i <= _kept THEN
+        Target.Samples[i] := _samples[i];
+    ELSE
+        Target.Samples[i] := blankPoint;
+    END_IF
+END_FOR
+IF _specOk THEN
+    Target.Spec := _spec;
+ELSE
+    Target.Spec := blankSpec;
+END_IF
+Target.Result := _result;
+M_Record := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_EdgeKnown" Id="{9d91b8b2-eabd-4fee-89fb-c109d2af05ea}">
+      <Declaration><![CDATA[METHOD PRIVATE _M_EdgeKnown : BOOL
+VAR_INPUT
+    Edge : E_CurveEdge;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[CASE Edge OF
+    E_CurveEdge.ANY_EDGE, E_CurveEdge.LEFT, E_CurveEdge.RIGHT, E_CurveEdge.BOTTOM, E_CurveEdge.TOP:
+        _M_EdgeKnown := TRUE;
+ELSE
+    _M_EdgeKnown := FALSE;   // a stored record holding no edge this type knows
+END_CASE]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_EntryEdge" Id="{0b960523-f3df-4b09-9bd7-f35cc8db5694}">
+      <Declaration><![CDATA[// The edge the segment from the previous (outside) sample to (X, Y) (inside)
+// enters window Index through: of the bounds the previous sample violates, the
+// one crossed LAST (largest segment parameter). An exact corner goes to the
+// first in LEFT, RIGHT, BOTTOM, TOP order. Every divisor is non-zero: the
+// previous sample lies strictly beyond the bound and (X, Y) on or inside it.
+METHOD PRIVATE _M_EntryEdge : E_CurveEdge
+VAR_INPUT
+    Index : INT;
+    X : LREAL;
+    Y : LREAL;
+END_VAR
+VAR
+    w : REFERENCE TO ST_CurveWindow;
+    t : LREAL;
+    best : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[w REF= _spec.Windows[Index];
+_M_EntryEdge := E_CurveEdge.ANY_EDGE;
+best := -1.0;
+IF _lastX < w.XMin THEN
+    t := (w.XMin - _lastX) / (X - _lastX);
+    IF t > best THEN best := t; _M_EntryEdge := E_CurveEdge.LEFT; END_IF
+END_IF
+IF _lastX > w.XMax THEN
+    t := (_lastX - w.XMax) / (_lastX - X);
+    IF t > best THEN best := t; _M_EntryEdge := E_CurveEdge.RIGHT; END_IF
+END_IF
+IF _lastY < w.YMin THEN
+    t := (w.YMin - _lastY) / (Y - _lastY);
+    IF t > best THEN best := t; _M_EntryEdge := E_CurveEdge.BOTTOM; END_IF
+END_IF
+IF _lastY > w.YMax THEN
+    t := (_lastY - w.YMax) / (_lastY - Y);
+    IF t > best THEN best := t; _M_EntryEdge := E_CurveEdge.TOP; END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ExitEdge" Id="{003e53bd-808b-4edf-aafc-3c561d8ad831}">
+      <Declaration><![CDATA[// The edge the segment from the previous (inside) sample to (X, Y) (outside)
+// leaves window Index through: of the bounds (X, Y) violates, the one crossed
+// FIRST (smallest segment parameter); ties as in _M_EntryEdge.
+METHOD PRIVATE _M_ExitEdge : E_CurveEdge
+VAR_INPUT
+    Index : INT;
+    X : LREAL;
+    Y : LREAL;
+END_VAR
+VAR
+    w : REFERENCE TO ST_CurveWindow;
+    t : LREAL;
+    best : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[w REF= _spec.Windows[Index];
+_M_ExitEdge := E_CurveEdge.ANY_EDGE;
+best := 2.0;
+IF X < w.XMin THEN
+    t := (_lastX - w.XMin) / (_lastX - X);
+    IF t < best THEN best := t; _M_ExitEdge := E_CurveEdge.LEFT; END_IF
+END_IF
+IF X > w.XMax THEN
+    t := (w.XMax - _lastX) / (X - _lastX);
+    IF t < best THEN best := t; _M_ExitEdge := E_CurveEdge.RIGHT; END_IF
+END_IF
+IF Y < w.YMin THEN
+    t := (_lastY - w.YMin) / (_lastY - Y);
+    IF t < best THEN best := t; _M_ExitEdge := E_CurveEdge.BOTTOM; END_IF
+END_IF
+IF Y > w.YMax THEN
+    t := (w.YMax - _lastY) / (Y - _lastY);
+    IF t < best THEN best := t; _M_ExitEdge := E_CurveEdge.TOP; END_IF
+END_IF]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_EnvelopeCut" Id="{dc246ea9-aa13-44d7-91a8-a05f6017d907}">
+      <Declaration><![CDATA[// TRUE when (X, Y) lies on the wrong side of envelope Index (linear
+// interpolation; outside the envelope's X span nothing is judged). The segment
+// cursor moves with X, so a monotonic curve costs O(1) per sample.
+METHOD PRIVATE _M_EnvelopeCut : BOOL
+VAR_INPUT
+    Index : INT;
+    X : LREAL;
+    Y : LREAL;
+END_VAR
+VAR
+    e : REFERENCE TO ST_CurveEnvelope;
+    k : INT;
+    n : INT;
+    bound : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[e REF= _spec.Envelopes[Index];
+IF (X < e.Points[1].X) OR (X > e.Points[e.Count].X) THEN
+    RETURN;
+END_IF
+k := _seg[Index];
+IF (k < 1) OR (k > e.Count - 1) THEN
+    k := 1;
+END_IF
+FOR n := 1 TO PL_Curve.MAX_POINTS DO
+    IF (k < e.Count - 1) AND_THEN (X > e.Points[k + 1].X) THEN
+        k := k + 1;
+    ELSIF (k > 1) AND_THEN (X < e.Points[k].X) THEN
+        k := k - 1;
+    ELSE
+        EXIT;
+    END_IF
+END_FOR
+_seg[Index] := k;
+bound := e.Points[k].Y + (X - e.Points[k].X) * (e.Points[k + 1].Y - e.Points[k].Y)
+    / (e.Points[k + 1].X - e.Points[k].X);
+IF e.Upper THEN
+    _M_EnvelopeCut := Y > bound;
+ELSE
+    _M_EnvelopeCut := Y < bound;
+END_IF]]></ST></Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

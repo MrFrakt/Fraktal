@@ -24,6 +24,7 @@ import 'facet_cards.dart';
 import 'flow_columns.dart';
 import 'overview_and_indicators.dart';
 import 'module_information.dart';
+import 'curve_view.dart';
 import 'custom_module_tabs.dart';
 import 'sequence_module_tab.dart';
 import 'touch_text_field.dart';
@@ -116,7 +117,9 @@ class _ModuleDetailState extends State<ModuleDetail> {
               .detailContainers(context)
           : tab.kind == ModuleTabKind.sequence
               ? <String>{'SequenceSteps', 'SequenceAnnotations'}
-              : _controlDetailContainers(tab);
+              : tab.kind == ModuleTabKind.curve
+                  ? <String>{'Curve'}
+                  : _controlDetailContainers(tab);
       if (_guidanceOpen && _guidanceTab != null) {
         containers.addAll(_controlDetailContainers(_guidanceTab!));
       }
@@ -497,6 +500,7 @@ class _ModuleDetailState extends State<ModuleDetail> {
         ModuleTabKind.vision => VisionModuleTab(app: app, node: node),
         ModuleTabKind.codeReader => CodeReaderModuleTab(app: app, node: node),
         ModuleTabKind.rfid => RfidModuleTab(app: app, node: node),
+        ModuleTabKind.curve => CurveModuleTab(node: node),
         ModuleTabKind.custom || ModuleTabKind.guidance => _ViewClassBadge(
             viewClass: tab.kind.acceptsBackground ? tab.viewClass : null,
             child: CustomModuleTabView(

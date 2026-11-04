@@ -289,7 +289,7 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 | C16 | `FB_EngineeringMode`, `PL_FraktalEngineering` | `FB_EngineeringMode` + constant gate | ✔ | |
 | C17 | `FB_HostEventPublisher` | `FB_HostEventPublisher` | ◐ | |
 | C18 | `FB_SystemHealthPublisher`, `FB_TcSystemHealthProbe` | `FB_SystemHealthPublisher` + `FB_S7HealthProbe` | ◐ | declared exclusions for unsupplied metrics |
-| C19 | `FB_IoTopologyPublisher`, `FB_EcBusHealth` | `FB_IoTopologyPublisher` + `FB_PnBusHealth` | ◐ | PROFINET instead of EtherCAT |
+| C19 | `FB_IoTopologyPublisher`, `FB_EcBusHealth` | `FB_IoTopologyPublisher` + `FB_PnBusHealth` | ◐ | PROFINET instead of EtherCAT; the Core 0.26 channel `UnitCode` (§10.5.1) is carried in the regenerated type and stays `NONE`: the declaration cannot give a code yet, so the HMI shows the channel's text |
 | C20 | `FB_LocalRecipeProvider`, `FB_LocalPartCarrier` | same, behind provider dispatch | ✔ | |
 | C21 | `I_PersistMedium` family (`FB_FilePersistMedium`, `FB_RetainPersistMedium`, `FB_MediumConfigStore`, `FB_ConfigSetDocument`, `FB_ConfigSetJson`, `F_Crc32`) | `FB_LoadDbMedium`, `FB_CardFileMedium` (1500), `FB_RetainMedium`, `FB_MediumConfigStore`, `FB_ConfigSetJson` | ◐ | S16 |
 | C22 | `FB_LineData*`, `FB_ShiftSchedule` | same | ✘ | Line profile: S7-1500 first |
@@ -301,17 +301,20 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 
 | # | TC3 type | Priority | 1200 | Notes |
 |---|---|---|---|---|
-| M1 | `FB_CylinderCM` + `FB_CylinderSim` | P1 | ✔ | first generated type; T1–T5 |
-| M2 | `FB_DigitalInputCM` | P1 | ✔ | |
+| M1 | `FB_CylinderCM` + `FB_CylinderSim` | P1 | ✔ | first generated type; T1–T5; TC3 Modules 0.13 adds `ParCfg` v2 valve timing (`FB_ValveDrive`); not yet carried |
+| M2 | `FB_DigitalInputCM` | P1 | ✔ | TC3 Modules 0.12 adds `ParCfg` v2 `DebounceTime`; not yet carried |
 | M3 | `FB_TwoHandStartCM` | P1 | ✔ | HELD semantics (§6.1) |
 | M4 | `FB_AirPressureMonitorCM` | P1 | ✔ | "air loss held" — kept: process monitor, not power control |
 | M5 | `FB_ClampEM` | P1 | ✔ | the composite/rollup proof (T6) |
-| M6 | `FB_ConfigurableCylinderCM` + sim | P2 | ✔ | |
+| M6 | `FB_ConfigurableCylinderCM` + sim | P2 | ✔ | TC3 Modules 0.15 adds `ParCfg` v2 valve timing (shared `FB_ValveDrive`); not yet carried |
 | M7 | `FB_SeparatorCM` | P2 | ✔ | Annex A worked example |
-| M8 | `FB_AxisCM` | P2 | ◐ | S14; press `PartFeed` |
-| M9 | `FB_RobotCM`, `FB_RobotRoutePlanner`, `FB_SimRobotConnector`, `FB_StaubliVal3Connector` | P3 | ✘ | after S13/S14 |
+| M8 | `FB_AxisCM` | P2 | ◐ | S14; press `PartFeed`; TC3 Modules 0.14 adds named positions, relative/step moves, speed scale and override |
+| M9 | `FB_RobotCM`, `FB_RobotRoutePlanner`, `FB_SimRobotConnector`, `FB_StaubliVal3Connector` | P3 | ✘ | after S13/S14; TC3 Modules 0.16 completes I.4a/I.4 (mode request, safety alias, held jog, payload, arm power, user channel); 0.17 adds capabilities, the I.5b routines interface, untaught-point refusal and declared manual moves |
 | M10 | `FB_Iv3VisionCM`, `FB_Matrix220CM` | P3 | ✘ | after S13 |
 | M11 | `FB_PowerGroupCM` | — | — | **out of scope (D3)** |
+| M12 | `FB_AnalogInputCM` | P2 | ◘ | TC3 Modules 0.13.1 adds the type; Modules-only, so TIA sources change only by the `PL_ModuleReasons` hash; not yet carried |
+| M13 | `FB_AnalogOutputCM` | P2 | ◘ | TC3 Modules 0.13.2 adds the type; same hash-only TIA impact; not yet carried |
+| M14 | `FB_CurveMonitor` (owner-private helper) | P2 | ◘ | TC3 Modules 0.15.1 adds it, 0.15.2 its published `ST_CurveRecord` (HMI Curve tab); same hash-only TIA impact; not yet carried |
 
 ### 7.3 Press bench without power control (`Fraktal_Press_Demo` → `Fraktal_Press_TIA`)
 

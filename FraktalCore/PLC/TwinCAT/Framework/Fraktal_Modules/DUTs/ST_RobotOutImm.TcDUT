@@ -11,7 +11,19 @@ STRUCT
     CurrentArea    : DWORD;          // 0 = none/undefined (I.11)
     ProtectiveStop : BOOL;           // process protection, NOT S9 safety (I.4a(c))
     Resumable      : BOOL;           // resume still valid on the retained path (I.4b)
-    SpeedScale     : REAL;           // scale actually in force
+    SpeedScale     : REAL;           // scale last sent: MIN(mode ceiling, recipe scale) (I.4a(b))
+    RequestedMode  : E_RobotOpMode;  // what the PLC last REQUESTED, beside the report (I.4a(a))
+    ArmPowerOn     : BOOL;           // the controller reports its drives powered (I.4)
+    PathIndex      : DINT;           // last completed point of the current/last RUN_PATH; -1 = none
+    SafetyPermit   : BOOL;           // the S9 alias as supplied - read-only status, never a grant
+    Jogging        : BOOL;           // a held jog is driving the arm (S7.6.1)
+    JogStopReason  : DINT;           // why the last jog stopped or was refused; 0 = released
+    JogMode        : E_RobotJogMode;
+    JogAxis        : INT;
+    UserSignals    : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF ST_RobotUserSignal;   // declared slots only (I.3)
+    Capabilities   : ST_RobotCapabilities;   // what the connected controller says it offers (I.3)
+    BrakeTestDue   : BOOL;           // the controller asks for its brake test (also a state flag)
+    SafeReferenceDue : BOOL;         // the controller asks for its safe reference run (also a state flag)
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

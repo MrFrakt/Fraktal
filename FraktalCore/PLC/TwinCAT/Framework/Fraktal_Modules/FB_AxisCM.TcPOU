@@ -43,6 +43,12 @@ VAR PERSISTENT
     // (ST_ConfigWriteDef, TC3 §3.8b).
     _station : ST_AxisStationCfg;
 END_VAR
+VAR PERSISTENT
+    // S3.8b - the second retained image: named positions 2..N and the manual
+    // step. A separate image, so the v2 axis StationCfg (TaughtPosition,
+    // JogRequiresEnable) is unchanged and no deployed image is lost.
+    _teach : ST_AxisTeachCfg;
+END_VAR
 VAR
     {attribute 'OPC.UA.DA' := '0'}
     _axis : REFERENCE TO AXIS_REF;
@@ -70,6 +76,14 @@ VAR
     _parCfgStaged : ST_AxisParCfg;
     _recipePrepared : BOOL;
     _appCond : ARRAY[1..PL_Fraktal.MAX_PERMINTLK_COND] OF BOOL;
+    {attribute 'OPC.UA.DA' := '0'}
+    _moveRelFb : MC_MoveRelative;
+    {attribute 'OPC.UA.DA' := '0'}
+    _positionLabel : ARRAY[2..PL_Axis.MAX_POSITIONS] OF STRING(160);
+    _positionDeclared : ARRAY[2..PL_Axis.MAX_POSITIONS] OF BOOL;
+    _override : LREAL := 100.0;   // accepted set-and-hold speed override, percent
+    _relDistance : LREAL;         // a relative move's distance, resolved once when it starts
+    _setupDone : BOOL;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -85,7 +99,7 @@ IF __ISVALIDREF(_axis) THEN                  // defensive (S5.6) [TC3]
     // same scan it is lost; re-enabling after it returns is a deliberate command,
     // never automatic (S9.3, S9.4).
     _power(Axis := _axis, Enable := Intlk.AllOk, Enable_Positive := Intlk.AllOk,
-        Enable_Negative := Intlk.AllOk, Override := 100.0);
+        Enable_Negative := Intlk.AllOk, Override := _override);
     OutImm.ActPos := _axis.NcToPlc.ActPos;
     OutImm.ActVelocity := _axis.NcToPlc.ActVelo;
     OutImm.DriveEnabled := _power.Status;
@@ -93,7 +107,8 @@ END_IF
 _M_JogCyclic();
 OutImm.TaughtPosition := _station.TaughtPosition;
 OutImm.Homed := _homed;
-OutCmd.Homed := _homed;]]></ST>
+OutCmd.Homed := _homed;
+OutImm.Override := _override;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_ApplyConditions" Id="{7c42158c-5f9f-4b6d-9d24-a2ceb651080e}">
@@ -261,6 +276,7 @@ VAR_INPUT
 END_VAR
 VAR
     InitialModel : ST_ModelId;
+    i            : INT;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_M_SetName(Name);
@@ -273,6 +289,9 @@ _M_PublishCommand(Value := TO_DINT(E_AxisCommand.HOME), Label := 'std.command.ho
 _M_PublishCommand(Value := TO_DINT(E_AxisCommand.MOVE_TO), Label := 'std.command.moveTo');
 _M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_POS), Label := 'std.command.jogPositive');
 _M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_NEG), Label := 'std.command.jogNegative');
+_M_PublishCommand(Value := TO_DINT(E_AxisCommand.STEP_POS), Label := 'std.command.stepPositive');
+_M_PublishCommand(Value := TO_DINT(E_AxisCommand.STEP_NEG), Label := 'std.command.stepNegative');
+// MOVE_REL is not published: it needs a distance, so it is a sequence command.
 Setup := PrepareRecipe(Model := InitialModel);
 IF Setup THEN CommitRecipe(); END_IF
 
@@ -317,7 +336,38 @@ Setup := M_RegisterConfigFlag(Key := 'axis.jogRequiresEnable',
     Item := 'StationCfg/JogRequiresEnable',
     LabelKey := 'std.config.axisJogRequiresEnable',
     Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(_station.JogRequiresEnable),
-    RequiresReady := TRUE) AND Setup;]]></ST>
+    RequiresReady := TRUE) AND Setup;
+
+// S3.8b - the second retained image: named positions 2..N and the manual step.
+// Version 0 is a first boot of the upgrade: nothing was retained, so nothing
+// was lost and nothing is announced; the defaults are all zero.
+IF NOT M_RestoreStationCfg(pVersion := ADR(_teach.SchemaVersion),
+        SchemaVersion := PL_Axis.AXIS_TEACHCFG_SCHEMA) THEN
+    _teach.ManualStep := 0.0;
+END_IF
+// S3.8a/S3.8c - every position the composition root declared becomes an
+// ordinary editable value with the soft limits as bounds, capturable from the
+// live position; the manual step is always editable. Registration budget:
+// 2 standing + manualStep + up to 7 positions = 10 of 12.
+FOR i := 2 TO PL_Axis.MAX_POSITIONS DO
+    IF _positionDeclared[i] THEN
+        Setup := M_RegisterConfigNumber(Key := CONCAT('axis.position', TO_STRING(i)),
+            Item := CONCAT('_teach/Positions[', CONCAT(TO_STRING(i), ']')),
+            LabelKey := _positionLabel[i],
+            Unit := E_EngUnit.MILLIMETER, Kind := E_ConfigKind.STATION_CFG,
+            Storage := E_ConfigStorage.AS_LREAL,
+            pTarget := ADR(_teach.Positions[i]), Minimum := ParCfg.SoftMin, Maximum := ParCfg.SoftMax,
+            RequiresReady := FALSE) AND Setup;
+        Setup := M_RegisterCapture(WriteKey := CONCAT('axis.position', TO_STRING(i)),
+            pSource := ADR(OutImm.ActPos), SourceStorage := E_ConfigStorage.AS_LREAL) AND Setup;
+    END_IF
+END_FOR
+Setup := M_RegisterConfigNumber(Key := 'axis.manualStep',
+    Item := '_teach/ManualStep', LabelKey := 'std.config.axisManualStep',
+    Unit := E_EngUnit.MILLIMETER, Kind := E_ConfigKind.STATION_CFG, Storage := E_ConfigStorage.AS_LREAL,
+    pTarget := ADR(_teach.ManualStep), Minimum := 0.0, Maximum := ParCfg.SoftMax - ParCfg.SoftMin,
+    RequiresReady := FALSE) AND Setup;
+_setupDone := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="SetJogRequiresEnable" Id="{6e2f90a4-53d1-4c78-b0a6-9d3417e285fb}">
@@ -375,7 +425,18 @@ VAR_INPUT
     Model : ST_ModelId;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF _recipe = 0 THEN
+        <ST><![CDATA[// S5.6/S3.8 - the speed-scale band is configuration the type must be able
+// to honour: a non-positive minimum, an inverted band or a maximum beyond 100
+// percent is refused and the recipe is not applied (WP3.3). Judged on the LIVE
+// ParCfg, so a bad staged record is refused here on the next changeover too.
+IF (ParCfg.SpeedScaleMin <= 0.0) OR (ParCfg.SpeedScaleMin > ParCfg.SpeedScaleMax)
+    OR (ParCfg.SpeedScaleMax > 100.0) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_CFG_INVALID, Text := 'std.error.axisConfigurationInvalid');
+    _recipePrepared := FALSE;
+    PrepareRecipe := FALSE;
+    RETURN;
+END_IF
+IF _recipe = 0 THEN
     _parCfgStaged := ParCfg;
     _recipePrepared := TRUE;
     PrepareRecipe := TRUE;
@@ -425,21 +486,32 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF _manualReq THEN
     _manualReq := FALSE;
-    IF (_manualCmd = TO_DINT(E_AxisCommand.HOME)) OR (_manualCmd = TO_DINT(E_AxisCommand.MOVE_TO)) THEN
+    // The manual path admits exactly what the catalog publishes: MOVE_REL is
+    // deliberately absent (a manual command carries no distance).
+    IF (_manualCmd = TO_DINT(E_AxisCommand.HOME)) OR (_manualCmd = TO_DINT(E_AxisCommand.MOVE_TO))
+        OR (_manualCmd = TO_DINT(E_AxisCommand.STEP_POS)) OR (_manualCmd = TO_DINT(E_AxisCommand.STEP_NEG)) THEN
         Command := _manualCmd;
     ELSE
         _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedAxisCommand');
         RETURN;
     END_IF
 END_IF
-IF (Command <> E_AxisCommand.HOME) AND (Command <> E_AxisCommand.MOVE_TO) THEN
+IF (Command <> E_AxisCommand.HOME) AND (Command <> E_AxisCommand.MOVE_TO)
+    AND (Command <> E_AxisCommand.MOVE_REL) AND (Command <> E_AxisCommand.STEP_POS)
+    AND (Command <> E_AxisCommand.STEP_NEG) THEN
     _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedAxisCommand');
     RETURN;
 END_IF
 IF Command = E_AxisCommand.HOME THEN
     _M_TagCommand(Id := 1, Label := 'std.command.home');          // S8.11.4(a)
-ELSE
+ELSIF Command = E_AxisCommand.MOVE_TO THEN
     _M_TagCommand(Id := 2, Label := 'std.command.moveTo');
+ELSIF Command = E_AxisCommand.MOVE_REL THEN
+    _M_TagCommand(Id := 3, Label := 'std.command.moveRelative');
+ELSIF Command = E_AxisCommand.STEP_POS THEN
+    _M_TagCommand(Id := 4, Label := 'std.command.stepPositive');
+ELSE
+    _M_TagCommand(Id := 5, Label := 'std.command.stepNegative');
 END_IF
 _M_ApplyConditions();
 Intlk();
@@ -458,8 +530,10 @@ IF NOT Intlk.AllOk THEN
 END_IF
 IF Command = E_AxisCommand.HOME THEN
     _M_Home();
-ELSE
+ELSIF Command = E_AxisCommand.MOVE_TO THEN
     _M_MoveTo();
+ELSE
+    _M_MoveRel();
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -501,7 +575,10 @@ END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="_M_MoveTo" Id="{95306de5-b879-4b0c-a486-0cd807e9bc83}">
-      <Declaration><![CDATA[METHOD PRIVATE _M_MoveTo]]></Declaration>
+      <Declaration><![CDATA[METHOD PRIVATE _M_MoveTo
+VAR
+    target : LREAL;
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// Validate the REQUEST before the STATE, and both before commanding motion
 // (S5.6). Annex G checked homed-first; range-first is used here because a target
@@ -509,8 +586,32 @@ END_CASE]]></ST>
 // and reporting "not homed" for an impossible target sends the operator to the
 // wrong problem. It also makes both rejections provable without a licensed NC
 // axis, since neither issues an MC_* call.
-IF (ParCmd.Target < ParCfg.SoftMin) OR (ParCmd.Target > ParCfg.SoftMax) THEN
+// Resolve the target: an index selects a retained position (WP3.1). An
+// undeclared index is refused FIRST - before the soft limits and the datum -
+// because it is malformed as a request, whatever the axis state, and reporting
+// "not homed" for a nonexistent position sends the operator to the wrong
+// problem (the same reasoning as range-before-homed below).
+IF ParCmd.PositionIdx = 0 THEN
+    target := ParCmd.Target;
+ELSIF ParCmd.PositionIdx = 1 THEN
+    target := _station.TaughtPosition;
+ELSIF (ParCmd.PositionIdx >= 2) AND_THEN (ParCmd.PositionIdx <= PL_Axis.MAX_POSITIONS)
+    AND_THEN _positionDeclared[ParCmd.PositionIdx] THEN   // AND_THEN: never index past the array
+    target := _teach.Positions[ParCmd.PositionIdx];
+ELSE
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_POSITION_UNDECLARED,
+        Text := 'std.error.axisPositionUndeclared');
+    RETURN;
+END_IF
+IF (target < ParCfg.SoftMin) OR (target > ParCfg.SoftMax) THEN
     _M_FaultN(Code := PL_ModuleReasons.AXIS_TARGET_OOR, Text := 'std.error.axisTargetOutOfRange');
+    RETURN;
+END_IF
+// The speed scale is judged before the datum so a mis-scaled request is
+// provable without a licensed NC axis (WP3.3; S5.6 validate-before-state).
+IF (TO_LREAL(ParCmd.SpeedScale) < TO_LREAL(ParCfg.SpeedScaleMin))
+    OR (TO_LREAL(ParCmd.SpeedScale) > TO_LREAL(ParCfg.SpeedScaleMax)) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_PARAM_OOR, Text := 'std.error.axisSpeedScaleOutOfRange');
     RETURN;
 END_IF
 IF NOT _homed THEN
@@ -531,8 +632,9 @@ CASE _step OF
         // MC_MoveAbsolute's Busy/Done/Error/CommandAborted map one-to-one onto
         // the CM handshake, which is what lets a parent Unit command MOVE_TO
         // exactly as it commands a cylinder EXTEND (S6.1).
-        _moveFb(Axis := _axis, Execute := TRUE, Position := ParCmd.Target,
-            Velocity := ParCfg.Velocity, Acceleration := ParCfg.Acceleration,
+        _moveFb(Axis := _axis, Execute := TRUE, Position := target,
+            Velocity := ParCfg.Velocity * TO_LREAL(ParCmd.SpeedScale) / 100.0,
+            Acceleration := ParCfg.Acceleration,
             Deceleration := ParCfg.Deceleration);
         _tMove(IN := TRUE, PT := ParCfg.MoveTimeout);
         IF _moveFb.Done THEN
@@ -554,6 +656,129 @@ ELSE
     _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');
 END_CASE]]></ST>
       </Implementation>
+    </Method>
+    <Method Name="M_DeclarePosition" Id="{3104dcf8-96f0-4a34-bd47-59135f454530}">
+      <Declaration><![CDATA[// S3.8a - declare a named taught position (index 2..MAX_POSITIONS) BEFORE
+// Setup, the SetJogRequiresEnable idiom: the composition root names the
+// positions this installation actually has, and Setup turns each declaration
+// into an editable value with a capture. Refused out of range, for an empty
+// label, for a second declaration of the same index, or after Setup - a
+// position that arrives too late is silently unregistered and uneditable,
+// which is worse than a visible refusal. Position 1 is the standing taught
+// position and is never declared here.
+METHOD M_DeclarePosition : BOOL
+VAR_INPUT
+    Index    : INT;
+    LabelKey : STRING(160);
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// OR_ELSE: an out-of-range Index must never reach the array read.
+IF _setupDone OR_ELSE (Index < 2) OR_ELSE (Index > PL_Axis.MAX_POSITIONS)
+    OR_ELSE (LabelKey = '') OR_ELSE _positionDeclared[Index] THEN
+    M_DeclarePosition := FALSE;
+    RETURN;
+END_IF
+_positionLabel[Index] := LabelKey;
+_positionDeclared[Index] := TRUE;
+M_DeclarePosition := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="SetOverride" Id="{d0bb905d-f123-4446-b745-59480ccaef08}">
+      <Declaration><![CDATA[// S6.1/WP3.3 - the set-and-hold speed override in percent. It scales motion
+// through _power's Override, so it acts on a running move and on jog. Refused
+// (and the previous value kept) outside 0..100: an override nobody accepted is
+// not a value the axis inherits. No freshness fallback: a silent owner can
+// only leave an already accepted, lower-or-equal value.
+METHOD SetOverride : BOOL
+VAR_INPUT
+    Percent : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[IF (Percent < 0.0) OR (Percent > 100.0) THEN
+    SetOverride := FALSE;
+    RETURN;
+END_IF
+_override := Percent;
+SetOverride := TRUE;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_MoveRel" Id="{41cd40e8-4578-4376-9dab-b649235c7a9a}">
+      <Declaration><![CDATA[// WP3.2 - relative and step moves on MC_MoveRelative, behind the same
+// handshake mapping as MOVE_TO (G.3). Validation order mirrors _M_MoveTo:
+// the request (step set, distance, resolved target, speed scale) before the
+// state (datum, bound axis), so every rejection is provable without a
+// licensed NC axis. A zero distance commands nothing and needs no datum.
+METHOD PRIVATE _M_MoveRel
+VAR
+    target   : LREAL;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[// The request is resolved and judged ONCE, from where the axis stands when the
+// command starts, and the distance is latched. Re-judging ActPos + distance on
+// later scans would move the target with the axis and refuse a legal move
+// halfway (0 -> 80 under SoftMax 100 would fail at ActPos 40).
+IF _step = 10 THEN
+    IF (Command = E_AxisCommand.STEP_POS) OR (Command = E_AxisCommand.STEP_NEG) THEN
+        IF _teach.ManualStep = 0.0 THEN
+            _M_FaultN(Code := PL_ModuleReasons.AXIS_PARAM_OOR, Text := 'std.error.axisManualStepNotSet');
+            RETURN;
+        END_IF
+        IF Command = E_AxisCommand.STEP_POS THEN
+            _relDistance := _teach.ManualStep;
+        ELSE
+            _relDistance := -_teach.ManualStep;
+        END_IF
+    ELSE
+        _relDistance := ParCmd.Distance;
+    END_IF
+    IF _relDistance = 0.0 THEN
+        // Going nowhere is not motion: no datum is needed to complete it, and no
+        // MC_* call is issued.
+        OutCmd.InPosition := TRUE;
+        _M_Complete();
+        RETURN;
+    END_IF
+    target := OutImm.ActPos + _relDistance;
+    IF (target < ParCfg.SoftMin) OR (target > ParCfg.SoftMax) THEN
+        _M_FaultN(Code := PL_ModuleReasons.AXIS_TARGET_OOR, Text := 'std.error.axisTargetOutOfRange');
+        RETURN;
+    END_IF
+END_IF
+IF (TO_LREAL(ParCmd.SpeedScale) < TO_LREAL(ParCfg.SpeedScaleMin))
+    OR (TO_LREAL(ParCmd.SpeedScale) > TO_LREAL(ParCfg.SpeedScaleMax)) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_PARAM_OOR, Text := 'std.error.axisSpeedScaleOutOfRange');
+    RETURN;
+END_IF
+IF NOT _homed THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_NOT_HOMED, Text := 'std.error.axisNotHomed');
+    RETURN;
+END_IF
+IF NOT __ISVALIDREF(_axis) THEN
+    _M_FaultN(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisNotBound');
+    RETURN;
+END_IF
+CASE _step OF
+    10:
+        OutCmd.InPosition := FALSE;
+        _moveRelFb(Axis := _axis, Execute := FALSE);
+        _tMove(IN := FALSE);
+        _step := 20;
+    20:
+        _moveRelFb(Axis := _axis, Execute := TRUE, Distance := _relDistance,
+            Velocity := ParCfg.Velocity * TO_LREAL(ParCmd.SpeedScale) / 100.0,
+            Acceleration := ParCfg.Acceleration,
+            Deceleration := ParCfg.Deceleration);
+        _tMove(IN := TRUE, PT := ParCfg.MoveTimeout);
+        IF _moveRelFb.Done THEN
+            _moveRelFb(Axis := _axis, Execute := FALSE);
+            _tMove(IN := FALSE);
+            OutCmd.InPosition := TRUE;
+            _M_Complete();
+        ELSIF _moveRelFb.Error THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_DRIVE_FAULT, Text := 'std.error.axisDriveFault');
+        ELSIF _moveRelFb.CommandAborted THEN
+            AbortCommand();
+        ELSIF _tMove.Q THEN
+            _M_FaultStopped(Code := PL_ModuleReasons.AXIS_MOVE_TIMEOUT, Text := 'std.error.axisMoveTimeout');
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
+END_CASE]]></ST></Implementation>
     </Method>
   </POU>
 </TcPlcObject>

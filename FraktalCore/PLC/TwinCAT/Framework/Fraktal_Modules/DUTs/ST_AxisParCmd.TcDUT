@@ -5,6 +5,13 @@
 TYPE ST_AxisParCmd :
 STRUCT
     Target : LREAL;   // absolute target for MOVE_TO, in axis units
+    // MOVE_TO position selector: 0 = Target, 1 = the taught position,
+    // 2..MAX_POSITIONS = a declared named position (WP3.1).
+    PositionIdx : INT := 0;
+    // Relative distance for MOVE_REL and the speed scale in percent of
+    // ParCfg.Velocity for MOVE_TO / MOVE_REL (WP3.2/WP3.3).
+    Distance   : LREAL := 0.0;
+    SpeedScale : REAL := 100.0;
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

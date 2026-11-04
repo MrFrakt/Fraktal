@@ -20,10 +20,21 @@
 //   ControllerMessage = ReadMessages       SetTool/SetFrame = Read Tool/FrameData
 //   SetPayload        = Read/WriteLoadData Jog              = GroupJog
 //
-// Seven members have NO SRCI equivalent, because they express this annex's own
-// model: RunPallet, MoveTemplate, MoveFromArea, CurrentArea, ProtectiveStop,
-// Resumable and LastResult. They are what the standard adds over an ordinary
-// robot command interface.
+// The other members have NO SRCI equivalent asserted here, because they express
+// this annex's own model: RunPallet, MoveTemplate, MoveFromArea, CurrentArea,
+// ProtectiveStop, Resumable, LastResult, ArmPowerOn, PathIndex, the user channel
+// (WriteUserSignal/UserSignal) and Capabilities. They are what the standard adds
+// over an ordinary robot command interface. The controller's own routines (brake
+// test, safe reference run) are a capability group, so they live on the
+// secondary I_RobotRoutines and never widen this interface (I.5b).
+//
+// A point, list or pallet ID the controller does not hold is refused with
+// ROBOT_POINT_UNKNOWN - never driven to a default or synthesized pose.
+//
+// LastResult describes the MOST RECENT robot request: NONE when it was
+// accepted, its reason when refused or failed. Every refusal leaves a reason;
+// the owning CM adopts it verbatim (S8.2) and would otherwise fault with none.
+// The user channel is not a robot request and never changes LastResult.
 //
 // Every method returns immediately: FALSE means the request was refused outright
 // (unknown id, unreachable, no route, not linked) and LastResult carries the
@@ -157,6 +168,56 @@ VAR_INPUT
     ToPosId : DWORD;
 END_VAR]]></Declaration>
       </Method>
+      <Method Name="WriteUserSignal" Id="{41a81f7e-7076-447a-a9ba-8f6d6a1ad335}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT ASSERTED. Hand one declared to-robot user signal to the
+// robot program (I.3 user channel). Level semantics: the value stands until the
+// next write and is re-sent after a reconnect. FALSE = not linked or index out
+// of range. Data, never a command - positions, modes and "go" stay ID-addressed.
+METHOD WriteUserSignal : BOOL
+VAR_INPUT
+    Index : INT;
+    Value : LREAL;
+END_VAR]]></Declaration>
+      </Method>
+      <Method Name="UserSignal" Id="{d585f792-71a0-4a4e-9f4b-4d694aa836e1}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT ASSERTED. The last value the robot program reported for
+// user signal Index; 0 when out of range or never reported. Valid only while
+// Linked - the owning CM publishes that alongside.
+METHOD UserSignal : LREAL
+VAR_INPUT
+    Index : INT;
+END_VAR]]></Declaration>
+      </Method>
+      <Property Name="Capabilities" Id="{cca0c57c-30eb-4ece-beaf-c5bdae726c68}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT ASSERTED. What the connected controller says it offers.
+// Reported = FALSE until it has said; an unreported set filters nothing.
+PROPERTY Capabilities : ST_RobotCapabilities]]></Declaration>
+        <Get Name="Get" Id="{0e44d8e8-f60e-4f18-995b-e5dc1af2790c}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="PathIndex" Id="{24c180f1-f183-4fda-a0ef-8a16bd6c4e75}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT ASSERTED. The index of the last point of the current or most
+// recent RUN_PATH the robot has COMPLETED; -1 = none. After an abort it says where
+// the path stopped, so a deliberate RUN_PATH from PathIndex + 1 continues it - from
+// wherever the arm stands, never automatically (Annex D / S9.3).
+PROPERTY PathIndex : DINT]]></Declaration>
+        <Get Name="Get" Id="{bc195e89-0200-492b-a4b8-4f63de183879}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
+      <Property Name="ArmPowerOn" Id="{f53698a4-4f96-45ac-96a5-5a4e849f9b9e}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT ASSERTED. The controller REPORTS its drives powered. Read-only
+// status (I.4): a safety-alias loss drops power through PowerOff, and nothing
+// re-enables it but a deliberate POWER_ON (S9.3/S9.4).
+PROPERTY ArmPowerOn : BOOL]]></Declaration>
+        <Get Name="Get" Id="{49f6dd79-e71f-4039-b7af-a99073f77b9e}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
       <Property Name="MotionBusy" Id="{f19c5e53-3e7d-416b-9bc5-af1c937c2c6c}">
         <Declaration><![CDATA[// The ROBOT is executing motion. Deliberately NOT called Busy: the module base
 // already publishes Busy for its own command handshake, and the two are different

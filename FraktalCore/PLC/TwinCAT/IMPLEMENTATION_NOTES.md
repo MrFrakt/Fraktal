@@ -5347,3 +5347,798 @@ two runtime restarts with the newest copies alternating between the slots restor
 every value, model record, set and user without a loss; damaged, deleted and obstructed
 documents behaved as described above. Scope and artifacts:
 `Specification/Evidence/2026-10-06_TC3_PersistMedium.md`.
+
+## 164. An analog channel's unit is a code (Core 0.26.0.0, 2026-10-26)
+
+First step of the generic control-module expansion. A configuration value has published
+its unit as a code since Core 0.14 (`ST_ConfigEntry.UnitCode`, §3.10.2), so the HMI shows
+its own translated symbol; a fieldbus channel still carried only free text
+(`ST_IoChannel.Unit`), so the analog channels the expansion adds would have shown
+untranslated ASCII in the bus view.
+
+- **`ST_IoChannel.UnitCode : E_EngUnit`**, appended, `OPC.UA.DA` 0: static identity,
+  served through the manifest like `Name`/`Address`. `Unit` stays for clients that
+  predate the code.
+- **One source per channel.** `FB_IoTopologyPublisher.M_DefineAnalogChannel` gains a
+  `UnitCode` input. With a code, `Unit` is derived through `F_EngUnitSymbol` - the
+  `ST_ConfigEntry` pattern. The catalog's `EngUnit` text is kept only for a unit the
+  vocabulary lacks (`mA`, raw counts). A channel given both is refused with the existing
+  `std.error.fieldbusChannelMappingInvalid` (`MappingValid=FALSE`) instead of resolved
+  silently: two sources for one fact is exactly what O9 forbids, and the catalog is
+  reviewed engineering data, so the defect belongs on the commissioning screen.
+- **Manifest.** `F_AppendTopologyConfig` exports `UnitCode` only when it is not `NONE`;
+  an absent code reads as none, so a digital channel costs the manifest nothing extra.
+- **HMI.** `IoChannel.unitCode`/`unitKey`; `engUnitKey` in `types.dart` is now the one
+  code-to-key rule, used by `CfgField.unitKey` as well. The mapper reads a channel's
+  absent, `NONE` or newer-than-the-client code as "no code", so the legacy text stands:
+  for a channel, `NONE` means the unit was given as text, and a binding that publishes
+  the whole struct (TIA, a raw ADS read) sends 0 for every uncoded channel. A first
+  version read 0 as "no unit" and would have hidden such a channel's `mA`. The channel row and the force dialog show the translated
+  symbol (`2.50 µm`, not the PLC's ASCII `um`).
+- **Upgrade cost.** Core *minor*: the `ST_IoChannel` layout and the method signature
+  change. Every `M_DefineAnalogChannel` call passes `UnitCode` - the 4024 profile has no
+  defaulted method inputs - so the Press catalog's eight EL6001 byte channels now pass
+  `UnitCode := E_EngUnit.NONE`. No retained data is involved.
+- **Tests.** `UnitCode_derives_the_unit_text`, `No_code_keeps_the_catalog_text`,
+  `A_code_and_a_text_together_are_refused` in `FB_IoTopologyPublisher_Tests`, on a table of
+  their own: the refused definition marks its table invalid, and the existing rows
+  validate theirs. HMI: `channel_unit_code_test.dart` (mapper, and the row in every
+  theme).
+- **Parity.** AB carries channel text only; TIA's `FB_IoTopologyPublisher` (C19) does not
+  carry the code yet. Both are recorded in their own census, and the read-surface gate
+  (`tools/check_consistency.py`) declares the AB absence in `AB_ABSENT`. That was the
+  first fieldbus entry ever declared there, and the gate reported it stale although the
+  HMI reads it: its staleness check looked only at module reads. It now judges a
+  `Topology/...` entry against the fieldbus reads and publications
+  (`test_a_fieldbus_absence_is_judged_against_the_fieldbus_surface`).
+
+## 165. Digital-input debounce at the source (Modules 0.12.0.0, 2026-10-26)
+
+A bouncing contact is settled by the module that owns the signal (§7.2.1), not by a wait
+in each sequence that happens to read it: the latter is a per-chain timer a project has
+to remember (O1), and a chain that forgets it advances on a bounce.
+
+- **`ST_DigitalInputParCfg` v2** appends `DebounceTime : TIME := T#0MS`. The type has no
+  recipe provider - the composition root assigns `ParCfg` - so nothing is stored and
+  nothing migrates; existing instances compile to v2 with the default, which is v1.
+- **Behaviour.** `OutImm.Value` follows the HAL only after it has differed from the
+  published value continuously for `DebounceTime`; the timer restarts on acceptance, so a
+  bounce straight back is timed from its own edge. `T#0MS` passes through in the same
+  scan. `Quality = FALSE` publishes `Value := FALSE` and resets the timer, so returning
+  quality is timed afresh rather than restoring the old value.
+- **Fail closed (§5.6).** A `SchemaVersion` other than the compiled layout's, or a
+  `DebounceTime` above `DI_DEBOUNCE_MAX` (`T#10S`, a type constant), makes `Setup` return
+  FALSE and publishes `Quality := FALSE` / `Value := FALSE` every scan for as long as it
+  persists - checked each scan, because `ParCfg` is an input a root may assign after
+  `Setup`. The compiled layout is the DUT's own initializer, read from a method-local
+  default instance, so the version number is written once.
+- **Surface.** No raw-value member and no reason code: a passive monitor has no command
+  to fault, and the raw value waits for a maintenance view that reads it (O4/O9).
+- **Upgrade cost.** Modules *minor* (published `ParCfg` layout); no behaviour changes for
+  an instance that does not set `DebounceTime` - the Press `PartPresentSensor` among them.
+- **Tests.** Five rows in `FB_InputCM_Tests`. The timed rows assert the elapsed `TIME()`
+  when `Value` changes, not a scan count, so a jittery test runtime can neither hide an
+  early change nor fail a correct one.
+- **Parity.** AB's generated digital-input type and TIA's M2 pass the value through;
+  both are recorded in their own census.
+
+Final (§164 and §165): Core 0.26.0.0 / Modules 0.12.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint profiles, the tool
+tests and strict consistency green; HMI analyzer clean, 622 passed / 12 skipped on Flutter
+3.44.6 (the 3.47.x pin is not installed on this host). On the isolated UmRT: aggregate
+243/243 in 49 suites, Press 9/9 in 2 suites (Ladder AUTO). The first aggregate run met an
+expired `TC3 PLC` trial licence (2026-10-13); the owner renewed it and both gates passed
+unchanged. Scope and artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase0.md`.
+
+## 166. Cylinder valve timing (Modules 0.13.0.0, 2026-10-26)
+
+Phase 1 of the generic control-module expansion: the valve-timing options stations set
+on their cylinders, on `FB_CylinderCM` - the type stations instantiate.
+
+- **`ST_CylinderParCfg` v2** appends `SettleTime`, `MinOutputTime`, `PulsingWidth`,
+  `PulsingPeriod`, `ResetOnEndPos`, `ResetOnTimeout`; every default reproduces v1.
+  `SettleTime` keeps the configurable cylinder's name and meaning.
+- **Which phase pulses** - the question the plan left open, settled against station
+  practice: a move that **starts with neither end sensor confirmed** (the undefined middle
+  a stop or a held move leaves behind) pulses its coil for `PulsingWidth` of every
+  `PulsingPeriod` until the target confirms; a stroke from an end position is driven
+  steadily. Pulsing is travel, never an end-position refresh. A width that grows each
+  period and pulsing that depends on the mode wait for a station that needs them.
+- **`FB_ValveDrive`**, owner-private (no identity, nothing published): one move's coil
+  level and its minimum output time. The plan's `Hold` input was dropped: the cylinder's
+  §6.1 HOLD rewinds the move to its first step, so a resumed move begins afresh, and a
+  second way to freeze the pattern would have had no caller.
+- **Completion.** `Done` needs the target sensor held for `SettleTime` and the move
+  commanded for `MinOutputTime`. The coil is then held (v1) or, under `ResetOnEndPos`,
+  withdrawn; `ResetOnTimeout` withdraws it on the timeout fault.
+- **No weaker stop.** `OnAbort` still de-energizes, a lost interlock still HOLDS with both
+  coils off, and pulsing never runs while held. One latch is new: a pulsed move writes its
+  coil every scan, which would have undone an owner's `WithdrawOutputs` - the Press
+  withdraws its ram mid-dwell and on every abort. A withdrawal now stays until
+  `RestoreOutputs` or the next move begins, which is what v1 gave by writing the coil once
+  per move. `RestoreOutputs` restores what the module itself would drive, so a coil reset
+  at its end position stays off.
+- **Validation (§5.6).** `PrepareRecipe` refuses a non-zero `SettleTime` or
+  `MinOutputTime` not shorter than `MoveTimeout`, and a `PulsingWidth` not shorter than
+  `PulsingPeriod`, with `CYL_CFG_INVALID` (10115, now shared by both cylinder types); a
+  refused record is not applied. A zero time is off and cannot conflict, so the existing
+  `MoveTimeout := T#0S` timeout rows stand.
+- **Upgrade cost.** Modules *minor*. Records compiled from `ST_CylinderParCfg` take v2 on
+  rebuild. A record a station **stored** under `CylinderCM` is v1-sized and is refused with
+  `RECIPE_INVALID` at the next prepare: list them through `I_RecipeCatalog` before the
+  upgrade and save them again after. The Press passes `Recipe := 0` and stores none. No
+  configuration value is registered for the new members; a station that needs one on site
+  registers it then (`M_RegisterConfigDuration`).
+- **Tests.** Thirteen rows in `FB_CylinderCM_Tests` - the plan's eleven plus
+  `A_move_from_an_end_position_does_not_pulse` and
+  `Withdrawn_outputs_stay_off_while_a_pulsed_move_runs` - with T5 restamped for v2, and four
+  in the new `FB_ValveDrive_Tests`. The stored-record row uses a v1-shaped probe record
+  (`ST_ProbeCylinderParCfgV1`), so it fails on the size a real stored record has.
+- **Deferred.** Valve preset matrices, "reached too fast" detection, mode-dependent
+  pulsing, a growing pulse width, and adoption by `FB_ConfigurableCylinderCM` (with its first
+  consuming station). AB and TIA record the gap in their census.
+
+Final: Modules 0.13.0.0 installed from the isolated worktree; six `CheckAllObjects` clean
+(0 errors, 0 warnings); both lint profiles, the tool tests and strict consistency green. On
+the isolated UmRT: aggregate 260/260 in 50 suites, Press 9/9 in 2 suites (Ladder AUTO).
+Scope and artifacts: `Specification/Evidence/2026-10-26_TC3_GenericCM_Phase1.md`.
+
+## 167. The Unit's NOK-part limit (Core 0.26.1.0, 2026-10-27)
+
+Generic control-module expansion WP5.1, with the Press bench as its first consumer.
+
+- **`FB_UnitBase.SetNokPolicy(Cfg : ST_NokPolicyParCfg) : BOOL`**, given by the
+  composition root: `InSeries` NOK parts in a row and/or `WindowNok` NOK among the last
+  `WindowCount` judged parts (`PL_Fraktal.NOK_WINDOW_MAX` = 32). Zero turns a rule off;
+  the default is no limit. Refused, policy unchanged, unless it is the compiled layout and
+  each rule is off or well formed - a window without a limit is refused rather than read
+  as "trip at once". An accepted policy counts afresh. Editing it on site waits for a
+  station that asks.
+- **Counted on the one verdict path, `CountGood`/`CountNok`** - not in `_M_PartProcessed`
+  as the plan said. A station without a part carrier counts through `M_CountGood` and never
+  reaches `_M_PartProcessed`, so the planned hook would have missed it. REWORK neither
+  counts nor ends a series.
+- **A trip** is one `NOK_LIMIT_REACHED` (2028) event, `MANUAL_RESET`; Start is refused by
+  the record `ReleaseReportStart` already adds for any blocking alarm
+  (`std.release.manualReset`), so there is no new gate. The plan stopped there, but a
+  blocking alarm only refuses the *next* Start and a Unit in continuous AUTO is not
+  restarted: it would have kept producing rejects. A running Unit therefore also finishes
+  its cycle at its stop point (`_stopReq`, the graceful mode-change path) and stays
+  stopped.
+- **Fail closed.** A trip whose alarm found the table full is raised again every scan
+  until it exists, and the counters re-arm only once the operator's reset has closed that
+  alarm (`_M_NokCyclic`, also called from `OperatorReset` so the reset re-arms at once).
+  Only the alarm is published; the policy and the window are `OPC.UA.DA` 0.
+- **§8.9.** Rationalized MED/PROCESS, not shelvable. The generator gained the `NOK`
+  acronym, so the reason reads "NOK limit reached."; operator text
+  `std.error.nokLimitReached` in English and Spanish.
+- **Press.** `MAIN` sets 3 in a row or 5 of the last 20 - bench values that exercise both
+  rules, not a process recommendation. The PressTests composition sets none.
+- **Cross-binding.** `E_Reason` is part of TIA's frozen candidate ABI, which allows no
+  change without a versioned review. The owner reviewed this append on 2026-10-27:
+  `TIA_FROZEN_CONTRACTS_V2.json` is V1 plus this entry, V1 stays byte for byte, and
+  `tools/check_tia_contracts.py` now checks against the newest baseline and requires every
+  earlier one to be contained unchanged and bound in Part IV
+  (`test_a_successor_preserves_and_keeps_binding_every_earlier_baseline`). The TIA
+  packages were regenerated - its command kernel carries 2028's rationalization - and the
+  S12 field pin moves to 615. No TIA or AB Unit has the limit; both record the gap.
+- **Upgrade cost.** Core *patch*; Modules 0.13.0.1 is only a rebuild against it. No
+  retained data is involved.
+- **Tests.** `FB_NokPolicy_Tests`, nine rows on two probe Units. The single-scan rows
+  share one, each starting from a clean slate, because a probe Unit is about 350 KB.
+
+Final: Core 0.26.1.0 / Modules 0.13.0.1 installed from the isolated worktree; six
+`CheckAllObjects` clean (0 errors, 0 warnings); lint, tool tests, strict consistency and every
+AB/TIA replay and contract gate green; HMI analyzer clean, 622 passed / 12 skipped. On the
+isolated UmRT: aggregate 269/269 in 51 suites, Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-10-27_TC3_GenericCM_NokPolicy.md`.
+## 168. The generic analog input CM (Modules 0.13.1.0, 2026-10-30)
+
+L1 of the remaining-library plan. One type covers a plain analog signal, a
+measuring sensor (a value read once it is stable) and a scale (a tared
+reading): the differences are configuration, not types (O9), and after L1/L2/L5
+reserve 10700/10800/10900 every CM reason block is allocated.
+
+- **`FB_AnalogInputCM`**: `ParCfg` scales linearly over `[RawMin, RawMax]` to
+  `[EngMin, EngMax]` (both ranges may be inverted) until a two-point adjustment
+  is active, then a first-order `FilterTime` filter on `Gross - Tare`, an
+  `UnderRange`/`OverRange` judgement and a `StableBand`/`StableTime` stability
+  window with re-anchoring on a band exit. Bad quality, a ParCfg the type
+  cannot honour or an implausible retained adjustment publishes `Valid` FALSE
+  and `Value` 0 (S5.6) - never the last good value, and the filter
+  re-initialises so returning quality is measured afresh. The one command,
+  `MEASURE`, waits for stability within `MeasureTimeout` and completes with
+  `OutCmd.Value`; `Gross` (before tare) and `Raw` are published beside `Value`
+  because they are the adjustment's and the tare's capture sources (S3.8c(b)).
+- **Two-point adjustment and tare are deployment data** (`StationCfg`,
+  S3.8a/S3.8b): five editable values, the two measured points and the tare also
+  capturable from the live signal. A pair is ACTIVE when both references and
+  both measured points differ; single points may be written while it is
+  inactive, so an operator captures one point at a time. A pair whose gain lies
+  outside `[0.5, 2.0]` of the nominal gain is implausible - that is a corrupted
+  restore, not a calibration - and `_M_OnConfigWrite` refuses a typed OR
+  captured candidate that would make the pair active and implausible. This is
+  the library's first `_M_OnConfigWrite` override; it sees raw text, has no
+  side effects, and parses with `STRING_TO_LREAL` under the same rule.
+- **IEC AND does not short-circuit - a lesson bought on the runtime.** The
+  first build guarded the plausibility call as
+  `IF (a) AND (b) AND NOT _M_AdjustmentPlausible(...)` and evaluated the call
+  on every INACTIVE pair: `(Ref2-Ref1)/(Meas2-Meas1)` divided 0/0, the FPU trap
+  (0xc0000090) halted the PLC task, and the aggregate gate died at startup
+  twice before the Windows event log named the exception. Every call that can
+  divide, dereference or fault now sits under its own IF (the `valid`
+  dereference chain included). No static gate catches this class; the TcUnit
+  runtime gate does.
+- **The TcUnit gate had a swallowed-start race** (`Invoke-TwinCatTcUnitGate.ps1`,
+  `Set-AdsPlcState`): a Run request issued while the boot application is still
+  loading is accepted yet swallowed - no ADS error, the state stays Stop, and
+  with autostart deliberately disabled nothing re-issues it. The request is now
+  re-issued on every poll that still sees the old state. Measured twice on the
+  UmRT on 2026-10-30; the aggregate and press gates then passed unchanged.
+- **Reasons 10701-10705** (`AI_UNDER_RANGE`/`AI_OVER_RANGE`/`AI_SIGNAL_INVALID`/
+  `AI_ADJUSTMENT_INVALID`/`AI_NOT_STABLE`), rationalized, catalogued (78 -> 83,
+  generator gains the `AI` expansion), Part I S8.8 registry row added.
+  `AI_ADJUSTMENT_INVALID` is raised before `AI_SIGNAL_INVALID` so the operator
+  is sent to the adjustment, not the wiring. Operator text in English and
+  Spanish; the HMI gains the `analogInput` module symbol (`Icons.show_chart`).
+- **Upgrade cost.** Core *patch* 0.26.2.0 - only the generated reason catalog
+  changed (the S167 precedent); Modules *patch* 0.13.1.0 pins it and adds the
+  type. New type: no stored records, no retained image exists yet, nothing
+  migrates. TIA: Modules-only, so the packages change only by the
+  `PL_ModuleReasons` hash (examples manifest refreshed); the frozen candidate
+  contract is untouched. AB records the gap in its census.
+- **Tests.** `FB_AnalogInputCM_Tests`, 16 rows: T2 first-out with the schematic
+  tag, T5 implausible refused typed or captured, timed filter/stability/timeout
+  rows asserting elapsed `TIME()`. A first boot initializes version 0 silently,
+  and an unrecognized layout keeps the module out of error while defaulting.
+
+Final: Core 0.26.2.0 / Modules 0.13.1.0 installed from an isolated worktree;
+six `CheckAllObjects` clean (0 errors, 0 warnings); both lint profiles, the tool
+tests, strict consistency and every AB/TIA replay and contract gate green; HMI
+analyzer clean, 622 passed / 12 skipped on Flutter 3.44.6 (lock unenforced). On
+the isolated UmRT: aggregate 285/285 in 52 suites, Press 9/9 in 2 suites. Scope
+and artifacts: `Specification/Evidence/2026-10-30_TC3_GenericCM_AnalogInput.md`.
+## 169. The generic analog output CM (Modules 0.13.2.0, 2026-10-30)
+
+L2 of the remaining-library plan. The output-side counterpart of S168: one
+command, `SET`, and a channel whose state is always somebody's.
+
+- **`FB_AnalogOutputCM`**: `SET` drives the channel to a target inside
+  `[ParCfg.Minimum, ParCfg.Maximum]` (both inside the scalable range; the
+  safe value inside the band) and completes in the scan the value is
+  written; the value then stays applied until the next `SET`. Whatever
+  state nobody stands behind drives `SafeValue`: before the first `SET`,
+  while an interlock withholds it, while withdrawn, and after an abort
+  (S5.6 - the channel never silently keeps its last driven value).
+- **Held, not resumed.** During a `SET` an interlock is S6.1 HELD (the
+  output withdrawn by the same permit, a resume re-applies the target). A
+  value applied and THEN withheld drives `SafeValue` and does NOT
+  self-resume when the condition returns (S9.3): only `RestoreOutputs` or
+  a new `SET` re-applies it. `RestoreOutputs` restores what the module
+  itself would drive and only while the interlock permits - the caller
+  asks, this module still decides; a suspended channel is released but a
+  withdrawn-with-nothing-applied one keeps driving `SafeValue`.
+  `WithdrawOutputs` holds until restore or the NEXT `SET`, which releases
+  it in the same act that applies its own target (the cylinder latch
+  semantics, on one value instead of two coils).
+- **The manual set point is deployment data**: `ManualCommand(SET)`
+  applies `StationCfg.ManualTarget` - an ordinary editable value with the
+  band as bounds - so an operator's set point survives a restart and is
+  never a silent recipe member (S3.8a/S3.8b).
+- **Reasons 10801-10802** (`AO_TARGET_OOR`, `AO_CFG_INVALID`),
+  rationalized, catalogued (83 -> 85), registry row added; the generator
+  gains the `AO` expansion. Operator text in English and Spanish; the HMI
+  gains the `analogOutput` module symbol. One rule the L1 runtime lesson
+  set is already baked in here: the only division lives in
+  `_M_ScaleToRaw`, which every caller reaches only under a valid `ParCfg`,
+  and no call sits inside a boolean expression.
+- **Upgrade cost.** Core *patch* 0.26.3.0 (generated reason catalog only);
+  Modules *patch* 0.13.2.0 pins it and adds the type. New type: nothing
+  migrates. TIA: hash-only change, packages regenerated and verified; AB
+  records the gap in its census.
+- **Tests.** `FB_AnalogOutputCM_Tests`, nine rows: T2 (out-of-band target
+  refused before writing), T3 (interlock withholds the channel, resumes),
+  T5 (invalid configuration refused). The first aggregate run failed three
+  rows, all test-authoring defects the runtime caught: the shared instance
+  had already been SET by another row, a band instance whose own
+  `SafeValue` lay outside its band is configuration-invalid rather than
+  target-out-of-range, and a `DONE` command is no longer abortable - the
+  abort row now aborts a HELD `SET`, the one state a one-scan command can
+  be busy in.
+
+Final: Core 0.26.3.0 / Modules 0.13.2.0 installed from an isolated worktree;
+six `CheckAllObjects` clean (0 errors, 0 warnings); both lint profiles, the
+tool tests, strict consistency and every AB/TIA replay and contract gate
+green; HMI analyzer clean, 622 passed / 12 skipped on Flutter 3.44.6. On the
+isolated UmRT: aggregate 294/294 in 53 suites, Press 9/9 in 2 suites. Scope
+and artifacts: `Specification/Evidence/2026-10-30_TC3_GenericCM_AnalogOutput.md`.
+
+## 170. Axis depth: named positions, relative moves, speed scale and override (Modules 0.14.0.0, 2026-11-02)
+
+L3 of the remaining-library plan. Every addition is checked before any
+`MC_*` call, so each refusal is provable without an NC axis; the motion
+itself is not (no NC PTP licence on this host).
+
+- **Named positions.** A second retained image, `ST_AxisTeachCfg`
+  (`ManualStep` and `Positions[2..PL_Axis.MAX_POSITIONS]`, schema
+  `PL_Axis.AXIS_TEACHCFG_SCHEMA` 1), restored by its own
+  `M_RestoreStationCfg`. The v2 `ST_AxisStationCfg` and its keys are
+  unchanged, so no deployed image is lost and a first boot after the
+  upgrade is silent. The composition root declares positions with
+  `M_DeclarePosition(Index, LabelKey)` before `Setup` (refused out of
+  range, for an empty label, twice, or after `Setup`); `Setup` registers
+  each as `axis.position<n>` with the soft limits as bounds and a capture
+  from `ActPos`, plus `axis.manualStep` - 10 of the 12 registrations.
+  `ParCmd.PositionIdx` selects the target (0 `Target`, 1 `TaughtPosition`,
+  2..8 a declared position); an undeclared index is refused
+  `AXIS_POSITION_UNDECLARED` (10207) before the range and datum checks.
+- **Relative and step moves.** `E_AxisCommand` appends `MOVE_REL`
+  (sequence only: `ParCmd.Distance`) and `STEP_POS`/`STEP_NEG` (manual
+  catalog: `±ManualStep`), all on `MC_MoveRelative`. A zero distance
+  completes without an `MC_*` call; a step with no manual step set is
+  refused `AXIS_PARAM_OOR` (`std.error.axisManualStepNotSet`).
+- **Defects found in review and fixed before the first commit.**
+  - The first version judged `ActPos + distance` against the soft limits
+    on every scan, so the target travelled with the axis: a legal move
+    from 0 to 80 under `SoftMax` 100 would have faulted `AXIS_TARGET_OOR`
+    at `ActPos` 40. The relative request is now resolved and judged once,
+    when the command starts, and the distance is latched (`_relDistance`).
+    No TcUnit row can reach the moving step without an NC axis, so this
+    fix is reasoned, not runtime-proven.
+  - Index resolution and `M_DeclarePosition` guarded the array read with
+    plain `AND`/`OR`. ST evaluates both operands, so an out-of-range index
+    still read `_positionDeclared[ParCmd.PositionIdx]` past the array
+    (and, if that byte happened to be non-zero, `_teach.Positions[...]`
+    too). Both chains are now `AND_THEN`/`OR_ELSE` throughout, so the
+    range check really guards the read.
+  - Seven `FB_Axis_Tests` rows shared an instance whose `Setup` nobody
+    called, so they never started and the aggregate gate never reached
+    `AllTestSuitesFinished` (the result print stopped at suite 33,
+    `AxisTests`). The first of the seven now sets the instance up. Two
+    rows used a `Setup` result that is FALSE by design as their done mark,
+    and the stored-v1 row had no valid default record, so its "refused"
+    assertion was satisfied by `Setup`'s own refusal: each now has a done
+    mark and the provider a current-layout record. In `FB_AxisJog_Tests`
+    the out-of-range, index-0 and empty-label refusals sat behind a flag
+    the previous row had always set, so they never ran; the row now uses
+    its own instance and proves each refusal before `Setup`, then the
+    after-`Setup` refusal.
+- **Speed.** `ST_AxisParCfg` v2 appends `SpeedScaleMin`/`SpeedScaleMax`
+  (REAL percent, the robot idiom) and `ST_AxisParCmd` `SpeedScale`; a
+  scale outside the band is refused `AXIS_PARAM_OOR` (10208) before the
+  datum, never clamped, and scales the commanded velocity. `PrepareRecipe`
+  refuses a non-positive, inverted or over-100 band with
+  `AXIS_CFG_INVALID` (10209). `SetOverride(Percent)` is set-and-hold
+  (0..100, refused and kept otherwise), drives `MC_Power.Override` - so it
+  acts on a running move and on jog - and is published as
+  `OutImm.Override`. No freshness fallback: a silent owner can only leave
+  an already accepted value.
+- **Reasons 10207-10209** rationalized and catalogued (85 -> 88), the
+  registry row widened to "axis CM 10201-10209", Annex G updated, operator
+  text in English and Spanish, AB/TIA census rows; the TIA packages
+  regenerated (a hash-only change).
+- **Upgrade cost.** Modules *minor* 0.14.0.0 (ParCfg v2, ParCmd growth,
+  enum append, a new retained image, a new OutImm member); Core *patch*
+  0.26.4.0 carries only the regenerated reason catalog. `ST_AxisParCfg`
+  records **stored** in a recipe provider are refused (`RECIPE_INVALID`)
+  until saved again; no StationCfg image is lost.
+- **Tests.** Fifteen rows - thirteen in `FB_Axis_Tests` (index resolution,
+  relative and step refusals, zero distance, speed-scale band, override
+  set-and-hold and refusal, invalid band at prepare, a stored v1
+  `ST_AxisParCfg` refused through the probe `ST_ProbeAxisParCfgV1`) and
+  two in `FB_AxisJog_Tests` (declared positions register and capture;
+  declarations refused at index 0, 1 and 9, for an empty label, twice, and
+  after `Setup`).
+
+Final: Core 0.26.4.0 / Modules 0.14.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 622 passed / 12 skipped on
+Flutter 3.44.6. On the isolated UmRT: the first aggregate run stalled at
+`AxisTests` (the rows above that never started); after the fixes,
+aggregate 309/309 in 53 suites and Press 9/9 in 2 suites. Scope and
+artifacts: `Specification/Evidence/2026-11-02_TC3_GenericCM_AxisDepth.md`.
+
+## 171. The configurable cylinder adopts the valve timing (Modules 0.15.0.0, 2026-11-02)
+
+L4 of the remaining-library plan. `FB_ConfigurableCylinderCM` drives its
+commanded output through the same `FB_ValveDrive` as `FB_CylinderCM`
+(§166), so the two cylinder types time their valves one way and the timing
+is written once.
+
+- **`ParCfg` v2** appends `MinOutputTime`, `PulsingWidth`, `PulsingPeriod`
+  (`T#0MS`) and `ResetOnEndPos`, `ResetOnTimeout` (`FALSE`); `SettleTime`
+  already existed and keeps its 30 ms default. Every new default
+  reproduces v1: a steady output held after Done and after a timeout.
+- **Behaviour.** One private `_M_DriveCoil(ToWork, Level)` writes the
+  commanded output and never the spring side of a single-acting cylinder.
+  A move that starts with neither position confirmed pulses; any other is
+  steady. Done needs the settle **and** `MinTimeElapsed` (a sensorless
+  move: `MinTimeElapsed` after its travel time), then withdraws the output
+  when `ResetOnEndPos`; a timeout withdraws it when `ResetOnTimeout`. The
+  interlock path is unchanged: a lost area interlock still withdraws both
+  outputs and faults (this type has no HELD path and no `WithdrawOutputs`;
+  neither is added here).
+- **`PrepareRecipe` refuses (`CYL_CFG_INVALID`)** a non-zero
+  `MinOutputTime` the move timeout cannot contain, a pulse as long as its
+  period, `ResetOnEndPos` on a single-acting cylinder (withdrawing a
+  spring-return coil at its end returns the cylinder), and - one rule
+  stricter than the plan - pulsing unless **both** positions are sensed.
+  With an unsensed end, "neither position confirmed" is also true at that
+  end, so every stroke from it would pulse, and a pulsed stroke towards an
+  unsensed end would invalidate the travel time the type completes on.
+- **A defect found while adopting it.** A refused prepare left
+  `_recipePrepared` as the previous accepted prepare had set it, over a
+  staged record that was now the refused one: a `CommitRecipe` meant for
+  the earlier prepare would have applied the refused record.
+  `PrepareRecipe` now clears the mark first, as `FB_CylinderCM` does, and
+  a test row commits after four refusals to prove nothing is applied.
+- **Kept as `FB_CylinderCM` has it.** A timeout without `ResetOnTimeout`
+  leaves the output at its last level, which during pulsing may be either;
+  both types behave the same.
+- **Upgrade cost.** Modules *minor* 0.15.0.0 (a persistent layout change).
+  Core unchanged; no reason added. `ST_ConfigurableCylinderParCfg` records
+  **stored** in a recipe provider are refused (`RECIPE_INVALID`) until
+  saved again. Nothing outside TC3 carries the layout; the Siemens plan
+  and AB census record the gap.
+- **Tests.** Eight rows in `FB_ConfigurableCylinderCM_Tests`: settle and
+  minimum output time gate Done, pulsing from the middle, a stroke from an
+  end position is steady, end-of-move and timeout resets, the four
+  refusals plus the commit-after-refusal, the declared defaults reproduce
+  v1, and a stored v1 record refused through the probe
+  `ST_ProbeConfigurableCylinderParCfgV1`.
+
+Final: Core 0.26.4.0 / Modules 0.15.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green. On the isolated UmRT: aggregate 317/317 in 53 suites
+and Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-02_TC3_GenericCM_ConfigurableCylinderTiming.md`.
+
+## 172. The curve monitor (Modules 0.15.1.0, 2026-11-02)
+
+L5 of the remaining-library plan. `FB_CurveMonitor` judges one measured
+curve - force over stroke, pressure over time - against windows it must
+pass through and envelopes it must stay on one side of. It is
+owner-private like `FB_ValveDrive`: no module identity, no published
+state, no I/O, and it raises nothing itself.
+
+- **Use.** The owner embeds an `ST_CurveSpec` in its own `ParCfg`,
+  validates it in `PrepareRecipe` with `M_Validate` (refusing with
+  `CURVE_SPEC_INVALID`), calls `M_Begin` when the curve starts,
+  `M_Sample(X, Y)` once per measured point and `M_Finish` when it ends.
+  `M_Begin` copies the spec, so a recipe committed mid-curve cannot move
+  this curve's verdict, and an invalid spec judges nothing and finishes
+  NOK with `CURVE_SPEC_INVALID`. Samples outside `M_Begin..M_Finish` are
+  ignored; `M_Finish` again returns the same result.
+- **Online, no buffer.** Every rule is decided as the samples arrive:
+  windows track inside/outside per sample, envelopes keep a segment cursor
+  that moves with X, so a monotonic curve costs O(windows + envelopes) per
+  sample. A window is judged on its samples - a curve sampled too sparsely
+  to land one inside it misses it.
+- **Windows.** Bounds are inclusive. `ANY_EDGE`/`ANY_EDGE` passes on one
+  inside sample. A declared `EntryEdge` is the edge the outside-to-inside
+  segment crosses last (the largest segment parameter among the bounds the
+  outside sample violates), a declared `ExitEdge` the one the
+  inside-to-outside segment crosses first; an exact corner goes to the
+  first in `LEFT, RIGHT, BOTTOM, TOP` order. A curve that starts inside
+  never crossed a declared entry, and one that ends inside never took a
+  declared exit; both fail the window. The plan's names did not survive
+  the gates: the members `Entry`/`Exit` became `EntryEdge`/`ExitEdge`
+  (`EXIT` is reserved, lint rule C2), and the enum member `ANY` became
+  `ANY_EDGE` - the compiler rejected `ANY`, IEC's generic-type keyword
+  (C0368, then C0004 at every use), which C2 did not know. C2 now lists
+  the IEC generic types (`ANY`, `ANY_INT`, ...), with a test, so the next
+  one fails in seconds, not in XAE.
+- **Envelopes.** `Upper` keeps the curve at or below the linear
+  interpolation, otherwise at or above; outside the envelope's X span
+  nothing is judged. The first violating sample's index is recorded per
+  envelope.
+- **Verdict.** `Complete` = the curve reached every window's `XMax` and
+  every envelope's last X. OK only when complete, every window passed and
+  no envelope cut; otherwise NOK naming the first failing rule -
+  incomplete before window before envelope.
+- **One addition to the plan's result: `DescriptionKey`**, the operator
+  text of `Reason`, so every owner faults with `_M_FaultN(Result.Reason,
+  Result.DescriptionKey)` instead of mapping four codes to four keys
+  itself (§1.1 O1).
+- **Validation** also refuses a spec of another `SchemaVersion`
+  (`PL_Curve.SPEC_SCHEMA`), an edge value the type does not know (a stored
+  record), and a spec with no rule at all - a check that checks nothing is
+  a configuration mistake, not an OK.
+- **Reasons 10901-10904** (`CURVE_WINDOW_VIOLATED`,
+  `CURVE_ENVELOPE_VIOLATED`, `CURVE_INCOMPLETE` MED/PROCESS;
+  `CURVE_SPEC_INVALID` MED/SYSTEM), registered to the helper and raised by
+  its owner; catalogued (88 -> 92), registry row, operator text in English
+  and Spanish, the generator expands `SPEC`. This allocates the last free
+  CM block: a further CM type needs a Part I §8.8 registry amendment
+  first.
+- **Upgrade cost.** Modules *patch* 0.15.1.0 (additive); Core *patch*
+  0.26.5.0 carries only the regenerated reason catalog. TIA: hash-only
+  change, packages regenerated and verified; the Siemens plan and AB
+  census record the helper as not carried.
+- **Tests.** `FB_CurveMonitor_Tests`, eleven single-scan rows: spec
+  validation (and an invalid spec finishing NOK), `ANY_EDGE` window pass
+  and miss, declared entry/exit edges passing (`LEFT`->`RIGHT`,
+  `BOTTOM`->`TOP`), a wrong entry edge and a curve starting inside, a
+  wrong exit edge and a curve ending inside, an upper envelope cut on its
+  second segment by interpolation, a lower envelope, an incomplete curve
+  (and one with no sample), verdict precedence, and `M_Begin` resetting
+  the previous curve.
+
+Final: Core 0.26.5.0 / Modules 0.15.1.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 622 passed / 12 skipped on
+Flutter 3.44.6. On the isolated UmRT: aggregate 328/328 in 54 suites and
+Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-02_TC3_GenericCM_CurveMonitor.md`.
+
+## 173. The curve record and the HMI Curve tab (Modules 0.15.2.0, 2026-11-02)
+
+L6 of the remaining-library plan: the last judged curve becomes visible to
+the generic HMI without a per-station screen.
+
+- **PLC.** `ST_CurveRecord` (`SampleCount`, `Truncated`,
+  `Samples[1..PL_Curve.MAX_SAMPLES]`, `Spec`, `Result`) and
+  `FB_CurveMonitor.M_Record(Target)`. The helper now keeps the first 256
+  samples while it judges; later samples are still judged
+  (`Result.Samples` counts all, an envelope cut past the buffer still
+  fails the curve) and only `Truncated` says they are missing from the
+  record. `M_Record` copies the last **finished** curve and is refused
+  while a curve runs or before the first finishes, so a published record
+  never shows half a curve; rows past `SampleCount` are cleared, and a
+  curve judged against an invalid spec is recorded with an empty spec
+  rather than a stale one. The owner publishes the record as
+  `OutImm.Curve` and calls `M_Record` once per curve after `M_Finish`.
+- **HMI.** `CurveFacet` (with `CurvePoint`, `CurveWindow`, `CurveEnvelope`
+  and `CurveEdge`, whose ordinals are `E_CurveEdge`'s) on
+  `ModuleNode.curve`. The read tier puts everything under `Curve` on
+  demand - a record is several thousand leaves - except `SampleCount`, a
+  live leaf, so the tab exists before its record has been read (the §3.13
+  flow chart's pattern). The new built-in `curve` tab kind (appended;
+  kinds persist by name) appears for any module publishing the record,
+  demands `{Curve}` only while it is open, and draws the windows in their
+  pass/fail colour, the envelopes, the samples, the first envelope cut and
+  the PLC's verdict with its reason text. Nothing is recomputed, nothing
+  is written. Geometry is fractions of the chart box; every colour is a
+  semantic token (`CurvePalette`) measured at 3:1 against the card in
+  every theme. The simulator's `PackerC.Sealer` publishes a synthetic
+  sealing-force curve.
+- **Cross-binding.** The strict read-surface gate requires every path the
+  HMI reads to be published by the AB projection or declared absent:
+  `OutImm/Curve` is declared absent (no AB type publishes a curve record;
+  the helper is a recorded AB gap). The mapper reads the record through
+  the file's own binding idiom (`final curve = '$base/OutImm/Curve'`,
+  `_indexedPrefix`, `_arrayElement`), which is what lets that gate resolve
+  each read.
+- **Upgrade cost.** Modules *patch* 0.15.2.0 (additive: a new record type,
+  a method and a constant; the helper's own state grows by the sample
+  buffer). Core unchanged. The HMI tab is additive; a stored layout that
+  predates it gets the tab appended, as for every built-in tab.
+- **Tests.** PLC: two rows in `FB_CurveMonitor_Tests` (the record copies
+  the finished curve, is refused before and during one, and clears the
+  previous curve's rows; a truncated record keeps the whole verdict). HMI:
+  a field-tier row, a mapper row (length only, then the read record, then
+  no record), widget rows for every theme, the not-yet-read and
+  unpublished states and the tab's demand set, and a contrast row for
+  every chart role.
+
+Final: Core 0.26.5.0 / Modules 0.15.2.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 628 passed / 12 skipped on
+Flutter 3.44.6 (three earlier full runs each failed a wall-clock test in
+`opcua_freshness_test` under load, which the baseline without this change
+reproduces; it passes alone). On the isolated UmRT: aggregate 330/330 in
+54 suites and Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-02_TC3_GenericCM_CurveRecord.md`.
+
+## 174. The robot CM completed (Modules 0.16.0.0, 2026-11-03)
+
+Closes the gaps the robot user-channel audit named
+(`Specification/Reports/TC3_ROBOT_USER_CHANNEL_AUDIT_2026-11-02.md`) and
+builds two of the three items Annex I had left unbuilt; the bounded vision
+offset (I.8a) stays deferred until a vision path needs it.
+
+- **The mode request half (I.4a(a)).** `ParCfg` v2 appends `DefaultMode`
+  (the most restrictive mode this cell supports, `MANUAL_REDUCED` unless
+  configured), `ModeTimeout` and `JogTimeout`. The default is requested at
+  link-up and whenever a reported mode is lost; `REQUEST_MODE`
+  (`ParCmd.Mode`) asks for another and completes only when the controller
+  REPORTS it, faulting `ROBOT_MODE_NOT_PERMITTED` after `ModeTimeout`;
+  `OutImm.RequestedMode` stands beside `ActualMode` so an ungranted
+  request is visibly ungranted.
+- **Configuration validation.** `PrepareRecipe` refuses a non-positive,
+  inverted or over-100 speed band, a ceiling outside 0..100, an UNKNOWN or
+  unknown default mode and any zero timeout with the new
+  `ROBOT_CFG_INVALID` (10316); `Setup` runs it, as for every CM.
+- **The §9 safety alias.** `SetSafetyPermit(Permit, DescriptionKey)`,
+  read-only, deliberately separate from `Intlk` (a lost application
+  permissive HOLDS on path; a lost safety alias does not). Losing it stops
+  a running command first, then asks power off on the falling edge and
+  every 500 ms while power is still reported; regaining it re-enables
+  nothing. `POWER_ON` and motion are refused without it. Raises
+  `ROBOT_SAFETY_DROPPED` (10307, registered in Annex I, now in
+  `PL_ModuleReasons`, SAFETY category, never shelvable).
+- **Held jog.** `JOG_POS`/`JOG_NEG` held commands (§7.6.1) in the manual
+  catalog, accepted only in a manual mode the controller reports, only
+  with the enabling device held (no station opt-out, unlike the axis),
+  never while a command runs, never through a lost interlock or safety
+  alias; started once and stopped with `Abort` when the request stops
+  arriving (`JogTimeout`). `SetJogSelection(Mode, Axis)` picks frame and
+  axis; `OutImm.Jogging`, `JogStopReason`, `JogMode`, `JogAxis` publish
+  it.
+- **`SET_PAYLOAD`, the arm-power fact and path progress.** `SET_PAYLOAD`
+  selects the load case by ID; `I_RobotConnector` gains `ArmPowerOn` and
+  `PathIndex` (last completed point of the current or most recent
+  `RUN_PATH`), published in `OutImm`. An aborted path is continued by a
+  DELIBERATE `RUN_PATH` from `PathIndex + 1`, never automatically.
+- **The user channel.** `M_DeclareUserSignal(Index, Key, ToRobot, Kind)`
+  declares up to `PL_Robot.MAX_USER_SIGNALS` (8) signals, published
+  read-only in `OutImm.UserSignals` with validity; `M_WriteUserSignal`
+  writes a declared to-robot signal and refuses a value that does not fit
+  its kind. The connector gains `WriteUserSignal`/`UserSignal`; it is not
+  a robot request and never touches `LastResult`. Annex I states the rule
+  that it carries no positions, modes, speeds or "go" requests.
+- **Defects found while finishing, and fixed.**
+  - *Abort did not stop the arm.* The type had no `OnAbort`, so an aborted
+    command left the module ABORTED with the robot still moving. `OnAbort`
+    now sends `Abort` to the connector.
+  - *Refusal adoption compared against a stale snapshot.* The CM compared
+    the connector's `LastResult` with the value at command start: an
+    accepted command after a refused one faulted with a zero code, and a
+    repeated refusal with the same code read as "unsupported command". The
+    contract is now explicit (I.3): `LastResult` describes the most recent
+    request - empty when accepted, its reason when refused - and the CM
+    adopts any reason after the accept. Unsupported commands are refused
+    before anything is issued.
+  - *The TCP connector could never run a move.* Step 10 sends the speed
+    and then the move in one scan, and the connector allowed one
+    outstanding request, so the move was always refused - as a lost link.
+    The heartbeat's status poll caused the same refusal intermittently.
+    The connector now has a one-deep queue (a request arriving while the
+    slot is taken waits and is sent when the reply lands; a second waiting
+    request is still refused), `Abort` empties the queue first, and every
+    refusal leaves a reason (mode UNKNOWN, jog outside manual, resume off
+    path, speed out of range used to refuse silently).
+  - `OutImm.SpeedScale` published the requested scale; it now publishes
+    the one sent.
+- **Wire protocol (TCP connector).** The status poll carries the to-robot
+  user values (`STA,<out1>,...`); the reply appends
+  `<power>,<pathIdx>,<in1>,...`. A server that predates them omits them,
+  which reads as power not reported, no path progress and inputs 0. Whole
+  numbers go on the wire without a fraction (`SPD,50`).
+- **Improvement candidates reviewed.** A commercial robot-integration
+  package was reviewed for ideas. Path progress was adopted now; the rest
+  are listed with a disposition in the generic-CM audit plan (capability
+  discovery, brake test and safe reference run, a fast-input position
+  latch, never-taught point refusal, tool/frame consistency, declared
+  manual moves, controller identity). Continuous streaming and PLC-side
+  kinematics are not adopted: they put coordinates into PLC code (I.1).
+- **Upgrade cost.** Modules *minor* 0.16.0.0: `ST_RobotParCfg` v2,
+  `E_RobotCommand` appends, `ST_RobotParCmd`/`ST_RobotOutImm` grow, and
+  `I_RobotConnector` gains members - a third-party connector must
+  implement `ArmPowerOn`, `PathIndex`, `WriteUserSignal` and `UserSignal`.
+  Core *patch* 0.26.6.0 carries the regenerated catalog (92 -> 94). TIA:
+  hash-only, regenerated.
+- **Tests.** `FB_RobotCM_Tests` 8 -> 21 and `FB_RobotConnector_Tests` 6 ->
+  9 (the existing CM rows now run as an auto-only cell, which is what
+  their fixtures assumed): default and requested modes and an ungranted
+  request; configuration refusal; `SET_PAYLOAD`; the safety stop with no
+  re-enable; `POWER_ON` refused without the alias; abort stopping the arm;
+  the jog's gates and freshness; jog selection; user signals; arm power
+  and applied speed; a repeated refusal keeping its reason; an aborted
+  path continued deliberately; on the wire, power, path index and inputs
+  decoded, outputs riding the status poll, and a speed and a move in one
+  scan both reaching the wire.
+
+Final: Core 0.26.6.0 / Modules 0.16.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings); both lint
+profiles, the tool tests, strict consistency and every AB/TIA replay and
+contract gate green; HMI analyzer clean, 628 passed / 12 skipped on
+Flutter 3.44.6. On the isolated UmRT: aggregate 346/346 in 54 suites and
+Press 9/9 in 2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-03_TC3_RobotCompletion.md`.
+
+## 175. The robot backlog: capabilities, routines, untaught points, manual moves (Modules 0.17.0.0, 2026-11-03)
+
+Builds four items of the robot backlog in the generic-CM audit plan (§12:
+R2, R3, R5, R7), all ideas reviewed in a commercial robot-integration
+package and rewritten against Annex I.
+
+- **Capabilities (R2).** `I_RobotConnector` gains `Capabilities :
+  ST_RobotCapabilities` - the connected controller's own answer: which
+  commands it offers (bit n = `E_RobotCommand` n), how many axes a jog may
+  address, how many user-signal slots it carries, and `Reported`.
+  `FB_RobotCM` publishes it read-only in `OutImm.Capabilities` and refuses
+  a command that is not offered before anything is sent
+  (`UNSUPPORTED_COMMAND`, `std.error.robotCommandNotOffered`); it starts
+  no jog that is not offered, refuses a jog axis or a user-signal write
+  beyond what the controller carries, and marks such a declared signal
+  invalid. An unreported set filters nothing: before the controller has
+  said, its own refusal is the authority, so a server that predates the
+  question behaves as before. The simulated connector reports
+  `Offered`/`JogAxes` inputs; the TCP connector asks `CAP` once per
+  session (housekeeping like the poll: it never touches `LastResult` or
+  `MotionBusy`, and waits for a free slot). Not done: hiding an unoffered
+  command in the HMI. The catalog is static configuration served by the
+  manifest (§3.9, §3.10.2), so it stays listed and is refused with that
+  reason.
+- **The controller's routines (R3), on a secondary interface.** Annex I.5b
+  catalogues the brake test as a capability group and requires such groups
+  to be a narrow secondary interface, never a widening of
+  `I_RobotConnector`. So `I_RobotRoutines` (`RunBrakeTest`,
+  `RunSafeReference`, `BrakeTestDue`, `SafeReferenceDue`) is implemented
+  by both connectors and found by the CM at `Setup` with
+  `__QUERYINTERFACE`; without it the routines are not offered and nothing
+  is due. The demands are published as `_M_State` flags 1 and 2
+  (unconditional every scan) and in `OutImm`;
+  `BRAKE_TEST`/`SAFE_REFERENCE` are appended commands and one-press
+  catalog entries. They are motion (link, safety alias, `AUTO_REMOTE`,
+  reference) but carry no speed scale - the controller paces its own
+  validated routine - and take `HomeTimeout`. A routine passes only when
+  the controller withdraws its demand; ending with the demand standing
+  faults the new `ROBOT_ROUTINE_FAILED` (10317, HIGH, SAFETY, never
+  shelvable). The CM invents no refusal of its own while a demand stands:
+  that is the controller's decision.
+- **No move to a point that was never taught (R5).** `ROBOT_POINT_UNKNOWN`
+  (10302, registered in Annex I) is now raised. The CM refuses a
+  point-addressed command naming no point (ID 0, or no `FromId` for
+  `MOVE_TEMPLATE`) before anything is sent; an ID the controller never
+  taught is the controller's to refuse with the same reason. The simulated
+  connector, which synthesizes a pose for any ID, holds IDs
+  `1..TaughtPoints` (default 999) and refuses the rest; the TCP connector
+  classifies the controller code `UNKNOWN_ID` as 10302 and keeps the
+  controller's text verbatim.
+- **Declared manual moves (R7).** `M_DeclareManualMove(Slot, PointId,
+  LabelKey)` declares up to `PL_Robot.MAX_MANUAL_MOVES` (8) one-press
+  moves, once after `Setup`, into the §7.6.1 catalog under catalog value
+  `PL_Robot.MANUAL_MOVE_BASE + Slot` (clear of every command). A press
+  runs `MOVE_FROM_AREA` to the declared point, so the route starts
+  wherever the arm stands, through every gate a program command meets, at
+  `ParCfg.SpeedScaleMin` under the mode ceiling - a screen press carries
+  no speed, and the program's `ParCmd.SpeedScale` is not inherited.
+  Catalog budget: 2 held jogs + 2 routines + 8 moves = `MAX_CMD_CATALOG`
+  (12).
+- **Defect found while doing it: the TCP connector could still refuse the
+  move.** §174's one-deep queue covered a free slot: the speed went out
+  and the move waited. But when the heartbeat's status poll - or now the
+  link-up `CAP` - holds the slot at the very scan the CM sends the speed
+  and the move, the speed took the only waiting place and the move was
+  refused as a lost link, intermittently. The queue is now two deep
+  (oldest first, a third request refused, `Abort` still empties it first),
+  and a request joins the queue whenever others wait, so nothing
+  overtakes. Row `Speed_then_move_in_one_scan_both_reach_the_wire` now
+  runs with `CAP` on the wire.
+- **Wire protocol.** The status reply gains `<due>` after `<pathIdx>` (bit
+  1 brake test, bit 2 safe reference) and the user inputs move to field 18
+  on; a server that omits it reads as nothing due. New requests `CAP`
+  (`CAP,OK,<commands>,<jogAxes>,<userSignals>`), `BRK`, `SRF`.
+- **Upgrade cost.** Modules *minor* 0.17.0.0: `I_RobotConnector` gains
+  `Capabilities` (a third-party connector must implement it;
+  `I_RobotRoutines` is optional), `E_RobotCommand` and `E_RobotSimFault`
+  append, `ST_RobotOutImm` grows. Core *patch* 0.26.7.0 carries the
+  regenerated catalog (94 -> 96). TIA: the example outputs refreshed for
+  the rationalized severities only.
+- **Tests.** `FB_RobotCM_Tests` 21 -> 26 and `FB_RobotConnector_Tests` 9
+  -> 11: a command and a jog not offered refused before issuing; a missing
+  and an untaught point refused with nothing moving; a due brake test
+  published as a state flag and withdrawn by running it; a routine leaving
+  its demand standing faulting 10317; a declared move's bounds, catalog
+  entry and one press running it to its point at the slowest speed; on the
+  wire, the offer asked once and decoded with the routine demands, and an
+  untaught point carrying its own reason while a refused `CAP` filters
+  nothing. Every existing wire row now answers `CAP` and the moved
+  user-input field.
+
+Final: Core 0.26.7.0 / Modules 0.17.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings) after two
+compiler findings in this step (an IEC apostrophe written `''` in test
+messages; `C0195`, then `C0032`, on the TCP connector's due-bit test, now
+a `DWORD`); both lint profiles, the tool tests, strict consistency and
+every AB/TIA replay and contract gate green; HMI analyzer clean, 628
+passed / 12 skipped on Flutter 3.44.6. On the isolated UmRT, after the
+trial licence was renewed: aggregate 353/353 in 54 suites and Press 9/9 in
+2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-03_TC3_RobotBacklog.md`.

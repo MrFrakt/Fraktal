@@ -26,7 +26,7 @@ class ContractTests(unittest.TestCase):
     def test_current_authorities_match_and_prose_binds_exact_bytes(self):
         self.assertEqual(self.audit(), [])
         self.assertTrue(self.audit(part=self.part.replace(self.digest, '0' * 64)))
-        self.assertTrue(self.audit(part=self.part + '\n<!-- TIA-CONTRACTS-V1 sha256:' + self.digest + ' -->'))
+        self.assertTrue(self.audit(part=self.part + '\n<!-- TIA-CONTRACTS-V2 sha256:' + self.digest + ' -->'))
 
     def test_logical_narrowing_and_native_width_changes_are_rejected(self):
         catalog = Catalog.read()
@@ -115,6 +115,21 @@ class ContractTests(unittest.TestCase):
             (directory / 'duplicate.type.xml').write_bytes(xml.encode('ascii'))
             with self.assertRaises(ValueError):
                 gate.native_records(directory, records)
+
+    def test_a_successor_preserves_and_keeps_binding_every_earlier_baseline(self):
+        raw = gate.BASELINES[0].read_bytes()
+        v1 = (json.loads(raw), hashlib.sha256(raw).hexdigest())
+        audit = lambda baseline, previous, part=None: gate.audit(
+            baseline, self.current, self.part if part is None else part, self.digest, previous)
+        self.assertEqual(audit(self.baseline, [v1]), [])
+        changed = copy.deepcopy(self.baseline)
+        changed['contracts']['enums']['E_Reason']['TASK_OVERRUN'] = 99
+        self.assertTrue(any('does not preserve V1' in f for f in audit(changed, [v1])))
+        dropped = copy.deepcopy(self.baseline)
+        dropped['contracts']['enums']['E_Reason'].pop('NONE')
+        self.assertTrue(any('does not preserve V1' in f for f in audit(dropped, [v1])))
+        self.assertTrue(audit(self.baseline, [v1], part=self.part.replace(v1[1], '0' * 64)))
+        self.assertTrue(audit(self.baseline, [(self.baseline, self.digest)]))
 
     def test_invalid_or_empty_baseline_cannot_pass(self):
         baseline = copy.deepcopy(self.baseline)

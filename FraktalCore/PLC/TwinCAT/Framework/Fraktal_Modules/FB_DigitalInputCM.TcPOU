@@ -3,6 +3,10 @@
   <POU Name="FB_DigitalInputCM" Id="{bef0d2f4-c055-483d-87bd-71220916a9c8}" SpecialFunc="None">
     <Declaration><![CDATA[// Basic passive digital-input CM. Owning logic consumes semantic Value; the
 // project catalog injects the physical identity separately from the HAL.
+// A bouncing contact is settled here, at the signal's owner (§7.2.1), through
+// ParCfg.DebounceTime - never by a sequence that happens to read it. Bad quality
+// or a configuration the type cannot honour publishes Value FALSE, Quality FALSE
+// (§5.6): an input that is silently slow or stale is worse than one that is off.
 FUNCTION_BLOCK FB_DigitalInputCM EXTENDS FB_ControlModuleBase
 VAR_INPUT
     ParCfg : ST_DigitalInputParCfg;
@@ -16,6 +20,10 @@ VAR
     {attribute 'OPC.UA.DA' := '0'}
     _hal : REFERENCE TO ST_DigitalInputHal;
     _identity : ST_IoPointIdentity;
+    _debounce : TON;   // runs while the HAL value differs from the published Value
+END_VAR
+VAR CONSTANT
+    DI_DEBOUNCE_MAX : TIME := T#10S;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[Cyclic();]]></ST></Implementation>
     <Method Name="Setup" Id="{b70106bd-7c20-4eb4-9f60-84b9b573029d}">
@@ -29,7 +37,7 @@ END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[_M_SetName(Name);
 _M_SetPresentation(DisplayNameKey := DisplayNameKey, DescriptionKey := DescriptionKey, TypeKey := 'std.moduleType.digitalInput');
 _hal REF= HalRef;
-Setup := __ISVALIDREF(_hal);]]></ST></Implementation>
+Setup := __ISVALIDREF(_hal) AND _M_ParCfgValid();]]></ST></Implementation>
     </Method>
     <Method Name="ConfigureIoIdentity" Id="{789228a1-b030-462d-87c0-971c9df0b9b1}">
       <Declaration><![CDATA[METHOD ConfigureIoIdentity
@@ -41,14 +49,41 @@ END_VAR]]></Declaration>
     <Method Name="OnCyclic" Id="{db657fb3-2810-452c-9365-29a71eab4373}">
       <Declaration><![CDATA[METHOD PROTECTED OnCyclic : DINT]]></Declaration>
       <Implementation><ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
-IF __ISVALIDREF(_hal) THEN
-    OutImm.Value := _hal.Value;
+// Checked every scan, not only at Setup: ParCfg is an input the composition root
+// may assign later, and a bad value must not reach the scan as behaviour.
+IF __ISVALIDREF(_hal) AND _M_ParCfgValid() THEN
     OutImm.Quality := _hal.Quality;
 ELSE
-    OutImm.Value := FALSE;
     OutImm.Quality := FALSE;
 END_IF
+IF NOT OutImm.Quality THEN
+    // Fail closed, and time afresh from FALSE once quality returns.
+    OutImm.Value := FALSE;
+    _debounce(IN := FALSE);
+ELSIF ParCfg.DebounceTime = T#0MS THEN
+    OutImm.Value := _hal.Value;
+    _debounce(IN := FALSE);
+ELSE
+    _debounce(IN := _hal.Value <> OutImm.Value, PT := ParCfg.DebounceTime);
+    IF _debounce.Q THEN
+        OutImm.Value := _hal.Value;
+        // Restart now: a bounce straight back must be timed from its own edge,
+        // which a timer left running from the previous change would not see.
+        _debounce(IN := FALSE);
+    END_IF
+END_IF
 OutImm.IoTag := _identity.Tag;]]></ST></Implementation>
+    </Method>
+    <Method Name="_M_ParCfgValid" Id="{7a660327-022c-4403-9e96-ae386de4a0eb}">
+      <Declaration><![CDATA[// §3.8/§5.6 - the layout this type was compiled against, and a debounce short
+// enough to be a filter rather than a delay. Anything else is refused, never
+// clamped. The DUT's own initializer is the layout version, so it is stated once.
+METHOD PRIVATE _M_ParCfgValid : BOOL
+VAR
+    compiled : ST_DigitalInputParCfg;
+END_VAR]]></Declaration>
+      <Implementation><ST><![CDATA[_M_ParCfgValid := (ParCfg.SchemaVersion = compiled.SchemaVersion)
+    AND (ParCfg.DebounceTime <= DI_DEBOUNCE_MAX);]]></ST></Implementation>
     </Method>
     <Method Name="_M_Dispatch" Id="{e15aca44-e2b0-4382-a45f-cbbefbe8d5a2}">
       <Declaration><![CDATA[METHOD PROTECTED _M_Dispatch]]></Declaration>

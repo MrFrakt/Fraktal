@@ -47,6 +47,7 @@ ModuleTabCapabilities moduleTabCapabilities(ModuleNode node) {
         hasKey('outcmd/uid') ||
         hasKey('outimm/tagpresent') ||
         hasKey('outimm/lastuid'),
+    curve: node.curve != null,
   );
 }
 

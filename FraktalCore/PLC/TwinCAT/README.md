@@ -2,7 +2,37 @@
 
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
-Core `0.25.0.0` puts retained data behind a project-chosen persistence medium
+Modules `0.17.0.0` adds the robot backlog the audit plan listed (the connected
+controller's capabilities, its brake test and safe reference run on the secondary
+`I_RobotRoutines`, refusal of a missing or untaught point, declared one-press manual
+moves; Core `0.26.7.0` carries the grown reason catalog). Modules `0.16.0.0` completes the robot CM (`FB_RobotCM`: the requested operating mode
+beside the reported one, the S9 safety alias, held jog, payload, arm power, a declared
+user-signal channel and an abort that stops the arm; Core `0.26.6.0` carries the grown
+reason catalog). Modules `0.15.2.0` lets the curve monitor's owner publish the last judged curve
+(`ST_CurveRecord`, `M_Record`) for the generic HMI's read-only Curve tab. Modules
+`0.15.1.0` adds the owner-private curve monitor (`FB_CurveMonitor`: windows
+with entry/exit edges and envelopes, judged online per sample; Core `0.26.5.0` carries
+the grown reason catalog). Modules `0.15.0.0` gives the configurable cylinder (`FB_ConfigurableCylinderCM`) the
+valve timing `FB_CylinderCM` already has: minimum output time, pulsing from the sensed
+middle and the end-of-move/timeout reset policies (`ParCfg` v2). Modules `0.14.0.0`
+deepens the axis CM (`FB_AxisCM`: declared named positions with captures,
+manual steps, `MOVE_REL`, a validated speed-scale band and a set-and-hold override; Core
+`0.26.4.0` carries the grown reason catalog). Modules `0.13.2.0` adds the generic analog
+output CM (`FB_AnalogOutputCM`: a bounded,
+release-gated SET whose value stays applied, with the safe value behind every state nobody
+stands behind; Core `0.26.3.0` carries the grown reason catalog). Modules `0.13.1.0`
+adds the generic analog input CM (`FB_AnalogInputCM`: scaling, two-point
+adjustment, tare, a first-order filter and a stability-banded MEASURE; Core `0.26.2.0`
+carries its reason catalog). Core `0.26.1.0` adds the Unit's NOK-part limit
+(`SetNokPolicy`: in a row and/or x of the last y; a trip is one MANUAL_RESET alarm and a
+running Unit stops at its cycle end).
+Core `0.26.0.0` publishes an analog fieldbus channel's unit as a code
+(`ST_IoChannel.UnitCode`, the legacy `Unit` text derived from it). Modules `0.12.0.0`
+debounces `FB_DigitalInputCM` at the source (`ParCfg.DebounceTime`) and `0.13.0.0` gives
+`FB_CylinderCM` its valve timing (settle, minimum output, pulsing from a middle position,
+end-of-move reset); together they open the generic control-module expansion
+(IMPLEMENTATION_NOTES §164-§167).
+Core `0.25.0.0` put retained data behind a project-chosen persistence medium
 (`I_PersistMedium`: files in a folder, or a retentive pool): a root's live station,
 line and model configuration, its parameter sets and the local user table, restored at
 start and rewritten after every accepted change (IMPLEMENTATION_NOTES §163; the Press
@@ -11,7 +41,7 @@ the user table outside the symbol table, controller/IPC health from the Beckhoff
 Device Manager and the EtherCAT master's own state, frame and CRC counters (§160-§162).
 The Windows clock adapter observes the target's existing time service and expires
 missing quality; see the [build and installation guide](../../../Specification/Guides/TC3_WINDOWS_CLOCK.md).
-Modules `0.11.0.3` pins that Core dependency. The latest source audit is
+Modules `0.17.0.0` pins Core `0.26.7.0`. The latest source audit is
 [Core and Press TC3 feature gaps](../../../Specification/Reports/TC3_CORE_PRESS_FEATURE_AUDIT_2026-10-06.md).
 
 > **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their

@@ -1,0 +1,1844 @@
+{
+  "schema": "fraktal.tia.frozen-contracts",
+  "schemaVersion": 1,
+  "baselineVersion": 2,
+  "supersedes": "TIA_FROZEN_CONTRACTS_V1.json",
+  "review": "2026-10-27, project owner: append E_Reason.NOK_LIMIT_REACHED = 2028 (Core 0.26.1.0, Part I \u00a73.16.5). Every V1 entry is unchanged.",
+  "profile": "reference-1500-implemented-subset",
+  "scope": "Draft candidate ABI; TIA V20, simulated CPU1516. Does not close R3 or qualify hardware, S7-1200, OPC UA, synchronization, persistence-loss or unimplemented facets.",
+  "evidence": "Specification/Siemens/Evidence/TIA_PRESS_COMPLETE_2026-10-15.md",
+  "contracts": {
+    "groups": {
+      "module": [
+        "ST_ModuleStatus",
+        "ST_ModuleTiming",
+        "ST_Diagnostic",
+        "ST_StateFlag"
+      ],
+      "mailbox": [
+        "ST_HmiRequest",
+        "ST_HmiResponse"
+      ],
+      "configuration": [
+        "ST_ConfigEntry",
+        "ST_ConfigPage",
+        "ST_ModelId",
+        "ST_ConfigSetInfo",
+        "ST_ConfigPersistStatus"
+      ],
+      "sequence": [
+        "ST_SequenceStepDef",
+        "ST_SequenceStep",
+        "ST_SequenceCursor",
+        "ST_SequenceAnnotation",
+        "ST_StepRecord",
+        "ST_CondRecord",
+        "ST_StepTiming",
+        "ST_CycleSummary"
+      ],
+      "access": [
+        "ST_AccessPolicy",
+        "ST_ModePolicy"
+      ],
+      "operator": [
+        "ST_CommandInfo",
+        "ST_ReleaseReport",
+        "ST_DecisionRequest"
+      ],
+      "events": [
+        "ST_AlarmEvent",
+        "ST_PartContext"
+      ]
+    },
+    "typeMap": {
+      "BOOL": "Bool",
+      "BYTE": "Byte",
+      "WORD": "Word",
+      "DWORD": "DWord",
+      "SINT": "SInt",
+      "USINT": "USInt",
+      "INT": "Int",
+      "UINT": "UInt",
+      "DINT": "DInt",
+      "UDINT": "UDInt",
+      "LINT": "LInt",
+      "ULINT": "ULInt",
+      "REAL": "Real",
+      "LREAL": "LReal",
+      "TIME": "Time",
+      "DT": "LDT",
+      "STRING(254)": "String[254]",
+      "STRING(255)": "WString[255]",
+      "STRING(480)": "WString[480]"
+    },
+    "records": {
+      "ST_Diagnostic": [
+        {
+          "member": "ReasonCode",
+          "core_type": "E_Reason",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SourcePath",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Description",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "IoTag",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "IoAddress",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Severity",
+          "core_type": "E_Severity",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Category",
+          "core_type": "E_Category",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Since",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ModuleStatus": [
+        {
+          "member": "Name",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "DisplayNameKey",
+          "core_type": "STRING(160)",
+          "native_type": "String[160]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "DescriptionKey",
+          "core_type": "STRING(160)",
+          "native_type": "String[160]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TypeKey",
+          "core_type": "STRING(160)",
+          "native_type": "String[160]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ModuleType",
+          "core_type": "E_ModuleType",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "State",
+          "core_type": "E_ExecState",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "FaultActive",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Diagnostic",
+          "core_type": "ST_Diagnostic",
+          "native_type": "\"ST_Diagnostic\"",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TileEnable",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": "TRUE"
+        },
+        {
+          "member": "ControlDomainId",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_TimingRow": [
+        {
+          "member": "Id",
+          "core_type": "DINT",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Label",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimeClass",
+          "core_type": "E_TimeClass",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Count",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Last",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Minimum",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Maximum",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Avg",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ModuleTiming": [
+        {
+          "member": "LastCmdTime",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Rows",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_CMD_STATS] OF ST_TimingRow",
+          "native_type": "Array[1..8] of \"ST_TimingRow\"",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Truncated",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_StateFlag": [
+        {
+          "member": "Key",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Value",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Since",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Stale",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_HmiRequest": [
+        {
+          "member": "Kind",
+          "core_type": "E_HmiRequestKind",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TargetPath",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "NameValue",
+          "core_type": "STRING(160)",
+          "native_type": "String[160]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TextValue",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "User",
+          "core_type": "STRING(32)",
+          "native_type": "String[32]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Secret",
+          "core_type": "STRING(32)",
+          "native_type": "String[32]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "IntValue",
+          "core_type": "DINT",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "BoolValue",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "DurationMs",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Sequence",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ReleaseReason": [
+        {
+          "member": "Description",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ReasonCode",
+          "core_type": "E_Reason",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SourcePath",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Kind",
+          "core_type": "E_ReleaseKind",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Bypassable",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ReleaseReport": [
+        {
+          "member": "Released",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Count",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Reasons",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_RELEASE_REASONS] OF ST_ReleaseReason",
+          "native_type": "Array[1..24] of \"ST_ReleaseReason\"",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ConfigEntry": [
+        {
+          "member": "Scope",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Item",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ValueText",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "WriteKey",
+          "core_type": "STRING(160)",
+          "native_type": "String[160]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "WriteRevision",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ConfigKind",
+          "core_type": "E_ConfigKind",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ValueType",
+          "core_type": "E_ConfigValueType",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Writable",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "RequiresReady",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "HasMinimum",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "HasMaximum",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Minimum",
+          "core_type": "LREAL",
+          "native_type": "LReal",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Maximum",
+          "core_type": "LREAL",
+          "native_type": "LReal",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Unit",
+          "core_type": "STRING(16)",
+          "native_type": "String[16]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "LabelKey",
+          "core_type": "STRING(160)",
+          "native_type": "String[160]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "EnumDomain",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ClassId",
+          "core_type": "STRING(40)",
+          "native_type": "String[40]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ReadLevel",
+          "core_type": "E_AccessLevel",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "WriteLevel",
+          "core_type": "E_AccessLevel",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Readable",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "UnitCode",
+          "core_type": "E_EngUnit",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "EnumLabelKey",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ModelScoped",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ConfigPage": [
+        {
+          "member": "Revision",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "PageIndex",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "PageCount",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "EntryCount",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Entries",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_CONFIG_PAGE] OF ST_ConfigEntry",
+          "native_type": "Array[1..16] of \"ST_ConfigEntry\"",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_HmiResponse": [
+        {
+          "member": "AckSequence",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Accepted",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Diagnostic",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Report",
+          "core_type": "ST_ReleaseReport",
+          "native_type": "\"ST_ReleaseReport\"",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ConfigPage",
+          "core_type": "ST_ConfigPage",
+          "native_type": "\"ST_ConfigPage\"",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ModelField": [
+        {
+          "member": "Name",
+          "core_type": "STRING(32)",
+          "native_type": "String[32]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Value",
+          "core_type": "STRING(64)",
+          "native_type": "String[64]",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ModelId": [
+        {
+          "member": "ModelCode",
+          "core_type": "STRING(64)",
+          "native_type": "String[64]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Family",
+          "core_type": "STRING(64)",
+          "native_type": "String[64]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Variant",
+          "core_type": "STRING(64)",
+          "native_type": "String[64]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Fields",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_MODEL_FIELDS] OF ST_ModelField",
+          "native_type": "Array[1..8] of \"ST_ModelField\"",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "NField",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ConfigSetInfo": [
+        {
+          "member": "Used",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SetName",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "RootIdentity",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SetSchema",
+          "core_type": "UINT",
+          "native_type": "UInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ConfigRev",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Kind",
+          "core_type": "E_ConfigKind",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ModelCode",
+          "core_type": "STRING(64)",
+          "native_type": "String[64]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "RecordCount",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "CreatedAt",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_ConfigPersistStatus": [
+        {
+          "member": "Pending",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Failed",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "WindowMs",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": "5000"
+        },
+        {
+          "member": "PendingSince",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StorePresent",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StoreKind",
+          "core_type": "E_ConfigStore",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "RestorePolicy",
+          "core_type": "E_ConfigRestorePolicy",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "RestoreLost",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "RestoreAcknowledged",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "LostPath",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "LastSetName",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "LastSetRecords",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "LastRejectScope",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "LastRejectKey",
+          "core_type": "STRING(160)",
+          "native_type": "String[160]",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_SequenceStepDef": [
+        {
+          "member": "StepNo",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Branch",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimeClass",
+          "core_type": "E_TimeClass",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ExpectedTime",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StepName",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "AwaitingLabel",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "AwaitsPath",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_SequenceStep": [
+        {
+          "member": "Visited",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "LastDuration",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ErrorActive",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "WarningActive",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_SequenceCursor": [
+        {
+          "member": "RowIdx",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Elapsed",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimedOut",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_SequenceAnnotation": [
+        {
+          "member": "RowIdx",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "IsError",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Key",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SourcePath",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_CondRecord": [
+        {
+          "member": "Label",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Ok",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_StepRecord": [
+        {
+          "member": "StepNo",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StepName",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "AwaitingLabel",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimeClass",
+          "core_type": "E_TimeClass",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ExpectedTime",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Conds",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_STEP_CONDS] OF ST_CondRecord",
+          "native_type": "Array[1..8] of \"ST_CondRecord\"",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_StepTiming": [
+        {
+          "member": "StepNo",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StepName",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimeClass",
+          "core_type": "E_TimeClass",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Started",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StartedTimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Duration",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Expected",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_CycleSummary": [
+        {
+          "member": "CycleNo",
+          "core_type": "UDINT",
+          "native_type": "UDInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Started",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StartedTimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Total",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "WorkTime",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "WaitTime",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ByClass",
+          "core_type": "ARRAY[0..4] OF TIME",
+          "native_type": "Array[0..4] of Time",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_AccessPolicy": [
+        {
+          "member": "Required",
+          "core_type": "ARRAY[0..11] OF E_AccessLevel",
+          "native_type": "Array[0..11] of DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SessionTimeout",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": "T#0ms"
+        }
+      ],
+      "ST_ModePolicy": [
+        {
+          "member": "Shield",
+          "core_type": "E_ModeSwitchShield",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Style",
+          "core_type": "E_ModeSwitchStyle",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_CommandInfo": [
+        {
+          "member": "Value",
+          "core_type": "DINT",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Label",
+          "core_type": "STRING(120)",
+          "native_type": "String[120]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Style",
+          "core_type": "E_CommandStyle",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_DecisionRequest": [
+        {
+          "member": "Prompt",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Options",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_OPTIONS] OF STRING(64)",
+          "native_type": "Array[1..6] of String[64]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Default",
+          "core_type": "INT",
+          "native_type": "Int",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Timeout",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SourcePath",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_AlarmEvent": [
+        {
+          "member": "ReasonCode",
+          "core_type": "E_Reason",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Description",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "SourcePath",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "IoTag",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "IoAddress",
+          "core_type": "STRING(80)",
+          "native_type": "String[80]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Severity",
+          "core_type": "E_Severity",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Category",
+          "core_type": "E_Category",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ResetClass",
+          "core_type": "E_ResetClass",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "State",
+          "core_type": "E_AlarmState",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ComeAt",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "GoneAt",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ResetAt",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Duration",
+          "core_type": "TIME",
+          "native_type": "Time",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Shelved",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ShelvedUntil",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ComeTimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "GoneTimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ResetTimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ShelfTimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_MeasRecord": [
+        {
+          "member": "Name",
+          "core_type": "STRING(64)",
+          "native_type": "String[64]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Value",
+          "core_type": "LREAL",
+          "native_type": "LReal",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Minimum",
+          "core_type": "LREAL",
+          "native_type": "LReal",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Maximum",
+          "core_type": "LREAL",
+          "native_type": "LReal",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Target",
+          "core_type": "LREAL",
+          "native_type": "LReal",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Unit",
+          "core_type": "STRING(16)",
+          "native_type": "String[16]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "InTol",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_PartResult": [
+        {
+          "member": "Verdict",
+          "core_type": "E_Verdict",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "ReasonCode",
+          "core_type": "E_Reason",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Records",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_RESULTS] OF ST_MeasRecord",
+          "native_type": "Array[1..32] of \"ST_MeasRecord\"",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "StationPath",
+          "core_type": "STRING(255)",
+          "native_type": "WString[255]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Stamp",
+          "core_type": "DT",
+          "native_type": "LDT",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "TimeSynchronized",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        }
+      ],
+      "ST_PartContext": [
+        {
+          "member": "Uid",
+          "core_type": "STRING(64)",
+          "native_type": "String[64]",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Present",
+          "core_type": "BOOL",
+          "native_type": "Bool",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "CarrierKind",
+          "core_type": "E_CarrierKind",
+          "native_type": "DInt",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Result",
+          "core_type": "ST_PartResult",
+          "native_type": "\"ST_PartResult\"",
+          "accessible": true,
+          "initial": ""
+        },
+        {
+          "member": "Parents",
+          "core_type": "ARRAY[1..PL_Fraktal.MAX_GENEALOGY] OF STRING(64)",
+          "native_type": "Array[1..8] of String[64]",
+          "accessible": true,
+          "initial": ""
+        }
+      ]
+    },
+    "enums": {
+      "E_AccessLevel": {
+        "NONE": 0,
+        "OPERATOR": 1,
+        "TECHNICIAN": 2,
+        "ENGINEER": 3,
+        "ADMIN": 4
+      },
+      "E_AlarmState": {
+        "CLOSED": 0,
+        "ACTIVE": 1,
+        "WAIT_RESET": 2
+      },
+      "E_CarrierKind": {
+        "RFID": 0,
+        "DATAMATRIX": 1,
+        "BY_POSITION": 2,
+        "HOST": 3
+      },
+      "E_Category": {
+        "PROCESS": 0,
+        "SAFETY": 1,
+        "SYSTEM": 2
+      },
+      "E_CommandStyle": {
+        "ONESHOT": 0,
+        "HELD": 1
+      },
+      "E_ConfigKind": {
+        "PAR_CFG": 0,
+        "STATION_CFG": 1,
+        "LINE_CFG": 2
+      },
+      "E_ConfigRestorePolicy": {
+        "DEFAULTS_AND_ANNUNCIATE": 0,
+        "BLOCK_UNTIL_ACKNOWLEDGED": 1
+      },
+      "E_ConfigStore": {
+        "LOCAL_RETAIN": 0,
+        "FILE_JSON": 1,
+        "FILE_XML": 2,
+        "EXTERNAL": 3
+      },
+      "E_ConfigValueType": {
+        "NUMBER": 0,
+        "TEXT": 1,
+        "BOOLEAN": 2,
+        "DURATION": 3
+      },
+      "E_EngUnit": {
+        "NONE": 0,
+        "MILLISECOND": 1,
+        "SECOND": 2,
+        "MINUTE": 3,
+        "HOUR": 4,
+        "MICROMETER": 5,
+        "MILLIMETER": 6,
+        "METER": 7,
+        "DEGREE": 8,
+        "MILLIMETER_PER_SECOND": 9,
+        "METER_PER_MINUTE": 10,
+        "DEGREE_PER_SECOND": 11,
+        "MILLIMETER_PER_SECOND_SQUARED": 12,
+        "BAR": 13,
+        "KILOPASCAL": 14,
+        "NEWTON": 15,
+        "KILONEWTON": 16,
+        "NEWTON_METER": 17,
+        "GRAM": 18,
+        "KILOGRAM": 19,
+        "DEGREE_CELSIUS": 20,
+        "PERCENT": 21,
+        "REVOLUTION_PER_MINUTE": 22,
+        "HERTZ": 23,
+        "VOLT": 24,
+        "AMPERE": 25,
+        "WATT": 26,
+        "KILOWATT": 27,
+        "LITER": 28,
+        "LITER_PER_MINUTE": 29,
+        "PIECE": 30,
+        "PIECE_PER_MINUTE": 31,
+        "PIECE_PER_HOUR": 32
+      },
+      "E_ExecState": {
+        "READY": 0,
+        "BUSY": 1,
+        "DONE": 2,
+        "ERROR": 3,
+        "ABORTED": 4
+      },
+      "E_HmiRequestKind": {
+        "NONE": 0,
+        "LOGIN": 1,
+        "LOGOUT": 2,
+        "SET_MODE": 3,
+        "SET_MODEL": 4,
+        "START": 5,
+        "STOP": 6,
+        "CONTROL_ON": 7,
+        "CONTROL_OFF": 8,
+        "OPERATOR_RESET": 9,
+        "DECISION_ANSWER": 10,
+        "MANUAL_COMMAND": 11,
+        "SET_RUN_STYLE": 12,
+        "STEP_REQUEST": 13,
+        "SET_HOLD_RUN": 14,
+        "RELEASE_START": 15,
+        "RELEASE_MANUAL": 16,
+        "RELEASE_ACTION": 17,
+        "RESET_OEE": 18,
+        "WRITE_CONFIG": 19,
+        "SHELVE_ALARM": 20,
+        "UNSHELVE_ALARM": 21,
+        "FORCE_CHANNEL": 22,
+        "QUERY_CONFIG": 23,
+        "SET_ACCESS_LEVEL": 24,
+        "SET_SESSION_TIMEOUT": 25,
+        "LAMP_TEST": 26,
+        "CAPTURE_CONFIG": 27,
+        "SAVE_CONFIG_SET": 28,
+        "LOAD_CONFIG_SET": 29,
+        "LIST_CONFIG_SETS": 30,
+        "ACK_CONFIG_RESTORE": 31,
+        "EXPORT_CONFIG_SET": 32,
+        "IMPORT_CONFIG_SET": 33,
+        "MANUAL_HELD": 34,
+        "DELETE_CONFIG_SET": 35,
+        "SET_CLASS_LEVEL": 36,
+        "CREATE_MODEL": 37,
+        "EXPORT_CURRENT_CONFIG": 38
+      },
+      "E_ModeSwitchShield": {
+        "INTERRUPTIBLE": 0,
+        "CONFIRM": 1,
+        "BLOCKED_WHILE_RUNNING": 2
+      },
+      "E_ModeSwitchStyle": {
+        "GRACEFUL": 0,
+        "IMMEDIATE": 1
+      },
+      "E_ModuleType": {
+        "NONE": 0,
+        "UNIT": 1,
+        "EQUIPMENT_MODULE": 2,
+        "CONTROL_MODULE": 3
+      },
+      "E_Reason": {
+        "NONE": 0,
+        "TASK_OVERRUN": 10,
+        "TASK_JITTER_HIGH": 11,
+        "CPU_LOAD_HIGH": 12,
+        "MEMORY_LOW": 13,
+        "IPC_TEMP_HIGH": 14,
+        "FIELDBUS_MASTER_FAULT": 15,
+        "DC_SYNC_LOST": 16,
+        "TIME_SYNC_LOST": 17,
+        "UTILITY_DEVIATION": 18,
+        "IPC_FAN_FAULT": 19,
+        "STORAGE_HEALTH_LOW": 20,
+        "CONTROLLER_METRICS_UNAVAILABLE": 21,
+        "TIMEOUT": 2001,
+        "PERMISSIVE_NOT_MET": 2002,
+        "INTERLOCK_DROPPED": 2003,
+        "RECIPE_INVALID": 2004,
+        "STEP_STALLED": 2005,
+        "RETRY_EXHAUSTED": 2006,
+        "CYCLE_TIME_DEGRADED": 2007,
+        "UNSUPPORTED_COMMAND": 2008,
+        "LINK_TIMEOUT": 2010,
+        "DEVICE_NOT_READY": 2011,
+        "DEVICE_PROTOCOL_ERROR": 2012,
+        "CARRIER_READ_FAILED": 2020,
+        "CARRIER_WRITE_FAILED": 2021,
+        "PART_ID_MISMATCH": 2022,
+        "RESULT_RECORD_REJECTED": 2023,
+        "EVENT_PART_RECEIVED": 2024,
+        "EVENT_PART_PROCESSING_STARTED": 2025,
+        "EVENT_PART_PROCESSED": 2026,
+        "EVENT_PART_PROCESSING_ABORTED": 2027,
+        "NOK_LIMIT_REACHED": 2028,
+        "COMMISSIONING_GATE_ACTIVE": 2030,
+        "CONFIG_RESTORE_LOST": 2040,
+        "CONFIG_PERSIST_FAILED": 2041,
+        "CONFIG_SET_REJECTED": 2042,
+        "EVENT_CONFIG_SET_APPLIED": 2043,
+        "TEST_FAULT": 2901
+      },
+      "E_ReleaseKind": {
+        "MODE": 0,
+        "ACCESS": 1,
+        "ALARM": 2,
+        "INTERLOCK": 3,
+        "OTHER": 4
+      },
+      "E_ResetClass": {
+        "AUTO_RESET": 0,
+        "MANUAL_RESET": 1
+      },
+      "E_Severity": {
+        "LOW": 0,
+        "MED": 1,
+        "HIGH": 2
+      },
+      "E_StepResult": {
+        "NONE": 0,
+        "ADVANCE": 1,
+        "JUMP1": 2,
+        "JUMP2": 3,
+        "JUMP3": 4
+      },
+      "E_TimeClass": {
+        "WORK": 0,
+        "WAIT_UPSTREAM": 1,
+        "WAIT_DOWNSTREAM": 2,
+        "WAIT_OPERATOR": 3,
+        "WAIT_EXTERNAL": 4
+      },
+      "E_Verdict": {
+        "NONE": 0,
+        "OK": 1,
+        "NOK": 2,
+        "REWORK": 3
+      }
+    },
+    "capacities": {
+      "MAX_CMD_STATS": 8,
+      "MAX_CONFIG_PAGE": 16,
+      "MAX_GENEALOGY": 8,
+      "MAX_MODEL_FIELDS": 8,
+      "MAX_OPTIONS": 6,
+      "MAX_RELEASE_REASONS": 24,
+      "MAX_RESULTS": 32,
+      "MAX_STEP_CONDS": 8
+    },
+    "sequencePublication": {
+      "SequenceViewEnabled": "Bool",
+      "SequenceStepCount": "Int",
+      "SequenceAnnotationCount": "Int",
+      "Pending": "\"ST_Diagnostic\"",
+      "CurrentStep": "\"ST_StepRecord\"",
+      "CurrentStepElapsed": "Time",
+      "CurrentStepTimedOut": "Bool",
+      "SequenceSteps": "Array[1..$steps] of \"ST_SequenceStep\"",
+      "ActiveSteps": "Array[0..$branches] of \"ST_SequenceCursor\"",
+      "SequenceAnnotations": "Array[1..$annotations] of \"ST_SequenceAnnotation\""
+    },
+    "webApiTypes": {
+      "bool": "Boolean",
+      "byte": "Byte",
+      "usint": "Byte",
+      "sint": "SByte",
+      "int": "Int16",
+      "word": "UInt16",
+      "uint": "UInt16",
+      "dint": "Int32",
+      "dword": "UInt32",
+      "udint": "UInt32",
+      "lint": "Int64",
+      "lword": "UInt64",
+      "ulint": "UInt64",
+      "real": "Float",
+      "lreal": "Double",
+      "time": "Int32",
+      "ldt": "DateTime",
+      "string": "String",
+      "wstring": "String",
+      "char": "String",
+      "wchar": "String"
+    }
+  }
+}

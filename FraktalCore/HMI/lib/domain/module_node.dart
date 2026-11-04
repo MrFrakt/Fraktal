@@ -98,6 +98,7 @@ class ModuleNode {
   final PartFacet? part; // Annex E
   final PackMLState? packML; // Annex F
   final MotionFacet? motion; // Annex G / I
+  final CurveFacet? curve; // Modules ST_CurveRecord (OutImm.Curve, on demand)
   final SafetyFacet? safety; // §9.8 read-only certified-safety mirror
   final ControlPowerFacet? controlPower; // §9.8 Control On + power groups
   final CycleProfile? cycle; // §8.11.4 (Units)
@@ -185,6 +186,7 @@ class ModuleNode {
     this.part,
     this.packML,
     this.motion,
+    this.curve,
     this.safety,
     this.controlPower,
     this.cycle,

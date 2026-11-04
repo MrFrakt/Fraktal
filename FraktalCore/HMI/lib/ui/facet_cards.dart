@@ -574,7 +574,16 @@ class ShiftCard extends StatelessWidget {
               Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.schedule_outlined),
                 const SizedBox(width: kInlineItemGap),
-                LText('Shifts', style: theme.textTheme.titleMedium),
+                // Flexible: an exit transition squeezes this card's width
+                // through values smaller than the title's natural size, and a
+                // Wrap child cannot shrink below it (measured in the publish
+                // flow when the simulator's shift card animates out). The
+                // shift text needs no guard: it wraps within the Wrap's width.
+                Flexible(
+                  child: LText('Shifts',
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis),
+                ),
               ]),
               Text(
                   '${_name(context, shift.currentShift)} · '

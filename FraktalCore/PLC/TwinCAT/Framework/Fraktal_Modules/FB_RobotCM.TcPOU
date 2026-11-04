@@ -22,9 +22,33 @@
 //     itself: that is this repo's settled doctrine (a lost permissive is
 //     restorable operator/process state, Core S6.1).
 //
-// NOT yet raised here: ROBOT_SAFETY_DROPPED. Safety status is S9 read-only and
-// nothing feeds this type a safety alias yet; the reason lands with the code
-// that raises it.
+// And the rest of I.4a/I.4 the shipped type now carries:
+//   - the REQUEST half of the operating mode: the configured most restrictive
+//     mode is requested at link-up and on loss of the report, REQUEST_MODE asks
+//     for another and completes only when the controller REPORTS it, and the
+//     request is published beside the report so an ungranted one stays visible;
+//   - the S9 safety alias (SetSafetyPermit), read-only: losing it drops arm
+//     power and stops a running command with ROBOT_SAFETY_DROPPED; regaining it
+//     re-enables nothing (S9.3/S9.4). Kept apart from Intlk on purpose: a lost
+//     APPLICATION permissive holds on-path, a lost SAFETY alias does not;
+//   - a held jog (JOG_POS/JOG_NEG), only in a manual mode reported by the
+//     controller, only with the enabling device held, never while a command runs;
+//   - the active load case (SET_PAYLOAD), the arm-power fact and path progress
+//     (PathIndex: an aborted path is continued by a DELIBERATE RUN_PATH from the
+//     next point, never automatically);
+//   - a declared user-signal channel - data for the robot program, never a
+//     command (M_DeclareUserSignal / M_WriteUserSignal, published read-only);
+//   - the controller's capabilities, published read-only: a command it does not
+//     offer is refused before anything is sent, jog axes and user signals are
+//     bounded by what it carries;
+//   - the controller's own routines: its demands for a brake test and a safe
+//     reference run published as state flags, BRAKE_TEST / SAFE_REFERENCE to run
+//     them, passed only when the controller withdraws the demand;
+//   - no move to a point that was never taught: a point-addressed command without
+//     a point is refused here, an untaught one by the controller, both with
+//     ROBOT_POINT_UNKNOWN - never a drive to a default pose;
+//   - declared one-press manual moves to taught points (M_DeclareManualMove), in
+//     the static catalog, through every gate a program command meets.
 FUNCTION_BLOCK FB_RobotCM EXTENDS FB_ControlModuleBase
 VAR_INPUT
     Command : E_RobotCommand;
@@ -39,10 +63,30 @@ END_VAR
 VAR
     {attribute 'OPC.UA.DA' := '0'}
     _conn        : I_RobotConnector;
+    {attribute 'OPC.UA.DA' := '0'}
+    _routines    : I_RobotRoutines;      // the controller's own routines, when the connector offers them (I.5b)
     _tMove       : TON;
     _heldOnPath  : BOOL;                 // an Interrupt is outstanding (I.4b)
-    _startResult : ST_Diagnostic;        // connector LastResult at command start
     _appCond     : ARRAY[1..PL_Fraktal.MAX_PERMINTLK_COND] OF BOOL;
+    _applied     : REAL;                 // the scale last sent: MIN(mode ceiling, recipe scale)
+    _requested   : E_RobotOpMode := E_RobotOpMode.MANUAL_REDUCED;   // the mode last REQUESTED
+    _wasLinked   : BOOL;
+    _reportSeen  : BOOL;                 // a real mode was reported since the link came up
+    _safetyPermit : BOOL := TRUE;        // S9 alias as supplied; TRUE until an application supplies one
+    _safetyPrev  : BOOL := TRUE;
+    _safetyKey   : STRING(255);          // names the alias in the fault; '' = the generic text
+    _tPowerRetry : TON;                  // re-ask for power off while it is still reported on
+    _jogReqDir   : INT;                  // direction asked for this scan (RequestHeldCommand)
+    _jogDir      : INT;                  // direction the connector was started in
+    _jogSeen     : BOOL;
+    _jogEnabled  : BOOL;
+    _jogDriving  : BOOL;
+    _tJogStale   : TON;
+    _jogMode     : E_RobotJogMode := E_RobotJogMode.JOINT;
+    _jogAxis     : INT := 1;
+    _caps        : ST_RobotCapabilities;   // the connector's report, read once per scan (C0185)
+    _movePoint   : ARRAY[1..PL_Robot.MAX_MANUAL_MOVES] OF DWORD;   // declared manual moves; 0 = slot free
+    _manualSlot  : INT;                  // the declared move this command runs; 0 = not one
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -53,17 +97,38 @@ METHOD Setup : BOOL
 VAR_INPUT
     Name  : STRING(80);
     Robot : I_RobotConnector;
+END_VAR
+VAR
+    InitialModel : ST_ModelId;
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[_M_SetName(Name);
 _M_SetPresentation(DisplayNameKey := 'std.moduleType.robot.name', DescriptionKey := 'std.moduleType.robot.description', TypeKey := 'std.moduleType.robot');
+// §7.6.1 - jog is HELD: the arm moves only while the operator keeps asking,
+// never on one press. The controller's own routines are one press each - they
+// are how an operator answers a controller that asks for them - and declared
+// moves to taught points follow (M_DeclareManualMove).
+_M_PublishHeldCommand(Value := TO_DINT(E_RobotCommand.JOG_POS), Label := 'std.command.jogPositive');
+_M_PublishHeldCommand(Value := TO_DINT(E_RobotCommand.JOG_NEG), Label := 'std.command.jogNegative');
+_M_PublishCommand(Value := TO_DINT(E_RobotCommand.BRAKE_TEST), Label := 'std.command.robotBrakeTest');
+_M_PublishCommand(Value := TO_DINT(E_RobotCommand.SAFE_REFERENCE), Label := 'std.command.robotSafeReference');
+OutImm.JogMode := _jogMode;
+OutImm.JogAxis := _jogAxis;
 IF Robot = 0 THEN
     _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.robotLinkDown');
     Setup := FALSE;
     RETURN;
 END_IF
 _conn := Robot;
-Setup := TRUE;]]></ST>
+// I.5b - the routines are a capability group: present only when the connector
+// implements the secondary interface; otherwise they are simply not offered.
+__QUERYINTERFACE(Robot, _routines);
+// §5.6 - a configuration this type cannot honour refuses Setup, as for every CM.
+Setup := PrepareRecipe(Model := InitialModel);
+IF Setup THEN
+    CommitRecipe();
+END_IF
+_requested := ParCfg.DefaultMode;]]></ST>
         </Implementation>
       </Method>
       <Method Name="OnCommandStart" Id="{dd3e9148-eb32-455a-afe2-29769d6cbd02}">
@@ -74,19 +139,17 @@ METHOD PROTECTED OnCommandStart : DINT]]></Declaration>
           <ST><![CDATA[OnCommandStart := SUPER^.OnCommandStart();
 OutCmd.ReachedId := 0;
 _heldOnPath      := FALSE;
-_tMove(IN := FALSE);
-// The connector's reason at command start. Everything after this is compared
-// against it, so an OLD fault is never re-adopted as if this command caused it.
-IF _conn <> 0 THEN
-    _startResult := _conn.LastResult;
-END_IF]]></ST>
+_manualSlot      := 0;          // a manual move names itself in the first dispatch
+_tMove(IN := FALSE);]]></ST>
         </Implementation>
       </Method>
       <Method Name="OnCyclic" Id="{3edc9db3-eb08-465c-a470-fa9ee45a2511}">
         <Declaration><![CDATA[// Mirror the connector's published facts; the device logic is in _M_Dispatch.
 METHOD PROTECTED OnCyclic : DINT
 VAR
-    _c : ST_Diagnostic;
+    _c         : ST_Diagnostic;
+    brakeDue   : BOOL;
+    safeRefDue : BOOL;
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
@@ -102,7 +165,29 @@ IF _conn <> 0 THEN
     OutImm.CurrentArea    := _conn.CurrentArea;
     OutImm.ProtectiveStop := _conn.ProtectiveStop;
     OutImm.Resumable      := _conn.Resumable;
-    OutImm.SpeedScale     := ParCmd.SpeedScale;
+    OutImm.ArmPowerOn     := _conn.ArmPowerOn;
+    OutImm.PathIndex      := _conn.PathIndex;
+    _caps                 := _conn.Capabilities;
+    IF _routines <> 0 THEN
+        brakeDue          := _routines.BrakeTestDue;
+        safeRefDue        := _routines.SafeReferenceDue;
+    END_IF
+    // I.4a(a), the request half. At link-up, and whenever a mode that WAS reported
+    // is reported no longer, the configured most restrictive mode is requested:
+    // a freshly connected or uncertain controller is never left in whatever mode
+    // somebody asked for before.
+    IF _conn.Linked AND ((NOT _wasLinked)
+        OR (_reportSeen AND (_conn.ActualMode = E_RobotOpMode.UNKNOWN))) THEN
+        _requested := ParCfg.DefaultMode;
+        _conn.RequestMode(Mode := ParCfg.DefaultMode);
+    ELSIF NOT _conn.Linked THEN
+        _requested := ParCfg.DefaultMode;
+    END_IF
+    _reportSeen := _conn.Linked AND (_conn.ActualMode <> E_RobotOpMode.UNKNOWN);
+    _wasLinked  := _conn.Linked;
+    _M_SafetyCyclic();
+    _M_JogCyclic();
+    _M_UserSignalCyclic();
 ELSE
     // No connector wired: every published fact is FALSE/0 rather than stale.
     OutImm.Linked         := FALSE;
@@ -112,7 +197,22 @@ ELSE
     OutImm.CurrentArea    := 0;
     OutImm.ProtectiveStop := FALSE;
     OutImm.Resumable      := FALSE;
-END_IF]]></ST>
+    OutImm.ArmPowerOn     := FALSE;
+    OutImm.PathIndex      := -1;
+    OutImm.Jogging        := FALSE;
+    _caps.Reported        := FALSE;
+    _caps.Commands        := 0;
+    _caps.JogAxes         := 0;
+    _caps.UserSignals     := 0;
+END_IF
+OutImm.Capabilities  := _caps;
+// The controller's demands for its own routines, as state flags: published
+// unconditionally every scan, so a demand nobody computes stops claiming (§3.12).
+OutImm.BrakeTestDue     := _M_State(Idx := 1, Key := 'std.state.robotBrakeTestDue', Ok := brakeDue);
+OutImm.SafeReferenceDue := _M_State(Idx := 2, Key := 'std.state.robotSafeReferenceDue', Ok := safeRefDue);
+OutImm.RequestedMode := _requested;
+OutImm.SafetyPermit  := _safetyPermit;
+OutImm.SpeedScale    := _applied;]]></ST>
         </Implementation>
       </Method>
       <Method Name="_M_Dispatch" Id="{94521a8b-b114-4b8f-b626-e8cdb85b5c46}">
@@ -120,11 +220,30 @@ END_IF]]></ST>
 // ID-addressed primitive, then completion/hold/timeout at step 20.
 METHOD PROTECTED _M_Dispatch
 VAR
-    _scale : REAL;
     _cd    : ST_Diagnostic;   // C0185: cannot read .member off a property result
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[// ---- validation BEFORE motion (S5.6) --------------------------------------
+          <ST><![CDATA[// §7.6.1 - a manual command arrives through the catalog. A declared move runs
+// as MOVE_FROM_AREA to its own point (the controller routes from wherever the
+// arm stands); a routine runs as itself; nothing else is this path's.
+IF _manualReq THEN
+    _manualReq := FALSE;
+    IF (_manualCmd > PL_Robot.MANUAL_MOVE_BASE)
+        AND (_manualCmd <= PL_Robot.MANUAL_MOVE_BASE + PL_Robot.MAX_MANUAL_MOVES) THEN
+        _manualSlot := DINT_TO_INT(_manualCmd - PL_Robot.MANUAL_MOVE_BASE);
+    ELSIF (_manualCmd = TO_DINT(E_RobotCommand.BRAKE_TEST))
+        OR (_manualCmd = TO_DINT(E_RobotCommand.SAFE_REFERENCE)) THEN
+        Command := _manualCmd;
+    ELSE
+        _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedRobotCommand');
+        RETURN;
+    END_IF
+END_IF
+IF _manualSlot > 0 THEN
+    Command := E_RobotCommand.MOVE_FROM_AREA;   // every scan: a caller's write must not redirect it
+END_IF
+
+// ---- validation BEFORE motion (S5.6) --------------------------------------
 // Order is deliberate: a malformed parameter is wrong regardless of mode, and a
 // mode problem is more specific than a reference problem - so each rejection
 // sends the operator to the real cause rather than the first one checked.
@@ -153,11 +272,48 @@ IF NOT _conn.Linked THEN
 END_IF
 _M_Tag();
 _M_ApplyConditions();
-IF _M_IsMotion(Command) THEN
-    IF (ParCmd.SpeedScale < ParCfg.SpeedScaleMin) OR (ParCmd.SpeedScale > ParCfg.SpeedScaleMax) THEN
+IF (Command <> E_RobotCommand.REQUEST_MODE) AND NOT _M_Supported(Cmd := Command) THEN
+    // NONE, or a held jog sent through Execute: nothing to issue (§5.6, §7.6.1).
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedRobotCommand');
+    RETURN;
+END_IF
+// A command the connected controller does not offer is refused before anything
+// is sent. An unreported set filters nothing: the controller's own refusal
+// stays the authority.
+IF NOT _M_Offered(Value := TO_DINT(Command)) THEN
+    _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.robotCommandNotOffered');
+    RETURN;
+END_IF
+// A mode request is not motion: it needs the link and a real mode, and it
+// completes when the controller REPORTS that mode (I.4a(a)).
+IF Command = E_RobotCommand.REQUEST_MODE THEN
+    _M_RequestMode();
+    RETURN;
+END_IF
+// The controller runs its own routines at its own validated speed: an override
+// would make them a different test, so they carry no speed scale.
+IF _M_IsMotion(Command) AND NOT _M_IsRoutine(Cmd := Command) THEN
+    IF (_M_Scale() < ParCfg.SpeedScaleMin) OR (_M_Scale() > ParCfg.SpeedScaleMax) THEN
         _M_FaultN(Code := PL_ModuleReasons.ROBOT_PARAM_OOR, Text := 'std.error.robotSpeedScaleOutOfRange');
         RETURN;
     END_IF
+END_IF
+// A point-addressed command without a point is malformed: refused here, never
+// sent for a controller to resolve as "the zero pose". An ID it never taught is
+// the controller's to refuse, with the same reason.
+IF (_M_IsAddressed(Cmd := Command) AND (_M_TargetId() = 0))
+    OR ((Command = E_RobotCommand.MOVE_TEMPLATE) AND (ParCmd.FromId = 0)) THEN
+    _M_FaultN(Code := PL_ModuleReasons.ROBOT_POINT_UNKNOWN, Text := 'std.error.robotPointNotGiven');
+    RETURN;
+END_IF
+// §9 read-only: without the safety alias no power and no motion are requested.
+// It grants nothing when present - the controller and the safety system still
+// decide - but its absence is reason enough not to ask.
+IF ((Command = E_RobotCommand.POWER_ON) OR _M_IsMotion(Command)) AND NOT _safetyPermit THEN
+    _M_FaultN(Code := PL_ModuleReasons.ROBOT_SAFETY_DROPPED, Text := 'std.error.robotSafetyNotPermitted');
+    RETURN;
+END_IF
+IF _M_IsMotion(Command) THEN
     // The controller REPORTED mode bounds what motion is physically allowed; an
     // unreported (UNKNOWN) mode is never treated as permissive (I.4a(a)).
     IF _conn.ActualMode <> E_RobotOpMode.AUTO_REMOTE THEN
@@ -175,27 +331,19 @@ END_IF
 
 CASE _step OF
     10:
-        IF _M_IsMotion(Command) THEN
+        IF _M_IsMotion(Command) AND NOT _M_IsRoutine(Cmd := Command) THEN
             // MIN(mode ceiling, recipe scale): reduced speed outside automatic is a
             // property of this type, not per-project habit (I.4a(b)).
-            _scale := MIN(ParCfg.SpeedCeiling[_conn.ActualMode], ParCmd.SpeedScale);
-            _conn.SetSpeedScale(_scale);
+            _applied := MIN(ParCfg.SpeedCeiling[_conn.ActualMode], _M_Scale());
+            _conn.SetSpeedScale(_applied);
         END_IF
         IF NOT _M_Issue() THEN
-            // A connector refusal carries its reason in LastResult (link, busy,
-            // send) - adopt it VERBATIM (S8.2), never re-classified here. An
-            // unchanged reason means nothing was sent at all, which is an
-            // unsupported command; adopting the empty diagnostic would erase the
-            // fault with a zero code.
-            _cd := _conn.LastResult;
-            IF _cd.ReasonCode <> _startResult.ReasonCode THEN
-                _M_FaultDiag(Diag := _cd);
-            ELSE
-                _M_Fault(E_Reason.UNSUPPORTED_COMMAND, 'std.error.unsupportedRobotCommand');
-            END_IF
+            _M_AdoptRefusal();
             RETURN;
         END_IF
-        _tMove(IN := TRUE, PT := SEL(Command = E_RobotCommand.HOME, ParCfg.MoveTimeout, ParCfg.HomeTimeout));
+        // Homing and the controller's routines get the long timeout.
+        _tMove(IN := TRUE, PT := SEL((Command = E_RobotCommand.HOME) OR _M_IsRoutine(Cmd := Command),
+                                     ParCfg.MoveTimeout, ParCfg.HomeTimeout));
         _step := 20;
 
     20:
@@ -233,17 +381,28 @@ CASE _step OF
             END_IF
         END_IF
 
-        // (c) the connector faulted since the command started: adopt verbatim.
+        // (c) the connector faulted since it accepted: adopt verbatim (S8.2). An
+        //     accepted request leaves LastResult empty (I.3), so anything in it now
+        //     is this command's - even the same code an earlier command had.
         _cd := _conn.LastResult;
-        IF _cd.ReasonCode <> _startResult.ReasonCode THEN
+        IF _cd.ReasonCode <> E_Reason.NONE THEN
             _M_FaultDiag(Diag := _cd);
             RETURN;
         END_IF
 
-        // (d) completion: accepted, and the arm has stopped moving.
+        // (d) completion: accepted, and the arm has stopped moving. A routine has
+        //     passed only when the controller withdraws its demand; one that ends
+        //     with the demand standing failed - a finding, not a completion.
         IF NOT _conn.MotionBusy THEN
             _tMove(IN := FALSE);
-            OutCmd.ReachedId := ParCmd.TargetId;
+            IF _M_IsRoutine(Cmd := Command) AND (_routines <> 0) THEN
+                IF ((Command = E_RobotCommand.BRAKE_TEST) AND _routines.BrakeTestDue)
+                    OR ((Command = E_RobotCommand.SAFE_REFERENCE) AND _routines.SafeReferenceDue) THEN
+                    _M_FaultN(Code := PL_ModuleReasons.ROBOT_ROUTINE_FAILED, Text := 'std.error.robotRoutineNotPassed');
+                    RETURN;
+                END_IF
+            END_IF
+            OutCmd.ReachedId := _M_TargetId();
             _M_Complete();
             RETURN;
         END_IF
@@ -339,6 +498,10 @@ METHOD PRIVATE _M_Tag]]></Declaration>
     E_RobotCommand.SET_TOOL:       _M_TagCommand(9,  'std.command.robotSetTool');
     E_RobotCommand.SET_FRAME:      _M_TagCommand(10, 'std.command.robotSetFrame');
     E_RobotCommand.RECONNECT:      _M_TagCommand(11, 'std.command.robotReconnect');
+    E_RobotCommand.REQUEST_MODE:   _M_TagCommand(12, 'std.command.robotRequestMode');
+    E_RobotCommand.SET_PAYLOAD:    _M_TagCommand(13, 'std.command.robotSetPayload');
+    E_RobotCommand.BRAKE_TEST:     _M_TagCommand(14, 'std.command.robotBrakeTest');
+    E_RobotCommand.SAFE_REFERENCE: _M_TagCommand(15, 'std.command.robotSafeReference');
 ELSE
     _M_TagCommand(0, '');
 END_CASE]]></ST>
@@ -356,9 +519,12 @@ METHOD PRIVATE _M_Issue : BOOL]]></Declaration>
     E_RobotCommand.RUN_PATH:       _M_Issue := _conn.RunPath(ParCmd.TargetId, ParCmd.StartIdx, ParCmd.EndIdx);
     E_RobotCommand.RUN_PALLET:     _M_Issue := _conn.RunPallet(ParCmd.TargetId, ParCmd.Nest);
     E_RobotCommand.MOVE_TEMPLATE:  _M_Issue := _conn.MoveTemplate(ParCmd.FromId, ParCmd.TargetId);
-    E_RobotCommand.MOVE_FROM_AREA: _M_Issue := _conn.MoveFromArea(ParCmd.TargetId);
+    E_RobotCommand.MOVE_FROM_AREA: _M_Issue := _conn.MoveFromArea(_M_TargetId());
     E_RobotCommand.SET_TOOL:       _M_Issue := _conn.SetTool(ParCmd.TargetId);
     E_RobotCommand.SET_FRAME:      _M_Issue := _conn.SetFrame(ParCmd.TargetId);
+    E_RobotCommand.SET_PAYLOAD:    _M_Issue := _conn.SetPayload(ParCmd.TargetId);
+    E_RobotCommand.BRAKE_TEST:     _M_Issue := _routines.RunBrakeTest();      // offered only with _routines (_M_Offered)
+    E_RobotCommand.SAFE_REFERENCE: _M_Issue := _routines.RunSafeReference();
 ELSE
     _M_Issue := FALSE;    // nothing was sent; the dispatch faults unsupported
 END_CASE]]></ST>
@@ -366,7 +532,8 @@ END_CASE]]></ST>
       </Method>
       <Method Name="_M_IsMotion" Id="{f4de5bbe-cd47-43a2-ba9c-1fbefc8e688d}">
         <Declaration><![CDATA[// Commands the controller's mode and reference state must permit. POWER_* and
-// SET_* are selection, not motion; HOME is sequenced motion and is included.
+// SET_* are selection, not motion; HOME is sequenced motion and is included, and
+// so are the controller's routines - they move the arm.
 METHOD PRIVATE _M_IsMotion : BOOL
 VAR_INPUT
     Cmd : E_RobotCommand;
@@ -377,7 +544,538 @@ END_VAR]]></Declaration>
             OR (Cmd = E_RobotCommand.RUN_PATH)
             OR (Cmd = E_RobotCommand.RUN_PALLET)
             OR (Cmd = E_RobotCommand.MOVE_TEMPLATE)
+            OR (Cmd = E_RobotCommand.MOVE_FROM_AREA)
+            OR _M_IsRoutine(Cmd := Cmd);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="OnAbort" Id="{7284e566-dc6d-424b-9acd-2e6b95877292}">
+        <Declaration><![CDATA[// §3.14.2 - an aborted command stops the ARM, not only the handshake. The base
+// ends the command; this sends the stop (SRCI GroupStop). Without it the module
+// reported ABORTED while the robot carried on.
+METHOD PROTECTED OnAbort : DINT]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[OnAbort := SUPER^.OnAbort();            // base first (S3.14.2)
+IF _conn <> 0 THEN
+    _conn.Abort();
+END_IF
+_heldOnPath := FALSE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="PrepareRecipe" Id="{cdb49a15-07e4-4ca3-8978-f9168eb6f79b}">
+        <Declaration><![CDATA[// §5.6 - a speed band, ceilings, default mode or timeouts this type cannot honour
+// are refused here, so they never reach a command as behaviour. This type has no
+// recipe provider: ParCfg is the composition root's and is judged as it stands.
+METHOD PrepareRecipe : BOOL
+VAR_INPUT
+    Model : ST_ModelId;
+END_VAR
+VAR
+    i  : INT;
+    ok : BOOL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[ok := (ParCfg.SpeedScaleMin > 0.0) AND (ParCfg.SpeedScaleMin <= ParCfg.SpeedScaleMax)
+    AND (ParCfg.SpeedScaleMax <= 100.0)
+    AND _M_ModeKnown(Mode := ParCfg.DefaultMode) AND (ParCfg.DefaultMode <> E_RobotOpMode.UNKNOWN)
+    AND (ParCfg.MoveTimeout > T#0S) AND (ParCfg.HomeTimeout > T#0S)
+    AND (ParCfg.ModeTimeout > T#0S) AND (ParCfg.JogTimeout > T#0S);
+FOR i := 0 TO 3 DO
+    ok := ok AND (ParCfg.SpeedCeiling[i] >= 0.0) AND (ParCfg.SpeedCeiling[i] <= 100.0);
+END_FOR
+IF NOT ok THEN
+    _M_FaultN(Code := PL_ModuleReasons.ROBOT_CFG_INVALID, Text := 'std.error.robotConfigurationInvalid');
+END_IF
+PrepareRecipe := ok;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_RequestMode" Id="{1be2d750-60fc-434b-a6ac-4f3119d809e2}">
+        <Declaration><![CDATA[// REQUEST_MODE (I.4a(a)): send the request, then wait for the controller to
+// REPORT the mode. A request it never grants faults after ModeTimeout and stays
+// published as requested beside what is reported - visibly ungranted.
+METHOD PRIVATE _M_RequestMode
+VAR
+    _cd : ST_Diagnostic;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (ParCmd.Mode = E_RobotOpMode.UNKNOWN) OR NOT _M_ModeKnown(Mode := ParCmd.Mode) THEN
+    _M_FaultN(Code := PL_ModuleReasons.ROBOT_PARAM_OOR, Text := 'std.error.robotModeRequestInvalid');
+    RETURN;
+END_IF
+CASE _step OF
+    10:
+        IF NOT _conn.RequestMode(Mode := ParCmd.Mode) THEN
+            _M_AdoptRefusal();
+            RETURN;
+        END_IF
+        _requested := ParCmd.Mode;
+        _tMove(IN := FALSE);
+        _step := 20;
+    20:
+        _tMove(IN := TRUE, PT := ParCfg.ModeTimeout);
+        _cd := _conn.LastResult;
+        IF _cd.ReasonCode <> E_Reason.NONE THEN
+            _tMove(IN := FALSE);
+            _M_FaultDiag(Diag := _cd);
+        ELSIF _conn.ActualMode = _requested THEN
+            _tMove(IN := FALSE);
+            _M_Complete();
+        ELSIF _tMove.Q THEN
+            _tMove(IN := FALSE);
+            _M_FaultN(Code := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED, Text := 'std.error.robotModeNotGranted');
+        END_IF
+ELSE
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_AdoptRefusal" Id="{aa6d6e92-1c0b-4c61-b619-942a2e18d64a}">
+        <Declaration><![CDATA[// A connector refusal carries its reason in LastResult (I.3) - adopt it
+// VERBATIM (S8.2), never re-classified. A refusal with no reason breaks I.3;
+// it is still named, never left as a fault with a zero code.
+METHOD PRIVATE _M_AdoptRefusal
+VAR
+    _cd : ST_Diagnostic;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_cd := _conn.LastResult;
+IF _cd.ReasonCode <> E_Reason.NONE THEN
+    _M_FaultDiag(Diag := _cd);
+ELSE
+    _M_FaultN(Code := PL_ModuleReasons.ROBOT_CONTROLLER_FAULT, Text := 'std.error.robotRequestRefused');
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Supported" Id="{c2681845-f95f-4e2b-8e81-2b6930dfa083}">
+        <Declaration><![CDATA[// The commands _M_Issue sends. RECONNECT and REQUEST_MODE are dispatched
+// before it; JOG_* are HELD commands and never arrive through Execute.
+METHOD PRIVATE _M_Supported : BOOL
+VAR_INPUT
+    Cmd : E_RobotCommand;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CASE Cmd OF
+    E_RobotCommand.POWER_ON, E_RobotCommand.POWER_OFF, E_RobotCommand.HOME,
+    E_RobotCommand.MOVE_TO, E_RobotCommand.RUN_PATH, E_RobotCommand.RUN_PALLET,
+    E_RobotCommand.MOVE_TEMPLATE, E_RobotCommand.MOVE_FROM_AREA,
+    E_RobotCommand.SET_TOOL, E_RobotCommand.SET_FRAME, E_RobotCommand.SET_PAYLOAD,
+    E_RobotCommand.BRAKE_TEST, E_RobotCommand.SAFE_REFERENCE:
+        _M_Supported := TRUE;
+ELSE
+    _M_Supported := FALSE;
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_ModeKnown" Id="{600eb794-ed36-4d10-aa08-7d21da8c6d12}">
+        <Declaration><![CDATA[METHOD PRIVATE _M_ModeKnown : BOOL
+VAR_INPUT
+    Mode : E_RobotOpMode;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CASE Mode OF
+    E_RobotOpMode.UNKNOWN, E_RobotOpMode.AUTO_REMOTE,
+    E_RobotOpMode.MANUAL_REDUCED, E_RobotOpMode.MANUAL_HIGH:
+        _M_ModeKnown := TRUE;
+ELSE
+    _M_ModeKnown := FALSE;   // a value no controller reports
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetSafetyPermit" Id="{b29a6084-ce30-4d75-92be-1449c1c56dc1}">
+        <Declaration><![CDATA[// Core §9, read-only - the robot's safety alias as the certified system reports
+// it (STO clear, safe zone satisfied, ...), supplied by the application every
+// scan like SetAreaSafe. It GRANTS nothing: TRUE only lets ordinary requests
+// through. FALSE drops arm power and stops a running command with
+// ROBOT_SAFETY_DROPPED; TRUE again re-enables nothing (§9.3/§9.4). Defaults
+// TRUE: a station that supplies no alias is not gated by one.
+METHOD SetSafetyPermit
+VAR_INPUT
+    Permit         : BOOL;
+    DescriptionKey : STRING(255);   // names the alias in the fault; '' = the generic text
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_safetyPermit := Permit;
+_safetyKey := DescriptionKey;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_SafetyCyclic" Id="{830ab572-26e2-4140-ae42-3156db219532}">
+        <Declaration><![CDATA[// The safety-alias reaction, every scan. A running command is stopped FIRST
+// (the stop must not wait behind anything) and faulted; power is then asked off
+// on the falling edge, and again every POWER_RETRY while the controller still
+// reports it on. Nothing here ever powers ON.
+METHOD PRIVATE _M_SafetyCyclic
+VAR
+    text : STRING(255);
+END_VAR
+VAR CONSTANT
+    POWER_RETRY : TIME := T#500MS;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _safetyPermit THEN
+    IF _exec = E_ExecState.BUSY THEN
+        text := 'std.error.robotSafetyDropped';
+        IF _safetyKey <> '' THEN
+            text := _safetyKey;
+        END_IF
+        _M_FaultStopped(Code := PL_ModuleReasons.ROBOT_SAFETY_DROPPED, Text := text);
+    END_IF
+    _tPowerRetry(IN := _conn.ArmPowerOn AND NOT _safetyPrev, PT := POWER_RETRY);
+    IF _safetyPrev OR _tPowerRetry.Q THEN
+        _conn.PowerOff();
+        _tPowerRetry(IN := FALSE);
+    END_IF
+ELSE
+    _tPowerRetry(IN := FALSE);
+END_IF
+_safetyPrev := _safetyPermit;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RequestHeldCommand" Id="{0e823b6d-5087-4ff8-8cc6-caa51ced42d9}">
+        <Declaration><![CDATA[// §7.6.1 held command - JOG_POS / JOG_NEG, called EVERY SCAN while the operator
+// holds the control. It only RECORDS the request; the arm moves from
+// _M_JogCyclic, where every gate is weighed in one place (the FB_AxisCM shape).
+// A robot jog always needs the enabling device: unlike the axis there is no
+// station opt-out, because the arm's reach is the hazard.
+METHOD RequestHeldCommand : BOOL
+VAR_INPUT
+    Value  : DINT;
+    Enable : ST_ManualEnableStatus;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF Value = TO_DINT(E_RobotCommand.JOG_POS) THEN
+    _jogReqDir := 1;
+ELSIF Value = TO_DINT(E_RobotCommand.JOG_NEG) THEN
+    _jogReqDir := -1;
+ELSE
+    // Not a held command of this type; record nothing.
+    RequestHeldCommand := FALSE;
+    RETURN;
+END_IF
+// A jog the controller does not offer, or on an axis it does not have, is never
+// started (the published capabilities, I.3).
+IF NOT _M_Offered(Value := Value) OR (_caps.Reported AND (_jogAxis > _caps.JogAxes)) THEN
+    _jogReqDir := 0;
+    OutImm.JogStopReason := TO_DINT(E_Reason.UNSUPPORTED_COMMAND);
+    RequestHeldCommand := FALSE;
+    RETURN;
+END_IF
+_jogSeen    := TRUE;
+_jogEnabled := Enable.Held;
+IF NOT Enable.Held THEN
+    OutImm.JogStopReason := TO_DINT(E_Reason.PERMISSIVE_NOT_MET);
+    RequestHeldCommand := FALSE;
+    RETURN;
+END_IF
+// The CONTROLLER's reported mode bounds a jog, not a PLC release (I.4a(a)).
+IF _conn = 0 THEN
+    RequestHeldCommand := FALSE;
+    RETURN;
+END_IF
+IF NOT ((_conn.ActualMode = E_RobotOpMode.MANUAL_REDUCED)
+    OR (_conn.ActualMode = E_RobotOpMode.MANUAL_HIGH)) THEN
+    OutImm.JogStopReason := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED;
+    RequestHeldCommand := FALSE;
+    RETURN;
+END_IF
+RequestHeldCommand := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_JogCyclic" Id="{16dcf83e-7900-4667-b83f-c7335ca65658}">
+        <Declaration><![CDATA[// The one place a jog starts, continues or stops, run every scan whether or not
+// anybody asked - "nobody asked" is exactly what must stop it. A jog is started
+// once (SRCI GroupJog) and stopped with Abort (GroupStop): the connector is never
+// asked to jog every scan.
+METHOD PRIVATE _M_JogCyclic
+VAR
+    manual : BOOL;
+    drive  : BOOL;
+    _jd    : ST_Diagnostic;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_tJogStale(IN := NOT _jogSeen, PT := ParCfg.JogTimeout);
+_M_ApplyConditions();
+Intlk();
+manual := (_conn.ActualMode = E_RobotOpMode.MANUAL_REDUCED)
+    OR (_conn.ActualMode = E_RobotOpMode.MANUAL_HIGH);
+// Every gate in one expression, one place to review. Interlocks are NOT
+// bypassed for teaching (§7.2.1, fail-closed).
+drive := (_jogReqDir <> 0)
+    AND NOT _tJogStale.Q
+    AND _jogEnabled
+    AND manual
+    AND _safetyPermit
+    AND Intlk.AllOk
+    AND NOT Busy                        // a running command owns the arm (§6.1)
+    AND _conn.Linked
+    AND NOT _conn.ProtectiveStop;
+IF drive AND ((NOT _jogDriving) OR (_jogReqDir <> _jogDir)) THEN
+    IF _conn.Jog(Mode := _jogMode, Axis := _jogAxis, Dir := _jogReqDir) THEN
+        _jogDir := _jogReqDir;
+        OutImm.JogStopReason := 0;
+    ELSE
+        _jd := _conn.LastResult;
+        OutImm.JogStopReason := _jd.ReasonCode;
+        drive := FALSE;
+        _jogReqDir := 0;
+    END_IF
+ELSIF _jogDriving AND NOT drive THEN
+    _conn.Abort();
+    // Published status, not an alarm. The PLC cannot tell "operator let go"
+    // from "link died": both are the request no longer arriving.
+    IF _tJogStale.Q THEN
+        OutImm.JogStopReason := 0;
+    ELSIF NOT _jogEnabled THEN
+        OutImm.JogStopReason := TO_DINT(E_Reason.PERMISSIVE_NOT_MET);
+    ELSIF NOT manual THEN
+        OutImm.JogStopReason := PL_ModuleReasons.ROBOT_MODE_NOT_PERMITTED;
+    ELSIF NOT _safetyPermit THEN
+        OutImm.JogStopReason := PL_ModuleReasons.ROBOT_SAFETY_DROPPED;
+    ELSIF NOT Intlk.AllOk THEN
+        OutImm.JogStopReason := TO_DINT(E_Reason.INTERLOCK_DROPPED);
+    ELSIF _conn.ProtectiveStop THEN
+        OutImm.JogStopReason := PL_ModuleReasons.ROBOT_PROTECTIVE_STOP;
+    ELSE
+        OutImm.JogStopReason := 0;
+    END_IF
+    _jogReqDir := 0;
+END_IF
+_jogDriving    := drive;
+OutImm.Jogging := drive;
+_jogSeen       := FALSE;   // consumed: the caller must ask again next scan]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetJogSelection" Id="{0009ef23-3a34-44fd-a5f2-c9a6535b889c}">
+        <Declaration><![CDATA[// What a held jog moves: the frame and the axis (1..PL_Robot.MAX_JOG_AXES).
+// Chosen by the application (a selector, a pendant-side choice); refused while
+// a jog is driving, so the axis never changes under a held button.
+METHOD SetJogSelection : BOOL
+VAR_INPUT
+    Mode : E_RobotJogMode;
+    Axis : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF _jogDriving OR (Axis < 1) OR (Axis > PL_Robot.MAX_JOG_AXES)
+    OR (_caps.Reported AND (Axis > _caps.JogAxes)) THEN
+    SetJogSelection := FALSE;
+    RETURN;
+END_IF
+CASE Mode OF
+    E_RobotJogMode.JOINT, E_RobotJogMode.CARTESIAN, E_RobotJogMode.TOOL:
+        ;
+ELSE
+    SetJogSelection := FALSE;
+    RETURN;
+END_CASE
+_jogMode := Mode;
+_jogAxis := Axis;
+OutImm.JogMode := Mode;
+OutImm.JogAxis := Axis;
+SetJogSelection := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="M_DeclareUserSignal" Id="{67c23153-67af-44e6-9329-64d4e9c140c7}">
+        <Declaration><![CDATA[// I.3 user channel - declare one plain signal exchanged with the robot program
+// (a gripper flag, a program counter). Bounded by PL_Robot.MAX_USER_SIGNALS and
+// published read-only in OutImm.UserSignals, so the generic HMI shows it. DATA,
+// never a command: positions, modes, speeds and "go" requests stay on the
+// ID-addressed command surface. Refused out of range, for an empty key, an
+// unknown kind, or a second declaration of the same slot.
+METHOD M_DeclareUserSignal : BOOL
+VAR_INPUT
+    Index   : INT;
+    Key     : STRING(80);
+    ToRobot : BOOL;
+    Kind    : E_RobotSignalKind;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Index < 1) OR_ELSE (Index > PL_Robot.MAX_USER_SIGNALS) OR_ELSE (Key = '')
+    OR_ELSE (OutImm.UserSignals[Index].Key <> '') OR_ELSE NOT _M_KindKnown(Kind := Kind) THEN
+    M_DeclareUserSignal := FALSE;
+    RETURN;
+END_IF
+OutImm.UserSignals[Index].Key     := Key;
+OutImm.UserSignals[Index].ToRobot := ToRobot;
+OutImm.UserSignals[Index].Kind    := Kind;
+OutImm.UserSignals[Index].Value   := 0.0;
+OutImm.UserSignals[Index].Valid   := FALSE;
+M_DeclareUserSignal := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="M_WriteUserSignal" Id="{978a63b7-b937-4c21-873d-258fd3e4b61a}">
+        <Declaration><![CDATA[// Write a declared to-robot signal. The value must fit its kind - 0 or 1 for a
+// flag, a whole number for an integer - and is refused otherwise, never rounded.
+// Called by the owning EM; not a command and not an HMI write.
+METHOD M_WriteUserSignal : BOOL
+VAR_INPUT
+    Index : INT;
+    Value : LREAL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[M_WriteUserSignal := FALSE;
+IF (Index < 1) OR_ELSE (Index > PL_Robot.MAX_USER_SIGNALS)
+    OR_ELSE (OutImm.UserSignals[Index].Key = '') OR_ELSE NOT OutImm.UserSignals[Index].ToRobot
+    OR_ELSE (_caps.Reported AND (Index > _caps.UserSignals)) THEN
+    RETURN;
+END_IF
+CASE OutImm.UserSignals[Index].Kind OF
+    E_RobotSignalKind.BOOL_SIGNAL:
+        IF (Value <> 0.0) AND (Value <> 1.0) THEN
+            RETURN;
+        END_IF
+    E_RobotSignalKind.INT_SIGNAL:
+        IF (Value < -2147483648.0) OR_ELSE (Value > 2147483647.0)
+            OR_ELSE (Value <> DINT_TO_LREAL(LREAL_TO_DINT(Value))) THEN
+            RETURN;
+        END_IF
+    E_RobotSignalKind.REAL_SIGNAL:
+        ;
+ELSE
+    RETURN;
+END_CASE
+IF _conn = 0 THEN
+    RETURN;
+END_IF
+IF NOT _conn.WriteUserSignal(Index := Index, Value := Value) THEN
+    RETURN;
+END_IF
+OutImm.UserSignals[Index].Value := Value;
+M_WriteUserSignal := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_UserSignalCyclic" Id="{eb5ce1ff-5509-41a6-a9ec-4e4b89f52329}">
+        <Declaration><![CDATA[// Publish the declared signals: the robot's reports for from-robot slots, the
+// last write for to-robot slots, and Valid only while the link is up and the
+// controller carries the slot.
+METHOD PRIVATE _M_UserSignalCyclic
+VAR
+    i : INT;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[FOR i := 1 TO PL_Robot.MAX_USER_SIGNALS DO
+    IF OutImm.UserSignals[i].Key <> '' THEN
+        // A slot the controller does not carry is never valid, declared or not.
+        OutImm.UserSignals[i].Valid := _conn.Linked AND ((NOT _caps.Reported) OR (i <= _caps.UserSignals));
+        IF NOT OutImm.UserSignals[i].ToRobot THEN
+            OutImm.UserSignals[i].Value := _conn.UserSignal(Index := i);
+        END_IF
+    END_IF
+END_FOR]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_KindKnown" Id="{72ae34d2-1119-44d8-bb6d-db7bb7350d0d}">
+        <Declaration><![CDATA[METHOD PRIVATE _M_KindKnown : BOOL
+VAR_INPUT
+    Kind : E_RobotSignalKind;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[CASE Kind OF
+    E_RobotSignalKind.BOOL_SIGNAL, E_RobotSignalKind.INT_SIGNAL, E_RobotSignalKind.REAL_SIGNAL:
+        _M_KindKnown := TRUE;
+ELSE
+    _M_KindKnown := FALSE;
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Offered" Id="{bdb02d89-9560-4814-acb5-f9e23534b5e7}">
+        <Declaration><![CDATA[// Is this command offered? The routines need the I.5b interface on the
+// connector. Otherwise bit n of Capabilities.Commands is E_RobotCommand n, and
+// not reported = not filtered: before the controller has said, its own refusal
+// is the only authority there is.
+METHOD PRIVATE _M_Offered : BOOL
+VAR_INPUT
+    Value : DINT;   // an E_RobotCommand value
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF ((Value = TO_DINT(E_RobotCommand.BRAKE_TEST)) OR (Value = TO_DINT(E_RobotCommand.SAFE_REFERENCE)))
+    AND (_routines = 0) THEN
+    _M_Offered := FALSE;
+    RETURN;
+END_IF
+IF NOT _caps.Reported THEN
+    _M_Offered := TRUE;
+    RETURN;
+END_IF
+IF (Value < 0) OR (Value > 31) THEN
+    _M_Offered := FALSE;
+    RETURN;
+END_IF
+_M_Offered := (_caps.Commands AND SHL(DWORD#1, DINT_TO_UINT(Value))) <> 0;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_IsRoutine" Id="{adc903a7-519d-4355-b779-62fc367c3d73}">
+        <Declaration><![CDATA[// The controller's own routines: run at its own speed, judged by its own demand.
+METHOD PRIVATE _M_IsRoutine : BOOL
+VAR_INPUT
+    Cmd : E_RobotCommand;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_IsRoutine := (Cmd = E_RobotCommand.BRAKE_TEST) OR (Cmd = E_RobotCommand.SAFE_REFERENCE);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_IsAddressed" Id="{fa08c7b4-c507-4fad-8be1-ceb1a57d1281}">
+        <Declaration><![CDATA[// Commands that name a point, list or pallet by ID - the ones a never-taught or
+// missing ID makes meaningless.
+METHOD PRIVATE _M_IsAddressed : BOOL
+VAR_INPUT
+    Cmd : E_RobotCommand;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_M_IsAddressed := (Cmd = E_RobotCommand.MOVE_TO)
+            OR (Cmd = E_RobotCommand.RUN_PATH)
+            OR (Cmd = E_RobotCommand.RUN_PALLET)
+            OR (Cmd = E_RobotCommand.MOVE_TEMPLATE)
             OR (Cmd = E_RobotCommand.MOVE_FROM_AREA);]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_TargetId" Id="{f179bf56-5f8a-4180-975a-14953ccce3a5}">
+        <Declaration><![CDATA[// The ID this command addresses: a declared manual move's own point, else
+// ParCmd.TargetId.
+METHOD PRIVATE _M_TargetId : DWORD]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (_manualSlot >= 1) AND (_manualSlot <= PL_Robot.MAX_MANUAL_MOVES) THEN
+    _M_TargetId := _movePoint[_manualSlot];
+ELSE
+    _M_TargetId := ParCmd.TargetId;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="_M_Scale" Id="{2a930bed-9bfd-4753-b9bd-38adb9ab43a4}">
+        <Declaration><![CDATA[// The speed this command asks for. A one-press manual move carries no speed of
+// its own: it runs at the slowest the cell allows (ParCfg.SpeedScaleMin), the one
+// nobody has to justify; the mode ceiling still applies on top.
+METHOD PRIVATE _M_Scale : REAL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF _manualSlot > 0 THEN
+    _M_Scale := ParCfg.SpeedScaleMin;
+ELSE
+    _M_Scale := ParCmd.SpeedScale;
+END_IF]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="M_DeclareManualMove" Id="{b8188e37-d964-4179-851f-6278cbe86358}">
+        <Declaration><![CDATA[// Declare a one-press manual move to a TAUGHT point, published in the §7.6.1
+// catalog under LabelKey so the generic HMI offers it with no station screen.
+// It runs as MOVE_FROM_AREA - the controller resolves the route from wherever
+// the arm stands - through every gate a program command meets (the Unit's
+// manual release, link, safety alias, AUTO_REMOTE, reference, interlocks), at
+// ParCfg.SpeedScaleMin. Declared once, after Setup: the catalog is static
+// configuration (§3.10.2). Refused out of range, for point 0, an empty label, a
+// second declaration of the same slot, or a full catalog.
+METHOD M_DeclareManualMove : BOOL
+VAR_INPUT
+    Slot     : INT;
+    PointId  : DWORD;
+    LabelKey : STRING(120);
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Slot < 1) OR_ELSE (Slot > PL_Robot.MAX_MANUAL_MOVES) OR_ELSE (PointId = 0)
+    OR_ELSE (LabelKey = '') OR_ELSE (_movePoint[Slot] <> 0)
+    OR_ELSE (CatalogCount >= PL_Fraktal.MAX_CMD_CATALOG) THEN
+    M_DeclareManualMove := FALSE;
+    RETURN;
+END_IF
+_movePoint[Slot] := PointId;
+_M_PublishCommand(Value := PL_Robot.MANUAL_MOVE_BASE + Slot, Label := LabelKey);
+M_DeclareManualMove := TRUE;]]></ST>
         </Implementation>
       </Method>
   </POU>

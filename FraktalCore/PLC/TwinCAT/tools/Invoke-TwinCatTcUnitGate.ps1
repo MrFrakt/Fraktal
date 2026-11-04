@@ -268,7 +268,18 @@ function Set-AdsPlcState {
         $seen = $null
         do {
             Start-Sleep -Milliseconds 500
-            try { $seen = $client.ReadState().AdsState } catch { $seen = $null }
+            try {
+                $seen = $client.ReadState().AdsState
+                if ($seen -ne $target) {
+                    # 2026-10-30, measured twice on the UmRT: a Run request issued
+                    # while the boot application is still loading is ACCEPTED yet
+                    # swallowed - no ADS error, the state stays Stop until the
+                    # loader finishes, and with autostart deliberately disabled
+                    # nothing re-issues it. Re-issue on every poll that still sees
+                    # the old state; only the final state decides.
+                    $client.WriteControl((New-Object TwinCAT.Ads.StateInfo $target, $client.ReadState().DeviceState))
+                }
+            } catch { $seen = $null }
         } while ($seen -ne $target -and [DateTime]::UtcNow -lt $by)
         if ($null -eq $seen) { return 'Unknown' }
         return $seen

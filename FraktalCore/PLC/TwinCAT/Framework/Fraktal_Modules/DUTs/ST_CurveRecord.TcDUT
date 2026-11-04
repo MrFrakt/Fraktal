@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_CurveRecord" Id="{112b47d3-5644-4b8d-bcc6-e05b41c93510}">
+    <Declaration><![CDATA[// The last finished curve as an owner publishes it (OutImm.Curve), copied once
+// per curve by FB_CurveMonitor.M_Record: what was measured, what it was judged
+// against and the verdict. The generic HMI reads it on demand for its Curve tab.
+// Samples keeps the first PL_Curve.MAX_SAMPLES points; later ones were still
+// judged (Result.Samples counts them all) and only Truncated says they are missing.
+TYPE ST_CurveRecord :
+STRUCT
+    SampleCount : INT;
+    Truncated   : BOOL;
+    Samples     : ARRAY[1..PL_Curve.MAX_SAMPLES] OF ST_CurvePoint;
+    Spec        : ST_CurveSpec;
+    Result      : ST_CurveResult;
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
