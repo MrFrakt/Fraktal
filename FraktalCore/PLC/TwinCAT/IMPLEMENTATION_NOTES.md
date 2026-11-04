@@ -6040,3 +6040,105 @@ contract gate green; HMI analyzer clean, 628 passed / 12 skipped on
 Flutter 3.44.6. On the isolated UmRT: aggregate 346/346 in 54 suites and
 Press 9/9 in 2 suites. Scope and artifacts:
 `Specification/Evidence/2026-11-03_TC3_RobotCompletion.md`.
+
+## 175. The robot backlog: capabilities, routines, untaught points, manual moves (Modules 0.17.0.0, 2026-11-03)
+
+Builds four items of the robot backlog in the generic-CM audit plan (§12:
+R2, R3, R5, R7), all ideas reviewed in a commercial robot-integration
+package and rewritten against Annex I.
+
+- **Capabilities (R2).** `I_RobotConnector` gains `Capabilities :
+  ST_RobotCapabilities` - the connected controller's own answer: which
+  commands it offers (bit n = `E_RobotCommand` n), how many axes a jog may
+  address, how many user-signal slots it carries, and `Reported`.
+  `FB_RobotCM` publishes it read-only in `OutImm.Capabilities` and refuses
+  a command that is not offered before anything is sent
+  (`UNSUPPORTED_COMMAND`, `std.error.robotCommandNotOffered`); it starts
+  no jog that is not offered, refuses a jog axis or a user-signal write
+  beyond what the controller carries, and marks such a declared signal
+  invalid. An unreported set filters nothing: before the controller has
+  said, its own refusal is the authority, so a server that predates the
+  question behaves as before. The simulated connector reports
+  `Offered`/`JogAxes` inputs; the TCP connector asks `CAP` once per
+  session (housekeeping like the poll: it never touches `LastResult` or
+  `MotionBusy`, and waits for a free slot). Not done: hiding an unoffered
+  command in the HMI. The catalog is static configuration served by the
+  manifest (§3.9, §3.10.2), so it stays listed and is refused with that
+  reason.
+- **The controller's routines (R3), on a secondary interface.** Annex I.5b
+  catalogues the brake test as a capability group and requires such groups
+  to be a narrow secondary interface, never a widening of
+  `I_RobotConnector`. So `I_RobotRoutines` (`RunBrakeTest`,
+  `RunSafeReference`, `BrakeTestDue`, `SafeReferenceDue`) is implemented
+  by both connectors and found by the CM at `Setup` with
+  `__QUERYINTERFACE`; without it the routines are not offered and nothing
+  is due. The demands are published as `_M_State` flags 1 and 2
+  (unconditional every scan) and in `OutImm`;
+  `BRAKE_TEST`/`SAFE_REFERENCE` are appended commands and one-press
+  catalog entries. They are motion (link, safety alias, `AUTO_REMOTE`,
+  reference) but carry no speed scale - the controller paces its own
+  validated routine - and take `HomeTimeout`. A routine passes only when
+  the controller withdraws its demand; ending with the demand standing
+  faults the new `ROBOT_ROUTINE_FAILED` (10317, HIGH, SAFETY, never
+  shelvable). The CM invents no refusal of its own while a demand stands:
+  that is the controller's decision.
+- **No move to a point that was never taught (R5).** `ROBOT_POINT_UNKNOWN`
+  (10302, registered in Annex I) is now raised. The CM refuses a
+  point-addressed command naming no point (ID 0, or no `FromId` for
+  `MOVE_TEMPLATE`) before anything is sent; an ID the controller never
+  taught is the controller's to refuse with the same reason. The simulated
+  connector, which synthesizes a pose for any ID, holds IDs
+  `1..TaughtPoints` (default 999) and refuses the rest; the TCP connector
+  classifies the controller code `UNKNOWN_ID` as 10302 and keeps the
+  controller's text verbatim.
+- **Declared manual moves (R7).** `M_DeclareManualMove(Slot, PointId,
+  LabelKey)` declares up to `PL_Robot.MAX_MANUAL_MOVES` (8) one-press
+  moves, once after `Setup`, into the §7.6.1 catalog under catalog value
+  `PL_Robot.MANUAL_MOVE_BASE + Slot` (clear of every command). A press
+  runs `MOVE_FROM_AREA` to the declared point, so the route starts
+  wherever the arm stands, through every gate a program command meets, at
+  `ParCfg.SpeedScaleMin` under the mode ceiling - a screen press carries
+  no speed, and the program's `ParCmd.SpeedScale` is not inherited.
+  Catalog budget: 2 held jogs + 2 routines + 8 moves = `MAX_CMD_CATALOG`
+  (12).
+- **Defect found while doing it: the TCP connector could still refuse the
+  move.** §174's one-deep queue covered a free slot: the speed went out
+  and the move waited. But when the heartbeat's status poll - or now the
+  link-up `CAP` - holds the slot at the very scan the CM sends the speed
+  and the move, the speed took the only waiting place and the move was
+  refused as a lost link, intermittently. The queue is now two deep
+  (oldest first, a third request refused, `Abort` still empties it first),
+  and a request joins the queue whenever others wait, so nothing
+  overtakes. Row `Speed_then_move_in_one_scan_both_reach_the_wire` now
+  runs with `CAP` on the wire.
+- **Wire protocol.** The status reply gains `<due>` after `<pathIdx>` (bit
+  1 brake test, bit 2 safe reference) and the user inputs move to field 18
+  on; a server that omits it reads as nothing due. New requests `CAP`
+  (`CAP,OK,<commands>,<jogAxes>,<userSignals>`), `BRK`, `SRF`.
+- **Upgrade cost.** Modules *minor* 0.17.0.0: `I_RobotConnector` gains
+  `Capabilities` (a third-party connector must implement it;
+  `I_RobotRoutines` is optional), `E_RobotCommand` and `E_RobotSimFault`
+  append, `ST_RobotOutImm` grows. Core *patch* 0.26.7.0 carries the
+  regenerated catalog (94 -> 96). TIA: the example outputs refreshed for
+  the rationalized severities only.
+- **Tests.** `FB_RobotCM_Tests` 21 -> 26 and `FB_RobotConnector_Tests` 9
+  -> 11: a command and a jog not offered refused before issuing; a missing
+  and an untaught point refused with nothing moving; a due brake test
+  published as a state flag and withdrawn by running it; a routine leaving
+  its demand standing faulting 10317; a declared move's bounds, catalog
+  entry and one press running it to its point at the slowest speed; on the
+  wire, the offer asked once and decoded with the routine demands, and an
+  untaught point carrying its own reason while a refused `CAP` filters
+  nothing. Every existing wire row now answers `CAP` and the moved
+  user-input field.
+
+Final: Core 0.26.7.0 / Modules 0.17.0.0 installed from an isolated
+worktree; six `CheckAllObjects` clean (0 errors, 0 warnings) after two
+compiler findings in this step (an IEC apostrophe written `''` in test
+messages; `C0195`, then `C0032`, on the TCP connector's due-bit test, now
+a `DWORD`); both lint profiles, the tool tests, strict consistency and
+every AB/TIA replay and contract gate green; HMI analyzer clean, 628
+passed / 12 skipped on Flutter 3.44.6. On the isolated UmRT, after the
+trial licence was renewed: aggregate 353/353 in 54 suites and Press 9/9 in
+2 suites. Scope and artifacts:
+`Specification/Evidence/2026-11-03_TC3_RobotBacklog.md`.

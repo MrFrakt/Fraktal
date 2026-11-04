@@ -309,7 +309,7 @@ Order is dependency order. "1200" = in the S7-1200 profile (✔ yes, ◐ reduced
 | M6 | `FB_ConfigurableCylinderCM` + sim | P2 | ✔ | TC3 Modules 0.15 adds `ParCfg` v2 valve timing (shared `FB_ValveDrive`); not yet carried |
 | M7 | `FB_SeparatorCM` | P2 | ✔ | Annex A worked example |
 | M8 | `FB_AxisCM` | P2 | ◐ | S14; press `PartFeed`; TC3 Modules 0.14 adds named positions, relative/step moves, speed scale and override |
-| M9 | `FB_RobotCM`, `FB_RobotRoutePlanner`, `FB_SimRobotConnector`, `FB_StaubliVal3Connector` | P3 | ✘ | after S13/S14; TC3 Modules 0.16 completes I.4a/I.4 (mode request, safety alias, held jog, payload, arm power, user channel) |
+| M9 | `FB_RobotCM`, `FB_RobotRoutePlanner`, `FB_SimRobotConnector`, `FB_StaubliVal3Connector` | P3 | ✘ | after S13/S14; TC3 Modules 0.16 completes I.4a/I.4 (mode request, safety alias, held jog, payload, arm power, user channel); 0.17 adds capabilities, the I.5b routines interface, untaught-point refusal and declared manual moves |
 | M10 | `FB_Iv3VisionCM`, `FB_Matrix220CM` | P3 | ✘ | after S13 |
 | M11 | `FB_PowerGroupCM` | — | — | **out of scope (D3)** |
 | M12 | `FB_AnalogInputCM` | P2 | ◘ | TC3 Modules 0.13.1 adds the type; Modules-only, so TIA sources change only by the `PL_ModuleReasons` hash; not yet carried |

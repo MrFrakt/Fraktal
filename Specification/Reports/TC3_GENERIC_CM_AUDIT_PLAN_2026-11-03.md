@@ -59,7 +59,8 @@ Paths are relative to the repository root; `TC3/` abbreviates `FraktalCore/PLC/T
 | `1e3815559` | L5 `FB_CurveMonitor` | Modules 0.15.1.0 / Core 0.26.5.0 | `2026-11-02_TC3_GenericCM_CurveMonitor.md` | §172 |
 | `ab6081428` | L6 curve record and HMI Curve tab | Modules 0.15.2.0 + HMI | `2026-11-02_TC3_GenericCM_CurveRecord.md` | §173 |
 | `bf79fdd78` | L8 paper audits | — | `Reports/TC3_CODE_READER_PARITY_AUDIT_2026-11-02.md`, `Reports/TC3_ROBOT_USER_CHANNEL_AUDIT_2026-11-02.md` | |
-| (next) | Robot completion | Modules 0.16.0.0 / Core 0.26.6.0 | `2026-11-03_TC3_RobotCompletion.md` | §174 |
+| `fe47a03da` | Robot completion; this plan | Modules 0.16.0.0 / Core 0.26.6.0 | `2026-11-03_TC3_RobotCompletion.md` | §174 |
+| (next) | Robot backlog R2/R3/R5/R7 | Modules 0.17.0.0 / Core 0.26.7.0 | `2026-11-03_TC3_RobotBacklog.md` | §175 |
 
 Also in scope: every cross-binding artifact these commits touched (TIA generated packages,
 AB census, Siemens port plan, `check_consistency.py`, `plc_lint.py`), the HMI changes (reason
@@ -242,6 +243,35 @@ Each item is a question; record the answer and the evidence.
 - **Annex I.15 route preview** ("the connector shall publish the resolved point sequence"):
   neither connector does. Confirm and record as S3 against the annex.
 
+### D9 robot backlog R2/R3/R5/R7 (hotspot)
+- **Capabilities:** an unreported set filters nothing — is that acceptable against O10 (fail
+  closed), given the controller still refuses? Is every command the CM issues checked
+  (including `REQUEST_MODE`, the routines, the declared moves), and is `RECONNECT` correctly
+  exempt? `Commands` is a bit set over `E_RobotCommand` ordinals: what happens at ordinal 32?
+  The catalog is not edited at runtime (static, manifest-served) — confirm the HMI shows a
+  refused unoffered command with its reason, and decide whether R2's "the HMI hides them" needs
+  a Core change.
+- **`CAP` on the wire:** asked once per session, never touching `LastResult`/`MotionBusy`; an
+  `ERR` or a timeout leaves `Reported` FALSE; re-asked after a reconnect. Construct: `CAP`
+  pending + speed + move (both queued), `CAP` timeout + queued command, link loss with `CAP`
+  pending.
+- **Queue depth two:** the §174 depth-one queue still refused the move when a poll held the
+  slot (§175). Re-derive the worst case: poll or `CAP` on the wire, then speed, move — and an
+  `Abort` arriving behind them. Is two enough for every sequence the CM can produce in one scan?
+- **Routines (I.5b):** `I_RobotRoutines` found by `__QUERYINTERFACE`; without it the routines are
+  not offered and nothing is due. No speed scale is sent; `HomeTimeout` applies. A routine
+  passes only when the demand is withdrawn — but what if the controller withdraws it a poll
+  after `MotionBusy` drops? (Both come from one status reply on the TCP connector; is that
+  guaranteed for every connector?) The CM adds no refusal of its own while a demand stands —
+  confirm that is right against §9.8.
+- **Untaught points:** the CM refuses ID 0 (and `FromId` 0) before sending; the controller
+  refuses unknown IDs. Is `RUN_PALLET`/`RUN_PATH` with ID 0 ever legitimate on a real
+  controller? The TCP connector classifies only `UNKNOWN_ID`; is a code table needed?
+- **Declared manual moves:** one press, `MOVE_FROM_AREA`, `SpeedScaleMin` under the mode
+  ceiling, every program gate; the catalog value band `MANUAL_MOVE_BASE + n` cannot collide
+  with a command; the catalog budget is exactly 12. Does `Command` written from the manual
+  path survive a caller that writes `Command` every scan (it is re-asserted each dispatch)?
+
 ## 6. Phase E — specification conformance matrix
 
 Fill one row per clause: implementing object(s) and line, proving test(s), verdict.
@@ -338,16 +368,16 @@ A commercial robot-integration package was reviewed for ideas. Disposition of ea
 | # | Idea | Disposition | Owner / shape |
 |---|---|---|---|
 | R1 | Path progress after an abort, for a deliberate continue | **adopted** (§174) | `PathIndex` on connector and CM |
-| R2 | Runtime capability discovery (which functions the connected controller supports; units and limits) | proposed | `ST_RobotCapabilities` from the connector, published read-only; the CM refuses unsupported commands before issuing; the HMI hides them |
-| R3 | Brake test and safe reference run requested by the controller | proposed | connector facts (`BrakeTestDue`, `SafeRefDue`) published as state flags; commands `BRAKE_TEST`, `SAFE_REFERENCE`; maintenance event via the owning Unit |
+| R2 | Runtime capability discovery (which functions the connected controller supports; units and limits) | **adopted** (§175), except HMI hiding | `I_RobotConnector.Capabilities`, published read-only; the CM refuses an unoffered command before issuing and bounds jog axes and user signals. Not hidden in the HMI: the catalog is static, manifest-served configuration (§3.9, §3.10.2); units and limits not taken |
+| R3 | Brake test and safe reference run requested by the controller | **adopted** (§175) | on the secondary `I_RobotRoutines` (Annex I.5b requires a capability group off the core interface); demands as state flags; `BRAKE_TEST`/`SAFE_REFERENCE` one press each; `ROBOT_ROUTINE_FAILED` (10317). No CM-raised event: the application raises one from its sequence if it wants it (§6.9(e)) |
 | R4 | Fast-input position latch (record the pose when a robot input switches) | proposed, on first consumer | optional connector capability group; result in `OutCmd` |
-| R5 | Refuse a never-taught point instead of driving to a zero pose | proposed | connector contract: `ROBOT_POINT_UNKNOWN` (10302, registered) |
+| R5 | Refuse a never-taught point instead of driving to a zero pose | **adopted** (§175) | `ROBOT_POINT_UNKNOWN` (10302): the CM refuses a missing ID, the controller an untaught one; the simulation holds `1..TaughtPoints` |
 | R6 | Tool/frame consistency check after link-up | proposed, depends on geometry held as Fraktal configuration | `ROBOT_TOOL_FRAME_CONFLICT` (10306, registered) |
-| R7 | Declared manual moves (a few one-press moves to taught positions) | proposed | `M_DeclareManualMove(Slot, PointId, LabelKey)` into the manual catalog, release-gated, area-resolved |
+| R7 | Declared manual moves (a few one-press moves to taught positions) | **adopted** (§175) | `M_DeclareManualMove(Slot, PointId, LabelKey)`, up to 8, `MOVE_FROM_AREA` at `SpeedScaleMin` |
 | R8 | Controller identity (vendor, model, firmware) | proposed | read-only controller facts; NOT the static §3.10.1 nameplate, which is set at Setup |
 | R9 | Teach of frames (3-point / current position), pallets and areas | proposed (Annex I.15 already specifies it) | bounded collection capabilities with capture |
 | R10 | Route preview of generated moves | **required by Annex I.15, not built** | connector publishes the resolved point sequence for the pending move |
-| R11 | Additional axes | proposed with R2 | capability count; data only |
+| R11 | Additional axes | **adopted with R2** (§175) | `Capabilities.JogAxes` bounds the jog axis |
 | R12 | Maximum override lowered in manual by the application | already covered better | per-mode ceilings derived from the reported mode (I.4a(b)) — no project code |
 | R13 | Continuous/streaming motion, TCP-relative moves, PLC-side kinematics | **not adopted** | puts coordinates into PLC code (I.1) |
 | R14 | Run an opaque internal robot program | not adopted as such | `RUN_PATH` by ID covers the ID-addressed case |
@@ -366,7 +396,7 @@ A commercial robot-integration package was reviewed for ideas. Disposition of ea
 
 > You are auditing branch `feature/generic-cm-phase0` of the Fraktal repository against
 > `Specification/Reports/TC3_GENERIC_CM_AUDIT_PLAN_2026-11-03.md`. Read `AGENTS.md`, the plan,
-> the remaining-library plan and IMPLEMENTATION_NOTES §164–§174 first. Work phase by phase
+> the remaining-library plan and IMPLEMENTATION_NOTES §164–§175 first. Work phase by phase
 > (A → I), read-only: record findings with severity, `path:line` at a commit, the rule broken
 > and the reproducing observation; do not fix anything during the audit. Use only the isolated
 > UmRT runtime `192.168.1.6.1.1:851` for TcUnit, Autostart off, `-StartBootProjectWithAds`; if

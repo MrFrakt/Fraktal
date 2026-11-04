@@ -21,6 +21,9 @@ STRUCT
     JogMode        : E_RobotJogMode;
     JogAxis        : INT;
     UserSignals    : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF ST_RobotUserSignal;   // declared slots only (I.3)
+    Capabilities   : ST_RobotCapabilities;   // what the connected controller says it offers (I.3)
+    BrakeTestDue   : BOOL;           // the controller asks for its brake test (also a state flag)
+    SafeReferenceDue : BOOL;         // the controller asks for its safe reference run (also a state flag)
 END_STRUCT
 END_TYPE]]></Declaration>
   </DUT>

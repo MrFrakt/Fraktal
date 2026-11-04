@@ -20,11 +20,16 @@
 //   ControllerMessage = ReadMessages       SetTool/SetFrame = Read Tool/FrameData
 //   SetPayload        = Read/WriteLoadData Jog              = GroupJog
 //
-// Ten members have NO SRCI equivalent asserted here, because they express this
-// annex's own model: RunPallet, MoveTemplate, MoveFromArea, CurrentArea,
-// ProtectiveStop, Resumable, LastResult, ArmPowerOn, PathIndex and the user channel
-// (WriteUserSignal/UserSignal). They are what the standard adds over an
-// ordinary robot command interface.
+// The other members have NO SRCI equivalent asserted here, because they express
+// this annex's own model: RunPallet, MoveTemplate, MoveFromArea, CurrentArea,
+// ProtectiveStop, Resumable, LastResult, ArmPowerOn, PathIndex, the user channel
+// (WriteUserSignal/UserSignal) and Capabilities. They are what the standard adds
+// over an ordinary robot command interface. The controller's own routines (brake
+// test, safe reference run) are a capability group, so they live on the
+// secondary I_RobotRoutines and never widen this interface (I.5b).
+//
+// A point, list or pallet ID the controller does not hold is refused with
+// ROBOT_POINT_UNKNOWN - never driven to a default or synthesized pose.
 //
 // LastResult describes the MOST RECENT robot request: NONE when it was
 // accepted, its reason when refused or failed. Every refusal leaves a reason;
@@ -183,6 +188,15 @@ VAR_INPUT
     Index : INT;
 END_VAR]]></Declaration>
       </Method>
+      <Property Name="Capabilities" Id="{cca0c57c-30eb-4ece-beaf-c5bdae726c68}">
+        <Declaration><![CDATA[// NO SRCI EQUIVALENT ASSERTED. What the connected controller says it offers.
+// Reported = FALSE until it has said; an unreported set filters nothing.
+PROPERTY Capabilities : ST_RobotCapabilities]]></Declaration>
+        <Get Name="Get" Id="{0e44d8e8-f60e-4f18-995b-e5dc1af2790c}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        </Get>
+      </Property>
       <Property Name="PathIndex" Id="{24c180f1-f183-4fda-a0ef-8a16bd6c4e75}">
         <Declaration><![CDATA[// NO SRCI EQUIVALENT ASSERTED. The index of the last point of the current or most
 // recent RUN_PATH the robot has COMPLETED; -1 = none. After an abort it says where

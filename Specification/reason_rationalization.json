@@ -7,6 +7,20 @@
     "shelving": "Shelving suppresses annunciation only, never control, and expires automatically."
   },
   "reasons": {
+    "ROBOT_POINT_UNKNOWN": {
+      "priority": "MED",
+      "category": "PROCESS",
+      "shelvable": false,
+      "action": "Check the point, path or pallet number the command names; teach it on the robot controller, or correct the number in the program or in the manual move declaration.",
+      "consequence": "The move is refused before the robot moves; it is never sent to a default position."
+    },
+    "ROBOT_ROUTINE_FAILED": {
+      "priority": "HIGH",
+      "category": "SAFETY",
+      "shelvable": false,
+      "action": "Read the robot controller's own report of the brake test or safe reference run, and have the brakes or the position sensing checked by a qualified person before the robot runs again.",
+      "consequence": "The controller still asks for the routine; it decides what the robot may do until the routine passes."
+    },
     "ROBOT_SAFETY_DROPPED": {
       "priority": "HIGH",
       "category": "SAFETY",

@@ -28,29 +28,39 @@
 //             <CMD>,ERR,<code>,<text>   refused or faulted by the controller
 //   status    STA[,<out1>,...,<outN>]   the poll carries the to-robot user signals
 //             STA,OK,<busy>,<ref>,<mode>,<area>,<prot>,<resumable>,<x>,<y>,<z>,
-//                    <rx>,<ry>,<rz>,<power>,<pathIdx>,<in1>,...,<inN>
-//   <power>, <pathIdx> and the user values are appended fields: a server that
-//   predates them omits them, which reads as drives not reported powered, no path
-//   progress (-1) and inputs 0. Riding
+//                    <rx>,<ry>,<rz>,<power>,<pathIdx>,<due>,<in1>,...,<inN>
+//   <power>, <pathIdx>, <due> and the user values are appended fields: a server
+//   that predates them omits them, which reads as drives not reported powered, no
+//   path progress (-1), nothing due and inputs 0. <due> is a bit set: 1 = brake
+//   test due, 2 = safe reference run due. Riding
 //   the status poll costs the user channel no request slot of its own, so it can
 //   never refuse a motion command for being busy.
+//   offer     CAP -> CAP,OK,<commands>,<jogAxes>,<userSignals>, asked once per
+//             session; <commands> bit n = E_RobotCommand n. A server that answers
+//             ERR, or nothing, leaves the set unreported, which filters nothing.
+//   routines  BRK (brake test), SRF (safe reference run); completion and verdict
+//             through the poll (<busy>, <due>).
+//   refusal codes this connector classifies: UNKNOWN_ID (point, list or pallet not
+//             taught) -> ROBOT_POINT_UNKNOWN; any other -> ROBOT_CONTROLLER_FAULT.
+//             The controller's own text travels verbatim either way (S8.2).
 // Commands are ID-ADDRESSED (I.1): a point, list, pallet, tool, frame or load is
 // named by its identifier and never by a coordinate. The single exception the
 // standard permits - a bounded offset correction for a runtime-located target
 // (I.8a) - is not implemented here yet and is not smuggled in.
 //
-// ONE ON THE WIRE, ONE WAITING. The link allows one outstanding request, but the
+// ONE ON THE WIRE, TWO WAITING. The link allows one outstanding request, but the
 // CM sends the speed and then the move in the same scan, and the heartbeat's STA
-// holds the slot for a few milliseconds every period. A request arriving while
-// the slot is taken waits in a one-deep queue and is sent the moment the reply
-// lands; only a request beyond that is refused. Abort empties the queue first,
-// so a stop never sits behind the move it is stopping.
+// (or the once-per-session CAP) can hold the slot at that very scan. Requests
+// arriving while the slot is taken wait in a two-deep queue, oldest first, and go
+// out as the replies land; only a third is refused. (One waiting place was not
+// enough: with the poll on the wire the speed took it and the move was refused.)
+// Abort empties the queue first, so a stop never sits behind the move it stops.
 //
 // STATUS IS THE HEARTBEAT: every ParCfg.StatusPeriod the connector issues STA, so
 // MotionBusy/Referenced/ActualMode/CurrentArea/ProtectiveStop/Resumable/pose stay
 // current without the robot originating traffic, and a controller that stops
 // answering is declared lost after LinkTimeout rather than trusted forever.
-FUNCTION_BLOCK FB_StaubliVal3Connector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector
+FUNCTION_BLOCK FB_StaubliVal3Connector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector, I_RobotRoutines
 VAR_INPUT
     ParCfg : ST_StaubliConnParCfg;
 END_VAR
@@ -78,8 +88,12 @@ VAR
     _userIn      : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // reported by the robot program
     _userOut     : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // handed to it with every poll
     _userOutCount : INT;   // highest to-robot index ever written; 0 = plain STA
-    _queued      : STRING(255);   // the one request waiting for the slot
-    _hasQueued   : BOOL;
+    _queue       : ARRAY[1..2] OF STRING(255);   // requests waiting for the slot, oldest first
+    _queued      : INT;           // how many are waiting (0..2)
+    _caps        : ST_RobotCapabilities;   // the controller's answer to CAP
+    _capAsked    : BOOL;          // CAP was sent on this session
+    _capPend     : BOOL;          // the outstanding request is CAP
+    _due         : DWORD;         // STA field 17: 1 = brake test due, 2 = safe reference due
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Cyclic();]]></ST>
@@ -133,6 +147,10 @@ CASE evt OF
             // An unanswered heartbeat is not a fault by itself: it stays PENDING,
             // and the base declares the link lost only after LinkTimeout (§3.15.2).
             _statusPend := FALSE;
+        ELSIF _capPend THEN
+            // An unanswered CAP leaves the set unreported. It is not a robot
+            // request, so it leaves no reason behind (I.3 LastResult).
+            _capPend := FALSE;
         ELSE
             // A command the controller never acknowledged: its own first-out, which
             // the robot CM adopts verbatim (§8.2).
@@ -152,18 +170,29 @@ END_CASE
 IF _sessionUp AND (LinkState = E_ByteChannelState.CLOSED) THEN
     _M_Lost(Reason := E_Reason.LINK_TIMEOUT, Text := 'std.error.robotLinkDown');
 END_IF
-// The waiting request goes out the moment the slot frees - before the heartbeat
-// can take it again.
-IF _hasQueued AND Linked AND NOT _link.Pending THEN
-    _hasQueued := FALSE;
-    IF _link.M_Send(Text := _queued) THEN
+// The oldest waiting request goes out the moment the slot frees - before the
+// heartbeat can take it again.
+IF (_queued > 0) AND Linked AND NOT _link.Pending THEN
+    IF _link.M_Send(Text := _queue[1]) THEN
         _statusPend := FALSE;
     ELSE
         _lastResult := _M_MakeLinkDiag();
         _busy := FALSE;
     END_IF
+    _queue[1] := _queue[2];
+    _queued := _queued - 1;
 END_IF
 Cyclic := SUPER^.Cyclic();
+// Ask once per session what the controller offers. Housekeeping like the poll,
+// not a robot request: it never touches LastResult or MotionBusy, and it waits
+// for a free slot rather than queueing ahead of a command.
+IF Linked AND NOT _capAsked AND NOT _link.Pending AND (_queued = 0) THEN
+    _capAsked := TRUE;
+    _capPend  := _link.M_Send(Text := 'CAP');
+    IF _capPend THEN
+        _statusPend := FALSE;
+    END_IF
+END_IF
 // A lost link invalidates every cached fact. Publishing a stale pose or a stale
 // "not in protective stop" while disconnected would be worse than publishing
 // nothing, because both read as positive statements about a robot we cannot see.
@@ -174,7 +203,11 @@ IF NOT Linked THEN
     _area       := 0;
     _resumable  := FALSE;
     _power      := FALSE;
-    _hasQueued  := FALSE;
+    _queued     := 0;
+    _due        := 0;
+    _caps.Reported := FALSE;   // asked again on the next session
+    _capAsked   := FALSE;
+    _capPend    := FALSE;
     FOR i := 1 TO PL_Robot.MAX_USER_SIGNALS DO
         _userIn[i] := 0.0;
     END_FOR
@@ -194,7 +227,8 @@ _M_Open := _link.M_Open(Host := ParCfg.Host, Port := ParCfg.Port);]]></ST>
         <Implementation>
           <ST><![CDATA[_link.M_Close();
 _statusPend := FALSE;
-_hasQueued := FALSE;
+_queued := 0;
+_capPend := FALSE;
 _busy := FALSE;
 _M_Close := TRUE;]]></ST>
         </Implementation>
@@ -244,6 +278,21 @@ _hbReply := TRUE;
 _cmd  := _M_Field(Response, 1);
 _stat := _M_Field(Response, 2);
 
+IF _cmd = 'CAP' THEN
+    // CAP,OK,<commands>,<jogAxes>,<userSignals>. A refusal - a server that
+    // predates the question - leaves the set unreported: nothing is filtered,
+    // and the controller's own refusals stay the authority.
+    _capPend := FALSE;
+    _statusPend := FALSE;
+    IF _stat = 'OK' THEN
+        _caps.Commands    := DINT_TO_DWORD(STRING_TO_DINT(_M_Field(Response, 3)));
+        _caps.JogAxes     := DINT_TO_INT(STRING_TO_DINT(_M_Field(Response, 4)));
+        _caps.UserSignals := DINT_TO_INT(STRING_TO_DINT(_M_Field(Response, 5)));
+        _caps.Reported    := TRUE;
+    END_IF
+    RETURN;
+END_IF
+
 IF _stat = 'ERR' THEN
     // The controller refused or faulted. Carry ITS message verbatim rather than a
     // paraphrase - a service technician needs the robot's own text (S8.2). The
@@ -276,8 +325,9 @@ IF _cmd = 'STA' THEN
     ELSE
         _pathIdx := STRING_TO_DINT(_M_Field(Response, 16));
     END_IF
+    _due        := DINT_TO_DWORD(STRING_TO_DINT(_M_Field(Response, 17)));
     FOR i := 1 TO PL_Robot.MAX_USER_SIGNALS DO
-        _userIn[i] := STRING_TO_LREAL(_M_Field(Response, 16 + i));
+        _userIn[i] := STRING_TO_LREAL(_M_Field(Response, 17 + i));
     END_FOR
     _statusPend := FALSE;
     RETURN;
@@ -301,15 +351,15 @@ IF NOT Linked THEN
     _lastResult := _M_MakeLinkDiag();
     RETURN;
 END_IF
-IF _link.Pending THEN
-    // The slot is taken: wait in the queue, once. A second waiting request is
-    // refused rather than silently dropped.
-    IF _hasQueued THEN
+IF _link.Pending OR (_queued > 0) THEN
+    // The slot is taken (or others wait first): join the queue. A third waiting
+    // request is refused rather than silently dropped.
+    IF _queued >= 2 THEN
         _lastResult := _M_MakeLinkDiag();
         RETURN;
     END_IF
-    _queued := Text;
-    _hasQueued := TRUE;
+    _queued := _queued + 1;
+    _queue[_queued] := Text;
 ELSIF NOT _link.M_Send(Text := Text) THEN
     _lastResult := _M_MakeLinkDiag();
     RETURN;
@@ -386,7 +436,13 @@ VAR_INPUT
     Text : STRING(64);
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[_M_MakeCtrlDiag.ReasonCode  := PL_ModuleReasons.ROBOT_CONTROLLER_FAULT;
+          <ST><![CDATA[// One classification, by the controller's own code: an untaught ID is a
+// configuration fact with its own reason, everything else is the controller's.
+IF Code = 'UNKNOWN_ID' THEN
+    _M_MakeCtrlDiag.ReasonCode := PL_ModuleReasons.ROBOT_POINT_UNKNOWN;
+ELSE
+    _M_MakeCtrlDiag.ReasonCode := PL_ModuleReasons.ROBOT_CONTROLLER_FAULT;
+END_IF
 _M_MakeCtrlDiag.Description := CONCAT(CONCAT(Code, ' '), Text);
 _M_MakeCtrlDiag.SourcePath  := Name;]]></ST>
         </Implementation>
@@ -465,7 +521,7 @@ Resume := _M_Request('RES');]]></ST>
         <Declaration><![CDATA[METHOD Abort : BOOL]]></Declaration>
         <Implementation>
           <ST><![CDATA[// A stop never waits behind the move it stops: whatever was queued is dropped.
-_hasQueued := FALSE;
+_queued := 0;
 Abort := _M_Request('ABT');
 _busy := FALSE;]]></ST>
         </Implementation>
@@ -663,6 +719,48 @@ END_IF
 UserSignal := _userIn[Index];]]></ST>
         </Implementation>
       </Method>
+      <Method Name="RunBrakeTest" Id="{d1b7611e-397e-451d-9683-48af0e1c340a}">
+        <Declaration><![CDATA[METHOD RunBrakeTest : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RunBrakeTest := _M_Request('BRK');]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RunSafeReference" Id="{e2b4265e-646d-4457-9c48-361b23405239}">
+        <Declaration><![CDATA[METHOD RunSafeReference : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[RunSafeReference := _M_Request('SRF');]]></ST>
+        </Implementation>
+      </Method>
+      <Property Name="BrakeTestDue" Id="{e33e3baa-faff-4a06-b24d-574e51514253}">
+        <Declaration><![CDATA[PROPERTY BrakeTestDue : BOOL]]></Declaration>
+        <Get Name="Get" Id="{0d25fd7b-1f1f-4b12-b77d-3838cdb95280}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[BrakeTestDue := (_due AND DWORD#1) <> 0;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="SafeReferenceDue" Id="{398e1981-0b16-48a2-a7b3-c36d76769506}">
+        <Declaration><![CDATA[PROPERTY SafeReferenceDue : BOOL]]></Declaration>
+        <Get Name="Get" Id="{942627ca-97f4-4541-bd67-69dee3c49f35}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[SafeReferenceDue := (_due AND DWORD#2) <> 0;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="Capabilities" Id="{f381e6d9-8a24-4747-b990-8b6cbf024bc1}">
+        <Declaration><![CDATA[PROPERTY Capabilities : ST_RobotCapabilities]]></Declaration>
+        <Get Name="Get" Id="{59f829d2-a281-4857-9e98-a289a5e92cbc}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[Capabilities := _caps;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
       <Property Name="PathIndex" Id="{30cc0fb0-79b2-42f2-bec5-e2246c1b9cca}">
         <Declaration><![CDATA[PROPERTY PathIndex : DINT]]></Declaration>
         <Get Name="Get" Id="{fc0ddd12-eb5c-4389-97da-adc7a642c673}">

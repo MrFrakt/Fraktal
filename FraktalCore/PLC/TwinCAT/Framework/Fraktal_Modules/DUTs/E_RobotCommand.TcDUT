@@ -22,7 +22,9 @@ TYPE E_RobotCommand :
     REQUEST_MODE   := 12,  // ask the controller for ParCmd.Mode; Done when it REPORTS it (I.4a(a))
     SET_PAYLOAD    := 13,  // select the active load case by ID (ParCmd.TargetId), as SET_TOOL (I.3)
     JOG_POS        := 14,  // HELD manual command only (RequestHeldCommand), never Execute (§7.6.1)
-    JOG_NEG        := 15
+    JOG_NEG        := 15,
+    BRAKE_TEST     := 16,  // run the controller's own brake test; passed when it withdraws its demand
+    SAFE_REFERENCE := 17   // run the controller's own safe reference run; likewise
 ) DINT;
 END_TYPE]]></Declaration>
   </DUT>

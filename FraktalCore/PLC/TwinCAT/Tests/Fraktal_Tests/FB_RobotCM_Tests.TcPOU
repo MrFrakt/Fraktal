@@ -44,6 +44,11 @@ VAR
     _seenJ, _declR : BOOL;
     _kT : INT;
     _cmU : FB_RobotCM;  _rbU : FB_SimRobotConnector;  _sU : INT;  _nU : INT;  _idxU : DINT;
+    _cmV : FB_RobotCM;  _rbV : FB_SimRobotConnector;  _sV : INT;  _nV : INT;  _enV : ST_ManualEnableStatus;
+    _cmW : FB_RobotCM;  _rbW : FB_SimRobotConnector;  _sW : INT;  _nW : INT;
+    _cmX : FB_RobotCM;  _rbX : FB_SimRobotConnector;  _sX : INT;  _nX : INT;
+    _cmY : FB_RobotCM;  _rbY : FB_SimRobotConnector;  _sY : INT;  _nY : INT;
+    _cmZ : FB_RobotCM;  _rbZ : FB_SimRobotConnector;  _sZ : INT;  _nZ : INT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[Command_on_a_down_link_faults_with_the_link_reason();
@@ -66,7 +71,12 @@ Jog_selection_is_validated_and_published();
 User_signals_are_declared_published_and_written();
 Arm_power_and_the_applied_speed_are_published();
 A_repeated_refusal_keeps_its_own_reason_and_a_success_follows();
-An_aborted_path_reports_its_progress_for_a_deliberate_continue();]]></ST>
+An_aborted_path_reports_its_progress_for_a_deliberate_continue();
+Capabilities_are_published_and_a_command_not_offered_is_refused_before_issuing();
+A_move_to_a_missing_or_untaught_point_is_refused_and_nothing_moves();
+A_due_brake_test_is_published_and_withdrawn_by_running_it();
+A_routine_that_leaves_its_demand_standing_faults();
+A_declared_manual_move_runs_to_its_point_at_the_slowest_speed();]]></ST>
     </Implementation>
       <Method Name="Command_on_a_down_link_faults_with_the_link_reason" Id="{744a01e7-6ead-4f66-b518-a75649c37cc2}">
         <Declaration><![CDATA[METHOD PRIVATE Command_on_a_down_link_faults_with_the_link_reason]]></Declaration>
@@ -1454,6 +1464,389 @@ CASE _sU OF
         END_IF
 ELSE
     _sU := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="Capabilities_are_published_and_a_command_not_offered_is_refused_before_issuing" Id="{0e18ae14-aaf7-4dfd-9ee7-83745df12ffd}">
+        <Declaration><![CDATA[METHOD PRIVATE Capabilities_are_published_and_a_command_not_offered_is_refused_before_issuing]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('Capabilities_are_published_and_a_command_not_offered_is_refused_before_issuing');
+IF _sV = 99 THEN
+    RETURN;
+END_IF
+_rbV.Connect();
+_rbV.Cyclic();
+CASE _sV OF
+    0:
+        _cmV.Setup(Name := 'Test.RobotV', Robot := _rbV);
+        _cmV.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmV.ParCfg.MoveTimeout := T#3S;
+        _cmV.ParCfg.HomeTimeout := T#3S;
+        _cmV();
+        IF _rbV.Linked THEN
+            // A controller without load cases and without a positive jog.
+            _rbV.Offered := 16#0003FFFE AND NOT 16#00006000;
+            _sV := 1;
+        END_IF
+        _nV := _nV + 1;
+        IF _nV > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sV := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmV();
+        AssertTrue(Condition := _cmV.OutImm.Capabilities.Reported, Message := 'the controller$'s offer is published');
+        AssertEquals_DWORD(Expected := 16#00039FFE, Actual := _cmV.OutImm.Capabilities.Commands,
+            Message := 'command by command');
+        AssertEquals_INT(Expected := 7, Actual := _cmV.OutImm.Capabilities.JogAxes, Message := 'with its jog axes');
+        _cmV.Command := E_RobotCommand.SET_PAYLOAD;
+        _cmV.ParCmd.TargetId := 7;
+        _cmV.Execute := TRUE;
+        _cmV();
+        _sV := 2;
+    2:
+        _cmV();
+        IF _cmV.Error OR _cmV.Done THEN
+            _diag := _cmV.Status.Diagnostic;
+            AssertEquals_DINT(Expected := E_Reason.UNSUPPORTED_COMMAND, Actual := _diag.ReasonCode,
+                Message := 'a command the controller does not offer is refused');
+            AssertEquals_DWORD(Expected := 0, Actual := _rbV.ActivePayload,
+                Message := 'before anything was sent');
+            _enV.Held := TRUE;
+            AssertFalse(Condition := _cmV.RequestHeldCommand(Value := TO_DINT(E_RobotCommand.JOG_POS), Enable := _enV),
+                Message := 'a jog it does not offer is not started');
+            AssertEquals_DINT(Expected := E_Reason.UNSUPPORTED_COMMAND, Actual := _cmV.OutImm.JogStopReason,
+                Message := 'and says why');
+            _sV := 99;
+            TEST_FINISHED();
+        END_IF
+        _nV := _nV + 1;
+        IF _nV > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'SET_PAYLOAD neither refused nor completed');
+            _sV := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sV := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_move_to_a_missing_or_untaught_point_is_refused_and_nothing_moves" Id="{665ca5f0-bbe2-4fcb-9af2-c40aa9a739a3}">
+        <Declaration><![CDATA[METHOD PRIVATE A_move_to_a_missing_or_untaught_point_is_refused_and_nothing_moves]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_move_to_a_missing_or_untaught_point_is_refused_and_nothing_moves');
+IF _sW = 99 THEN
+    RETURN;
+END_IF
+_rbW.Connect();
+_rbW.Cyclic();
+CASE _sW OF
+    0:
+        _cmW.Setup(Name := 'Test.RobotW', Robot := _rbW);
+        _cmW.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmW.ParCfg.MoveTimeout := T#3S;
+        _cmW.ParCfg.HomeTimeout := T#3S;
+        _cmW();
+        IF _rbW.Linked THEN
+            _sW := 1;
+        END_IF
+        _nW := _nW + 1;
+        IF _nW > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sW := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmW.Command := E_RobotCommand.MOVE_TO;
+        _cmW.ParCmd.TargetId := 0;
+        _cmW.ParCmd.SpeedScale := 50.0;
+        _cmW.Execute := TRUE;
+        _cmW();
+        _sW := 2;
+    2:
+        _cmW();
+        IF _cmW.Error OR _cmW.Done THEN
+            _diag := _cmW.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_POINT_UNKNOWN, Actual := _diag.ReasonCode,
+                Message := 'a move without a point is refused here, never sent as the zero pose');
+            AssertFalse(Condition := _rbW.MotionBusy, Message := 'nothing moves');
+            _cmW.Execute := FALSE;
+            _cmW();
+            _sW := 3;
+        END_IF
+        _nW := _nW + 1;
+        IF _nW > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the pointless move neither refused nor completed');
+            _sW := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        _cmW();
+        _rbW.PowerOn();
+        _rbW.Home();
+        _sW := 4;
+    4:
+        _cmW();
+        IF _rbW.Referenced AND NOT _rbW.MotionBusy THEN
+            // The controller holds points 1..10 only.
+            _rbW.TaughtPoints := 10;
+            _cmW.ParCmd.TargetId := 42;
+            _cmW.Execute := TRUE;
+            _cmW();
+            _sW := 5;
+        END_IF
+        _nW := _nW + 1;
+        IF _nW > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sW := 99;
+            TEST_FINISHED();
+        END_IF
+    5:
+        _cmW();
+        IF _cmW.Error OR _cmW.Done THEN
+            _diag := _cmW.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_POINT_UNKNOWN, Actual := _diag.ReasonCode,
+                Message := 'an untaught point is refused by the controller with its own reason');
+            AssertFalse(Condition := _rbW.MotionBusy, Message := 'and nothing moves');
+            _sW := 99;
+            TEST_FINISHED();
+        END_IF
+        _nW := _nW + 1;
+        IF _nW > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the untaught move neither refused nor completed');
+            _sW := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sW := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_due_brake_test_is_published_and_withdrawn_by_running_it" Id="{a74c4fe0-b9e8-4629-ad26-4242243f495b}">
+        <Declaration><![CDATA[METHOD PRIVATE A_due_brake_test_is_published_and_withdrawn_by_running_it]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_due_brake_test_is_published_and_withdrawn_by_running_it');
+IF _sX = 99 THEN
+    RETURN;
+END_IF
+_rbX.Connect();
+_rbX.Cyclic();
+CASE _sX OF
+    0:
+        _cmX.Setup(Name := 'Test.RobotX', Robot := _rbX);
+        _cmX.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmX.ParCfg.MoveTimeout := T#3S;
+        _cmX.ParCfg.HomeTimeout := T#3S;
+        _cmX();
+        IF _rbX.Linked THEN
+            _sX := 1;
+        END_IF
+        _nX := _nX + 1;
+        IF _nX > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sX := 99;
+            TEST_FINISHED();
+        END_IF    1:
+        _cmX();
+        _rbX.PowerOn();
+        _rbX.Home();
+        _sX := 2;
+    2:
+        _cmX();
+        IF _rbX.Referenced AND NOT _rbX.MotionBusy THEN
+            _rbX.M_DemandBrakeTest();
+            _sX := 3;
+        END_IF
+        _nX := _nX + 1;
+        IF _nX > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sX := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        _cmX();
+        AssertTrue(Condition := _cmX.OutImm.BrakeTestDue, Message := 'the controller$'s demand is published');
+        AssertTrue(Condition := _cmX.StateFlags[1].Value AND (_cmX.StateFlags[1].Key = 'std.state.robotBrakeTestDue'),
+            Message := 'as a state flag the generic HMI shows');
+        AssertFalse(Condition := _cmX.OutImm.SafeReferenceDue, Message := 'only the routine asked for');
+        _cmX.Command := E_RobotCommand.BRAKE_TEST;
+        _cmX.Execute := TRUE;
+        _cmX();
+        _sX := 4;
+    4:
+        _cmX();
+        IF _cmX.Done OR _cmX.Error THEN
+            AssertTrue(Condition := _cmX.Done, Message := 'the brake test runs to completion');
+            AssertFalse(Condition := _cmX.OutImm.BrakeTestDue, Message := 'and the demand is withdrawn');
+            _sX := 99;
+            TEST_FINISHED();
+        END_IF
+        _nX := _nX + 1;
+        IF _nX > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'BRAKE_TEST never finished');
+            _sX := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sX := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_routine_that_leaves_its_demand_standing_faults" Id="{65727fb0-6344-4224-aa80-69622203c71f}">
+        <Declaration><![CDATA[METHOD PRIVATE A_routine_that_leaves_its_demand_standing_faults]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_routine_that_leaves_its_demand_standing_faults');
+IF _sY = 99 THEN
+    RETURN;
+END_IF
+_rbY.Connect();
+_rbY.Cyclic();
+CASE _sY OF
+    0:
+        _cmY.Setup(Name := 'Test.RobotY', Robot := _rbY);
+        _cmY.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmY.ParCfg.MoveTimeout := T#3S;
+        _cmY.ParCfg.HomeTimeout := T#3S;
+        _cmY();
+        IF _rbY.Linked THEN
+            _sY := 1;
+        END_IF
+        _nY := _nY + 1;
+        IF _nY > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sY := 99;
+            TEST_FINISHED();
+        END_IF    1:
+        _cmY();
+        _rbY.PowerOn();
+        _rbY.Home();
+        _sY := 2;
+    2:
+        _cmY();
+        IF _rbY.Referenced AND NOT _rbY.MotionBusy THEN
+            _rbY.M_DemandSafeReference();
+            _rbY.Inject := E_RobotSimFault.ROUTINE_FAILED;
+            _cmY.Command := E_RobotCommand.SAFE_REFERENCE;
+            _cmY.Execute := TRUE;
+            _cmY();
+            _sY := 3;
+        END_IF
+        _nY := _nY + 1;
+        IF _nY > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sY := 99;
+            TEST_FINISHED();
+        END_IF
+    3:
+        _cmY();
+        IF _cmY.Done OR _cmY.Error THEN
+            _diag := _cmY.Status.Diagnostic;
+            AssertEquals_DINT(Expected := PL_ModuleReasons.ROBOT_ROUTINE_FAILED, Actual := _diag.ReasonCode,
+                Message := 'a safe reference run that ends with its demand standing is a finding, not a completion');
+            AssertTrue(Condition := _cmY.OutImm.SafeReferenceDue, Message := 'and the demand stays published');
+            _rbY.Inject := E_RobotSimFault.NONE;
+            _sY := 99;
+            TEST_FINISHED();
+        END_IF
+        _nY := _nY + 1;
+        IF _nY > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'SAFE_REFERENCE never finished');
+            _sY := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sY := 99;
+    TEST_FINISHED();
+END_CASE]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="A_declared_manual_move_runs_to_its_point_at_the_slowest_speed" Id="{bdb8b44c-e06f-4135-8f73-6802263404ab}">
+        <Declaration><![CDATA[METHOD PRIVATE A_declared_manual_move_runs_to_its_point_at_the_slowest_speed]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[TEST('A_declared_manual_move_runs_to_its_point_at_the_slowest_speed');
+IF _sZ = 99 THEN
+    RETURN;
+END_IF
+_rbZ.Connect();
+_rbZ.Cyclic();
+CASE _sZ OF
+    0:
+        _cmZ.Setup(Name := 'Test.RobotZ', Robot := _rbZ);
+        _cmZ.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
+        _cmZ.ParCfg.MoveTimeout := T#3S;
+        _cmZ.ParCfg.HomeTimeout := T#3S;
+        _cmZ();
+        IF _rbZ.Linked THEN
+            _sZ := 1;
+        END_IF
+        _nZ := _nZ + 1;
+        IF _nZ > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated link never came up');
+            _sZ := 99;
+            TEST_FINISHED();
+        END_IF
+    1:
+        _cmZ();
+        AssertTrue(Condition := _cmZ.M_DeclareManualMove(Slot := 1, PointId := 7, LabelKey := 'project.robot.toPick'),
+            Message := 'a move to a taught point is declared');
+        AssertFalse(Condition := _cmZ.M_DeclareManualMove(Slot := 1, PointId := 8, LabelKey := 'project.robot.other'),
+            Message := 'a slot is declared once');
+        AssertFalse(Condition := _cmZ.M_DeclareManualMove(Slot := 0, PointId := 8, LabelKey := 'project.robot.other'),
+            Message := 'slot 0 is refused');
+        AssertFalse(Condition := _cmZ.M_DeclareManualMove(Slot := PL_Robot.MAX_MANUAL_MOVES + 1, PointId := 8,
+            LabelKey := 'project.robot.other'), Message := 'a slot past the bound is refused');
+        AssertFalse(Condition := _cmZ.M_DeclareManualMove(Slot := 2, PointId := 0, LabelKey := 'project.robot.other'),
+            Message := 'point 0 names nothing');
+        AssertFalse(Condition := _cmZ.M_DeclareManualMove(Slot := 2, PointId := 8, LabelKey := ''),
+            Message := 'an unlabelled move is refused');
+        AssertEquals_INT(Expected := 5, Actual := _cmZ.CatalogCount,
+            Message := 'two jogs, two routines and the one declared move are offered');
+        AssertEquals_DINT(Expected := PL_Robot.MANUAL_MOVE_BASE + 1, Actual := _cmZ.Catalog[5].Value,
+            Message := 'under a value clear of every command');
+        _cmZ.ParCmd.SpeedScale := 80.0;   // a program's speed, which a screen press must not inherit
+        _sZ := 2;
+    2:
+        _cmZ();
+        _rbZ.PowerOn();
+        _rbZ.Home();
+        _sZ := 3;
+    3:
+        _cmZ();
+        IF _rbZ.Referenced AND NOT _rbZ.MotionBusy THEN
+            AssertTrue(Condition := _cmZ.ManualCommand(Value := PL_Robot.MANUAL_MOVE_BASE + 1),
+                Message := 'one press starts it');
+            _sZ := 4;
+        END_IF
+        _nZ := _nZ + 1;
+        IF _nZ > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the simulated robot never homed');
+            _sZ := 99;
+            TEST_FINISHED();
+        END_IF
+    4:
+        _cmZ();
+        IF _cmZ.Done OR _cmZ.Error THEN
+            AssertTrue(Condition := _cmZ.Done, Message := 'the declared move completes');
+            AssertEquals_DWORD(Expected := 7, Actual := _cmZ.OutCmd.ReachedId, Message := 'at its own point');
+            AssertEquals_DWORD(Expected := 7, Actual := _rbZ.CurrentArea, Message := 'which the arm reached');
+            AssertEquals_REAL(Expected := _cmZ.ParCfg.SpeedScaleMin, Actual := _cmZ.OutImm.SpeedScale, Delta := 0.001,
+                Message := 'at the slowest speed the cell allows, not the program$'s');
+            _sZ := 99;
+            TEST_FINISHED();
+        END_IF
+        _nZ := _nZ + 1;
+        IF _nZ > 3000 THEN
+            AssertTrue(Condition := FALSE, Message := 'the declared move never finished');
+            _sZ := 99;
+            TEST_FINISHED();
+        END_IF
+ELSE
+    _sZ := 99;
     TEST_FINISHED();
 END_CASE]]></ST>
         </Implementation>

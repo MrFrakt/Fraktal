@@ -77,9 +77,9 @@ link supervision reuses the Annex D Framework band (`LINK_TIMEOUT := 2010`, …)
 contributes only its own §8.8 band, in `PL_ModuleReasons` beside every other module type's:
 
 ```iecst
-    // robot CM 10301-10316 (Annex I)
+    // robot CM 10301-10317 (Annex I)
     ROBOT_POINT_UNREACHABLE   : DINT := 10301;   // taught point not reachable with active tool/frame (rejected, §5.6)
-    ROBOT_POINT_UNKNOWN       : DINT := 10302;   // point/list/pallet ID not in the controller's database
+    ROBOT_POINT_UNKNOWN       : DINT := 10302;   // point/list/pallet ID not in the controller's database, or none given
     ROBOT_MOVE_TIMEOUT        : DINT := 10303;   // point/path did not complete within ParCfg.MoveTimeout
     ROBOT_CONTROLLER_FAULT    : DINT := 10304;   // drive/controller fault reported by the robot
     ROBOT_NOT_REFERENCED      : DINT := 10305;   // MOVE/RUN before a valid home/reference
@@ -95,6 +95,7 @@ contributes only its own §8.8 band, in `PL_ModuleReasons` beside every other mo
                                                  //   speed scale (I.4a) or target offset (I.8a); rejected before motion (§5.6, §14)
     ROBOT_RESUME_INVALID      : DINT := 10315;   // resume requested but the arm is no longer on the retained path (I.4b)
     ROBOT_CFG_INVALID         : DINT := 10316;   // speed band, ceilings, default mode or timeouts the type cannot honour (§5.6)
+    ROBOT_ROUTINE_FAILED      : DINT := 10317;   // brake test / safe reference run ended with its demand still standing (I.5b)
 ```
 
 Each code **shall** land together with its `reason_rationalization.json` entry (priority, category,
@@ -110,7 +111,8 @@ TYPE E_RobotCommand : (
     NONE := 0, POWER_ON := 1, POWER_OFF := 2, HOME := 3, MOVE_TO := 4, RUN_PATH := 5,
     RUN_PALLET := 6, MOVE_TEMPLATE := 7, MOVE_FROM_AREA := 8, SET_TOOL := 9, SET_FRAME := 10,
     RECONNECT := 11, REQUEST_MODE := 12, SET_PAYLOAD := 13,
-    JOG_POS := 14, JOG_NEG := 15   // HELD manual commands (§7.6.1), never Execute
+    JOG_POS := 14, JOG_NEG := 15,  // HELD manual commands (§7.6.1), never Execute
+    BRAKE_TEST := 16, SAFE_REFERENCE := 17   // the controller's own routines (I.5b)
 ) DINT;
 END_TYPE
 ```
@@ -192,6 +194,7 @@ INTERFACE I_RobotConnector EXTENDS I_DeviceConnector
     PROPERTY PathIndex : DINT                                   // last completed point of the current/last path; -1 = none
     METHOD WriteUserSignal : BOOL (Index : INT; Value : LREAL)  // the user channel, to the robot program (below)
     METHOD UserSignal : LREAL (Index : INT)                     // the user channel, from the robot program
+    PROPERTY Capabilities : ST_RobotCapabilities                // what the connected controller offers (below)
     // (Linked / LastSeen / LinkReason / Cyclic inherited from I_DeviceConnector, Annex D)
 END_INTERFACE
 ```
@@ -199,7 +202,26 @@ END_INTERFACE
 That split is the useful summary of this annex: **these members carry everything the standard adds
 over an ordinary robot command interface** — pallets, generated routes, area-resolved motion and
 pose recovery, the protective-stop distinction, the resumability guard, the arm-power fact, path
-progress and a bounded user channel.
+progress, a bounded user channel and the controller's own account of what it offers.
+
+**Capabilities — what the connected controller offers.** Two controllers behind the same connector
+need not offer the same commands: one has no load cases, one changes mode only on its key switch,
+one carries an additional axis. `Capabilities` is the controller's own answer — which commands it
+offers (bit *n* = `E_RobotCommand` *n*), how many axes a jog may address, how many user-signal slots
+it exchanges — with `Reported` saying whether it has answered. The CM publishes it read-only and
+refuses a command the controller does not offer **before anything is sent** (`UNSUPPORTED_COMMAND`,
+*"not offered"*); it starts no jog the controller does not offer and bounds jog axes and user signals
+by what it carries. An unreported set filters nothing: until the controller has said, its own
+refusal is the authority, so a server that predates the question behaves as before. The command
+catalog is not edited at runtime — it is static configuration served by the manifest (§3.9,
+§3.10.2) — so a command that is not offered stays listed and is refused with that reason.
+
+**A point that was never taught.** A point, list or pallet ID the controller does not hold **shall**
+be refused with `ROBOT_POINT_UNKNOWN`, never driven to a default or synthesized pose — a controller
+that quietly resolves an unknown ID to zero sends the arm somewhere nobody taught. The CM refuses a
+point-addressed command that names no point (ID 0, or no `FromId` for `MOVE_TEMPLATE`) before
+anything is sent; an ID the controller never taught is the controller's to refuse, with the same
+reason and its own text.
 
 **Path progress, and why there is no automatic continue.** `PathIndex` reports how far the current or
 most recent `RUN_PATH` got. After an abort that is what an operator needs to finish the job: a
@@ -312,6 +334,9 @@ STRUCT
     JogMode        : E_RobotJogMode;
     JogAxis        : INT;
     UserSignals    : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF ST_RobotUserSignal;   // declared slots (I.3)
+    Capabilities   : ST_RobotCapabilities;   // what the connected controller offers (I.3)
+    BrakeTestDue   : BOOL;          // the controller asks for its brake test (also state flag 1, I.5b)
+    SafeReferenceDue : BOOL;        // the controller asks for its safe reference run (also state flag 2)
     // the first-out is Status.Diagnostic, published once by the base (§6.9(a)) - never copied here
 END_STRUCT
 END_TYPE
@@ -428,7 +453,9 @@ END_CASE
 `FB_RobotCM` as shipped realizes this section, I.3's user channel, I.4a and I.4b in full, over
 `I_RobotConnector`, and is proven against `FB_SimRobotConnector` (I.5c) in `FB_RobotCM_Tests` (I.14):
 the requested mode beside the reported one, the safety alias and its stop, the held jog, the load
-case, the arm-power fact, path progress and the declared user signals. One thing I.4 describes is **specified but not
+case, the arm-power fact, path progress, the declared user signals, the controller's capabilities,
+its routines (I.5b), the refusal of a missing or untaught point (I.3) and declared manual moves
+(below). One thing I.4 describes is **specified but not
 yet built**, for the trimming rule's reason (§1.1 O1) — a type stays free of members no code drives:
 
 | Specified | Status | Why |
@@ -440,6 +467,19 @@ type's `OnAbort` sends the stop to the arm, so ABORTED never describes a robot s
 a 26-point path, a generated route, or a pallet nest is **one** command that runs to completion — so
 the robot looks identical to any other CM (§6.1). Commands are **not** auto-repeated on error;
 resumption is deliberate (Annex D / §9.3).
+
+**Declared manual moves.** A technician needs a few one-press moves — to the service position, to
+the pick point to check a gripper — and without them every station builds a screen for it. The
+composition root declares each with `M_DeclareManualMove(Slot, PointId, LabelKey)`, up to
+`PL_Robot.MAX_MANUAL_MOVES` (8), once after `Setup`: the move joins the §7.6.1 catalog under its
+label, so the generic HMI offers it with no station screen. A press runs **`MOVE_FROM_AREA` to that
+taught point** — the controller routes from wherever the arm stands (I.11) — through every gate a
+program command meets: the Unit's manual release, the link, the safety alias, `AUTO_REMOTE`, the
+reference and the interlocks. It carries no speed of its own and runs at `ParCfg.SpeedScaleMin`
+under the mode ceiling: the slowest the cell allows is the one nobody has to justify. A declaration is
+refused out of range, for point 0, without a label, for a slot already declared, or when the catalog
+is full; the catalog value of slot *n* is `PL_Robot.MANUAL_MOVE_BASE + n`, clear of every command. The
+jog stays HELD; the declared moves and the routines (I.5b) are one press each.
 
 ---
 
@@ -627,13 +667,28 @@ while a cell that does not pays nothing — neither interface surface nor publis
 | **Work-area monitoring** | permitted/forbidden volumes, actively monitored — the basis of multi-robot zone interlocking | distinct from the planning areas of I.11: those resolve *where the robot is*, these forbid *where it may go*. Needed only where workspaces overlap |
 | **Force control** | force/torque limiting, compliant insertion, hard-stop search | assembly-specific; a handling cell has no use for it |
 | **Collision detection / free drive / singularity avoidance** | protective sensing without a hardware crash device; hand-guiding; joint-configuration recovery | free drive is a cobot concern, singularity a kinematics-dependent one |
-| **Brake test** | the periodic brake-integrity test required for arms carrying a hanging load | a maintenance obligation of *some* robots, driven by the machine's risk assessment |
+| **Brake test and safe reference run** | the periodic brake-integrity test, and the safety controller re-verifying the arm position | a maintenance obligation of *some* robots, driven by the machine's risk assessment — **realized** as `I_RobotRoutines` (below) |
 | **Trigger at position** | fire an output at a path position without stopping (dispensing, blow-off) | process-specific; the standard's step model already covers stop-and-act |
 | **Robot-hosted I/O** | read/write the controller's own digital and analog channels | where tool valves sit on the arm, this is the channel a HAL binds to (§10.2); the mapping stays the Hardware Driver's |
 
 A capability group that a project needs is added as a **narrow secondary interface** the connector
 may also implement, never by widening `I_RobotConnector` — the same rule §3.15 applies to every
 device concern, so the common case stays small.
+
+**Realized: the controller's own routines (`I_RobotRoutines`).** A controller that demands a brake
+test or a safe reference run says so (`BrakeTestDue`, `SafeReferenceDue`) and runs the routine on
+request (`RunBrakeTest`, `RunSafeReference`). The routine is the controller's: it owns, validates and
+paces it, so the CM sends **no speed scale** with it. The CM finds the interface at `Setup`; without
+it `BRAKE_TEST`/`SAFE_REFERENCE` are not offered and nothing is reported due. It publishes each demand
+as a state flag (`std.state.robotBrakeTestDue`, `…SafeReferenceDue`) — computed every scan, so a
+demand nobody reads any more stops claiming (§3.12) — and offers both routines as one-press manual
+commands, because they are how an operator answers a controller that asks. They are motion: link,
+safety alias, `AUTO_REMOTE` and reference are required, and they take `HomeTimeout`. A routine has
+**passed only when the controller withdraws its demand**; one that ends with the demand standing
+faults `ROBOT_ROUTINE_FAILED` (HIGH, SAFETY, never shelvable) — a finding, not a completion. What the
+controller still permits while a demand stands is its decision, not the PLC's: the CM does not invent
+a refusal of its own. An application that wants an event as well raises it from its sequence
+(§6.9(e)).
 
 ---
 
@@ -1092,14 +1147,14 @@ TEST('SimConnector_injects_each_I2_reason_on_demand');                          
 
 ### Realized today
 
-The list above is the target. What runs in CI now is **40 tests across three suites**, all green on
+The list above is the target. What runs in CI now is **47 tests across three suites**, all green on
 the runtime, against `FB_SimRobotConnector` and `FB_SimByteChannel` — no arm, no emulator, no socket:
 
 | Suite | Tests | Covers |
 |---|---:|---|
 | `FB_RobotPlanner_Tests` | 10 | I.9 route graph — reachability, no-route, bounded search |
-| `FB_RobotConnector_Tests` | 9 | I.3/I.5 wire contract — ID-addressed framing, refusal on a down link, status decode, controller error carried verbatim, resume refused off-path, unknown mode refused, arm power and user inputs decoded, user outputs riding the status poll, a speed and a move in one scan both reaching the wire |
-| `FB_RobotCM_Tests` | 21 | I.4 validation ladder (link, speed band, safety, mode, reference), the HOME exemption, I.4b HELD-and-resume, completion, I.4a(c) protective stop; the default and requested modes and an ungranted request; configuration refusal; `SET_PAYLOAD`; the safety-alias stop with no re-enable and `POWER_ON` refused without it; abort stopping the arm; the held jog's gates and freshness; jog selection; the user signals; published arm power and applied speed; a repeated refusal keeping its reason; an aborted path's progress and its deliberate continue |
+| `FB_RobotConnector_Tests` | 11 | I.3/I.5 wire contract — ID-addressed framing, refusal on a down link, status decode, controller error carried verbatim, resume refused off-path, unknown mode refused, arm power and user inputs decoded, user outputs riding the status poll, a speed and a move in one scan both reaching the wire behind the link-up question; the controller's offer asked once and its routine demands decoded; an untaught point refused with its own reason, and an unanswered offer filtering nothing |
+| `FB_RobotCM_Tests` | 21 | I.4 validation ladder (link, speed band, safety, mode, reference), the HOME exemption, I.4b HELD-and-resume, completion, I.4a(c) protective stop; the default and requested modes and an ungranted request; configuration refusal; `SET_PAYLOAD`; the safety-alias stop with no re-enable and `POWER_ON` refused without it; abort stopping the arm; the held jog's gates and freshness; jog selection; the user signals; published arm power and applied speed; a repeated refusal keeping its reason; an aborted path's progress and its deliberate continue; a command and a jog the controller does not offer refused before issuing; a missing and an untaught point refused with nothing moving; a due brake test published and withdrawn by running it; a routine that leaves its demand standing faulting; a declared manual move — its declaration bounds, its catalog entry, and one press running it to its point at the slowest speed |
 
 The frontier is where the code is: the help resolver (I.10), grip verification (I.6a) and runtime
 offsets (I.8a) have no tests because they have no implementation — see *What the reference

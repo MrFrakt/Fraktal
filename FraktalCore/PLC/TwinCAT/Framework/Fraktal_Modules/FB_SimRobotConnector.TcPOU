@@ -16,13 +16,16 @@
 // this for FB_StaubliVal3Connector changes a declaration and nothing else. That
 // is the whole point - simulation is paid once in the connector family, never
 // per station (S1.1 O1).
-FUNCTION_BLOCK FB_SimRobotConnector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector
+FUNCTION_BLOCK FB_SimRobotConnector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector, I_RobotRoutines
 VAR_INPUT
     MoveTime : TIME  := T#200MS;              // how long an accepted motion takes
     HomeTime : TIME  := T#500MS;
     HomeArea : DWORD := 1;                    // area reported once homed (I.11)
     Inject   : E_RobotSimFault;               // I.5c - level, cleared by the caller
     UserIn   : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // what the robot program reports (I.3)
+    Offered  : DWORD := 16#0003FFFE;          // commands offered: bit n = E_RobotCommand n (1..17)
+    JogAxes  : INT   := 7;                    // axes a jog may address
+    TaughtPoints : DWORD := 999;              // IDs 1..TaughtPoints are taught; any other is refused
 END_VAR
 VAR_OUTPUT
     UserOut       : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // what the robot program was handed
@@ -49,6 +52,9 @@ VAR
     _pathFrom   : DINT;                       // first index of the running path
     _pathTo     : DINT;                       // last index of the running path; -1 = not a path
     _pathIdx    : DINT := -1;                 // last completed point (PathIndex)
+    _brakeDue   : BOOL;                       // the simulated controller asks for its brake test
+    _safeRefDue : BOOL;                       // ... for its safe reference run
+    _routine    : INT;                        // running: 1 = brake test, 2 = safe reference; 0 = none
     _res        : ST_Diagnostic;              // LastResult
     _ctrl       : ST_Diagnostic;              // ControllerMessage
     _f          : LREAL;
@@ -155,6 +161,16 @@ IF _busy AND NOT _held THEN
             _homing     := FALSE;
             _referenced := TRUE;     // homing is what ESTABLISHES the reference
         END_IF
+        // A routine passes - and withdraws its demand - unless told to fail; a
+        // failed one leaves the demand standing, which is how a controller says so.
+        IF Inject <> E_RobotSimFault.ROUTINE_FAILED THEN
+            IF _routine = 1 THEN
+                _brakeDue := FALSE;
+            ELSIF _routine = 2 THEN
+                _safeRefDue := FALSE;
+            END_IF
+        END_IF
+        _routine := 0;
     END_IF
 END_IF]]></ST>
         </Implementation>
@@ -249,6 +265,7 @@ END_IF
 _from   := _pose;
 _to     := _M_PoseOf(ToPosId);
 _pathTo := -1;                       // RunPath sets the range after a successful start
+_routine := 0;                       // RunBrakeTest/RunSafeReference set it after a successful start
 _toArea := ToPosId;                  // the sim treats each position as its own area
 _pt     := PT;
 _held   := FALSE;
@@ -301,7 +318,11 @@ VAR_INPUT
     PointId : DWORD;
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[MoveToPoint := _M_Start(ToPosId := PointId, PT := MoveTime, Routed := FALSE);]]></ST>
+          <ST><![CDATA[IF NOT _M_Known(Id := PointId) THEN
+    MoveToPoint := FALSE;
+    RETURN;
+END_IF
+MoveToPoint := _M_Start(ToPosId := PointId, PT := MoveTime, Routed := FALSE);]]></ST>
         </Implementation>
       </Method>
       <Method Name="RunPath" Id="{92d302fe-38a3-457c-9129-a3ecd7deab63}">
@@ -314,6 +335,10 @@ END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[IF EndIdx < StartIdx THEN
     RunPath := _M_Refuse(PL_ModuleReasons.ROBOT_PARAM_OOR, 'std.error.robotPathRangeInvalid');
+    RETURN;
+END_IF
+IF NOT _M_Known(Id := ListId) THEN
+    RunPath := FALSE;
     RETURN;
 END_IF
 RunPath := _M_Start(ToPosId := ListId, PT := MoveTime, Routed := FALSE);
@@ -344,6 +369,10 @@ END_VAR]]></Declaration>
     RunPallet := _M_Refuse(PL_ModuleReasons.ROBOT_PARAM_OOR, 'std.error.robotNestInvalid');
     RETURN;
 END_IF
+IF NOT _M_Known(Id := PalletId) THEN
+    RunPallet := FALSE;
+    RETURN;
+END_IF
 RunPallet := _M_Start(ToPosId := PalletId, PT := MoveTime, Routed := FALSE);]]></ST>
         </Implementation>
       </Method>
@@ -354,7 +383,15 @@ VAR_INPUT
     ToPosId   : DWORD;
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[MoveTemplate := _M_Start(ToPosId := ToPosId, PT := MoveTime, Routed := TRUE);]]></ST>
+          <ST><![CDATA[IF NOT _M_Known(Id := FromPosId) THEN
+    MoveTemplate := FALSE;
+    RETURN;
+END_IF
+IF NOT _M_Known(Id := ToPosId) THEN
+    MoveTemplate := FALSE;
+    RETURN;
+END_IF
+MoveTemplate := _M_Start(ToPosId := ToPosId, PT := MoveTime, Routed := TRUE);]]></ST>
         </Implementation>
       </Method>
       <Method Name="MoveFromArea" Id="{09cfa2fb-c4f1-4f55-93a5-5bb9bdc3bbe7}">
@@ -363,7 +400,11 @@ VAR_INPUT
     ToPosId : DWORD;
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[MoveFromArea := _M_Start(ToPosId := ToPosId, PT := MoveTime, Routed := TRUE);]]></ST>
+          <ST><![CDATA[IF NOT _M_Known(Id := ToPosId) THEN
+    MoveFromArea := FALSE;
+    RETURN;
+END_IF
+MoveFromArea := _M_Start(ToPosId := ToPosId, PT := MoveTime, Routed := TRUE);]]></ST>
         </Implementation>
       </Method>
       <Method Name="Interrupt" Id="{cdeff3f7-2a27-400e-8231-8f1aa2577fdc}">
@@ -399,6 +440,7 @@ Resume := _M_Accept();]]></ST>
         <Implementation>
           <ST><![CDATA[_busy := FALSE;
 _held := FALSE;
+_routine := 0;                       // an aborted routine passed nothing
 _tMove(IN := FALSE);
 Abort := _M_Accept();]]></ST>
         </Implementation>
@@ -555,6 +597,100 @@ END_IF
 UserSignal := UserIn[Index];]]></ST>
         </Implementation>
       </Method>
+      <Method Name="_M_Known" Id="{c5af76f3-d919-4970-8396-1fd3eac05c9d}">
+        <Declaration><![CDATA[// A point, list or pallet the simulated database does not hold is refused with
+// ROBOT_POINT_UNKNOWN - never driven to the pose _M_PoseOf would synthesize for
+// it. 0 names nothing.
+METHOD PRIVATE _M_Known : BOOL
+VAR_INPUT
+    Id : DWORD;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF (Id = 0) OR (Id > TaughtPoints) THEN
+    _M_Known := _M_Refuse(PL_ModuleReasons.ROBOT_POINT_UNKNOWN, 'std.error.robotPointUnknown');
+    RETURN;
+END_IF
+_M_Known := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RunBrakeTest" Id="{4535a336-4a2a-4792-ac3b-b1df9ad476ac}">
+        <Declaration><![CDATA[// The simulated brake test: a short motion in place. It passes and withdraws the
+// demand unless ROUTINE_FAILED is injected.
+METHOD RunBrakeTest : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_Start(ToPosId := _area, PT := MoveTime, Routed := FALSE) THEN
+    RunBrakeTest := FALSE;
+    RETURN;
+END_IF
+_to      := _pose;                   // in place: a routine goes nowhere
+_toArea  := _area;
+_routine := 1;
+RunBrakeTest := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="RunSafeReference" Id="{13d6095d-d5d2-47f6-ba56-ec877326c1c5}">
+        <Declaration><![CDATA[METHOD RunSafeReference : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF NOT _M_Start(ToPosId := _area, PT := MoveTime, Routed := FALSE) THEN
+    RunSafeReference := FALSE;
+    RETURN;
+END_IF
+_to      := _pose;
+_toArea  := _area;
+_routine := 2;
+RunSafeReference := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="M_DemandBrakeTest" Id="{85caf479-47bc-4861-987e-703a637f551d}">
+        <Declaration><![CDATA[// The simulated controller's own demand for a brake test - what a real one
+// raises on its own schedule. Withdrawn only by a passed RunBrakeTest.
+METHOD M_DemandBrakeTest : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_brakeDue := TRUE;
+M_DemandBrakeTest := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="M_DemandSafeReference" Id="{fc794b41-ac65-4635-98ad-11aa4a8e6b9e}">
+        <Declaration><![CDATA[// As M_DemandBrakeTest, for the safe reference run.
+METHOD M_DemandSafeReference : BOOL]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_safeRefDue := TRUE;
+M_DemandSafeReference := TRUE;]]></ST>
+        </Implementation>
+      </Method>
+      <Property Name="BrakeTestDue" Id="{4174649a-4622-443f-84ce-0609fcb5a05e}">
+        <Declaration><![CDATA[PROPERTY BrakeTestDue : BOOL]]></Declaration>
+        <Get Name="Get" Id="{68b35b88-1195-41ba-9b39-cf643b1b30d1}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[BrakeTestDue := _brakeDue;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="SafeReferenceDue" Id="{c6da320c-49f6-4157-8404-fbfd1fb08981}">
+        <Declaration><![CDATA[PROPERTY SafeReferenceDue : BOOL]]></Declaration>
+        <Get Name="Get" Id="{00c70ed4-5018-4844-8afa-215d67c4bac6}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[SafeReferenceDue := _safeRefDue;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
+      <Property Name="Capabilities" Id="{dd8757d8-b999-437f-bab7-569bcccc9967}">
+        <Declaration><![CDATA[PROPERTY Capabilities : ST_RobotCapabilities]]></Declaration>
+        <Get Name="Get" Id="{38701abd-11a5-4f3a-aee5-9ac5b1a85382}">
+          <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+          <Implementation>
+            <ST><![CDATA[Capabilities.Reported    := Linked;   // the simulated controller answers as soon as it is reachable
+Capabilities.Commands    := Offered;
+Capabilities.JogAxes     := JogAxes;
+Capabilities.UserSignals := PL_Robot.MAX_USER_SIGNALS;]]></ST>
+          </Implementation>
+        </Get>
+      </Property>
       <Property Name="PathIndex" Id="{128cbba7-4129-4dc4-9a3a-e6fec3e8abe0}">
         <Declaration><![CDATA[PROPERTY PathIndex : DINT]]></Declaration>
         <Get Name="Get" Id="{5455954d-a487-47f0-85dc-8af13ba8bc98}">

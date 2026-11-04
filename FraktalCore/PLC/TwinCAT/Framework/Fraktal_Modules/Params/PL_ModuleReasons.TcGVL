@@ -37,6 +37,7 @@ VAR_GLOBAL CONSTANT
     SEP_SON_NOT_CLEARED     : DINT := 10005;   // CarrierAfter did not clear after close
     // robot route planner 10301-10315 (Annex I) - only what the planner raises today
     ROBOT_POINT_UNREACHABLE  : DINT := 10301;   // taught point not reachable with the active tool/frame
+    ROBOT_POINT_UNKNOWN      : DINT := 10302;   // point/list/pallet ID not taught, or none given (never a zero pose)
     ROBOT_MOVE_TIMEOUT       : DINT := 10303;   // motion did not complete within ParCfg timeout
     ROBOT_CONTROLLER_FAULT   : DINT := 10304;   // drive/controller fault reported by the robot itself
     ROBOT_NOT_REFERENCED     : DINT := 10305;   // motion commanded before a valid home/reference
@@ -48,6 +49,7 @@ VAR_GLOBAL CONSTANT
     ROBOT_PARAM_OOR          : DINT := 10314;   // a command parameter is outside its configured band
     ROBOT_RESUME_INVALID     : DINT := 10315;   // resume after hold, but the arm left the retained path
     ROBOT_CFG_INVALID        : DINT := 10316;   // speed band, ceilings, default mode or timeouts the type cannot honour
+    ROBOT_ROUTINE_FAILED     : DINT := 10317;   // brake test / safe reference run ended with its demand still standing
     // air-pressure monitor CM 10600-10699
     AIR_SWITCH_CONFLICT    : DINT := 10601;
     // analog input CM 10700-10799

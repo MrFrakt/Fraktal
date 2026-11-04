@@ -373,6 +373,8 @@ const standardEnglish = <String, String>{
   'std.state.analogInputValid': 'Signal valid',
   'std.state.analogInputInRange': 'In range',
   'std.state.analogInputStable': 'Stable',
+  'std.state.robotBrakeTestDue': 'Brake test due',
+  'std.state.robotSafeReferenceDue': 'Safe reference run due',
   'std.config.analogInputRef1': 'Adjustment reference 1',
   'std.config.analogInputRef2': 'Adjustment reference 2',
   'std.config.analogInputMeas1': 'Adjustment measured 1',
@@ -1267,6 +1269,8 @@ const standardEnglish = <String, String>{
   'std.command.robotReconnect': 'Reconnect',
   'std.command.robotRequestMode': 'Request mode',
   'std.command.robotSetPayload': 'Set payload',
+  'std.command.robotBrakeTest': 'Brake test',
+  'std.command.robotSafeReference': 'Safe reference run',
   'std.error.unsupportedAxisCommand': 'Unsupported axis command',
   'std.error.axisNotBound': 'Axis reference not bound',
   'std.error.axisDriveFault': 'Drive reported a fault',
@@ -1305,6 +1309,13 @@ const standardEnglish = <String, String>{
   'std.error.robotModeRequestInvalid': 'The requested operating mode is not a valid mode.',
   'std.error.robotRequestRefused':
       'The robot connector refused the request without giving a reason.',
+  'std.error.robotCommandNotOffered':
+      'The connected robot controller does not offer this command.',
+  'std.error.robotPointNotGiven': 'The command names no point, path or pallet.',
+  'std.error.robotPointUnknown':
+      'The point, path or pallet is not taught on the robot controller.',
+  'std.error.robotRoutineNotPassed':
+      'The brake test or safe reference run ended with the controller still asking for it.',
   'std.error.axisTargetOutOfRange': 'Target outside soft limits',
   'std.error.axisNotHomed': 'Move requested before homing',
 };
@@ -2362,6 +2373,8 @@ const standardSpanish = <String, String>{
   'std.state.analogInputValid': 'Señal válida',
   'std.state.analogInputInRange': 'En rango',
   'std.state.analogInputStable': 'Estable',
+  'std.state.robotBrakeTestDue': 'Prueba de frenos pendiente',
+  'std.state.robotSafeReferenceDue': 'Recorrido de referencia seguro pendiente',
   'std.config.analogInputRef1': 'Referencia de ajuste 1',
   'std.config.analogInputRef2': 'Referencia de ajuste 2',
   'std.config.analogInputMeas1': 'Medido de ajuste 1',
@@ -2424,6 +2437,8 @@ const standardSpanish = <String, String>{
   'std.command.robotReconnect': 'Reconectar',
   'std.command.robotRequestMode': 'Solicitar modo',
   'std.command.robotSetPayload': 'Seleccionar carga',
+  'std.command.robotBrakeTest': 'Prueba de frenos',
+  'std.command.robotSafeReference': 'Recorrido de referencia seguro',
   'std.error.unsupportedAxisCommand': 'Comando de eje no admitido',
   'std.error.axisNotBound': 'Referencia de eje no vinculada',
   'std.error.axisDriveFault': 'El variador notificó un fallo',
@@ -2472,6 +2487,13 @@ const standardSpanish = <String, String>{
   'std.error.robotModeRequestInvalid': 'El modo de operación solicitado no es válido.',
   'std.error.robotRequestRefused':
       'El conector del robot rechazó la solicitud sin indicar el motivo.',
+  'std.error.robotCommandNotOffered':
+      'El controlador del robot conectado no ofrece este comando.',
+  'std.error.robotPointNotGiven': 'El comando no indica ningún punto, trayectoria o palé.',
+  'std.error.robotPointUnknown':
+      'El punto, la trayectoria o el palé no está programado en el controlador del robot.',
+  'std.error.robotRoutineNotPassed':
+      'La prueba de frenos o el recorrido de referencia seguro terminó con el controlador aún solicitándolo.',
   'std.error.axisTargetOutOfRange': 'Destino fuera de los límites de software',
   'std.error.axisNotHomed': 'Movimiento solicitado antes de referenciar',
 };

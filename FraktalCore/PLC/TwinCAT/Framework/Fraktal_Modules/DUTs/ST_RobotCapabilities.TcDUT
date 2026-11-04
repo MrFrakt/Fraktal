@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_RobotCapabilities" Id="{fcdf215a-5965-4886-95c6-a67ed8486135}">
+    <Declaration><![CDATA[// Annex I I.3 - what the CONNECTED controller says it offers, as its connector
+// reports it. Facts, never configuration: the robot CM refuses a command the
+// controller does not offer before anything is sent, and bounds jog axes and
+// user signals by what it carries. Reported = FALSE means the controller has
+// not said (not linked yet, or a server that predates the question): nothing
+// is filtered then, and the controller's own refusal stays the authority.
+TYPE ST_RobotCapabilities :
+STRUCT
+    Reported    : BOOL;
+    Commands    : DWORD;   // bit n set = E_RobotCommand value n is offered
+    JogAxes     : INT;     // axes a jog may address, additional axes included; 0 = no jog
+    UserSignals : INT;     // user-signal slots the robot program exchanges (I.3)
+END_STRUCT
+END_TYPE]]></Declaration>
+  </DUT>
+</TcPlcObject>
