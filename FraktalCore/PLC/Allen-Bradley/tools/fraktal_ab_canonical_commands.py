@@ -23,17 +23,19 @@ KEYS=(INVALID,COLLISION,STALE)
 COLLIDED,STALE_SERIAL,STALE_REVISION,FOREIGN_ROOT=2,3,4,5
 
 
-def refusals():
+def refusals(app=None):
     """Error code -> refusal key. A failed PLC-side resolution keeps the owner's
     own reason (stale revision, unaddressable target) instead of a generic one."""
     import fraktal_ab_config as config
+    import fraktal_ab_host_sets as host_sets
+    hosted=((host_sets.HOST_UNAVAILABLE,host_sets.UNAVAILABLE_KEY),) if app is not None and host_sets.enabled(app) else ()
     return ((COLLIDED,COLLISION),(STALE_SERIAL,STALE),(STALE_REVISION,config.CAPTURE_REVISION_KEY),
-            (FOREIGN_ROOT,mb.TARGET_KEY))
+            (FOREIGN_ROOT,mb.TARGET_KEY),*hosted)
 
 
 def refusal(app):
     lines=[f'CASE {work_tag(app)}.Error OF']
-    for code,key in refusals():lines+=[f'{code}:',*mb._refuse(app,key)]
+    for code,key in refusals(app):lines+=[f'{code}:',*mb._refuse(app,key)]
     return lines+['ELSE',*mb._refuse(app,INVALID),'END_CASE;']
 
 
@@ -90,9 +92,12 @@ def manifest_members():
 
 def operations(app):
     import fraktal_ab_sets as sets
+    import fraktal_ab_host_sets as host_sets
     refused=mb.refused_for(app)
+    # V6.11 stages nothing: the controller asks the host for a set itself.
+    staged=bool(app.config_sets) and not host_sets.enabled(app)
     return [dict(Kind=kind,Supported=kind!=mb.NONE and kind not in refused,
-        RequiresSetStage=bool(app.config_sets and kind in sets.SET_KINDS and kind not in refused),
+        RequiresSetStage=staged and kind in sets.SET_KINDS and kind not in refused,
         RefusalKey=mb.UNKNOWN_KEY if kind==mb.NONE else refused.get(kind,'')) for kind in sorted(mb.KINDS.values())]
 
 
@@ -164,8 +169,9 @@ def copy_string(app,target,source):
 
 def ingress(app):
     import fraktal_ab_mailbox_frame as frame
+    import fraktal_ab_host_services as host
     w=work_tag(app);q=mb.request_tag_name(app);s=sample_tag(app);a=s+'.Arguments'
-    lines=[f'{w}.Pending := 0;',f'{w}.NewCore := 0;',f'{w}.NewLegacy := 0;',f'{w}.Error := 0;',
+    lines=[*host.before_command_ingress(app),f'{w}.Pending := 0;',f'{w}.NewCore := 0;',f'{w}.NewLegacy := 0;',f'{w}.Error := 0;',
         f'{w}.LegacySeen := {q}.Sequence;',f'{w}.CoreSeen := {commit_tag(app)};',
         f'IF S:FS OR ({w}.Armed = 0) THEN',f'IF {w}.Armed = 0 THEN {w}.CoreSerial := {w}.CoreSeen; END_IF;',
         f'{w}.LastCoreSeen := {w}.CoreSeen;',f'{w}.LastLegacySeen := {w}.LegacySeen;',f'{w}.Armed := 1;',
@@ -205,22 +211,27 @@ def ingress(app):
         elif n=='BoolValue':lines += [f'IF {a}.BoolValue THEN {q}.BoolValue := 1; ELSE {q}.BoolValue := 0; END_IF;']
         else:lines.append(f'{q}.{n} := {a}.{n};')
     lines += [f'JSR({routine(app,"Resolve")},0);','END_IF;','END_IF;','END_IF;',*wipe_transport(app),'END_IF;','END_IF;']
-    return lines
+    return lines+host.after_command_ingress(app)
 
 
 def after_owner(app):
+    import fraktal_ab_host_sets as host_sets
     w=work_tag(app);q=mb.request_tag_name(app);a=mb.response_tag_name(app)
-    return [f'IF {w}.Pending <> 0 THEN',f'{w}.OwnerAck := {w}.OwnerSequence;',f'{w}.OwnerAccepted := {a}.Accepted;',
+    # A parked set command has no answer yet: the previous one stays published.
+    held=[f'IF {host_sets.work_tag(app)}.Hold = 0 THEN'] if host_sets.enabled(app) else []
+    return [*host_sets.after_owner(app),f'IF {w}.Pending <> 0 THEN',*held,f'{w}.OwnerAck := {w}.OwnerSequence;',f'{w}.OwnerAccepted := {a}.Accepted;',
         f'{w}.OwnerDiagnostic := {a}.DiagnosticKey;',
         f'IF {w}.ResponseRevision >= 2147483646 THEN {w}.ResponseRevision := 1; ELSE {w}.ResponseRevision := {w}.ResponseRevision + 1; END_IF;',
         # Native legacy clients see only their own ACK, including on collision.
         f'IF {w}.NewLegacy <> 0 THEN {a}.AckSequence := {w}.LegacySeen; ELSE {a}.AckSequence := {w}.LegacyAck; END_IF;',
-        *wipe_string(app,q+'.Secret',32),*wipe_string(app,q+'.TextValue',255),'END_IF;']
+        *(['END_IF;'] if held else []),*wipe_string(app,q+'.Secret',32),*wipe_string(app,q+'.TextValue',255),'END_IF;']
 
 
 def publish_reply(app):
+    import fraktal_ab_host_sets as host_sets
     w=work_tag(app);target=reply_tag(app);source=app.name+'.HmiResponse'
-    return [f'IF ({w}.NewCore <> 0) AND ({pub.header_tag(app)}.Valid) THEN',f'{target}.Accepted := {source}.Accepted;',
+    held=f' AND ({host_sets.work_tag(app)}.Hold = 0)' if host_sets.enabled(app) else ''
+    return [f'IF ({w}.NewCore <> 0){held} AND ({pub.header_tag(app)}.Valid) THEN',f'{target}.Accepted := {source}.Accepted;',
         *(f'CPS({source}.{n},{target}.{n},1);' for n in ('Diagnostic','Report','ConfigPage')),
         f'{target}.AckSequence := {w}.CoreSeen;','END_IF;']
 
@@ -310,7 +321,8 @@ def model_lookup(app):
 
 def set_arguments(app):
     """Core arguments bind the staged service; staging never overrides them."""
-    if not app.config_sets:return []
+    import fraktal_ab_host_sets as host_sets
+    if not app.config_sets or host_sets.enabled(app):return []
     import fraktal_ab_sets as sets
     w=work_tag(app);q=mb.request_tag_name(app);s=q+'.ConfigSet'
     return [','.join(map(str,sets.SET_KINDS))+':',

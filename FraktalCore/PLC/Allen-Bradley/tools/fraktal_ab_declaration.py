@@ -931,6 +931,8 @@ class Application:
     canonical_config_read_view: bool = False
     # O9: change-owned row revisions with independent scan progress (V6.10).
     canonical_owner_revisions: bool = False
+    # S6: host services on PLC-owned jobs through one shared ingress (V6.11).
+    canonical_host_services: bool = False
     # Disposable S3j acceptance source, never a production HAL driver.
     canonical_io_fixture: bool = False
 

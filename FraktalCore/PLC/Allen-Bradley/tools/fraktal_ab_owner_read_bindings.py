@@ -29,12 +29,16 @@ def enabled(app):
     return app.canonical_owner_revisions
 
 
-def validate_rows(rows, *, read_services=None, base_bindings=None):
-    """Reject ambiguous selections and unprovable counter-wrap bounds."""
+def validate_rows(rows, *, read_services=None, base_bindings=None, host_rings=()):
+    """Reject ambiguous selections and unprovable counter-wrap bounds.
+
+    A whole-scope row covers a V6.8 read view or, from V6.11, a HostEvents
+    ring its host-service row names: each publishes its own owner revision.
+    """
     if not isinstance(rows, list) or not 1 <= len(rows) <= 1024:
         raise ValueError('invalid owner-read binding count')
     seen, revisions = [], set()
-    views = None if read_services is None else {s['CanonicalRoot'] for s in read_services}
+    views = None if read_services is None else {s['CanonicalRoot'] for s in read_services} | set(host_rings)
     for row in rows:
         if not isinstance(row, dict) or set(row) != FIELDS:
             raise ValueError('invalid owner-read binding shape')
@@ -130,8 +134,20 @@ def rows(app, definitions=None):
               for i, (path, module) in enumerate(zip(module_paths(app), (None, *app.modules)))]
     result += [dict(CanonicalPrefix=s['CanonicalRoot'], MembersJson='[]',
                     RevisionSymbol=view_revision(app), **common) for s in descriptors(app)]
+    rings = ring_prefixes(app)
+    # V6.11: the HostEvents ring publishes its own revision; it borrows no window.
+    from fraktal_ab_host_services import ring_revision_tag
+    result += [dict(CanonicalPrefix=ring, MembersJson='[]', RevisionSymbol=ring_revision_tag(app), **common)
+               for ring in rings]
     from fraktal_ab_read_coherence import rows as scan_rows
-    return validate_rows(result, read_services=descriptors(app), base_bindings=scan_rows(app))
+    return validate_rows(result, read_services=descriptors(app), base_bindings=scan_rows(app), host_rings=rings)
+
+
+def ring_prefixes(app):
+    import fraktal_ab_host_services as host
+    if not host.enabled(app):
+        return []
+    return [r['CanonicalRoot'] for r in host.rows(app) if r['Service'] == host.binding.SERVICES['HostEvents']]
 
 
 def augment(app, definitions):

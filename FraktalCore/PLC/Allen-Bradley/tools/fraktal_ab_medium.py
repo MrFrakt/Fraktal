@@ -18,7 +18,7 @@ from typing import Protocol
 
 import fraktal_ab_declaration as decl
 
-SET_DIR_ENV = 'FRAKTAL_AB_CONFIG_SET_DIR'
+from fraktal_ab_set_documents import SET_DIR_ENV, directory_for
 
 
 class SetStore(Protocol):
@@ -37,12 +37,7 @@ class SetStore(Protocol):
 
 def directory(app, serial: str, environ=None) -> Path:
     """The set store's folder: one per commissioned root and controller serial."""
-    environ = os.environ if environ is None else environ
-    chosen = environ.get(SET_DIR_ENV)
-    if chosen:
-        return Path(chosen)
-    base = Path(environ.get('LOCALAPPDATA', str(Path.home())))
-    return base / 'Fraktal' / 'ConfigSets' / (serial + '-' + app.name)
+    return directory_for(app.name, serial, environ)
 
 
 def open_set_store(app, serial: str, environ=None) -> SetStore | None:

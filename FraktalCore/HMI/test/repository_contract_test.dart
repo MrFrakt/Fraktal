@@ -1,6 +1,6 @@
 // One repository contract, executed with TC3 paths and the AB adapter document.
-// The AB document is emitted by fraktal_ab_s9_contract.py from generated native
-// fixtures through the production projection and gateway. No controller writes.
+// The AB document is decoded by fraktal_ab_s9_contract.py from sealed canonical
+// Symbol/Template/native-byte captures through the S1 reader. No controller I/O.
 import 'dart:convert';
 import 'dart:io';
 
@@ -34,8 +34,8 @@ void main() {
         (jsonDecode(File(file).readAsStringSync()) as Map)
             .cast<String, Object?>());
   } else {
-    test('AB production adapter requires the offline projection runner', () {},
-        skip: 'Run fraktal_ab_s9_contract.py to supply its generated snapshot');
+    test('AB production adapter requires the offline canonical replay', () {},
+        skip: 'Run fraktal_ab_s9_contract.py to supply its canonical snapshot');
   }
 }
 
@@ -187,7 +187,17 @@ class _ContractClient
   }
 
   @override
-  Future<Map<String, Object?>> snapshot() async => document;
+  Future<Map<String, Object?>> snapshot() async {
+    // A stored gateway envelope still declares its processing duration. Replay
+    // that duration inside this fake RPC; an instant reply would correctly fail
+    // the repository's processing <= elapsed-RPC guard. Source ages stay intact.
+    final processing = document['responseProcessingMs'];
+    if (processing is num && processing.isFinite && processing > 0) {
+      await Future<void>.delayed(Duration(milliseconds: processing.ceil()));
+    }
+    return document;
+  }
+
   @override
   Future<List<String>> discoverPaths() async => values.keys.toList();
   @override

@@ -33,6 +33,29 @@ NATIVE_TYPES = {0xC1: "Boolean", 0xC2: "SByte", 0xC3: "Int16", 0xC4: "Int32",
                 0xC5: "Int64", 0xC6: "Byte", 0xC7: "UInt16", 0xC8: "UInt32",
                 0xC9: "UInt64", 0xCA: "Float", 0xCB: "Double", 0xD3: "UInt32",
                 0xCC: "DateTime"}
+LOGICAL_TYPES = {"DURATION": (0xC4,), "ENUM": (0xC4,), "BOOL": (0xC1,),
+                 "TIMESTAMP": (0xCC,), "BITSTRING32": (0xD3, 0xC4), "UINT16": (0xC4,)}
+
+
+def scalar_value(value, code, annotation):
+    """The shared canonical scalar conversion for capture and live row reads."""
+    logical = annotation.get('logicalType')
+    if logical is not None and code not in LOGICAL_TYPES.get(logical, ()):
+        raise ValueError('logical/native type mismatch')
+    kind = NATIVE_TYPES.get(code)
+    if kind is None:
+        raise ValueError(f'native type has no canonical V2 mapping: {hex(code)}')
+    if code in (0xC5, 0xC9):
+        value = str(value)
+    elif code == 0xCC:
+        value = timestamp_ns(value)
+    if logical == 'BITSTRING32':
+        value, kind = value & 0xffffffff, 'UInt32'
+    if logical == 'UINT16':
+        if type(value) is not int or not 0 <= value <= 65535:
+            raise ValueError('logical UINT16 is outside its declared range')
+        kind = 'UInt16'
+    return value, kind
 
 
 def load_json(path):
@@ -138,7 +161,7 @@ def snapshot(capture):
             or manifest.get("truncated") is not False:
         raise ValueError("unsupported, invalid or truncated canonical manifest")
     minor = manifest.get('schemaMinor', 0)
-    if type(minor) is not int or minor not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10):
+    if type(minor) is not int or minor not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11):
         raise ValueError('unsupported canonical manifest minor version')
     if minor<2 and any(key in manifest for key in ('bindings','fragmentRevision')):
         raise ValueError('record bindings require manifest V6.2')
@@ -146,6 +169,7 @@ def snapshot(capture):
     if minor<6 and 'commandBindings' in manifest:raise ValueError('command bindings require V6.6')
     if minor<7 and 'readCoherenceBindings' in manifest:raise ValueError('read-coherence bindings require V6.7')
     if minor<10 and 'ownerReadBindings' in manifest:raise ValueError('owner-read bindings require V6.10')
+    if minor<11 and 'hostServiceBindings' in manifest:raise ValueError('host-service bindings require V6.11')
     token = tuple(coherence_token(manifest))
     if not isinstance(token[0], str) or not token[0] or type(token[1]) is not int:
         raise ValueError("invalid manifest coherence token")
@@ -183,6 +207,16 @@ def snapshot(capture):
             raise ValueError('command-only payload values are forbidden in persisted cyclic captures')
         if {r['ResponseSymbol'] for r in commands}&set(records):
             raise ValueError('on-demand command replies are not cyclic records')
+    hosts=[]
+    if minor>=11:
+        import fraktal_ab_host_service_binding as host_binding
+        hosts=host_binding.bindings(manifest.get('hostServiceBindings'))
+        if not {r['RootSymbol'] for r in hosts}<={r['RootSymbol'] for r in commands}:
+            raise ValueError('host-service root has no command binding')
+        # The ingress is host-written and its reply on demand: neither is a cyclic record.
+        if {r[k] for r in hosts for k in ('RequestSymbol','ReplySymbol') if r[k]}&set(records):
+            raise ValueError('host-service ingress values are forbidden in persisted cyclic captures')
+    rings={r['CanonicalRoot'] for r in hosts if r['Service']==4}
     if minor<8 and 'readServices' in manifest:raise ValueError('read services require V6.8')
     roots = []
     for name, symbol in symbols.items():
@@ -247,7 +281,8 @@ def snapshot(capture):
     if minor>=10:
         from fraktal_ab_owner_read_bindings import validate_rows as validate_owners
         owner_rows=validate_owners(manifest.get('ownerReadBindings'),
-            read_services=manifest['readServices'],base_bindings=manifest['readCoherenceBindings'])
+            read_services=manifest['readServices'],base_bindings=manifest['readCoherenceBindings'],
+            host_rings=rings)
         for binding in owner_rows:
             for name in ('RevisionSymbol','ProgressSymbol'):
                 symbol=symbols.get(binding[name])
@@ -341,9 +376,7 @@ def snapshot(capture):
     if set(annotations)-set(schema_rows):
         raise ValueError('manifest contains annotations for paths absent from acquired roots')
 
-    allowed_logical = {"DURATION": (0xC4,), "ENUM": (0xC4,), "BOOL": (0xC1,),
-                       "TIMESTAMP": (0xCC,), "BITSTRING32": (0xD3, 0xC4)}
-    if minor>=3:allowed_logical['UINT16']=(0xC4,)
+    allowed_logical = {k: v for k, v in LOGICAL_TYPES.items() if minor >= 3 or k != 'UINT16'}
     for key, annotation in annotations.items():
         row = schema_rows[key]
         allowed_keys = {'logicalType','lowerBound','elementCount','effectiveAccess'} | ({'countPath','indices'} if minor else set())
@@ -416,23 +449,9 @@ def snapshot(capture):
         return annotation.get('indices', range(extent))
 
     def scalar(path, value, code, annotation):
-        logical = annotation.get("logicalType")
-        if logical is not None and (logical not in allowed_logical or code not in allowed_logical[logical]):
+        if annotation.get('logicalType') is not None and annotation['logicalType'] not in allowed_logical:
             raise ValueError(f"{path}: logical/native type mismatch")
-        data_type = NATIVE_TYPES.get(code)
-        if data_type is None:
-            raise ValueError(f"{path}: native type has no canonical V2 mapping: {hex(code)}")
-        if code in (0xC5, 0xC9):
-            value = str(value)
-        elif code == 0xCC:
-            value = timestamp_ns(value)
-        if logical=='BITSTRING32':
-            value=value & 0xffffffff
-            data_type='UInt32'
-        if logical=='UINT16':
-            if type(value) is not int or not 0<=value<=65535:
-                raise ValueError('logical UINT16 is outside its declared range')
-            data_type='UInt16'
+        value, data_type = scalar_value(value, code, annotation)
         put(path, value, data_type)
 
     def put(path, value, data_type):
@@ -504,6 +523,10 @@ def snapshot(capture):
 
     for root,source in root_symbols.items():
         walk_struct(root, decoded_roots[root], symbols[source]['handle'], 0)
+    extents={}
+    for row in hosts:
+        if row['Service'] in host_binding.MUTATING and row['RootSymbol'] not in extents:
+            extents[row['RootSymbol']]=host_binding.schema(row,symbols,objects,sizes,member_table,is_string)
     for target,handle,value in fragments:walk_struct(target,value,handle,0)
     if not minor and set(annotations) != used:
         raise ValueError("manifest contains annotations for paths absent from acquired roots")
@@ -512,8 +535,11 @@ def snapshot(capture):
         modules={p[:-len('/Name')] for p in values if p.endswith('/Status/Name')
                  and p[:-len('Name')]+'ModuleType' in values}
         views={s['CanonicalRoot'] for s in manifest['readServices']}
-        if len(owner_rows)!=len(modules)+len(views) or {b['CanonicalPrefix'] for b in owner_rows}!=modules|views:
-            raise ValueError('owner scopes do not cover module headers/views')
+        if not rings<={'/'.join(p.split('/')[:2]) for p in values if p.split('/')[1:2]==['HostEvents']}:
+            raise ValueError('host-event ring is not published')
+        if len(owner_rows)!=len(modules)+len(views)+len(rings) \
+                or {b['CanonicalPrefix'] for b in owner_rows}!=modules|views|rings:
+            raise ValueError('owner scopes do not cover module headers/views/rings')
         for binding in owner_rows:
             members=json.loads(binding['MembersJson'])
             prefix=binding['CanonicalPrefix']
@@ -527,7 +553,8 @@ def snapshot(capture):
                 **(dict(commandBindings=commands,commandArguments=command_arguments) if minor>=6 else {}),
                 **(dict(readCoherenceBindings=manifest['readCoherenceBindings']) if minor>=7 else {}),
                 **(dict(readServices=manifest['readServices']) if minor>=8 else {}),
-                **(dict(ownerReadBindings=owner_rows) if minor>=10 else {}))
+                **(dict(ownerReadBindings=owner_rows) if minor>=10 else {}),
+                **(dict(hostServiceBindings=hosts,hostServiceExtents=extents) if minor>=11 else {}))
 
 
 def template_byte_size(comm, handle):
@@ -600,6 +627,22 @@ def read_document(comm, manifest_reader=None, *, expect_serial):
             if len(tags)!=1 or tags[0].Struct or tags[0].Array or tags[0].DataTypeValue!=0xC4:
                 raise ValueError('command commit Symbol is not a DINT scalar')
             symbols.append(dict(name=name,atomic=0xC4,arrayRank=0))
+    if before.get('schemaMinor',0)>=11:
+        # V6.11: each shared host ingress has a DINT commit and a request a
+        # writer encodes against its Template's structure handle.
+        import fraktal_ab_host_service_binding as host_binding
+        for row in before['hostServiceBindings']:
+            if row['Service'] not in host_binding.MUTATING or row['CommitSymbol'] in {s['name'] for s in symbols}:
+                continue
+            tags=[t for t in reply.Value if t.TagName==row['CommitSymbol']]
+            if len(tags)!=1 or tags[0].Struct or tags[0].Array or tags[0].DataTypeValue!=0xC4:
+                raise ValueError('host-service commit Symbol is not a DINT scalar')
+            symbols.append(dict(name=row['CommitSymbol'],atomic=0xC4,arrayRank=0))
+            request=[s for s in symbols if s['name']==row['RequestSymbol']]
+            if len(request)!=1 or request[0].get('handle') not in objects:
+                raise ValueError('host-service request Symbol unavailable')
+            template=next(t for t in templates if t['handle']==request[0]['handle'])
+            template['structureHandle']=template_structure_handle(comm,request[0]['handle'])
     if before.get('schemaMinor',0)>=7:
         counters={b['RevisionSymbol'] for b in before['readCoherenceBindings']}
         if before.get('schemaMinor',0)>=10:
@@ -653,6 +696,18 @@ def read_document(comm, manifest_reader=None, *, expect_serial):
     if before != after:
         raise ValueError("manifest changed during acquisition")
     return snapshot(capture), capture
+
+
+def open_row_reader(comm, *, expect_serial):
+    """Discover the temporary S6 read path; absence alone permits legacy reads.
+
+    A present but invalid or ambiguous canonical manifest refuses. The initial
+    S1 acquisition validates the complete schema, not a live row sample. The
+    returned reader subsequently acquires only selected leaves under their PLC
+    guards. Reopen after any download, reconnect or controller-mode boundary.
+    """
+    from fraktal_ab_canonical_live import open_reader
+    return open_reader(comm, expect_serial=expect_serial)
 
 
 def main():

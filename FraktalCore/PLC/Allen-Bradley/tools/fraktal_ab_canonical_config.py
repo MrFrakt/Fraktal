@@ -175,6 +175,10 @@ def cyclic(app):
     lines += __import__('fraktal_ab_owner_read_bindings').write_header(app,0,'ConfigRev',w+'.Revision')
     for n in ('Pending','Failed','WindowMs','StorePresent','StoreKind','RestoreLost','RestoreAcknowledged','RestorePolicy'):
         lines += [f'{p}.{n} := {source}.{n}'+(' <> 0;' if n in ('Pending','Failed','StorePresent','RestoreLost','RestoreAcknowledged') else ';')]
+    import fraktal_ab_host_sets as host_sets
+    if host_sets.live(app):
+        # V6.11: a live document the host could not keep is a persistence failure too.
+        lines += [f'{p}.Failed := {p}.Failed OR ({host_sets.work_tag(app)}.KeepFailed <> 0);']
     lines += [f'IF ({w}.PendingDate <> {w}.LastPendingDate) OR ({w}.PendingClock <> {w}.LastPendingClock) THEN',
         f'{clock.work_tag(app)}.Inputs.DateCode := {w}.PendingDate;',f'{clock.work_tag(app)}.Inputs.ClockCode := {w}.PendingClock;',
         f'JSR({clock.timestamp_routine_name(app)},0);',f'{p}.PendingSince := {clock.work_tag(app)}.EpochNs;',

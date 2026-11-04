@@ -66,6 +66,22 @@ const _ownerColumns = {
   'MinimumUpdateIntervalUs',
   'MaximumProofWindowUs'
 };
+const _hostText = {
+  'RootSymbol',
+  'RequestSymbol',
+  'ChunkMember',
+  'CommitSymbol',
+  'ReplySymbol',
+  'CanonicalRoot'
+};
+const _hostColumns = {
+  ..._hostText,
+  'Service',
+  'Version',
+  'MaximumChunkBytes',
+  'ConnectionBytes',
+  'AccessGate'
+};
 const _logical = {
   '',
   'BOOL',
@@ -97,8 +113,10 @@ Object? _freeze(Object? value) {
   return value;
 }
 
-/// Exact validated V6.4–V6.8/V6.10 wire metadata. A live session additionally requires
-/// V6.7; older recorded captures are supported only for logical replay tests.
+/// Exact validated V6.4–V6.8/V6.10/V6.11 wire metadata. A live session additionally
+/// requires V6.7; older recorded captures are supported only for logical replay
+/// tests. V6.11 host-service rows are validated and hashed but never used here:
+/// the HMI writes through the command binding only.
 final class CipManifest {
   final Map<String, Object?> document;
   CipManifest._(this.document);
@@ -153,7 +171,7 @@ final class CipManifest {
   factory CipManifest.fromPhysical(Map<String, Object?> record) {
     final minor = record['SchemaMinor'];
     _require(
-        (const {4, 5, 6, 7, 8, 10}.contains(minor) && minor is int) &&
+        (const {4, 5, 6, 7, 8, 10, 11}.contains(minor) && minor is int) &&
             record['Magic'] == 0x46524b36,
         'Unsupported canonical manifest.');
     final version = minor as int;
@@ -221,6 +239,10 @@ final class CipManifest {
       if (version >= 10)
         'ownerReadBindings':
             table('OwnerReadBindings', _ownerColumns, 1, 1024, always: true),
+      if (version >= 11)
+        'hostServiceBindings': table(
+            'HostServiceBindings', _hostColumns, 1, 1024,
+            always: true),
     };
     _require(
         _sameKeys(record, expected), 'Unexpected canonical manifest member.');
@@ -234,7 +256,7 @@ final class CipManifest {
     _require(
         d['schemaMajor'] == 6 &&
             minor is int &&
-            const {4, 5, 6, 7, 8, 10}.contains(minor) &&
+            const {4, 5, 6, 7, 8, 10, 11}.contains(minor) &&
             d['valid'] == true &&
             d['truncated'] == false &&
             _int(d['publicationStage'], 2, 0x7fffffff) &&
@@ -259,7 +281,8 @@ final class CipManifest {
       if (version >= 6) ...['commandBindings', 'commandOperations'],
       if (version >= 7) 'readCoherenceBindings',
       if (version >= 8) 'readServices',
-      if (version >= 10) 'ownerReadBindings'
+      if (version >= 10) 'ownerReadBindings',
+      if (version >= 11) 'hostServiceBindings'
     };
     _require(_sameKeys(d, keys), 'Unexpected normalized manifest field.');
     List<Map> table(String key, Set<String> columns, int minimum, int maximum) {
@@ -447,11 +470,75 @@ final class CipManifest {
             'Invalid read service descriptor.');
       }
     }
+    // Python fraktal_ab_host_service_binding.bindings, rule for rule.
+    final rings = <String>{};
+    if (version >= 11) {
+      final seen = <String>{}, owners = <String, String>{};
+      final shared = <String, String>{};
+      final commandRoots = {
+        for (final r in d['commandBindings'] as List)
+          (r as Map)['RootSymbol'] as String
+      };
+      const endpoints = [
+        'RequestSymbol',
+        'ChunkMember',
+        'CommitSymbol',
+        'ReplySymbol'
+      ];
+      for (final row in table('hostServiceBindings', _hostColumns, 1, 1024)) {
+        _require(
+            _hostColumns.difference(_hostText).every((k) => row[k] is int) &&
+                _hostText.every((k) => row[k] is String) &&
+                row['Version'] == 1 &&
+                _int(row['Service'], 1, 4) &&
+                _name(row['RootSymbol']) &&
+                commandRoots.contains(row['RootSymbol']) &&
+                seen.add('${row['RootSymbol']}/${row['Service']}'),
+            'Invalid host-service binding.');
+        final root = row['RootSymbol'] as String;
+        if (row['Service'] == 4) {
+          // HostEvents: a read-only canonical ring, no writable state.
+          _require(
+              endpoints.every((k) => row[k] == '') &&
+                  row['MaximumChunkBytes'] == 0 &&
+                  row['ConnectionBytes'] == 0 &&
+                  row['AccessGate'] == -1 &&
+                  row['CanonicalRoot'] == '$root/HostEvents',
+              'Host events advertise only their read-only ring.');
+          rings.add(row['CanonicalRoot'] as String);
+          continue;
+        }
+        final names = [for (final k in endpoints) row[k] as String];
+        _require(
+            names.every(_name) &&
+                {...names, root}.length == 5 &&
+                _int(row['ConnectionBytes'], 500, 4000) &&
+                _int(row['MaximumChunkBytes'], 1,
+                    (row['ConnectionBytes'] as int) - 256) &&
+                row['CanonicalRoot'] == '' &&
+                _int(row['AccessGate'], -1, 11) &&
+                (row['Service'] == 3 || row['AccessGate'] == -1),
+            'Invalid host-service endpoint, bound or gate.');
+        final ingress = [
+          ...names,
+          row['MaximumChunkBytes'],
+          row['ConnectionBytes']
+        ].join('|');
+        _require(shared.putIfAbsent(root, () => ingress) == ingress,
+            'Host services of one root must share one ingress.');
+        for (final name in [names[0], names[2], names[3]])
+          _require(owners.putIfAbsent(name, () => root) == root,
+              'Host-service endpoint shared between roots.');
+      }
+      _require(!owners.keys.any(shared.containsKey),
+          'Host-service endpoint collides with a root.');
+    }
     if (version >= 10) {
       final selected = <String>[], revisions = <String>{};
       final views = {
         for (final r in d['readServices'] as List)
-          (r as Map)['CanonicalRoot'] as String
+          (r as Map)['CanonicalRoot'] as String,
+        ...rings
       };
       for (final row in table('ownerReadBindings', _ownerColumns, 1, 1024)) {
         _require(
@@ -514,6 +601,12 @@ final class CipManifest {
           selected.add(path);
         }
       }
+      // The ring states its own coherence: an owner revision, never a borrowed one.
+      _require(
+          rings.every((ring) => (d['ownerReadBindings'] as List).any((o) =>
+              (o as Map)['CanonicalPrefix'] == ring &&
+              o['MembersJson'] == '[]')),
+          'Host-event ring lacks its owner-read binding.');
     }
     final body = <String, Object?>{
       'schemaMajor': 6,
@@ -529,7 +622,8 @@ final class CipManifest {
       if (version >= 6) 'commandOperations': d['commandOperations'],
       if (version >= 7) 'readCoherenceBindings': d['readCoherenceBindings'],
       if (version >= 8) 'readServices': d['readServices'],
-      if (version >= 10) 'ownerReadBindings': d['ownerReadBindings']
+      if (version >= 10) 'ownerReadBindings': d['ownerReadBindings'],
+      if (version >= 11) 'hostServiceBindings': d['hostServiceBindings']
     };
     final legacy = d['legacyContentHash'], digest = d['contentHash'];
     _require(

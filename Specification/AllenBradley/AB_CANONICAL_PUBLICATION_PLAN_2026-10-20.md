@@ -71,7 +71,7 @@ The work is done when all six hold:
 | S4a coherence bindings | Done | [S4a](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md) | — |
 | S4b generic Dart client and desktop | **Done at Echo scope** | [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md): all E1–E9 pass together | Physical/security evidence remains S7; V2 activation remains S6 |
 | S5 gateway, Web, installer | **Done at Echo/package scope** | [S5 qualification](Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md): C1–C13, two-client stability, owner visual check, native gates and verified genealogy recovery | Original baseline START refusal retained; investigate in S6 harness migration. Physical/security acceptance remains S7 |
-| S6 retirement, collapse, persistence, events | Not started; census taken | [census](Evidence/AB_S4B_READER_RUNTIME_2026-10-26/Continuation/legacy_consumer_inventory_01.json) | §5.3 |
+| S6 retirement, collapse, persistence, events | WP6.1 classified; first offline WP6.2 harness migrated; shared row reader with bounded row-body batching passes offline replay; harness private facts assigned to a WP6.6 acceptance-only structure (O10); gateway command client built (O11); WP6.3 final oracle replay sealed; WP6.4 inventory and V6.11 layouts written, client binding and generic ingress pass offline; V6.11 opt-in emits; its set service (all eight operations) and LiveDocuments keep/restore pass on the emitted code offline; WP6.5 host adapter answers them offline (HostEvents and tray open) | [S6 consumer review](AB_CANONICAL_PUBLICATION_S6_CONSUMER_REVIEW_2026-11-02.md), [row-reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md), [current classification](AB_S6_CONSUMER_CLASSIFICATION_2026-11-02_03.json), [host-service inventory](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_2026-11-02.md) | Live integration/native proof, remaining harnesses/replays, host-service layouts/implementation, collapse, retirement and activation (§5.3); S6 exit remains open |
 | S7 physical controller, CIP Security | Not started | — | §5.4 |
 
 S3 surface records: [S3a](Evidence/AB_S3A_CANONICAL_RUNTIME_2026-10-21.md),
@@ -1169,32 +1169,75 @@ on the current tree. It found 107 direct consumers (54 tools, 53 tests) and 284
 transitive ones. Extend it to assign each module one class by these rules; the
 first match wins, and an unclassified module stops the step.
 
+Implemented 2026-11-02 by `tools/fraktal_ab_legacy_consumers.py` in the AB
+binding. The [review](AB_CANONICAL_PUBLICATION_S6_CONSUMER_REVIEW_2026-11-02.md)
+records the current counts and scope corrections: classify explicit retirement
+owners/importers even without a direct legacy call, include the existing press
+S3k oracle, and review standalone engineering probes without rewriting their
+fixture-specific ABI checks. Import closure is conservative; dynamic imports
+and external callers still need review before deletion.
+
 | Class | Rule | Action |
 |---|---|---|
 | RT runtime projection and gateway | `fraktal_ab_projection`, `fraktal_ab_projection_replay`, `fraktal_ab_gateway`, `fraktal_ab_mailbox_probe`, their `test_` modules, `requirements-gateway.txt`, `HMI/test/live_ab_gateway_test.dart`, `HMI/test/live_ab_command_test.dart` | Delete in WP6.7 |
-| MO migration oracle | `fraktal_ab_s<N><x>_{equivalence,reference,fixture_execute,revision_execute,lifetime_execute,io_execute}`, `fraktal_ab_s4b_equivalence`, `fraktal_ab_canonical_equivalence`, `fraktal_ab_canonical_observation`, `fraktal_ab_paired_observation`, `fraktal_ab_mailbox_frame`, and their tests | Final sealed replay (WP6.3), then delete in WP6.7 |
+| MO migration oracle | `fraktal_ab_s<N><x>_{equivalence,reference,fixture_execute,revision_execute,lifetime_execute,io_execute}`, the press-prefixed S3k equivalent, `fraktal_ab_s4b_equivalence`, `fraktal_ab_canonical_equivalence`, `fraktal_ab_canonical_observation`, `fraktal_ab_paired_observation`, `fraktal_ab_mailbox_frame`, and their tests | Final sealed replay (WP6.3), then delete in WP6.7 |
 | GN generator | `fraktal_ab_generate`, `fraktal_ab_resources` | Collapse in WP6.6 |
 | AD host adapter | `fraktal_ab_host_events`, `fraktal_ab_sets`, `fraktal_ab_set_broker`, `fraktal_ab_medium` | Re-home in WP6.5 |
-| HX acceptance harness | Every other `*_execute`, `fraktal_ab_press_parity`, `fraktal_ab_s9_*` | Migrate to canonical reads in WP6.2 |
-| UT unit test | Every other `test_fraktal_ab_*` that uses `*_context_members` or the projection | Rewrite against the canonical structures in WP6.6 |
-| HL helper | Any other direct consumer | Replace the legacy import with its canonical owner; a helper that serves only RT or MO follows them |
+| HX acceptance harness | Every other tool `*_execute`, `fraktal_ab_press_parity`, `fraktal_ab_s9_*` | Migrate station reads in WP6.2; verify standalone engineering probes with no legacy station-read dependency |
+| UT unit test | Every other affected `test_fraktal_ab_*`, including indirect imports of an affected owner | Review/rewrite canonical-structure assertions in WP6.6 |
+| HL helper | Any other affected helper, including indirect consumers | Replace the legacy dependency with its canonical owner; a helper that serves only RT or MO follows them |
 
 The output is `Specification/AllenBradley/AB_S6_CONSUMER_CLASSIFICATION_<date>.json`.
 WP6.7's deletion step reads it.
 
 **WP6.2 — Phase A: harnesses on canonical reads, legacy still present.**
 
+The first migration is the offline S9 repository-contract runner. It uses the
+S1 decoder on sealed native captures and no longer imports the declaration,
+projection, gateway or their synthetic fixture builder. The shared Dart
+contract preserves all 124 case verdicts. Other HX owners remain open; this
+offline runner needs no live-controller fallback.
+
 - Every HX module reads through `fraktal_ab_canonical_reader.py` (S1) instead of
   `read_unit`, `read_layout` or `*_context_members`. Assertions are unchanged.
   `fraktal_ab_press_execute.py` loses its `read_layout` and `read_unit`
   definitions.
 - Until the baseline switch (O6), a harness chooses its reader by discovery: a
-  controller that publishes exactly one canonical manifest is read
-  canonically, and any other is read through the legacy reader. The rollback
+  controller that publishes exactly one valid canonical manifest is read
+  canonically; absence alone permits the legacy reader. A present malformed,
+  unsupported or ambiguous manifest refuses rather than falling back. The rollback
   baseline is the legacy genealogy image, which has no canonical tree. This
   temporary dual path ends in WP6.7.
 - Offline gate: every migrated harness replays its sealed captures with
   unchanged verdicts.
+
+The shared `open_row_reader` entry point and row acquisition now pass offline
+replay of all 5,264 occupied S5 leaves under their published owner/count guards;
+see the [reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md).
+This is infrastructure, not another completed HX migration. The press lifecycle,
+private fixture observations and unchanged-assertion replays remain to integrate;
+the stopped Echo service prevents native checks at this checkpoint.
+
+On 2026-11-03, row bodies became bounded packets: at most 64 read services and
+4,000 bytes. They are planned before the first proof and validated after it
+closes; see the [evidence](Evidence/AB_S6_ROW_BODY_BATCHING_OFFLINE_2026-11-03.md).
+The press accounting in the reader review finds that only 6 of the harness's 33
+legacy facts have a canonical correspondence. The other 27 have no source after
+R8, and 11 of its 15 rows mix both kinds in one read. Owner decision O10 (§6.3)
+resolves this. The private facts move to an acceptance-only observation structure
+in WP6.6. The press harness keeps its legacy reads until then, and loses
+`read_unit`/`read_layout` when it migrates with the collapse.
+
+The same accounting over all 24 HX migration modules
+([evidence](Evidence/AB_S6_HX_FACT_ACCOUNTING_OFFLINE_2026-11-03.md)) finds 15 with
+private context facts. None of them can move onto canonical reads alone, so all
+follow O10. Sixteen harnesses also command through the legacy Frame ingress,
+which WP6.6 removes. Under O11 (§6.3) they command through the gateway's
+`writeBatch` instead, using the shared harness command client. Legacy images
+keep the Frame path until WP6.7 removes the legacy branch. The client
+`fraktal_ab_harness_commands.py` passes offline, including against the real
+Dart gateway server
+([evidence](Evidence/AB_S6_HARNESS_COMMAND_CLIENT_OFFLINE_2026-11-04.md)).
 
 **WP6.3 — Final sealed replay, before any generator change.** On the
 pre-collapse tree, run once more:
@@ -1206,6 +1249,21 @@ pre-collapse tree, run once more:
 Seal the result as `Evidence/AB_S6_MIGRATION_ORACLE_FINAL_REPLAY_<date>`, with
 hashes. From then on, sealed evidence stays readable data, and its executable
 replay ends by design.
+
+Sealed 2026-11-04 as
+[`AB_S6_MIGRATION_ORACLE_FINAL_REPLAY_2026-11-04`](Evidence/AB_S6_MIGRATION_ORACLE_FINAL_REPLAY_2026-11-04.md):
+
+- All 494 tests in the 38 MO test modules pass.
+- Of 17 accepted pins, 13 regenerate byte-identically. Four typed-ingress pins
+  (S3k, S4a, press S3 exit, S4b V6.8) are superseded by the recorded S5
+  write-revision correction. Each differs from its sealed source only in its one
+  or two `WriteRevision` assignments, so they are not claimed byte-identical.
+- Of 51 sealed capture replays, 40 reproduce as recorded. The other 11 are each
+  explained by a recorded change, verified over its whole extent: grown glob
+  scope with every sealed row present, the S5 `WriteRevision` field over 226
+  pairs, the S3j reference correction, and an in-session S3D re-run.
+
+No unexplained difference remains. The generator may now change.
 
 **WP6.4 — Host-service contract inventory (approved O4).** The staged ConfigSet and
 ConfigProvider inputs, the live-document keeper and the host-event sink are the
@@ -1231,6 +1289,40 @@ Write it as `AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_<date>.md`, with
 its inventory before WP6.5. O4 in §6.3 already approves the shape; no further
 approval gates WP6.5 or the host-service part of WP6.6.
 
+The [2026-11-02 inventory](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_2026-11-02.md)
+now records the four services and their additional helper owners, current
+endpoints, limits and preservation gates. Native descriptor/chunk layouts and
+state vectors remain engineering work before emission; no V6.11 code or adapter
+implementation is claimed by that inventory.
+
+The [V6.11 wire draft](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_WIRE_DRAFT_2026-11-04.md)
+(2026-11-04) fixes the layouts and the state table. Without the Python broker,
+the operator's set command reaches the PLC first. The PLC opens a job and asks
+a declaration-free host for its I/O, through one shared ingress per root. The
+draft adds `ConnectionBytes` to the O4 row, so the PLC still publishes every
+connection bound. The client binding, the generic ingress ST and V6.11 manifest
+normalization pass offline
+([evidence](Evidence/AB_S6_HOST_SERVICE_LAYOUT_OFFLINE_2026-11-04.md)). The Dart
+decoder accepts V6.11 and agrees with Python on its content hash.
+
+The generator now emits V6.11 under the `canonical_host_services` opt-in,
+which no accepted declaration sets. It emits the table, the ingress, and the
+HostEvents ring on its own owner revision. The ConfigSets service carries all
+eight set operations. The owner parks the operator's command without an
+answer, asks the host for exactly its input, and resumes the unchanged set
+transaction within 1.8 s or refuses it. A load or export is fetched by key; a
+list's catalog is published whole; a current export's line is rendered by the
+host. These paths run on the emitted routines and tag initializers in the
+executed-ST model ([evidence](Evidence/AB_S6_HOST_SET_SERVICE_OFFLINE_2026-11-04.md)
+for five operations, [then all eight](Evidence/AB_S6_HOST_SET_OPERATIONS_OFFLINE_2026-11-04.md)).
+The LiveDocuments jobs follow. A host keeps each document through a snapshot
+job, which an operator's set command preempts. It restores each after a
+download through a job that resumes as a silent owner pass: the access check
+and the set transaction run, with no operator acknowledgement, and the
+verdict returns on the job ([evidence](Evidence/AB_S6_HOST_LIVE_DOCUMENTS_OFFLINE_2026-11-04.md)).
+The PLC side of every V6.11 host service is now in place offline, and the
+adapter (WP6.5) comes next.
+
 **WP6.5 — Declaration-free host adapter.**
 
 - One process per controller instance:
@@ -1255,6 +1347,18 @@ approval gates WP6.5 or the host-service part of WP6.6.
   only: it runs no host adapter, publishes no `ConfigPersist` subtree and
   claims no durability.
 
+Status, 2026-11-04 ([evidence](Evidence/AB_S6_HOST_ADAPTER_OFFLINE_2026-11-04.md)):
+- **Done offline.** The adapter answers every set job and keeps and restores
+  every live document, against the emitted controller code with real store
+  and medium folders. What it renders from published facts equals the
+  engineering code's rendering. It imports neither the declaration nor the
+  generator, and the declaration-free host parts moved out of the engineering
+  modules. Its pylogix port is tested against synthetic Templates.
+- **Open.** HostEvents delivery over the canonical ring: its batch must be
+  proven equal to the legacy one on a native capture. The tray's supervision
+  of `host_adapter.args`: the tray starts packaged executables only, so how
+  the Python adapter is distributed is an owner decision.
+
 **WP6.6 — Phase B: collapse the generator.** In `fraktal_ab_generate.py`:
 
 - **R8.** The canonical structures become the working storage. Remove
@@ -1265,7 +1369,13 @@ approval gates WP6.5 or the host-service part of WP6.6.
   `ScanCanonical` and `CanonicalDiagnostic` keep only per-instance calls.
 - **R6.** Acceptance-only routines (native check vectors, first-scan bench
   vectors) are emitted only when a declaration enables them. Production
-  declarations never do.
+  declarations never do. Under O10 these include the fixture observation
+  structure. The press harness migrates onto it and the canonical rows in this
+  step. Its offline gate shows each of the 15 rows' predicates gives the same
+  result over the new sources as over the legacy contexts.
+- Under O11, harness commands move to the gateway command client in the same
+  step that removes the Frame ingress. Every harness listed in the HX
+  accounting as commanding through it switches; none keeps a Frame writer.
 - **R5.** A production declaration selects one AUTO rendition (ST, SFC or LD).
   Acceptance declarations keep all three for the parity gate.
 - The legacy staged service and Frame endpoints are removed. The new versioned host-service binding is the only
@@ -1287,6 +1397,8 @@ Offline gates:
 
 - Delete RT and MO per the classification file. After the baseline switch,
   delete the harnesses' legacy reader branch and the legacy baseline fixture.
+  The `websockets` pin in `requirements-gateway.txt` moves to a harness
+  apparatus requirements file first, because the O11 command client needs it.
 - Re-run the census; it must report zero direct legacy references.
 - Switch `tools/check_ab_spec.py` and `tools/check_ab_contracts.py` to V2.
   Update `tools/check_consistency.py` wherever it names a deleted file, and the
@@ -1493,7 +1605,39 @@ and dependent offline work, including its explicit protocol-2 proof-bound
 amendment and separate scan progress. O4's host-service shape carries forward
 without a future schema downgrade. No acceptance or stage exit is implied.
 
-O1–O9 are decided. The later owner touchpoints include the C12 browser
+**O10 — acceptance-only fixture observation, approved 2026-11-03.** The owner
+chose “Acceptance-only vector (Recommended)” for the press harness's 27 private
+facts. The [reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md)
+accounts for them. In WP6.6, under R6, an acceptance declaration emits one Read
+Only fixture observation structure. It carries exactly the private facts its
+harnesses assert. The publication routine writes it under the same generation
+counter, so one row proof covers canonical and private facts together. It has
+no TC3 path, never enters the manifest, and no production declaration emits it.
+Assertions stay unchanged. The press harness keeps its legacy reads through
+WP6.2 and migrates with WP6.6; S6-Q proves it. Each further harness's private
+facts are accounted the same way before they join the structure.
+
+**O11 — harness commands through the gateway protocol, decided 2026-11-04.**
+The [HX accounting](Evidence/AB_S6_HX_FACT_ACCOUNTING_OFFLINE_2026-11-03.md)
+found 16 harnesses commanding through the legacy Frame ingress that WP6.6
+removes. The owner delegated the choice: “i leave the desision to you, decide
+based on specification objectives and multi plc brand coherence”. Harnesses
+command through the gateway's brand-neutral `writeBatch`. They send the nine
+Core `HmiRequest` arguments, then `Sequence`, exactly as the HMI repository
+does, through a loopback write-enabled instance (O3's `echo`). They observe
+the acknowledgement and the machine through their own CIP reader.
+
+- *Multi-PLC coherence:* the same command client serves TwinCAT, Siemens and
+  AB gateways.
+- *O9:* each brand keeps exactly one command encoder, in its gateway transport.
+  There is no Python twin of the WP5.1 writer.
+- *Acceptance:* commands take the operator's path, while observation stays
+  independent of it.
+
+Plant stimulus and fault-injection writes remain direct, declared test-build
+writes. They are the simulated world, not commands.
+
+O1–O11 are decided. The later owner touchpoints include the C12 browser
 checklist (owner-operated by design, P10) and any controller other than Echo.
 
 ## 7. Risks and mitigations

@@ -1272,7 +1272,23 @@ def handler_logic(app, *, use_routines=False) -> tuple[str, ...]:
     import fraktal_ab_sets as sets
     import fraktal_ab_access as access
     import fraktal_ab_data_access as data
+    import fraktal_ab_host_sets as host_sets
     enabled = app.access_users is not None
+    # A parked V6.11 set command writes no answer: the previous one is put back.
+    held = host_sets.work_tag(app) + ".Hold" if host_sets.enabled(app) else ""
+    if held:
+        import fraktal_ab_canonical_commands as commands
+        owner = commands.work_tag(app)
+        # A host's silent pass keeps its verdict for the host before the put-back.
+        verdict = ([f"{host_sets.work_tag(app)}.Verdict := {_response(app, 'Accepted')};",
+                    f"{host_sets.work_tag(app)}.VerdictKey := {_response(app, 'DiagnosticKey')};"]
+                   if host_sets.live(app) else [])
+        held_open = [f"IF {held} <> 0 THEN", *verdict,
+                     f"{_response(app, 'Accepted')} := {owner}.OwnerAccepted;",
+                     f"{_response(app, 'DiagnosticKey')} := {owner}.OwnerDiagnostic;", "ELSE"]
+        held_close = ["END_IF;"]
+    else:
+        held_open = held_close = []
     lines = (access.cyclic(app) + data.cyclic(app) if enabled else []) + (sets.cyclic(app) if app.config_sets else []) + [
         "(* Lower the one-shot requests raised by an earlier scan.",
         "",
@@ -1330,12 +1346,14 @@ def handler_logic(app, *, use_routines=False) -> tuple[str, ...]:
         *(["END_IF;", *access.after(app), f'JSR({data.tag(app, "RefreshLevels")},0);'] if enabled else []),
         *(["END_IF;"] if app.canonical_publication_stage>=13 else []),
         "",
+        *held_open,
         "(* A refusal that named no reason would be indistinguishable from a",
         "   command that silently did nothing. *)",
         f"IF ({_response(app, 'Accepted')} = 0) AND "
         f"({_response(app, 'DiagnosticKey')} = 0) THEN",
         f"{_response(app, 'DiagnosticKey')} := {_key(app, REJECTED_KEY)};",
         "END_IF;",
+        *held_close,
         "",
         "(* Wipe the secret, as the oracle does. Clearing LEN alone would leave",
         "   the characters in DATA for anyone reading the member directly, so",
@@ -1345,7 +1363,9 @@ def handler_logic(app, *, use_routines=False) -> tuple[str, ...]:
         f"{_request(app, 'Secret')}.DATA[FRK_{n}_HmiWipe] := 0;",
         "END_FOR;",
         "",
+        *([f"IF {held} = 0 THEN"] if held else []),
         f"{_response(app, 'AckSequence')} := FRK_{n}_HmiLastSequence;",
+        *(["END_IF;"] if held else []),
         "END_IF;",
     ])
     if app.canonical_publication_stage>=13:lines+=commands.after_owner(app)
@@ -1398,6 +1418,9 @@ def localization_keys(app=None) -> tuple[str, ...]:
     if app is not None and app.canonical_publication_stage>=13:
         from fraktal_ab_canonical_commands import KEYS
         extra.update(KEYS)
+    if app is not None and app.canonical_host_services and app.config_sets:
+        import fraktal_ab_host_sets as host_sets
+        extra.update(host_sets.KEYS)
     return tuple(sorted(set(REFUSED.values()) | extra | set(sets.KEYS) | set(shelving.KEYS)))
 
 

@@ -4793,6 +4793,7 @@ def canonical_routines(app):
         result += mailbox_publication.routines(app)
         import fraktal_ab_canonical_commands as commands
         result += commands.routines(app)
+        result += __import__('fraktal_ab_host_services').routines(app)
     return result
 
 

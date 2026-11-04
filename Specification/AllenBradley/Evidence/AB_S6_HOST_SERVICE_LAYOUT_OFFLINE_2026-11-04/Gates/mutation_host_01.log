@@ -1,0 +1,153 @@
+KILLED   no commit re-read ['test_a_commit_written_while_the_payload_is_copied_is_a_collision']
+KILLED   half circle counts as ahead ['test_a_replayed_or_behind_commit_is_stale_and_its_payload_is_never_sampled', 'test_the_serial_wraps_through_uint32_and_publishes_the_writer_position']
+KILLED   refused claim keeps the job ['test_a_commit_written_while_the_payload_is_copied_is_a_collision', 'test_out_of_bounds_fields_and_key_extents_refuse_before_any_service_runs', 'test_payload_commit_disagreement_is_a_collision_and_abandons_the_claimed_job']
+KILLED   key extents unbounded ['test_out_of_bounds_fields_and_key_extents_refuse_before_any_service_runs']
+KILLED   first scan keeps the job ['test_a_first_scan_abandons_the_job_and_still_consumes_a_changed_commit']
+KILLED   any sequence claims ['test_a_chunk_for_another_job_is_refused_without_touching_the_active_one', 'test_a_first_scan_abandons_the_job_and_still_consumes_a_changed_commit']
+KILLED   chunk order unchecked ['test_reordered_repeated_or_retargeted_chunks_abandon_the_stream']
+KILLED   reply copied every scan ['test_a_replayed_or_behind_commit_is_stale_and_its_payload_is_never_sampled', 'test_download_seeds_the_serial_without_consuming_or_publishing', 'test_the_reply_is_published_by_one_copy_per_changed_scan']
+KILLED   job text only shortened ['test_an_unanswered_job_times_out_and_clears_its_transported_text']
+KILLED   manifest revision unchecked ['test_a_stale_manifest_revision_is_refused_by_its_own_code']
+KILLED   writer advances from the refusal ['test_a_replayed_or_behind_commit_is_stale_and_its_payload_is_never_sampled']
+KILLED   roots may split their ingress ['test_each_rule_refuses']
+KILLED   text one byte over its width ['test_the_encoder_refuses_rather_than_truncating_or_coercing']
+KILLED   request size unbounded ['test_each_layout_deviation_refuses']
+{
+ "mutants": 14,
+ "killed": 14,
+ "results": [
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "no commit re-read",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_commit_written_while_the_payload_is_copied_is_a_collision"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "half circle counts as ahead",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_replayed_or_behind_commit_is_stale_and_its_payload_is_never_sampled",
+    "test_the_serial_wraps_through_uint32_and_publishes_the_writer_position"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "refused claim keeps the job",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_commit_written_while_the_payload_is_copied_is_a_collision",
+    "test_out_of_bounds_fields_and_key_extents_refuse_before_any_service_runs",
+    "test_payload_commit_disagreement_is_a_collision_and_abandons_the_claimed_job",
+    "test_reordered_repeated_or_retargeted_chunks_abandon_the_stream"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "key extents unbounded",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_out_of_bounds_fields_and_key_extents_refuse_before_any_service_runs"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "first scan keeps the job",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_first_scan_abandons_the_job_and_still_consumes_a_changed_commit"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "any sequence claims",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_chunk_for_another_job_is_refused_without_touching_the_active_one",
+    "test_a_first_scan_abandons_the_job_and_still_consumes_a_changed_commit"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "chunk order unchecked",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_reordered_repeated_or_retargeted_chunks_abandon_the_stream"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "reply copied every scan",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_replayed_or_behind_commit_is_stale_and_its_payload_is_never_sampled",
+    "test_download_seeds_the_serial_without_consuming_or_publishing",
+    "test_the_reply_is_published_by_one_copy_per_changed_scan"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "job text only shortened",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_an_unanswered_job_times_out_and_clears_its_transported_text"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_services.py",
+   "mutant": "manifest revision unchecked",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_stale_manifest_revision_is_refused_by_its_own_code"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_service_binding.py",
+   "mutant": "writer advances from the refusal",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_a_replayed_or_behind_commit_is_stale_and_its_payload_is_never_sampled"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_service_binding.py",
+   "mutant": "roots may split their ingress",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_each_rule_refuses"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_service_binding.py",
+   "mutant": "text one byte over its width",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_the_encoder_refuses_rather_than_truncating_or_coercing"
+   ]
+  },
+  {
+   "module": "fraktal_ab_host_service_binding.py",
+   "mutant": "request size unbounded",
+   "exitCode": 1,
+   "killed": true,
+   "failingTests": [
+    "test_each_layout_deviation_refuses"
+   ]
+  }
+ ]
+}

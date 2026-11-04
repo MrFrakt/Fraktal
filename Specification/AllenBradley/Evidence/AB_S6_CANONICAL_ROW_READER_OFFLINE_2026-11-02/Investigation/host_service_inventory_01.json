@@ -1,0 +1,465 @@
+{
+  "schema": "fraktal.ab.s6-host-service-inventory",
+  "schemaVersion": 1,
+  "controllerAccess": false,
+  "codeGeneration": false,
+  "sources": {
+    "fraktal_ab_sets": {
+      "sha256": "1429E5DC212E1CA9C63A33C09368D412B93FEE7D30984858FCDB726CB844821F",
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "fraktal_ab_access",
+        "fraktal_ab_canonical_config",
+        "fraktal_ab_config",
+        "fraktal_ab_data_access",
+        "fraktal_ab_declaration",
+        "fraktal_ab_genealogy",
+        "fraktal_ab_generate",
+        "fraktal_ab_line",
+        "fraktal_ab_mailbox",
+        "fraktal_ab_manifest",
+        "fraktal_ab_models",
+        "fraktal_ab_resources",
+        "hashlib",
+        "json",
+        "os",
+        "pathlib",
+        "tempfile"
+      ],
+      "functions": [
+        "request_name",
+        "request_members",
+        "state_version",
+        "state_name",
+        "state_tag",
+        "staged_tag",
+        "state_members",
+        "scratch_names",
+        "config_kind",
+        "value_type",
+        "revision_rejected",
+        "range_rejected",
+        "revision_guard",
+        "cyclic",
+        "routine_name",
+        "dispatch",
+        "dispatch_logic",
+        "_text",
+        "_int",
+        "checked_header",
+        "checked_record",
+        "_pairs",
+        "parse_line",
+        "render_line",
+        "checked_document",
+        "values_document",
+        "replace_text",
+        "empty_values",
+        "list_values"
+      ],
+      "classes": [
+        "SetRejected",
+        "FileStore",
+        "Session"
+      ]
+    },
+    "fraktal_ab_set_broker": {
+      "sha256": "1E6B07198F51DB86309464C40AD9637ABCE7365EEFF9AC14011087A1DF6946AB",
+      "imports": [
+        "__future__",
+        "datetime",
+        "fraktal_ab_config_provider_client",
+        "fraktal_ab_generate",
+        "fraktal_ab_live",
+        "fraktal_ab_mailbox",
+        "fraktal_ab_mailbox_frame",
+        "fraktal_ab_manifest",
+        "fraktal_ab_models",
+        "fraktal_ab_press_execute",
+        "fraktal_ab_s16_execute",
+        "fraktal_ab_sets",
+        "re",
+        "time"
+      ],
+      "functions": [
+        "staging",
+        "snapshot_document",
+        "read_state",
+        "wait_response",
+        "_write",
+        "_proposal",
+        "_stage",
+        "restore_command",
+        "process",
+        "_publish_response"
+      ],
+      "classes": []
+    },
+    "fraktal_ab_medium": {
+      "sha256": "AF6F8417F6FC02F8F2EA39BE947D0B3F461AF91E1CD9B85F11A0212BA5A6ADED",
+      "imports": [
+        "__future__",
+        "fraktal_ab_declaration",
+        "fraktal_ab_sets",
+        "os",
+        "pathlib",
+        "typing"
+      ],
+      "functions": [
+        "directory",
+        "open_set_store"
+      ],
+      "classes": [
+        "SetStore"
+      ]
+    },
+    "fraktal_ab_live": {
+      "sha256": "244C4A86218DB0900E597E5C951FF82F400BF12848F9FF7E250BF4FC541F3416",
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "datetime",
+        "fraktal_ab_access",
+        "fraktal_ab_declaration",
+        "fraktal_ab_generate",
+        "fraktal_ab_mailbox",
+        "fraktal_ab_manifest",
+        "fraktal_ab_medium",
+        "fraktal_ab_sets",
+        "hashlib",
+        "json",
+        "pathlib",
+        "time"
+      ],
+      "functions": [
+        "station_key",
+        "line_key",
+        "model_key",
+        "live_directory",
+        "capture",
+        "documents",
+        "content",
+        "plan",
+        "empty_station",
+        "restore",
+        "write_changed"
+      ],
+      "classes": [
+        "MediumUnreadable",
+        "DocumentLost",
+        "Capture",
+        "FileMedium",
+        "Plan",
+        "Outcome",
+        "Keeper"
+      ]
+    },
+    "fraktal_ab_host_events": {
+      "sha256": "071FA0E589DD3893653D07A33490478A1FA270F6C43F911024CB72C94BF41A54",
+      "imports": [
+        "__future__",
+        "argparse",
+        "contextlib",
+        "copy",
+        "datetime",
+        "errno",
+        "fcntl",
+        "fraktal_ab_declaration",
+        "fraktal_ab_genealogy",
+        "fraktal_ab_generate",
+        "fraktal_ab_host_sink",
+        "fraktal_ab_manifest",
+        "fraktal_ab_manifest_read",
+        "fraktal_ab_models",
+        "fraktal_ab_part",
+        "fraktal_ab_press_execute",
+        "fraktal_ab_projection",
+        "fraktal_ab_resources",
+        "fraktal_ab_station",
+        "json",
+        "msvcrt",
+        "os",
+        "pathlib",
+        "pylogix",
+        "struct",
+        "tempfile"
+      ],
+      "functions": [
+        "validate",
+        "nok_reason",
+        "tag",
+        "schema",
+        "profile",
+        "type_name",
+        "emitter_name",
+        "instance_tag",
+        "members",
+        "_text_validation",
+        "_text_store",
+        "emit_logic",
+        "emitter",
+        "call",
+        "start_scan",
+        "finish_scan",
+        "metadata",
+        "validate_metadata",
+        "decode",
+        "read",
+        "project",
+        "_cursor_lock",
+        "main"
+      ],
+      "classes": [
+        "HostEventsBad",
+        "Cursor"
+      ]
+    },
+    "fraktal_ab_config_provider": {
+      "sha256": "6CA47636779D939BF77B3870802FAF0BB3C082033994C0EF4A41CA5E31813C0F",
+      "imports": [
+        "fraktal_ab_access",
+        "fraktal_ab_canonical_commands",
+        "fraktal_ab_canonical_config",
+        "fraktal_ab_canonical_publication",
+        "fraktal_ab_canonical_unit_core",
+        "fraktal_ab_config_provider_wire",
+        "fraktal_ab_declaration",
+        "fraktal_ab_mailbox",
+        "fraktal_ab_manifest",
+        "fraktal_ab_sets"
+      ],
+      "functions": [
+        "request_symbol",
+        "input_tag",
+        "staged_tag",
+        "state_tag",
+        "ack_tag",
+        "routine_name",
+        "services",
+        "members",
+        "native_members",
+        "augment",
+        "tags",
+        "_copy_text",
+        "logic",
+        "validate_text_routine",
+        "validate_text_logic"
+      ],
+      "classes": []
+    },
+    "fraktal_ab_config_provider_wire": {
+      "sha256": "8A815B8B13BC618380BA3286EA96C7172F47771B1B70A759F058100317DE18E8",
+      "imports": [],
+      "functions": [
+        "layout",
+        "payload"
+      ],
+      "classes": []
+    },
+    "fraktal_ab_config_provider_client": {
+      "sha256": "B4E452F7F5B66FC33D9E3EF5B0531A5AD74B20DCB7B7924C4D3435F0AD4E553A",
+      "imports": [
+        "fraktal_ab_canonical_reader",
+        "fraktal_ab_config_provider_wire",
+        "time"
+      ],
+      "functions": [
+        "binding",
+        "write_plan",
+        "publish"
+      ],
+      "classes": []
+    }
+  },
+  "configSets": {
+    "MAX_SETS": 4,
+    "MAX_RECORDS": 64,
+    "LINE_MAX": 480,
+    "NAME_MAX": 80,
+    "WINDOW_MS": 5000,
+    "AUDIT_CAPACITY": 16,
+    "SET_KINDS": [
+      28,
+      29,
+      30,
+      32,
+      33,
+      35,
+      37,
+      38
+    ],
+    "HEADER_FIELDS": [
+      "set",
+      "root",
+      "schema",
+      "configRev",
+      "kind",
+      "model",
+      "records",
+      "created",
+      "clock"
+    ],
+    "RECORD_FIELDS": [
+      "scope",
+      "key",
+      "rev",
+      "kind",
+      "type",
+      "value"
+    ]
+  },
+  "providerV1": {
+    "version": 1,
+    "textFields": [
+      [
+        "SetName0",
+        80
+      ],
+      [
+        "RootIdentity0",
+        80
+      ],
+      [
+        "ModelCode0",
+        64
+      ],
+      [
+        "SetName1",
+        80
+      ],
+      [
+        "RootIdentity1",
+        80
+      ],
+      [
+        "ModelCode1",
+        64
+      ],
+      [
+        "SetName2",
+        80
+      ],
+      [
+        "RootIdentity2",
+        80
+      ],
+      [
+        "ModelCode2",
+        64
+      ],
+      [
+        "SetName3",
+        80
+      ],
+      [
+        "RootIdentity3",
+        80
+      ],
+      [
+        "ModelCode3",
+        64
+      ],
+      [
+        "Document",
+        480
+      ],
+      [
+        "RejectScope",
+        80
+      ],
+      [
+        "RejectKey",
+        160
+      ]
+    ],
+    "textByteValues": 1616,
+    "textLengthFields": 15,
+    "layout": [
+      [
+        "SchemaVersion",
+        0
+      ],
+      [
+        "Sequence",
+        0
+      ],
+      [
+        "RequestSequence",
+        0
+      ],
+      [
+        "LoginSequence",
+        0
+      ],
+      [
+        "BuildRevision",
+        0
+      ],
+      [
+        "Operation",
+        0
+      ],
+      [
+        "Flags",
+        0
+      ],
+      [
+        "Count",
+        0
+      ],
+      [
+        "DocumentLine",
+        0
+      ],
+      [
+        "DocumentLines",
+        0
+      ],
+      [
+        "Commit",
+        0
+      ],
+      [
+        "SetSchema",
+        4
+      ],
+      [
+        "ConfigRevision",
+        4
+      ],
+      [
+        "RecordKind",
+        4
+      ],
+      [
+        "RecordCount",
+        4
+      ],
+      [
+        "CreatedSeconds",
+        4
+      ],
+      [
+        "Synchronized",
+        4
+      ],
+      [
+        "TextLength",
+        15
+      ],
+      [
+        "TextBytes",
+        1616
+      ]
+    ],
+    "nativeDintBytes": 6664
+  },
+  "liveIndex": {
+    "LIVE_NAME": "_live",
+    "INDEX_NAME": "index.json",
+    "INDEX_SCHEMA": "fraktal.ab.live-documents",
+    "INDEX_VERSION": 1
+  },
+  "runtimeImportGraphClean": true
+}

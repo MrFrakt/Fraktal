@@ -11,6 +11,7 @@ import json
 import re
 import fraktal_ab_read_coherence as read_coherence
 import fraktal_ab_owner_read_bindings as owner_read
+import fraktal_ab_host_service_binding as host_binding
 
 MAGIC = 0x46524B36
 MAJOR = 6
@@ -50,6 +51,8 @@ READ_SERVICE_MINOR = 8
 READ_SERVICE_HEADER = READ_HEADER | {"ReadServicesCount","ReadServicesCapacity","ReadServices"}
 OWNER_MINOR = owner_read.MINOR
 OWNER_HEADER = READ_SERVICE_HEADER | owner_read.HEADER_FIELDS
+HOST_MINOR = host_binding.MINOR
+HOST_HEADER = OWNER_HEADER | host_binding.HEADER_FIELDS
 
 
 def data_products(rows):
@@ -116,7 +119,8 @@ def type_tables(rows, exceptions):
 
 
 def body(fields, legacy_hash, stage=STAGE, *, minor=MINOR, bindings=None, services=None,
-         type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None, owner_read_bindings=None):
+         type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None, owner_read_bindings=None,
+         host_service_bindings=None):
     result=dict(schemaMajor=MAJOR, schemaMinor=minor, publicationStage=stage,
                 legacyContentHash=legacy_hash, fields=fields)
     if minor>=FRAGMENT_MINOR:result['bindings']=bindings
@@ -129,13 +133,16 @@ def body(fields, legacy_hash, stage=STAGE, *, minor=MINOR, bindings=None, servic
     if minor>=READ_MINOR:result['readCoherenceBindings']=read_coherence_bindings
     if minor>=READ_SERVICE_MINOR:result['readServices']=read_services
     if minor>=OWNER_MINOR:result['ownerReadBindings']=owner_read_bindings
+    if minor>=HOST_MINOR:result['hostServiceBindings']=host_service_bindings
     return result
 
 
 def content_hash(fields, legacy_hash, stage=STAGE, *, minor=MINOR, bindings=None, services=None,
-                 type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None, owner_read_bindings=None):
+                 type_annotations=None, path_exceptions=None, products=None, commands=None, operations=None, read_coherence_bindings=None, read_services=None, owner_read_bindings=None,
+                 host_service_bindings=None):
     raw = json.dumps(body(fields, legacy_hash, stage, minor=minor,bindings=bindings,services=services,
-                         type_annotations=type_annotations,path_exceptions=path_exceptions,products=products,commands=commands,operations=operations,read_coherence_bindings=read_coherence_bindings,read_services=read_services,owner_read_bindings=owner_read_bindings), ensure_ascii=True,
+                         type_annotations=type_annotations,path_exceptions=path_exceptions,products=products,commands=commands,operations=operations,read_coherence_bindings=read_coherence_bindings,read_services=read_services,owner_read_bindings=owner_read_bindings,
+                         host_service_bindings=host_service_bindings), ensure_ascii=True,
                      separators=(",", ":"), sort_keys=True).encode("ascii")
     return hashlib.sha256(raw).hexdigest().upper()
 
@@ -157,13 +164,13 @@ def normalize(record):
     """Validate every row and its hash before exposing any annotation."""
     minor=record.get('SchemaMinor')
     expected = SERVICE_HEADER if minor==SERVICE_MINOR else FRAGMENT_HEADER if minor==FRAGMENT_MINOR else HEADER
-    if minor in (TYPE_MINOR,PRODUCT_MINOR,COMMAND_MINOR,READ_MINOR,READ_SERVICE_MINOR,OWNER_MINOR):
-        expected = (OWNER_HEADER if minor==OWNER_MINOR else READ_SERVICE_HEADER if minor==READ_SERVICE_MINOR else READ_HEADER if minor==READ_MINOR else COMMAND_HEADER if minor==COMMAND_MINOR else PRODUCT_HEADER if minor==PRODUCT_MINOR else TYPE_HEADER) | {name for name in ('Bindings', 'Services', 'PathExceptions', 'DataProducts', 'CommandBindings', 'CommandOperations')
+    if minor in (TYPE_MINOR,PRODUCT_MINOR,COMMAND_MINOR,READ_MINOR,READ_SERVICE_MINOR,OWNER_MINOR,HOST_MINOR):
+        expected = (HOST_HEADER if minor==HOST_MINOR else OWNER_HEADER if minor==OWNER_MINOR else READ_SERVICE_HEADER if minor==READ_SERVICE_MINOR else READ_HEADER if minor==READ_MINOR else COMMAND_HEADER if minor==COMMAND_MINOR else PRODUCT_HEADER if minor==PRODUCT_MINOR else TYPE_HEADER) | {name for name in ('Bindings', 'Services', 'PathExceptions', 'DataProducts', 'CommandBindings', 'CommandOperations')
                                   if record.get(name+'Count', 0)}
     if set(record) != expected or record["Magic"] != MAGIC:
         raise ValueError("unrecognized canonical manifest header")
     if any(type(record[k]) is not int for k in ("Magic", "SchemaMajor", "SchemaMinor", "PublicationStage")) \
-            or record["SchemaMajor"] != MAJOR or record["SchemaMinor"] not in (MINOR, VIEW_MINOR, FRAGMENT_MINOR, SERVICE_MINOR, TYPE_MINOR, PRODUCT_MINOR, COMMAND_MINOR, READ_MINOR, READ_SERVICE_MINOR, OWNER_MINOR) \
+            or record["SchemaMajor"] != MAJOR or record["SchemaMinor"] not in (MINOR, VIEW_MINOR, FRAGMENT_MINOR, SERVICE_MINOR, TYPE_MINOR, PRODUCT_MINOR, COMMAND_MINOR, READ_MINOR, READ_SERVICE_MINOR, OWNER_MINOR, HOST_MINOR) \
             or not STAGE <= record["PublicationStage"] < (1 << 31):
         raise ValueError("unsupported canonical manifest version/stage")
     if record["Valid"] is not True or record["Truncated"] is not False:
@@ -311,6 +318,20 @@ def normalize(record):
             if not isinstance(row,dict) or set(row)!=SERVICE_FIELD:raise ValueError('invalid read-service row')
             read_services.append({k:text(v) if k in ('RootSymbol','CanonicalRoot') else v for k,v in row.items()})
         validate_descriptors(read_services)
+    host_rows=[]
+    if minor>=HOST_MINOR:
+        count,capacity=record['HostServiceBindingsCount'],record['HostServiceBindingsCapacity']
+        if type(count) is not int or type(capacity) is not int or not 1<=count==capacity<=1024 \
+                or not isinstance(record['HostServiceBindings'],list) or len(record['HostServiceBindings'])!=count:
+            raise ValueError('invalid host-service count/capacity')
+        for row in record['HostServiceBindings']:
+            if not isinstance(row,dict) or set(row)!=host_binding.FIELD:raise ValueError('invalid host-service row')
+            host_rows.append({k:text(v) if k in host_binding.TEXT_FIELDS else v for k,v in row.items()})
+        host_binding.bindings(host_rows)
+        # A host-service root is a command root: the PLC owns one identity per root.
+        if not {r['RootSymbol'] for r in host_rows}<={c['RootSymbol'] for c in commands}:
+            raise ValueError('host-service root has no command binding')
+    rings=[r['CanonicalRoot'] for r in host_rows if r['Service']==host_binding.SERVICES['HostEvents']]
     owner_rows=[]
     if minor>=OWNER_MINOR:
         count,capacity=record['OwnerReadBindingsCount'],record['OwnerReadBindingsCapacity']
@@ -320,7 +341,10 @@ def normalize(record):
         for row in record['OwnerReadBindings']:
             if not isinstance(row,dict) or set(row)!=owner_read.FIELDS:raise ValueError('invalid owner-read row')
             owner_rows.append({k:text(v) if k in ('CanonicalPrefix','MembersJson','RevisionSymbol','ProgressSymbol') else v for k,v in row.items()})
-        owner_read.validate_rows(owner_rows,read_services=read_services,base_bindings=coherence_rows)
+        owner_read.validate_rows(owner_rows,read_services=read_services,base_bindings=coherence_rows,host_rings=rings)
+        # The ring states its own coherence: an owner revision, never a borrowed one.
+        if not set(rings)<={o['CanonicalPrefix'] for o in owner_rows if o['MembersJson']=='[]'}:
+            raise ValueError('host-event ring lacks its owner-read binding')
     legacy, digest = text(record["LegacyContentHash"]), text(record["ContentHash"])
     if not re.fullmatch(r"[A-F0-9]{16}", legacy) or digest != content_hash(fields, legacy, record['PublicationStage'], minor=minor,
             **({'bindings':bindings} if minor>=FRAGMENT_MINOR else {}),
@@ -330,7 +354,8 @@ def normalize(record):
             **({'commands':commands,'operations':command_operations} if minor>=COMMAND_MINOR else {}),
             **({'read_coherence_bindings':coherence_rows} if minor>=READ_MINOR else {}),
             **({'read_services':read_services} if minor>=READ_SERVICE_MINOR else {}),
-            **({'owner_read_bindings':owner_rows} if minor>=OWNER_MINOR else {})) \
+            **({'owner_read_bindings':owner_rows} if minor>=OWNER_MINOR else {}),
+            **({'host_service_bindings':host_rows} if minor>=HOST_MINOR else {})) \
             or type(record["ConfigRevision"]) is not int or record["ConfigRevision"] != revision(digest):
         raise ValueError("canonical manifest content hash/revision mismatch")
     result=dict(schemaMajor=MAJOR, schemaMinor=minor, valid=True, truncated=False, contentHash=digest,
@@ -346,12 +371,12 @@ def normalize(record):
     if minor>=READ_MINOR:result['readCoherenceBindings']=coherence_rows
     if minor>=READ_SERVICE_MINOR:result['readServices']=read_services
     if minor>=OWNER_MINOR:result['ownerReadBindings']=owner_rows
+    if minor>=HOST_MINOR:result['hostServiceBindings']=host_rows
     return result
 
 
-def read_manifest(comm, symbols, templates):
-    """Read the unique V6 header discovered by shape, rejecting ambiguous roots."""
-    from fraktal_ab_canonical_reader import decode_record
+def manifest_candidates(symbols, templates):
+    """One shape rule shared by strict discovery and S6's absence check."""
     by_handle = {row["handle"]: row for row in templates}
     found = []
     for symbol in symbols:
@@ -362,6 +387,15 @@ def read_manifest(comm, symbols, templates):
         names = {member['name'] for member in template['members']}
         if not (HEADER <= names or TYPE_HEADER <= names):
             continue
+        found.append(symbol)
+    return found
+
+
+def read_manifest(comm, symbols, templates):
+    """Read the unique V6 header discovered by shape, rejecting ambiguous roots."""
+    from fraktal_ab_canonical_reader import decode_record
+    found = []
+    for symbol in manifest_candidates(symbols, templates):
         reply = comm.Read(symbol["name"])
         if reply.Status != "Success" or not isinstance(reply.Value, (bytes, bytearray)):
             raise ValueError("canonical manifest record read failed")

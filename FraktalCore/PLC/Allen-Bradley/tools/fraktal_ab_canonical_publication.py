@@ -46,6 +46,7 @@ def validate(app):
     findings += read_coherence.validate(app)
     findings += __import__("fraktal_ab_config_read_view").validate(app)
     findings += __import__("fraktal_ab_owner_read_bindings").validate(app)
+    findings += __import__("fraktal_ab_host_services").validate(app)
     import fraktal_ab_canonical_fieldbus as fieldbus
     findings += fieldbus.validate(app)
     if not stage:
@@ -114,6 +115,7 @@ def root_type(app):
 
 
 def header_type(app):
+    if app.canonical_host_services:return f"FRK_T_{app.name}CanonicalManifestV611"
     if app.canonical_owner_revisions:return f"FRK_T_{app.name}CanonicalManifestV610"
     if app.canonical_config_read_view:return f"FRK_T_{app.name}CanonicalManifestV68"
     if app.canonical_read_coherence:return f"FRK_T_{app.name}CanonicalManifestV67"
@@ -263,6 +265,7 @@ def schema(app):
         __import__('fraktal_ab_read_coherence').augment(app,result)
     __import__('fraktal_ab_config_read_view').augment_manifest(app,result)
     __import__('fraktal_ab_owner_read_bindings').augment(app,result)
+    __import__('fraktal_ab_host_services').augment_schema(app,result)
     result[PREFIX+"TimingV6"] = tuple(Member(name, "DINT") for name in
                                       ("Scan", "LastScanUs", "MaxScanUs", "OverlapCount"))
     return result
@@ -424,6 +427,8 @@ def manifest_values(app, definitions=None):
     if app.canonical_read_coherence:minor=__import__('fraktal_ab_read_coherence').MINOR
     if app.canonical_config_read_view:minor=__import__('fraktal_ab_config_read_view').MINOR
     if app.canonical_owner_revisions:minor=__import__('fraktal_ab_owner_read_bindings').MINOR
+    if app.canonical_host_services:minor=__import__('fraktal_ab_host_services').MINOR
+    host_rows=__import__('fraktal_ab_host_services').rows(app) if app.canonical_host_services else []
     binding_rows=[]
     if app.canonical_publication_stage>=5:
         import fraktal_ab_canonical_sequence as sequence
@@ -449,6 +454,7 @@ def manifest_values(app, definitions=None):
     owner_rows=__import__('fraktal_ab_owner_read_bindings').rows(app,definitions)
     digest = wire.content_hash(fields,old_hash,app.canonical_publication_stage,minor=minor,
         **(dict(owner_read_bindings=owner_rows) if app.canonical_owner_revisions else {}),
+        **(dict(host_service_bindings=host_rows) if app.canonical_host_services else {}),
         **(dict(read_services=read_services) if app.canonical_config_read_view else {}),
         **({'bindings':binding_rows} if minor>=wire.FRAGMENT_MINOR else {}),
         **({'services':service_rows} if minor>=wire.SERVICE_MINOR else {}), **type_metadata, **product_metadata, **command_metadata, **coherence_metadata)
@@ -469,6 +475,7 @@ def manifest_values(app, definitions=None):
     if app.canonical_read_coherence:header.update(ReadCoherenceBindingsCount=len(coherence_rows),ReadCoherenceBindingsCapacity=len(coherence_rows),ReadCoherenceBindings=coherence_rows)
     if app.canonical_config_read_view:header.update(ReadServicesCount=len(read_services),ReadServicesCapacity=len(read_services),ReadServices=read_services)
     if app.canonical_owner_revisions:header.update(OwnerReadBindingsCount=len(owner_rows),OwnerReadBindingsCapacity=len(owner_rows),OwnerReadBindings=owner_rows)
+    if app.canonical_host_services:header.update(HostServiceBindingsCount=len(host_rows),HostServiceBindingsCapacity=len(host_rows),HostServiceBindings=host_rows)
     return header
 
 
@@ -558,6 +565,7 @@ def tags(app):
             *(__import__("fraktal_ab_canonical_commands").tags(app,tag) if app.canonical_publication_stage>=13 else []),
             *__import__('fraktal_ab_config_read_view').tags(app,tag),
             *__import__('fraktal_ab_owner_read_bindings').tags(app,tag),
+            *__import__('fraktal_ab_host_services').tags(app,tag),
             f'<Tag Name="{generation_tag(app)}" TagType="Base" DataType="DINT" Radix="Decimal" ExternalAccess="Read Only"/>',
             tag(f'FRK_{app.name}_CanonicalTiming',PREFIX+"TimingV6",{}),
             *__import__("fraktal_ab_canonical_observation").tags(app)]

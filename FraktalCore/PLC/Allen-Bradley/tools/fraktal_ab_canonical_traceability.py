@@ -262,7 +262,18 @@ def host_logic(app):
     lines += ['END_IF;','END_FOR;',f'IF {valid} THEN',f'{w}.SeenRing := {s}.DataRevision;',
         f'{w}.SeenLow := {s}.EpochLow;',f'{w}.SeenHigh := {s}.EpochHigh;']
     if app.models and app.model_capacity:lines += [f'{w}.SeenModels := {app.name}.AvailableModelCount;']
-    return lines+['END_IF;','END_IF;','END_IF;']
+    lines += ['END_IF;','END_IF;','END_IF;']
+    import fraktal_ab_host_services as host_services
+    if not host_services.enabled(app):return lines
+    # V6.11: the ring's own owner revision brackets every scan that changes it.
+    import fraktal_ab_owner_read_bindings as owner
+    revision=host_services.ring_revision_tag(app)
+    changed=['S:FS',*(f'({t}.Wrapped <> ({s}.Wrapped <> 0))' if n=='Wrapped' else f'({t}.{n} <> {s}.{n})' for n in host.META),
+        f'({t}.RingHead <> {s}.Head)',f'({w}.Initialized = 0)',f'({w}.SeenRing <> {s}.DataRevision)',
+        f'({w}.SeenLow <> {s}.EpochLow)',f'({w}.SeenHigh <> {s}.EpochHigh)',
+        *([f'({w}.SeenModels <> {app.name}.AvailableModelCount)'] if app.models and app.model_capacity else [])]
+    assert lines[1]=='ELSE'
+    return [lines[0],'ELSE',f'IF {" OR ".join(changed)} THEN',*owner.begin(revision),'END_IF;',*lines[2:],*owner.close(revision)]
 
 
 def routines(app):return [(routine(app,'Decimal'),decimal(app))]

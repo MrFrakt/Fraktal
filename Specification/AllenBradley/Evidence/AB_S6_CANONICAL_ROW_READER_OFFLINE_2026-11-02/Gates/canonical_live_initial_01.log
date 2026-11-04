@@ -1,0 +1,148 @@
+======================================================================
+ERROR: test_ambiguous_header_never_falls_back (test_fraktal_ab_canonical_live.Discovery.test_ambiguous_header_never_falls_back)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 235, in test_ambiguous_header_never_falls_back
+    reader.open_row_reader(comm, expect_serial='601FC87B')
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_reader.py", line 674, in open_row_reader
+    return open_reader(comm, expect_serial=expect_serial)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 277, in open_reader
+    objects = discover_templates(comm)
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_s0_canonical_measure.py", line 70, in discover_templates
+    comm.UDTByName = {udt.Name: udt for udt in found.values()}
+                      ^^^^^^^^
+AttributeError: 'types.SimpleNamespace' object has no attribute 'Name'
+
+======================================================================
+ERROR: test_deadline_stops_further_io_and_returns_no_values (test_fraktal_ab_canonical_live.Rows.test_deadline_stops_further_io_and_returns_no_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 162, in test_deadline_stops_further_io_and_returns_no_values
+    self.subject.read_row(['Press/Status/Busy', 'Press/Status/Done'])
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 199, in read_row
+    selected[path] = self.location(path)
+                     ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 148, in location
+    raise ValueError('canonical leaf absent or ambiguous: ' + path)
+ValueError: canonical leaf absent or ambiguous: Press/Status/Done
+
+======================================================================
+ERROR: test_forward_progress_across_wrap_is_allowed_but_backward_is_not (test_fraktal_ab_canonical_live.Rows.test_forward_progress_across_wrap_is_allowed_but_backward_is_not)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 134, in test_forward_progress_across_wrap_is_allowed_but_backward_is_not
+    self.assertEqual(self.subject.read_row(['Press/Status/Busy'])['revision'], 2)
+                     ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 199, in read_row
+    selected[path] = self.location(path)
+                     ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 148, in location
+    raise ValueError('canonical leaf absent or ambiguous: ' + path)
+ValueError: canonical leaf absent or ambiguous: Press/Status/Busy
+
+======================================================================
+ERROR: test_frozen_scan_or_owner_progress_never_returns_values (test_fraktal_ab_canonical_live.Rows.test_frozen_scan_or_owner_progress_never_returns_values) (path='Press/Status/Busy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 113, in test_frozen_scan_or_owner_progress_never_returns_values
+    self.subject.read_row([path])
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 199, in read_row
+    selected[path] = self.location(path)
+                     ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 148, in location
+    raise ValueError('canonical leaf absent or ambiguous: ' + path)
+ValueError: canonical leaf absent or ambiguous: Press/Status/Busy
+
+======================================================================
+ERROR: test_frozen_scan_or_owner_progress_never_returns_values (test_fraktal_ab_canonical_live.Rows.test_frozen_scan_or_owner_progress_never_returns_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 114, in test_frozen_scan_or_owner_progress_never_returns_values
+    self.assertEqual(failure.exception.attempts, 20)
+                     ^^^^^^^^^^^^^^^^^
+AttributeError: '_AssertRaisesContext' object has no attribute 'exception'
+
+======================================================================
+ERROR: test_live_values_come_from_io_not_the_bootstrap_capture (test_fraktal_ab_canonical_live.Rows.test_live_values_come_from_io_not_the_bootstrap_capture)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 76, in test_live_values_come_from_io_not_the_bootstrap_capture
+    self.replay.overrides[path] = bytes([not self.expected['values'][path]])
+                                             ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+KeyError: 'Press/Status/Busy'
+
+======================================================================
+ERROR: test_odd_initial_progress_can_recover_without_accepting_a_frozen_scan (test_fraktal_ab_canonical_live.Rows.test_odd_initial_progress_can_recover_without_accepting_a_frozen_scan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 129, in test_odd_initial_progress_can_recover_without_accepting_a_frozen_scan
+    self.assertEqual(self.subject.read_row(['Press/Status/Busy'])['attempts'], 2)
+                     ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 199, in read_row
+    selected[path] = self.location(path)
+                     ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 148, in location
+    raise ValueError('canonical leaf absent or ambiguous: ' + path)
+ValueError: canonical leaf absent or ambiguous: Press/Status/Busy
+
+======================================================================
+ERROR: test_odd_revisions_recover_but_invalid_counters_refuse (test_fraktal_ab_canonical_live.Rows.test_odd_revisions_recover_but_invalid_counters_refuse)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 120, in test_odd_revisions_recover_but_invalid_counters_refuse
+    self.assertEqual(self.subject.read_row(['Press/Status/Busy'])['attempts'], 2)
+                     ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 199, in read_row
+    selected[path] = self.location(path)
+                     ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 148, in location
+    raise ValueError('canonical leaf absent or ambiguous: ' + path)
+ValueError: canonical leaf absent or ambiguous: Press/Status/Busy
+
+======================================================================
+ERROR: test_protocol_one_strict_scan_window_is_not_increased (test_fraktal_ab_canonical_live.Rows.test_protocol_one_strict_scan_window_is_not_increased)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 145, in test_protocol_one_strict_scan_window_is_not_increased
+    self.subject.read_row(['Press/Status/Busy'])
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 199, in read_row
+    selected[path] = self.location(path)
+                     ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 148, in location
+    raise ValueError('canonical leaf absent or ambiguous: ' + path)
+ValueError: canonical leaf absent or ambiguous: Press/Status/Busy
+
+======================================================================
+ERROR: test_torn_attempt_does_not_leak_its_values (test_fraktal_ab_canonical_live.Rows.test_torn_attempt_does_not_leak_its_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 105, in test_torn_attempt_does_not_leak_its_values
+    result = self.subject.read_row(['Press/Status/Busy'])
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 199, in read_row
+    selected[path] = self.location(path)
+                     ~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_canonical_live.py", line 148, in location
+    raise ValueError('canonical leaf absent or ambiguous: ' + path)
+ValueError: canonical leaf absent or ambiguous: Press/Status/Busy
+
+======================================================================
+FAIL: test_bad_scalar_bytes_and_nonfinite_replies_refuse (test_fraktal_ab_canonical_live.Rows.test_bad_scalar_bytes_and_nonfinite_replies_refuse)
+----------------------------------------------------------------------
+ValueError: canonical leaf absent or ambiguous: Press/Status/Busy
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_canonical_live.py", line 192, in test_bad_scalar_bytes_and_nonfinite_replies_refuse
+    with self.assertRaisesRegex(ValueError, 'length'):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "length" does not match "canonical leaf absent or ambiguous: Press/Status/Busy"
+
+----------------------------------------------------------------------
+Ran 20 tests in 1.444s
+
+FAILED (failures=1, errors=10)
