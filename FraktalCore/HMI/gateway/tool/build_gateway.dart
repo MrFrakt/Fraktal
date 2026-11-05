@@ -73,6 +73,16 @@ Future<void> main(List<String> arguments) async {
     '-o',
     '${output.path}/$executableName',
   ]);
+  // The Fraktal/AB host adapter: an optional second process per instance.
+  final adapterName =
+      Platform.isWindows ? 'fraktal_host_adapter.exe' : 'fraktal_host_adapter';
+  await _run(Platform.resolvedExecutable, [
+    'compile',
+    'exe',
+    '${project.path}/bin/fraktal_host_adapter.dart',
+    '-o',
+    '${output.path}/$adapterName',
+  ]);
 
   final libraryName =
       Platform.isWindows ? 'fraktal_opcua.dll' : 'libfraktal_opcua.so';
@@ -117,6 +127,8 @@ Future<void> main(List<String> arguments) async {
         .copy('${output.path}/run_gateway.ps1');
     await File('${project.path}/deploy/windows/gateway.args.example')
         .copy('${output.path}/gateway.args.example');
+    await File('${project.path}/deploy/windows/host_adapter.args.example')
+        .copy('${output.path}/host_adapter.args.example');
     // The combined Windows installer also packages the native HMI desktop app,
     // so build it now. The installer builder expects the Release output below.
     await _run(

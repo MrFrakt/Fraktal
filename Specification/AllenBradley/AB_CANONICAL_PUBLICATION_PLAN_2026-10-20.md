@@ -71,7 +71,7 @@ The work is done when all six hold:
 | S4a coherence bindings | Done | [S4a](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md) | — |
 | S4b generic Dart client and desktop | **Done at Echo scope** | [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md): all E1–E9 pass together | Physical/security evidence remains S7; V2 activation remains S6 |
 | S5 gateway, Web, installer | **Done at Echo/package scope** | [S5 qualification](Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md): C1–C13, two-client stability, owner visual check, native gates and verified genealogy recovery | Original baseline START refusal retained; investigate in S6 harness migration. Physical/security acceptance remains S7 |
-| S6 retirement, collapse, persistence, events | WP6.1 classified; first offline WP6.2 harness migrated; shared row reader with bounded row-body batching passes offline replay; harness private facts assigned to a WP6.6 acceptance-only structure (O10); gateway command client built (O11); WP6.3 final oracle replay sealed; WP6.4 inventory and V6.11 layouts written, client binding and generic ingress pass offline; V6.11 opt-in emits; its set service (all eight operations) and LiveDocuments keep/restore pass on the emitted code offline; WP6.5 host adapter answers them offline (HostEvents and tray open) | [S6 consumer review](AB_CANONICAL_PUBLICATION_S6_CONSUMER_REVIEW_2026-11-02.md), [row-reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md), [current classification](AB_S6_CONSUMER_CLASSIFICATION_2026-11-02_03.json), [host-service inventory](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_2026-11-02.md) | Live integration/native proof, remaining harnesses/replays, host-service layouts/implementation, collapse, retirement and activation (§5.3); S6 exit remains open |
+| S6 retirement, collapse, persistence, events | WP6.1 classified; first offline WP6.2 harness migrated; shared row reader with bounded row-body batching passes offline replay; harness private facts assigned to a WP6.6 acceptance-only structure (O10); gateway command client built (O11); WP6.3 final oracle replay sealed; WP6.4 inventory and V6.11 layouts written, client binding and generic ingress pass offline; V6.11 opt-in emits; its set service (all eight operations) and LiveDocuments keep/restore pass on the emitted code offline; WP6.5 host adapter, ported to Dart and supervised by the tray, answers them offline (HostEvents open) | [S6 consumer review](AB_CANONICAL_PUBLICATION_S6_CONSUMER_REVIEW_2026-11-02.md), [row-reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md), [current classification](AB_S6_CONSUMER_CLASSIFICATION_2026-11-02_03.json), [host-service inventory](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_2026-11-02.md) | Live integration/native proof, remaining harnesses/replays, host-service layouts/implementation, collapse, retirement and activation (§5.3); S6 exit remains open |
 | S7 physical controller, CIP Security | Not started | — | §5.4 |
 
 S3 surface records: [S3a](Evidence/AB_S3A_CANONICAL_RUNTIME_2026-10-21.md),
@@ -1325,16 +1325,19 @@ adapter (WP6.5) comes next.
 
 **WP6.5 — Declaration-free host adapter.**
 
-- One process per controller instance:
-  `FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_host_adapter.py`, built from
-  the AD modules. It discovers through the S1 reader and the host-service bindings, and
-  serves three things:
+- One process per controller instance: `fraktal_host_adapter.exe`, from
+  `FraktalCore/HMI/gateway/bin/fraktal_host_adapter.dart`. It was first built
+  in Python from the AD modules, then ported (see the status below). It
+  discovers through the S1 reader and the host-service bindings, and serves
+  three things:
   - configuration sets and the provider, with `FileStore` unchanged at
     `%LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root>`;
   - live documents re-applied after a download, through `FileMedium`;
   - HostEvents delivery, with durability, cursor and deduplication unchanged.
-- It writes only through the versioned host-service endpoints and imports nothing from
-  `fraktal_ab_declaration` or `fraktal_ab_generate`; a test asserts that.
+- It writes only through the versioned host-service endpoints and uses nothing
+  from `fraktal_ab_declaration` or `fraktal_ab_generate`. The Python adapter
+  had a test that asserted this. The Dart executable cannot import them at
+  all; only its tests drive the Python bench.
 - It runs beside each gateway instance from an optional
   `instances\<name>\host_adapter.args`, and the tray supervises it as a second
   process of that instance. Instance discovery is unchanged (every folder with a
@@ -1354,10 +1357,17 @@ Status, 2026-11-04 ([evidence](Evidence/AB_S6_HOST_ADAPTER_OFFLINE_2026-11-04.md
   engineering code's rendering. It imports neither the declaration nor the
   generator, and the declaration-free host parts moved out of the engineering
   modules. Its pylogix port is tested against synthetic Templates.
+- **Ported to Dart** (owner decision, 2026-11-04;
+  [evidence](Evidence/AB_S6_HOST_ADAPTER_DART_OFFLINE_2026-11-04.md)). The
+  adapter now ships like the gateway, as `fraktal_host_adapter.exe` beside
+  it. The tray supervises it from an instance's optional `host_adapter.args`.
+  The Python adapter is retired. The Dart one answers the same scenarios
+  against the emitted controller code, through its real CIP port over
+  synthetic Templates as well as through plain values. Its request bytes
+  equal the engineering encoder's, and its store and medium files equal the
+  Python ones, in both directions.
 - **Open.** HostEvents delivery over the canonical ring: its batch must be
-  proven equal to the legacy one on a native capture. The tray's supervision
-  of `host_adapter.args`: the tray starts packaged executables only, so how
-  the Python adapter is distributed is an owner decision.
+  proven equal to the legacy one on a native capture.
 
 **WP6.6 — Phase B: collapse the generator.** In `fraktal_ab_generate.py`:
 

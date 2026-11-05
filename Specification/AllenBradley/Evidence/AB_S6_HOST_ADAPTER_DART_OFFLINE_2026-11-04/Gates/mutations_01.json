@@ -1,0 +1,188 @@
+{
+  "started": "2026-11-05T00:58:51.107275+00:00",
+  "baseline": {
+    "exit": 0,
+    "verdict": "passed",
+    "tail": [
+      "02:51 +9: live documents a lost document is restored as a loss",
+      "02:51 +10: live documents (tearDownAll)",
+      "02:51 +10: All tests passed!"
+    ],
+    "tests": [
+      "configuration sets a missing set and a full store refuse",
+      "configuration sets a stored value the controller cannot parse is sent as invalid, never coerced",
+      "configuration sets an import in pieces is stored on commit",
+      "configuration sets save, list, load, export and delete go through the adapter's store",
+      "live documents a download is restored from the medium and then kept",
+      "live documents a lost document is restored as a loss",
+      "the CIP port a refused write is never resent, and the next request reopens the connection",
+      "the CIP port an unacknowledged request is never resent",
+      "the CIP port reads the reply and the facts exactly as the controller holds them",
+      "the CIP port writes the payload, then its commit, and returns the acknowledgement"
+    ]
+  },
+  "sources": {
+    "FraktalCore/HMI/gateway/lib/src/host_adapter/root_service.dart": "8BB22353644C345532A3D5D2E0402D52BDF65F6B7BB05509FD6DF314047DA6B3",
+    "FraktalCore/HMI/packages/fraktal_opcua_client/lib/src/cip_host_service.dart": "19A4C390892DB878E9E06586107598A63393A5ADC4C533670931F79851C61881"
+  },
+  "mutants": [
+    {
+      "mutant": "a missing set answered as found",
+      "file": "root_service.dart",
+      "test": "configuration sets a missing set and a full store refuse",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a full store not refused",
+      "file": "root_service.dart",
+      "test": "configuration sets a missing set and a full store refuse",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "an import commit not kept",
+      "file": "root_service.dart",
+      "test": "configuration sets an import in pieces is stored on commit",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a restore that hides its losses",
+      "file": "root_service.dart",
+      "test": "live documents a lost document is restored as a loss",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a boolean rendered as a number",
+      "file": "root_service.dart",
+      "test": "configuration sets save, list, load, export and delete go through the adapter's store",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "invalid value text coerced",
+      "file": "root_service.dart",
+      "test": "configuration sets a stored value the controller cannot parse is sent as invalid, never coerced",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "the catalog never published",
+      "file": "root_service.dart",
+      "test": "configuration sets save, list, load, export and delete go through the adapter's store",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a keep that never writes",
+      "file": "root_service.dart",
+      "test": "live documents a download is restored from the medium and then kept",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "the commit written before the payload",
+      "file": "cip_host_service.dart",
+      "test": "the CIP port writes the payload, then its commit, and returns the acknowledgement",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "any reply taken as the acknowledgement",
+      "file": "cip_host_service.dart",
+      "test": "the CIP port an unacknowledged request is never resent",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a refused write carried on",
+      "file": "cip_host_service.dart",
+      "test": "the CIP port a refused write is never resent, and the next request reopens the connection",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a capability read with the wrong key column",
+      "file": "cip_host_service.dart",
+      "test": "the CIP port reads the reply and the facts exactly as the controller holds them",
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    }
+  ],
+  "passed": true,
+  "finished": "2026-11-05T01:13:19.470319+00:00"
+}

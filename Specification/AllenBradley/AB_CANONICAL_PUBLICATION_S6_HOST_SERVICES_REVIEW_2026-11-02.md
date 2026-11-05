@@ -98,9 +98,10 @@ are not automatically retried. Separate gateway and host processes cannot rely
 on the old Python gateway's in-process mailbox lock for correctness; PLC-owned
 transaction identity and collision handling must cover them together.
 
-One `fraktal_ab_host_adapter.py` process per controller instance discovers these
-bindings through the canonical reader. It imports no declaration, generator,
-station or projection. The optional `instances/<name>/host_adapter.args` is
+One `fraktal_host_adapter.exe` process per controller instance discovers these
+bindings through the canonical reader. It reads no declaration, generator,
+station or projection. (It began as a Python tool and was ported to Dart, see
+below.) The optional `instances/<name>/host_adapter.args` is
 supervised beside that instance's gateway by the tray. Existing `gateway.args`
 folder discovery remains the only instance index. The generic Dart gateway
 stays binding-neutral. A PLC-memory-only project runs no adapter, publishes no
@@ -184,11 +185,21 @@ endpoint, and an unanswered one is never resent. See the
 [offline evidence](Evidence/AB_S6_HOST_ADAPTER_OFFLINE_2026-11-04.md)
 (manifest SHA-256 `FDC2600E9575D5DE86028BC05F0155D8B3DBFB792EF04F09D299298A71934D6E`).
 
-HostEvents delivery and the tray are still open. The cursor's rules moved
-unchanged into `fraktal_ab_host_cursor`. Reading the canonical ring into the
-same batch needs equivalence proof on a native capture. The tray starts
-packaged executables only, so how the Python adapter is distributed must be
-decided first.
+The owner then chose to port the adapter to Dart, so it is packaged and
+supervised like the gateway. The Dart adapter consists of:
+- `package:fraktal_opcua_client/cip_host_service.dart`, the protocol and port;
+- `package:fraktal_gateway/host_adapter.dart`, the service, store and medium;
+- `bin/fraktal_host_adapter.dart`, the executable.
+
+It replaces the Python one, which is retired. The tray starts it from an
+instance's optional `host_adapter.args`, and instance discovery is unchanged.
+Its set scenarios run through the real CIP port over synthetic Templates as
+well as through plain values, and 12 one-line mutants are each killed. See
+the [Dart evidence](Evidence/AB_S6_HOST_ADAPTER_DART_OFFLINE_2026-11-04.md)
+(manifest SHA-256 `6D2F5A8B1EEED37C356FF3461FFA5F572EC3DAEAC8F9D4A815E76B7095409D5C`).
+HostEvents delivery is still open. The cursor's rules moved unchanged into
+`fraktal_ab_host_cursor`. Reading the canonical ring into the same batch
+needs equivalence proof on a native capture.
 
 ## Implementation gates still open
 

@@ -53,6 +53,13 @@ struct Instance {
   std::wstring name;
   std::filesystem::path config_path;
   std::filesystem::path log_path;
+  // Optional: a host_adapter.args beside gateway.args runs the Fraktal/AB host
+  // adapter for the same PLC, supervised with its own restart backoff.
+  std::filesystem::path adapter_config_path;
+  std::filesystem::path adapter_log_path;
+  PROCESS_INFORMATION adapter{};
+  unsigned adapter_failures = 0;
+  ULONGLONG adapter_restart_after = 0;
   // The browser origin this instance's Web HMI is published on, taken from its
   // own --allow-origin. Empty when the instance is loopback-only.
   std::wstring web_origin;
@@ -205,6 +212,8 @@ void DiscoverInstances() {
       instance.name = name;
       instance.config_path = g_instance_dir / name / L"gateway.args";
       instance.log_path = g_logs_dir / name / L"gateway.log";
+      instance.adapter_config_path = g_instance_dir / name / L"host_adapter.args";
+      instance.adapter_log_path = g_logs_dir / name / L"host_adapter.log";
       g_instances.push_back(std::move(instance));
     }
   }
@@ -218,6 +227,8 @@ void DiscoverInstances() {
       instance.name = L"default";
       instance.config_path = legacy;
       instance.log_path = g_logs_dir / L"gateway.log";
+      instance.adapter_config_path = g_data_dir / L"host_adapter.args";
+      instance.adapter_log_path = g_logs_dir / L"host_adapter.log";
       g_instances.push_back(std::move(instance));
     }
   }
@@ -297,11 +308,13 @@ void SetInstanceStatus(Instance& instance, InstanceState state,
   UpdateAggregateStatus();
 }
 
-void CloseChildHandles(Instance& instance) {
-  if (instance.child.hThread != nullptr) CloseHandle(instance.child.hThread);
-  if (instance.child.hProcess != nullptr) CloseHandle(instance.child.hProcess);
-  instance.child = {};
+void CloseProcessHandles(PROCESS_INFORMATION& process) {
+  if (process.hThread != nullptr) CloseHandle(process.hThread);
+  if (process.hProcess != nullptr) CloseHandle(process.hProcess);
+  process = {};
 }
+
+void CloseChildHandles(Instance& instance) { CloseProcessHandles(instance.child); }
 
 void CloseProxyHandles() {
   if (g_proxy.hThread != nullptr) CloseHandle(g_proxy.hThread);
@@ -309,30 +322,22 @@ void CloseProxyHandles() {
   g_proxy = {};
 }
 
-bool StartInstance(Instance& instance) {
-  if (instance.child.hProcess != nullptr) return true;
-  const auto executable = g_install_dir / L"fraktal_gateway.exe";
-  if (!std::filesystem::exists(executable)) {
-    SetInstanceStatus(instance, InstanceState::kFailed, L"Executable missing");
-    return false;
-  }
-  if (!std::filesystem::exists(instance.config_path)) {
-    SetInstanceStatus(instance, InstanceState::kFailed,
-                      L"Configuration missing");
-    return false;
-  }
-  RefreshInstanceSettings(instance);
-  std::filesystem::create_directories(instance.log_path.parent_path());
+// Starts one hidden child with its arguments file, logging to `log_path`.
+// Returns an empty string on success, else the reason it could not start.
+std::wstring LaunchChild(const std::filesystem::path& executable,
+                         const std::filesystem::path& config_path,
+                         const std::filesystem::path& log_path,
+                         PROCESS_INFORMATION& out) {
+  if (!std::filesystem::exists(executable)) return L"Executable missing";
+  if (!std::filesystem::exists(config_path)) return L"Configuration missing";
+  std::filesystem::create_directories(log_path.parent_path());
   SECURITY_ATTRIBUTES security{};
   security.nLength = sizeof(security);
   security.bInheritHandle = TRUE;
-  HANDLE log = CreateFileW(instance.log_path.c_str(), FILE_APPEND_DATA,
+  HANDLE log = CreateFileW(log_path.c_str(), FILE_APPEND_DATA,
                            FILE_SHARE_READ | FILE_SHARE_WRITE, &security,
                            OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (log == INVALID_HANDLE_VALUE) {
-    SetInstanceStatus(instance, InstanceState::kFailed, L"Cannot open log");
-    return false;
-  }
+  if (log == INVALID_HANDLE_VALUE) return L"Cannot open log";
   SetFilePointer(log, 0, nullptr, FILE_END);
   HANDLE null_input = CreateFileW(L"NUL", GENERIC_READ,
                                   FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -340,12 +345,10 @@ bool StartInstance(Instance& instance) {
                                   FILE_ATTRIBUTE_NORMAL, nullptr);
   if (null_input == INVALID_HANDLE_VALUE) {
     CloseHandle(log);
-    SetInstanceStatus(instance, InstanceState::kFailed,
-                      L"Cannot open process input");
-    return false;
+    return L"Cannot open process input";
   }
   std::wstring command = Quote(executable.wstring());
-  for (const auto& argument : LoadArguments(instance.config_path)) {
+  for (const auto& argument : LoadArguments(config_path)) {
     command += L" " + Quote(argument);
   }
   std::vector<wchar_t> mutable_command(command.begin(), command.end());
@@ -363,12 +366,51 @@ bool StartInstance(Instance& instance) {
       CREATE_NO_WINDOW, nullptr, g_install_dir.c_str(), &startup, &process);
   CloseHandle(null_input);
   CloseHandle(log);
-  if (!created) {
-    SetInstanceStatus(instance, InstanceState::kFailed, L"Start failed");
+  if (!created) return L"Start failed";
+  out = process;
+  return {};
+}
+
+// The host adapter is optional: no host_adapter.args means none is wanted.
+void StartAdapter(Instance& instance) {
+  if (instance.adapter.hProcess != nullptr ||
+      !std::filesystem::exists(instance.adapter_config_path)) {
+    return;
+  }
+  if (!LaunchChild(g_install_dir / L"fraktal_host_adapter.exe",
+                   instance.adapter_config_path, instance.adapter_log_path,
+                   instance.adapter)
+           .empty()) {
+    ++instance.adapter_failures;
+    instance.adapter_restart_after =
+        GetTickCount64() +
+        std::min<ULONGLONG>(30000, 1000ULL << std::min(instance.adapter_failures, 5U));
+  }
+}
+
+void StopAdapter(Instance& instance) {
+  instance.adapter_restart_after = 0;
+  if (instance.adapter.hProcess != nullptr) {
+    // The adapter never resends an unacknowledged request; the controller's
+    // job times out and refuses the command it belonged to.
+    TerminateProcess(instance.adapter.hProcess, 0);
+    WaitForSingleObject(instance.adapter.hProcess, 2000);
+    CloseProcessHandles(instance.adapter);
+  }
+}
+
+bool StartInstance(Instance& instance) {
+  if (instance.child.hProcess != nullptr) return true;
+  RefreshInstanceSettings(instance);
+  const std::wstring failure =
+      LaunchChild(g_install_dir / L"fraktal_gateway.exe", instance.config_path,
+                  instance.log_path, instance.child);
+  if (!failure.empty()) {
+    SetInstanceStatus(instance, InstanceState::kFailed, failure);
     return false;
   }
-  instance.child = process;
   instance.user_stopped = false;
+  StartAdapter(instance);
   SetInstanceStatus(instance, InstanceState::kStarting, L"Connecting");
   return true;
 }
@@ -376,6 +418,7 @@ bool StartInstance(Instance& instance) {
 void StopInstance(Instance& instance, bool user_stopped) {
   instance.user_stopped = user_stopped;
   instance.restart_after = 0;
+  StopAdapter(instance);
   if (instance.child.hProcess != nullptr) {
     // The gateway owns no durable command queue. Forced local shutdown cannot
     // replay an HMI write and the PLC remains the final command authority.
@@ -460,6 +503,7 @@ void StartAll() {
   g_proxy_restart_failures = 0;
   for (auto& instance : g_instances) {
     instance.restart_failures = 0;
+    instance.adapter_failures = 0;
     if (!StartInstance(instance)) {
       instance.restart_after = GetTickCount64() + 1000;
     }
@@ -531,7 +575,30 @@ void MonitorProxy() {
   }
 }
 
+// The adapter restarts on its own backoff and never changes the gateway's
+// state; a failing adapter only says so in the instance's status.
+void MonitorAdapter(Instance& instance) {
+  if (instance.user_stopped || g_exiting) return;
+  if (instance.adapter.hProcess == nullptr) {
+    if (instance.child.hProcess != nullptr &&
+        GetTickCount64() >= instance.adapter_restart_after) {
+      StartAdapter(instance);
+    }
+    return;
+  }
+  DWORD exit_code = STILL_ACTIVE;
+  if (!GetExitCodeProcess(instance.adapter.hProcess, &exit_code) ||
+      exit_code != STILL_ACTIVE) {
+    CloseProcessHandles(instance.adapter);
+    ++instance.adapter_failures;
+    instance.adapter_restart_after =
+        GetTickCount64() +
+        std::min<ULONGLONG>(30000, 1000ULL << std::min(instance.adapter_failures, 5U));
+  }
+}
+
 void MonitorInstance(Instance& instance) {
+  MonitorAdapter(instance);
   if (instance.child.hProcess == nullptr) {
     if (!instance.user_stopped && instance.restart_after != 0 &&
         GetTickCount64() >= instance.restart_after) {
@@ -562,6 +629,10 @@ void MonitorInstance(Instance& instance) {
     instance.status = ProxyConfigured() && !instance.web_origin.empty()
                           ? L"Ready - secure remote access"
                           : L"Ready";
+    if (std::filesystem::exists(instance.adapter_config_path) &&
+        instance.adapter.hProcess == nullptr) {
+      instance.status += L" - host adapter restarting";
+    }
   } else {
     instance.state = InstanceState::kDegraded;
     instance.status = L"Running - PLC unavailable";
@@ -673,6 +744,7 @@ bool HandleInstanceCommand(UINT id) {
     case kInstanceRestart:
       if (command == kInstanceRestart) StopInstance(instance, false);
       instance.restart_failures = 0;
+      instance.adapter_failures = 0;
       if (!StartInstance(instance)) {
         instance.restart_after = GetTickCount64() + 1000;
       }

@@ -467,6 +467,21 @@ Windows service. Do not put the OPC UA password in `gateway.args`—provision
 `FRAKTAL_OPCUA_USERNAME` and `FRAKTAL_OPCUA_PASSWORD` for the gateway identity
 through the site's protected credential/process environment mechanism.
 
+### Fraktal/AB host adapter
+
+A Fraktal/AB controller whose manifest is V6.11 asks a host to serve its
+configuration sets and live documents. An instance runs
+`fraktal_host_adapter.exe` for that PLC when its folder holds a
+`host_adapter.args` beside `gateway.args` (see `host_adapter.args.example`).
+The tray starts it with the gateway, restarts it on its own capped backoff,
+and logs it to `logs\<name>\host_adapter.log`. A failing adapter shows in the
+instance's status but never stops the gateway. No `host_adapter.args` means no
+adapter, which is right for a PLC-memory-only station. The adapter keeps sets
+in `%LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root>`, overridden by
+`FRAKTAL_AB_CONFIG_SET_DIR`, with live documents in its `live` folder. It
+gains no login and no write path the logged-in operator does not have, and
+never resends a request the controller did not acknowledge.
+
 ## Linux systemd service
 
 Create a non-login `fraktal-gateway` user, copy the complete platform package

@@ -1,0 +1,21 @@
+# Fraktal/AB host adapter arguments: one option or value per line.
+#
+# Optional, one per instance. Put a host_adapter.args beside an instance's
+# gateway.args to run the host adapter for the same PLC:
+#   %LOCALAPPDATA%\Fraktal\Gateway\instances\<name>\host_adapter.args
+# The tray starts it with the gateway, restarts it on its own backoff and
+# logs it to logs\<name>\host_adapter.log. No file means no adapter: a
+# PLC-memory-only station runs none.
+#
+# The adapter answers the jobs a V6.11 controller opens for its configuration
+# sets and live documents. It keeps the four named sets in
+# %LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root> (override with
+# FRAKTAL_AB_CONFIG_SET_DIR), live documents in its live\ folder. It gains no
+# login and no write path the logged-in operator does not have.
+--host
+192.168.1.10
+--slot
+0
+# The controller's exact eight-hex serial: the adapter refuses any other.
+--expect-serial
+00000000

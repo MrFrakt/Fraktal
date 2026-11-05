@@ -125,6 +125,14 @@ class Schema(unittest.TestCase):
         self.assertTrue(plan.commit_request.endswith(struct.pack('<HHI', 0xc4, 1, 0xfffffffe)))
         self.assertNotIn('press.stroke', repr(plan))
 
+    def test_a_sparse_chunk_is_completed_and_never_widened(self):
+        body = binding.complete(dict(Kind=binding.RECORDS, Keys=['a', 'b'], Values=[1, 2]), 8)
+        self.assertEqual((body['Keys'], body['Values'], body['Line'], body['Total']),
+                         (['a', 'b', *[''] * 6], [1, 2, *[0] * 6], '', 0))
+        for bad in (dict(Unknown=1), dict(Values=[0] * 9), dict(Keys='a')):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                binding.complete(bad, 8)
+
     def test_the_encoder_refuses_rather_than_truncating_or_coercing(self):
         cases = [dict(Line='x' * 481), dict(Scope='a\0b'), dict(Keys=['k'] * 7), dict(Values=[1] * 9),
                  dict(Count=1 << 31), dict(Service=3), dict(Status='1'), dict(Revisions=[True] * 8)]

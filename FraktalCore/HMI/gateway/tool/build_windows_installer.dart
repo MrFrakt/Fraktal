@@ -74,6 +74,8 @@ Future<void> main(List<String> arguments) async {
 
   final sources = <String, File>{
     'fraktal_gateway.exe': File('${package.path}/fraktal_gateway.exe'),
+    'fraktal_host_adapter.exe':
+        File('${package.path}/fraktal_host_adapter.exe'),
     'fraktal_gateway_tray.exe':
         File('${package.path}/fraktal_gateway_tray.exe'),
     'fraktal_opcua.dll': File('${package.path}/fraktal_opcua.dll'),
@@ -83,6 +85,8 @@ Future<void> main(List<String> arguments) async {
         File('${package.path}/WEB_HMI_GATEWAY_DEPLOYMENT.md'),
     'gateway.args.example':
         File('${gatewayRoot.path}/deploy/windows/gateway.args.example'),
+    'host_adapter.args.example':
+        File('${gatewayRoot.path}/deploy/windows/host_adapter.args.example'),
     // The instance model (discovery, validation, arguments-file editing) the
     // wizard, the installer, and the reverse-proxy configurator all dot-source.
     'fraktal_instances.ps1':

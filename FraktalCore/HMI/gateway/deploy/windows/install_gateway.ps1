@@ -54,6 +54,7 @@ New-Item -ItemType Directory -Force -Path $installRoot, $dataRoot, $instanceRoot
 
 $payload = @(
   'fraktal_gateway.exe',
+  'fraktal_host_adapter.exe',
   'fraktal_gateway_tray.exe',
   'fraktal_opcua.dll',
   'caddy.exe',
@@ -62,6 +63,7 @@ $payload = @(
   'DEPLOYMENT.md',
   'WEB_HMI_GATEWAY_DEPLOYMENT.md',
   'gateway.args.example',
+  'host_adapter.args.example',
   'fraktal_instances.ps1',
   'configure_reverse_proxy.ps1',
   'configure_proxy_firewall.ps1',

@@ -430,11 +430,26 @@ Fifth checkpoint, the same day: the WP6.5 host adapter's PLC-facing half.
   A fresh-process test proves the adapter imports neither the declaration nor
   the generator.
 
+Sixth checkpoint, the same day: the owner chose to port the adapter to Dart,
+so it ships and is supervised like the gateway. The Python adapter and its
+port are retired; the Dart one is the only one.
+- `package:fraktal_opcua_client/cip_host_service.dart`: the protocol and the
+  controller port. It negotiates the layout from the Templates, encodes the
+  request and commit, decodes the reply, discovers through the manifest, and
+  reads facts from the published tables.
+- `package:fraktal_gateway/host_adapter.dart`: `RootService`, the set-document
+  format with `FileStore` and `Session`, and `FileMedium`. They read and write
+  the Python store's and medium's files byte for byte.
+- `bin/fraktal_host_adapter.dart` is the executable, packaged beside the
+  gateway. The tray starts it from an instance's optional `host_adapter.args`
+  and restarts it on its own backoff, without touching the gateway's state.
+- `fraktal_ab_host_bench_server.py` serves the emitted controller code over
+  stdio to the Dart tests, and renders the engineering documents they compare
+  with.
+
 ## Open before emission (WP6.5/WP6.6)
 
-- The adapter's HostEvents delivery over the canonical ring, and the tray's
-  supervision of `host_adapter.args`. The tray launches only packaged
-  executables, so a Python adapter needs a distribution decision first.
+- The adapter's HostEvents delivery over the canonical ring.
 - The S1 snapshot's V6.11 path is exercised only once a full V6.11 capture
   exists.
 - Then the WP6.6 removal of the legacy staged and provider endpoints, both v38
