@@ -59,15 +59,16 @@ Future<void> main(List<String> arguments) async {
   void report(Map<String, Object?> line) => stdout.writeln(jsonEncode(
       {'utc': DateTime.now().toUtc().toIso8601String(), ...line}));
   while (true) {
-    List<CipHostIngress> ports = const [];
+    CipHostDiscovery? found;
     // Discovery walks the whole namespace. After an error (a lost link, a
     // download in progress) it is retried soon; a controller that serves no
     // host services is only looked at again once a minute.
     var pause = const Duration(seconds: 5);
     try {
-      ports = await cipHostDiscover(
+      found = await cipHostDiscover(
           host: host, port: port, slot: slot, expectSerial: serial.toUpperCase());
-      if (ports.isEmpty) {
+      final ports = found.ingresses;
+      if (found.isEmpty) {
         report({'state': 'no host services'});
         if (flags.contains('--once')) return;
         pause = const Duration(minutes: 1);
@@ -82,7 +83,16 @@ Future<void> main(List<String> arguments) async {
                         '${directoryFor(p.root, serial.toUpperCase()).path}${Platform.pathSeparator}live'))
                     : null)
         ];
-        report({'state': 'serving', 'roots': [for (final p in ports) p.root]});
+        // Each ring is delivered to its root's own events folder, read only when it changed.
+        final events = [
+          for (final r in found.events)
+            HostEventsService.inDirectory(r, directoryFor(r.root, serial.toUpperCase()), serial.toUpperCase())
+        ];
+        report({
+          'state': 'serving',
+          'roots': [for (final p in ports) p.root],
+          'eventRings': [for (final e in events) e.reader.root]
+        });
         final last = <String, String>{};
         while (true) {
           for (final service in services) {
@@ -93,6 +103,14 @@ Future<void> main(List<String> arguments) async {
               report({'root': service.port.root, 'health': service.health.toJson()});
             }
           }
+          for (final service in events) {
+            await service.step();
+            final health = jsonEncode(service.toJson());
+            if (last['events:${service.reader.root}'] != health) {
+              last['events:${service.reader.root}'] = health;
+              report({'root': service.reader.root, 'events': service.toJson()});
+            }
+          }
           if (flags.contains('--once')) return;
           await Future<void>.delayed(Duration(milliseconds: interval));
         }
@@ -101,9 +119,7 @@ Future<void> main(List<String> arguments) async {
       report({'state': 'unavailable', 'error': '$error'});
       if (flags.contains('--once')) exit(1);
     } finally {
-      for (final p in ports) {
-        await p.close();
-      }
+      await found?.close();
     }
     await Future<void>.delayed(pause);
   }

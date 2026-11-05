@@ -449,7 +449,9 @@ port are retired; the Dart one is the only one.
 
 ## Open before emission (WP6.5/WP6.6)
 
-- The adapter's HostEvents delivery over the canonical ring.
+- The adapter's HostEvents delivery is implemented and proven on the native
+  capture ([evidence](Evidence/AB_S6_HOST_EVENTS_DART_OFFLINE_2026-11-05.md)); its
+  native read joins S6-Q.
 - The S1 snapshot's V6.11 path is exercised natively: a full V6.11 capture
   exists ([session 03](Evidence/AB_S6_HOST_SESSION_03_RUNTIME_2026-11-04.md)),
   and the canonical ring in it equals the legacy ring's projection.

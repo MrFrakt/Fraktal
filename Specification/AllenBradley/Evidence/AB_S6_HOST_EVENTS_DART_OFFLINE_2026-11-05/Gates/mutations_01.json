@@ -1,0 +1,164 @@
+{
+  "started": "2026-11-05T16:43:45.309543+00:00",
+  "baseline": {
+    "gateway": {
+      "exit": 0,
+      "verdict": "passed",
+      "tail": [
+        "00:01 +6: delivery writes the engineering cursor and sink bytes a publisher epoch change is a loss record",
+        "00:01 +7: delivery writes the engineering cursor and sink bytes (tearDownAll)",
+        "00:01 +7: All tests passed!"
+      ],
+      "tests": [
+        "delivery writes the engineering cursor and sink bytes a publisher epoch change is a loss record",
+        "delivery writes the engineering cursor and sink bytes a repeated batch delivers nothing new; a newer one only its new events",
+        "delivery writes the engineering cursor and sink bytes first delivery: the overwritten interval, then every held event",
+        "the batch refuses what it cannot vouch for a discontinuous sequence",
+        "the batch refuses what it cannot vouch for a parent beyond its count",
+        "the sealed session 03 capture a read is kept only between two equal even revisions",
+        "the sealed session 03 capture the canonical ring decodes to the legacy batch read natively"
+      ]
+    },
+    "hmi": {
+      "exit": 0,
+      "verdict": "passed",
+      "tail": [
+        "00:00 +0: loading C:/Users/SoftIndVM/Fraktal/FraktalCore/HMI/test/cip_v611_capture_test.dart",
+        "00:00 +0: the projection accepts V6.11 and publishes the host-event ring",
+        "00:00 +1: All tests passed!"
+      ],
+      "tests": [
+        "the projection accepts V6.11 and publishes the host-event ring"
+      ]
+    }
+  },
+  "mutants": [
+    {
+      "mutant": "the ring slot off by one",
+      "file": "host_events.dart",
+      "tests": [
+        "the sealed session 03 capture the canonical ring decodes to the legacy batch read natively"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "sequence continuity unchecked",
+      "file": "host_events.dart",
+      "tests": [
+        "the batch refuses what it cannot vouch for a discontinuous sequence"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a parent beyond its count accepted",
+      "file": "host_events.dart",
+      "tests": [
+        "the batch refuses what it cannot vouch for a parent beyond its count"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "an event acknowledged without its commit",
+      "file": "host_events.dart",
+      "tests": [
+        "delivery writes the engineering cursor and sink bytes a repeated batch delivers nothing new; a newer one only its new events"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "sink lines not ended as Python ends them",
+      "file": "host_events.dart",
+      "tests": [
+        "delivery writes the engineering cursor and sink bytes first delivery: the overwritten interval, then every held event"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "an epoch loss record misnamed",
+      "file": "host_events.dart",
+      "tests": [
+        "delivery writes the engineering cursor and sink bytes a publisher epoch change is a loss record"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "a torn read kept",
+      "file": "cip_host_service.dart",
+      "tests": [
+        "the sealed session 03 capture a read is kept only between two equal even revisions"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Consider enabling the flag chain-stack-traces to receive more detailed exceptions.",
+        "For example, 'dart test --chain-stack-traces'."
+      ]
+    },
+    {
+      "mutant": "the ring owner row not admitted",
+      "file": "cip_publication.dart",
+      "tests": [
+        "the projection accepts V6.11 and publishes the host-event ring"
+      ],
+      "exit": 1,
+      "verdict": "failed",
+      "killed": true,
+      "tail": [
+        "",
+        "Failing tests:",
+        "  C:/Users/SoftIndVM/Fraktal/FraktalCore/HMI/test/cip_v611_capture_test.dart: the projection accepts V6.11 and publishes the host-event ring"
+      ]
+    }
+  ],
+  "sources": {
+    "FraktalCore/HMI/gateway/lib/src/host_adapter/host_events.dart": "818373982D15346D1C105EF506D1E1DEE99779FF072CFABCDF7CFB859A459041",
+    "FraktalCore/HMI/packages/fraktal_opcua_client/lib/src/cip_host_service.dart": "4B5ADAF55270BEF17B4D3954037996AD494B56BD35518057947302C9DA93F09A",
+    "FraktalCore/HMI/packages/fraktal_opcua_client/lib/src/cip_publication.dart": "BF1D98EC8B94181A9EA1500DF77F6F7B3631D611AE5AC1E34BBDC53DB2BEF79B"
+  },
+  "passed": true,
+  "finished": "2026-11-05T16:44:15.135347+00:00"
+}

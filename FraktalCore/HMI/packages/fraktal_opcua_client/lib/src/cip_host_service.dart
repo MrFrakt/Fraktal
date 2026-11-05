@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'cip_manifest.dart';
 import 'cip_namespace.dart';
+import 'cip_publication.dart';
 import 'cip_template.dart';
 import 'cip_transport.dart';
 
@@ -13,7 +14,7 @@ import 'cip_transport.dart';
 /// (Fraktal/AB `fraktal_ab_host_service_binding.py` is the engineering twin).
 abstract final class CipHost {
   static const version = 1, minor = 11;
-  static const configSets = 1, configProvider = 2, liveDocuments = 3;
+  static const configSets = 1, configProvider = 2, liveDocuments = 3, hostEvents = 4;
   static const mutating = {1, 2, 3};
   // Request.Status: the host's outcome for the job phase it answers.
   static const ok = 1, failed = 2, refused = 3, lost = 4, unavailable = 5;
@@ -478,8 +479,107 @@ final class CipHostIngress implements CipHostPort {
   }
 }
 
-/// Discover every root with a mutating host-service row on one controller.
-Future<List<CipHostIngress>> cipHostDiscover(
+/// One root's canonical host-event ring, read-only and declaration-free.
+///
+/// The ring is one member of the root structure. It is read whole, as one
+/// structure, between two reads of its own owner revision, which the PLC holds
+/// odd while it changes the ring. Then it is projected exactly as the gateway
+/// projects any canonical subtree. A host never writes the ring, acknowledging
+/// nothing to the PLC: its cursor is its own.
+final class CipHostEventsReader {
+  final CipReadTransport wire;
+  final CipNamespace namespace;
+  final String root, revisionSymbol;
+  final CipTemplateMember member;
+  final CipTemplateDecoder _decoder;
+  final CipPublication _publication;
+  final String legacyContentHash;
+
+  CipHostEventsReader._(this.wire, this.namespace, this.root, this.revisionSymbol, this.member,
+      this._decoder, this._publication, this.legacyContentHash);
+
+  factory CipHostEventsReader(CipReadTransport wire, CipNamespace namespace,
+      CipManifest manifest, Map<String, Object?> row) {
+    final root = row['RootSymbol'] as String;
+    if (row['Service'] != CipHost.hostEvents || row['CanonicalRoot'] != '$root/HostEvents')
+      throw const FormatException('Not a HostEvents binding row.');
+    final owners = [
+      for (final o in manifest.rows('ownerReadBindings'))
+        if (o['CanonicalPrefix'] == '$root/HostEvents') o
+    ];
+    if (owners.length != 1)
+      throw const FormatException('The host-event ring needs exactly one owner-read row.');
+    final revision = namespace.symbols[owners.single['RevisionSymbol'] as String];
+    if (revision == null || revision.structured || revision.rank != 0 || revision.atomic != 0xc4)
+      throw const FormatException('The ring revision must be a DINT scalar Symbol.');
+    final symbol = namespace.symbols[root];
+    if (symbol == null || !symbol.structured || symbol.rank != 0)
+      throw FormatException('Host-event root unavailable: $root.');
+    final decoder = namespace.decoderFor([symbol.handle]);
+    final members = decoder.templates[symbol.handle]!.members.where((m) => m.name == 'HostEvents');
+    if (members.length != 1 || !members.single.isStructure || members.single.isArray)
+      throw const FormatException('The root publishes no HostEvents structure.');
+    final hash = manifest.document['legacyContentHash'];
+    if (hash is! String || hash.isEmpty) throw const FormatException('Legacy content hash unavailable.');
+    return CipHostEventsReader._(wire, namespace, root, revision.name, members.single, decoder,
+        CipPublication(namespace, manifest), hash);
+  }
+
+  /// The ring's owner revision: it changes whenever the ring does.
+  Future<int> revision() => CipNamespace.readDint(wire, revisionSymbol);
+
+  /// The ring's canonical values keyed `HostEvents/...`, or null when the
+  /// revision was odd or moved during the read (read again later).
+  Future<Map<String, Object?>?> read() async {
+    final before = await revision();
+    if (before.isOdd) return null;
+    final raw = await namespace.readStruct(wire, '$root.HostEvents', member.handle);
+    if (await revision() != before) return null;
+    return project(raw);
+  }
+
+  /// The canonical values of one ring structure's bytes.
+  Map<String, Object?> project(Uint8List raw) {
+    final value = Map<String, Object?>.from(_decoder.decode(member.handle, raw) as Map);
+    final count = value['Count'];
+    if (count is! int) throw const FormatException('Host-event ring count unavailable.');
+    final projected = _publication.projectSubtree(
+        '$root/HostEvents', member, value, {'$root/HostEvents/Count': count})['values'] as Map;
+    return {
+      for (final e in projected.entries) (e.key as String).substring(root.length + 1): e.value
+    };
+  }
+}
+
+/// Every HostEvents ring a V6.11 manifest binds; empty below V6.11.
+List<CipHostEventsReader> cipHostEventsReaders(
+        CipReadTransport wire, CipNamespace namespace, CipManifest manifest) =>
+    manifest.minor < CipHost.minor
+        ? []
+        : [
+            for (final row in manifest.rows('hostServiceBindings'))
+              if (row['Service'] == CipHost.hostEvents)
+                CipHostEventsReader(wire, namespace, manifest, row)
+          ];
+
+/// What one controller asks of a host: its ingresses and its event rings.
+final class CipHostDiscovery {
+  final CipReadTransport wire;
+  final List<CipHostIngress> ingresses;
+  final List<CipHostEventsReader> events;
+  const CipHostDiscovery(this.wire, this.ingresses, this.events);
+  bool get isEmpty => ingresses.isEmpty && events.isEmpty;
+
+  Future<void> close() async {
+    for (final port in ingresses) {
+      await port.close();
+    }
+    await wire.close();
+  }
+}
+
+/// Discover every root's host services and event rings on one controller.
+Future<CipHostDiscovery> cipHostDiscover(
     {required String host,
     int port = 44818,
     int slot = 0,
@@ -517,9 +617,10 @@ Future<List<CipHostIngress>> cipHostDiscover(
             slot: slot,
             expectSerial: expectSerial,
             connectionBytes: connectionBytes));
+    final discovery = CipHostDiscovery(wire, ports, cipHostEventsReaders(wire, namespace, manifest));
     // A controller serving nothing keeps no connection open between looks.
-    if (ports.isEmpty) await wire.close();
-    return ports;
+    if (discovery.isEmpty) await wire.close();
+    return discovery;
   } on Object {
     wire.abort();
     rethrow;

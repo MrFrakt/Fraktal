@@ -341,11 +341,26 @@ final class CipPublication {
       for (final s in manifest.rows('readServices'))
         s['CanonicalRoot'] as String
     };
+    // V6.11: each HostEvents ring its host-service row names publishes its own
+    // whole-scope owner revision (fraktal_ab_canonical_reader.snapshot's rule).
+    final rings = {
+      if (manifest.minor >= 11)
+        for (final r in manifest.rows('hostServiceBindings'))
+          if (r['Service'] == 4) r['CanonicalRoot'] as String
+    };
+    for (final ring in rings) {
+      if (!fields.keys.any((k) => k.startsWith('$ring/')))
+        throw const FormatException('Host-event ring is not published.');
+    }
     final owners = manifest.ownerCoherence;
-    if (owners.length != modules.length + views.length ||
-        owners.map((b) => b.canonicalPrefix).toSet().length != owners.length)
+    final prefixes = owners.map((b) => b.canonicalPrefix).toSet();
+    final scopes = {...modules, ...views, ...rings};
+    if (owners.length != modules.length + views.length + rings.length ||
+        prefixes.length != owners.length ||
+        prefixes.length != scopes.length ||
+        !prefixes.containsAll(scopes))
       throw const FormatException(
-          'Owner scopes do not cover module headers/views.');
+          'Owner scopes do not cover module headers/views/rings.');
     for (final b in owners) {
       for (final symbol in [b.revisionSymbol, b.progressSymbol]) {
         final s = namespace.symbols[symbol];
@@ -354,9 +369,9 @@ final class CipPublication {
               'Owner revision/progress Symbol is not DINT.');
       }
       if (b.members.isEmpty) {
-        if (!views.contains(b.canonicalPrefix))
+        if (!views.contains(b.canonicalPrefix) && !rings.contains(b.canonicalPrefix))
           throw const FormatException(
-              'Owner view is not a declared read service.');
+              'Owner view is not a declared read service or host-event ring.');
       } else {
         final expected = {
           for (final name in cipHeaderCoherenceMembers)

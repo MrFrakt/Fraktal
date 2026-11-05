@@ -479,8 +479,12 @@ instance's status but never stops the gateway. No `host_adapter.args` means no
 adapter, which is right for a PLC-memory-only station. The adapter keeps sets
 in `%LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root>`, overridden by
 `FRAKTAL_AB_CONFIG_SET_DIR`, with live documents in its `live` folder. It
-gains no login and no write path the logged-in operator does not have, and
-never resends a request the controller did not acknowledge.
+delivers the controller's host events, at least once, to
+`events\host_events.jsonl` there, with its acknowledged cursor in
+`events\cursor.json`. A consumer deduplicates by each record's
+`idempotencyKey`. A restore runs under the logged-in operator's authority:
+the adapter gains no login and no write path that operator does not have,
+and never resends a request the controller did not acknowledge.
 
 ## Linux systemd service
 

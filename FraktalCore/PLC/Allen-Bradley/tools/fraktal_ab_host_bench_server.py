@@ -18,8 +18,10 @@ station.
 """
 import dataclasses
 import json
+import os
 import struct
 import sys
+from types import SimpleNamespace
 
 import fraktal_ab_canonical_manifest as wire
 import fraktal_ab_canonical_publication as pub
@@ -73,12 +75,16 @@ def encode_record(objects, sizes, handle, value):
 
 class Server:
     def __init__(self, variant):
+        self._layout = None
+        if variant == 'cursor':
+            # Delivery only: the engineering cursor needs no station.
+            self.app = SimpleNamespace(name='')
+            return
         app = (bench_sets.application() if variant == 'sets'
                else dataclasses.replace(demo.application(), canonical_host_services=True))
         self.ctx = Context(app)
         self.app = app
         self.s = Station(self.ctx)
-        self._layout = None
 
     def text_only(self, value):
         """Bench values with text as str and every other leaf (BOOL included) as stored."""
@@ -343,6 +349,28 @@ class Server:
         if op == 'write_tag':
             self.write_tag(request['symbol'], request['data'])
             return dict(ok=True)
+        if op == 'deliver':
+            # fraktal_ab_host_events.main's cursor and JSONL sink, unchanged.
+            from pathlib import Path
+            from fraktal_ab_host_cursor import Cursor, HostEventsBad
+            folder = Path(request['directory'])
+            folder.mkdir(parents=True, exist_ok=True)
+            accepted = request.get('accept')
+            try:
+                cursor = Cursor(request['station'], folder / 'cursor.json', source=request['source'])
+                with (folder / 'host_events.jsonl').open('a', encoding='utf-8') as out:
+                    count = [0]
+                    def sink(record):
+                        if accepted is not None and count[0] >= accepted:
+                            return False
+                        count[0] += 1
+                        out.write(json.dumps(record, sort_keys=True) + '\n')
+                        out.flush()
+                        os.fsync(out.fileno())
+                        return True
+                    return dict(delivered=cursor.deliver(request['batch'], sink))
+            except HostEventsBad as error:
+                return dict(refused=str(error))
         if op == 'members':
             return dict(members={m.write_key: [m.minimum, m.maximum, m.kind]
                                  for _o, _r, m in gen.editable_values(self.app)})

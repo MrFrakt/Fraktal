@@ -10,8 +10,10 @@
 # The adapter answers the jobs a V6.11 controller opens for its configuration
 # sets and live documents. It keeps the four named sets in
 # %LOCALAPPDATA%\Fraktal\ConfigSets\<serial>-<root> (override with
-# FRAKTAL_AB_CONFIG_SET_DIR), live documents in its live\ folder. It gains no
-# login and no write path the logged-in operator does not have.
+# FRAKTAL_AB_CONFIG_SET_DIR), live documents in its live\ folder, and host
+# events in events\host_events.jsonl with their cursor in events\cursor.json.
+# A restore runs under the logged-in operator's authority: it gains no login
+# and no write path that operator does not have.
 --host
 192.168.1.10
 --slot

@@ -1399,10 +1399,16 @@ Status, 2026-11-04 ([evidence](Evidence/AB_S6_HOST_ADAPTER_OFFLINE_2026-11-04.md
     of 220 leaves on one coherent, wrapped state.
 
   The raw capture is sealed.
-- **Open.** The adapter's HostEvents delivery: reading the canonical ring
-  into the batch, proven against that capture, then the cursor and the sink.
-  And two adapter findings from the second session: `SessionPermits` covers
-  only the set gate, and a denied restore retries every 10 s.
+- **HostEvents delivered** (2026-11-05;
+  [evidence](Evidence/AB_S6_HOST_EVENTS_DART_OFFLINE_2026-11-05.md)). The
+  adapter reads each canonical ring under its owner revision. Its batch from
+  the sealed native capture equals the legacy batch read natively. Its
+  cursor and JSONL sink write the engineering collector's bytes. The work
+  also found the gateway's projection refusing every V6.11 image (the ring's
+  owner row), now fixed.
+- **Open.** The reader's native run (S6-Q). Two adapter findings from the
+  second session: `SessionPermits` covers only the set gate, and a denied
+  restore retries every 10 s.
 
 **WP6.6 — Phase B: collapse the generator.** In `fraktal_ab_generate.py`:
 

@@ -197,13 +197,18 @@ Its set scenarios run through the real CIP port over synthetic Templates as
 well as through plain values, and 12 one-line mutants are each killed. See
 the [Dart evidence](Evidence/AB_S6_HOST_ADAPTER_DART_OFFLINE_2026-11-04.md)
 (manifest SHA-256 `6D2F5A8B1EEED37C356FF3461FFA5F572EC3DAEAC8F9D4A815E76B7095409D5C`).
-HostEvents delivery is still open. The cursor's rules moved unchanged into
-`fraktal_ab_host_cursor`. The equivalence it needs is now proven natively: on
+The cursor's rules moved unchanged into `fraktal_ab_host_cursor`. The
+equivalence delivery needs is proven natively: on
 Echo, the canonical ring equals the legacy ring's projection, 220 of 220
 leaves on one coherent state. The raw capture is sealed for the reader's
 offline proof
 ([session 03](Evidence/AB_S6_HOST_SESSION_03_RUNTIME_2026-11-04.md), manifest SHA-256
 `517F63CEB9DC22183E20A5423214742813406F8871248CB7517626586C6EA1DB`).
+The adapter now delivers it. Its declaration-free reader's batch from that
+capture equals the legacy batch read natively. Its cursor and sink write the
+engineering collector's bytes
+([HostEvents evidence](Evidence/AB_S6_HOST_EVENTS_DART_OFFLINE_2026-11-05.md), manifest
+SHA-256 `56AC341EFDC110D7AEDE3B09E04254D260C3F197E421F445B9C45C86E28CAC04`).
 
 ## Implementation gates still open
 
