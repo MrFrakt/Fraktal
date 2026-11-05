@@ -88,7 +88,8 @@ def value_type(member):
     return 3 if member.kind == 'duration_ms' else 2 if member.kind == 'boolean' else 0
 
 
-def revision_rejected(app, value):
+def accepted_revisions(app):
+    """Every configuration revision this build loads, ascending: its own and exact predecessors."""
     import dataclasses
     import fraktal_ab_manifest as mf
     revisions = {mf.config_revision(app)}
@@ -122,12 +123,33 @@ def revision_rejected(app, value):
         # Derive the exact predecessor from this declaration; a foreign station
         # or changed value schema still has a different revision and refuses.
         variants.append(dataclasses.replace(app, canonical_publication_stage=12))
+    import fraktal_ab_host_services as host_services
+    if host_services.enabled(app):
+        # V6.11 host services change build identity, never the editable value
+        # schema: sets and live documents saved by this declaration without
+        # them (V6.10 and before) still load. Only those exact predecessors.
+        variants += [dataclasses.replace(item, canonical_host_services=False) for item in (app, *variants)]
     revisions.update(mf.config_revision(item) for item in variants)
-    terms = [f'({value} <> {revision})' for revision in sorted(revisions)]
+    return sorted(revisions)
+
+
+def _conjunction(value, revisions):
+    terms = [f'({value} <> {revision})' for revision in revisions]
     if len(terms) <= 5:
         return ' AND '.join(terms)
     # The v33 compiler rejects more than five chained terms at one level.
     return ' AND '.join('('+' AND '.join(terms[i:i+5])+')' for i in range(0,len(terms),5))
+
+
+def revision_rejected(app, value):
+    return _conjunction(value, accepted_revisions(app))
+
+
+# Studio v38 refuses one IF condition of 4,529 characters (122 revisions,
+# RxE_EXCEED_MAX_OPERAND_CHAR_LENGTH) and builds 2,284 (61, the most any
+# earlier declaration has), so a guard of more nests groups of this size:
+# the same conjunction in shorter operands, every earlier image unchanged.
+GUARD_TERMS = 61
 
 
 def range_rejected(member, value):
@@ -141,7 +163,13 @@ def revision_guard(app, value, reason, reject):
     # This scratch is free here and the following duplicate loop initializes it.
     target=scratch_names(app)[1] if app.canonical_publication_stage==13 else value
     prefix=[f'{target} := {value};'] if target!=value else []
-    return prefix+[f'IF {revision_rejected(app,target)} THEN {reason} := {reject}; END_IF;']
+    revisions = accepted_revisions(app)
+    if len(revisions) <= GUARD_TERMS:
+        return prefix+[f'IF {_conjunction(target,revisions)} THEN {reason} := {reject}; END_IF;']
+    groups = [revisions[i:i+GUARD_TERMS] for i in range(0,len(revisions),GUARD_TERMS)]
+    # Refused only when it differs from every group's revisions.
+    return (prefix+[f'IF {_conjunction(target,group)} THEN' for group in groups]
+            +[f'{reason} := {reject};']+['END_IF;']*len(groups))
 
 
 def cyclic(app):

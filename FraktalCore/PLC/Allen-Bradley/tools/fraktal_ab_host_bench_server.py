@@ -245,9 +245,14 @@ class Server:
                     rejectKey=self.s.bench.text(persist['LastRejectKey']),
                     models=t[models.tag(self.app)]['Count'])
 
-    def document(self, name, kind, source, model='', created=0, clock=0):
-        """The engineering rendering: current values, declared initials or changed ones."""
+    def document(self, name, kind, source, model='', created=0, clock=0, predecessor=False):
+        """The engineering rendering: current values, declared initials or changed ones.
+
+        `predecessor` renders as the same declaration without host services
+        would have saved it, with that build's configuration revision.
+        """
         t = self.s.t
+        app = dataclasses.replace(self.app, canonical_host_services=False) if predecessor else self.app
         def value(_o, record, member):
             if source == 'changed':
                 if member.kind == 'boolean':
@@ -258,7 +263,7 @@ class Server:
             if sets.config_kind(record) == 0:
                 return t[gen.model_cfg_tag(self.app)][0][member.name]
             return t[record.name + 'Tag'][member.name]
-        return sets.values_document(self.app, name, kind, value, model, created, clock)
+        return sets.values_document(app, name, kind, value, model, created, clock)
 
     def kept(self, created):
         """The engineering keeper's documents for the controller's current values."""
@@ -299,7 +304,7 @@ class Server:
         if op == 'document':
             return dict(document=self.document(request['name'], request['kind'], request['source'],
                                                request.get('model', ''), request.get('created', 0),
-                                               request.get('clock', 0)))
+                                               request.get('clock', 0), request.get('predecessor', False)))
         if op == 'kept':
             return dict(documents=self.kept(request['created']))
         if op == 'python_store':

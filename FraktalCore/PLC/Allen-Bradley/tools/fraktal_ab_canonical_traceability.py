@@ -268,7 +268,8 @@ def host_logic(app):
     # V6.11: the ring's own owner revision brackets every scan that changes it.
     import fraktal_ab_owner_read_bindings as owner
     revision=host_services.ring_revision_tag(app)
-    changed=['S:FS',*(f'({t}.Wrapped <> ({s}.Wrapped <> 0))' if n=='Wrapped' else f'({t}.{n} <> {s}.{n})' for n in host.META),
+    # A BOOL is no comparison operand in Logix ST (RxSTX_E_BOOLOPND_UNEXPECTED); XOR is its inequality.
+    changed=['S:FS',*(f'({t}.Wrapped XOR ({s}.Wrapped <> 0))' if n=='Wrapped' else f'({t}.{n} <> {s}.{n})' for n in host.META),
         f'({t}.RingHead <> {s}.Head)',f'({w}.Initialized = 0)',f'({w}.SeenRing <> {s}.DataRevision)',
         f'({w}.SeenLow <> {s}.EpochLow)',f'({w}.SeenHigh <> {s}.EpochHigh)',
         *([f'({w}.SeenModels <> {app.name}.AvailableModelCount)'] if app.models and app.model_capacity else [])]

@@ -251,8 +251,9 @@ final class Rig {
 
   Future<Map<String, Object?>> read() => bench.call('read');
 
+  /// [predecessor] renders as the same declaration without host services saved it.
   Future<Document> engineering(String name, int kind, String source,
-          {String model = '', int created = 0, int clock = 0}) async =>
+          {String model = '', int created = 0, int clock = 0, bool predecessor = false}) async =>
       [
         for (final line in (await bench.call('document', {
           'name': name,
@@ -260,7 +261,8 @@ final class Rig {
           'source': source,
           'model': model,
           'created': created,
-          'clock': clock
+          'clock': clock,
+          'predecessor': predecessor
         }))['document'] as List)
           Map<String, Object?>.from(line as Map)
       ];
@@ -564,6 +566,28 @@ void main() {
         final expected = [for (final l in entry.value as List) Map<String, Object?>.from(l as Map)];
         expect(content(r.medium.read(entry.key as String)!), content(expected), reason: '${entry.key}');
       }
+    }, skip: skip);
+
+    test('documents saved by the build without host services are restored', () async {
+      // The first V6.11 download restores what V6.10 kept: same values, its revision.
+      final facts = await r.service.port.facts();
+      final root = facts.root, code = facts.codes.first;
+      final station = await r.engineering(liveName, 1, 'changed',
+          model: code, created: 1790899200, predecessor: true);
+      final model = await r.engineering(liveName, 0, 'changed',
+          model: code, created: 1790899200, predecessor: true);
+      expect(station.first['configRev'], isNot(facts.revision));
+      r.medium.write('$root.station', station);
+      r.medium.write('$root.model1', model);
+      await r.settle(4);
+      expect(r.service.health.restoredAt, isNotEmpty, reason: '${r.service.health.toJson()}');
+      expect(r.service.health.losses, isEmpty);
+      final read = await r.read();
+      expect(read['stamped'], true);
+      expect(read['station'], {
+        for (final x in station.skip(1))
+          x['key']: x['value'] == 'TRUE' ? 1 : x['value'] == 'FALSE' ? 0 : int.parse(x['value'] as String)
+      });
     }, skip: skip);
 
     test('a lost document is restored as a loss', () async {
