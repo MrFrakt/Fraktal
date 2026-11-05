@@ -14,6 +14,7 @@ from pathlib import Path
 import fraktal_ab_access as access
 import fraktal_ab_declaration as decl
 import fraktal_ab_press_demo as press
+import fraktal_ab_document_revision as document_revision
 
 
 def application() -> decl.Application:
@@ -29,6 +30,7 @@ def application() -> decl.Application:
             access.User('echo_admin', 4, '7f2f87d638bcef72113fa1047a24aca3', '8a2856647691346ffbaf309c7b3194f413dc5429eb273270e06c104d14540c37'),
         ),
         simulation_mailbox_rw=True,
+        config_predecessors=document_revision.recorded('fraktal_ab_press_echo38', '6F3F8CDA9A8F6B59'),
     )
 
 

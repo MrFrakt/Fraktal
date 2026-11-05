@@ -41,6 +41,7 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_library as library
 import fraktal_ab_reasons as reasons
 import fraktal_ab_line as line_profile
+import fraktal_ab_document_revision as document_revision
 
 # --- reasons (Core §8.8) -----------------------------------------------------
 # A library type's codes come from the type, Core's from the registry, and the
@@ -223,6 +224,9 @@ def application(*, line=None) -> decl.Application:
                        values={"DwellMs": dwell, "IdealCycleMs": ideal,
                                "BaselineWorkMs": ideal})
             for code, key, dwell, ideal in MODELS),
+        # Recorded for the default form only: a line changes what the values mean.
+        config_predecessors=(document_revision.recorded('fraktal_ab_station_template', '08ED66CF5A51FA7F')
+                             if line is None else None),
     )
 
 

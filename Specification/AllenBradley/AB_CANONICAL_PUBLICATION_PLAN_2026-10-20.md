@@ -1740,6 +1740,11 @@ context member declarations that R8 deletes. Recommended, per the
 The alternative, not chosen, keeps a frozen, unemitted V5 content function
 solely to feed the hash. O12 lands as increment C0b, before C1.
 
+C0b is implemented offline ([evidence](Evidence/AB_S6_O12_DOCUMENT_REVISION_OFFLINE_2026-11-05.md)). Each declaration accepts
+exactly its own recorded revisions, bound to the document identity they were
+saved under. A declaration whose values change meaning but still claims them
+does not validate. The V5 header keeps its content revision until C6.
+
 O1–O12 are decided. The later owner touchpoints include the C12 browser
 checklist (owner-operated by design, P10) and any controller other than Echo.
 

@@ -13,12 +13,13 @@ from pathlib import Path
 
 import fraktal_ab_declaration as decl
 import fraktal_ab_press_echo38 as echo
+import fraktal_ab_document_revision as document_revision
 
 
 def application() -> decl.Application:
     base = echo.application()
     return replace(base, chains=tuple(replace(c, renditions=decl.RENDITIONS) if c.name == 'AUTO' else c
-                                      for c in base.chains))
+                                      for c in base.chains), config_predecessors=document_revision.recorded('fraktal_ab_press_rendition_echo38', '6F3F8CDA9A8F6B59'))
 
 
 def generate(source: Path, output: Path) -> dict[str, object]:

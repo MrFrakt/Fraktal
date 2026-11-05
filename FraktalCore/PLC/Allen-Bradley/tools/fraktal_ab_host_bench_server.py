@@ -254,11 +254,12 @@ class Server:
     def document(self, name, kind, source, model='', created=0, clock=0, predecessor=False):
         """The engineering rendering: current values, declared initials or changed ones.
 
-        `predecessor` renders as the same declaration without host services
-        would have saved it, with that build's configuration revision.
+        `predecessor` renders it as the build without host services (`demo`)
+        saved it before the collapse: the same values, stamped with that
+        build's recorded configuration revision (O12).
         """
         t = self.s.t
-        app = dataclasses.replace(self.app, canonical_host_services=False) if predecessor else self.app
+        app = self.app
         def value(_o, record, member):
             if source == 'changed':
                 if member.kind == 'boolean':
@@ -269,7 +270,13 @@ class Server:
             if sets.config_kind(record) == 0:
                 return t[gen.model_cfg_tag(self.app)][0][member.name]
             return t[record.name + 'Tag'][member.name]
-        return sets.values_document(app, name, kind, value, model, created, clock)
+        document = sets.values_document(app, name, kind, value, model, created, clock)
+        if predecessor:
+            import fraktal_ab_document_revision as docrev
+            revision = docrev.saved_revision(demo.__name__)
+            document = sets.checked_document([{**document[0], 'configRev': revision},
+                                              *({**r, 'rev': revision} for r in document[1:])])
+        return document
 
     def kept(self, created):
         """The engineering keeper's documents for the controller's current values."""

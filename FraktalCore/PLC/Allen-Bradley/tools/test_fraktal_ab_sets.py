@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import fraktal_ab_declaration as decl
+import fraktal_ab_document_revision as docrev
 import fraktal_ab_generate as gen
 import fraktal_ab_gateway as gw
 import fraktal_ab_mailbox as mb
@@ -41,10 +42,10 @@ def controller(app=APP):
 
 
 def document(app=APP, name='commissioning', kind=1):
-    records = [{'scope': app.name, 'key': m.write_key, 'rev': mf.config_revision(app),
+    records = [{'scope': app.name, 'key': m.write_key, 'rev': docrev.revision(app),
                 'kind': kind, 'type': sets.value_type(m), 'value': ('TRUE' if m.initial else 'FALSE') if m.kind == 'boolean' else str(m.initial)}
                for _ordinal, r, m in gen.editable_values(app) if sets.config_kind(r) == kind]
-    return [{'set': name, 'root': app.name, 'schema': 1, 'configRev': mf.config_revision(app),
+    return [{'set': name, 'root': app.name, 'schema': 1, 'configRev': docrev.revision(app),
              'kind': kind, 'model': app.default_model if kind == 0 else '',
              'records': len(records), 'created': 1790899200, 'clock': 0}, *records]
 
@@ -249,7 +250,7 @@ class ControllerTransactions(unittest.TestCase):
 class PortableLinesAndStore(unittest.TestCase):
     def test_codec_matches_the_tc3_header_and_record_field_order(self):
         doc = document()
-        self.assertEqual(sets.render_line(doc[1]), '{"scope":"Press","key":"station.number","rev":' + str(mf.config_revision(APP)) + ',"kind":1,"type":0,"value":"1"}')
+        self.assertEqual(sets.render_line(doc[1]), '{"scope":"Press","key":"station.number","rev":' + str(docrev.revision(APP)) + ',"kind":1,"type":0,"value":"1"}')
         for value in doc:
             self.assertEqual(sets.parse_line(sets.render_line(value)), value)
 

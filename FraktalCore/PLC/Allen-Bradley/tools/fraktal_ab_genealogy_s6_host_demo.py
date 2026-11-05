@@ -8,7 +8,8 @@ compare the canonical ring with the legacy one (WP6.5) before WP6.6 removes them
 """
 from dataclasses import replace
 import fraktal_ab_genealogy_s4b_owner_demo as previous
+import fraktal_ab_document_revision as document_revision
 
 
 def application():
-    return replace(previous.application(), canonical_host_services=True)
+    return replace(previous.application(), canonical_host_services=True, config_predecessors=document_revision.recorded('fraktal_ab_genealogy_s6_host_demo', '6F3F8CDA9A8F6B59'))

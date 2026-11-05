@@ -17,6 +17,7 @@ from unittest import mock
 import fraktal_ab_access as access
 import fraktal_ab_config as config
 import fraktal_ab_declaration as decl
+import fraktal_ab_document_revision as docrev
 import fraktal_ab_gateway as gw
 import fraktal_ab_generate as gen
 import fraktal_ab_live as live
@@ -238,7 +239,8 @@ class ControllerRestore(unittest.TestCase):
         """The restore text moves the published revision; the values did not."""
         earlier = mf.config_revision(BASE)
         self.assertNotEqual(earlier, mf.config_revision(LIVE))
-        for revision, accepted in ((earlier, 1), (mf.config_revision(LIVE), 1), (123456, 0)):
+        for revision, accepted in ((earlier, 1), (mf.config_revision(LIVE), 1), (docrev.revision(LIVE), 1),
+                                   (123456, 0)):
             c, doc = live_controller(restoring=False), document(LIVE)
             doc[0]['configRev'] = revision
             for record in doc[1:]:
@@ -317,7 +319,7 @@ class Medium(unittest.TestCase):
         docs = live.documents(LIVE, h, 5)
         station = docs['Press.station']
         self.assertEqual((station[0]['set'], station[0]['kind'], station[0]['model']), (live.LIVE_NAME, 1, 'M-200'))
-        self.assertIn({'scope': 'Press', 'key': 'station.number', 'rev': mf.config_revision(LIVE),
+        self.assertIn({'scope': 'Press', 'key': 'station.number', 'rev': docrev.revision(LIVE),
                        'kind': 1, 'type': 0, 'value': '41'}, station[1:])
         model = docs['Press.model3']
         self.assertEqual((model[0]['kind'], model[0]['model']), (0, 'M-050'))

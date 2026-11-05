@@ -4,6 +4,7 @@ from dataclasses import replace
 import fraktal_ab_declaration as decl
 import fraktal_ab_host_demo as host
 import fraktal_ab_part as part
+import fraktal_ab_document_revision as document_revision
 
 
 def application():
@@ -37,7 +38,7 @@ def application():
         part_carrier=part.LocalCarrier('OFFLINE-PRESS', (
             part.Measurement('PressDwell', 's', 50, 10000, 300, scale=1000),
             part.Measurement('RamPosition', '%', 0, 100, 100)), result_capacity=4),
-        reasons={**base.reasons, **part.REASONS})
+        reasons={**base.reasons, **part.REASONS}, config_predecessors=document_revision.recorded('fraktal_ab_part_demo', '6F3F8CDA9A8F6B59'))
 
 
 def generate(source, output):

@@ -812,6 +812,23 @@ def live_documents(app: "Application") -> bool:
 
 
 @dataclass(frozen=True)
+class ConfigPredecessors:
+    """Document revisions saved before the WP6.6 collapse, and what they meant (O12).
+
+    `identity` is the document identity (`fraktal_ab_document_revision`) the
+    station had when they were saved. A build honours `revisions` only while
+    its own identity is still that one; once a value changes meaning, those
+    documents are migrated or refused (Core §3.8), never loaded. A declaration
+    in this tree takes both from `fraktal_ab_document_revision.recorded`. One
+    declared elsewhere records its revisions with `fraktal_ab_config_revisions.py`
+    at a3e80ef54 before it upgrades, then its identity after.
+    """
+
+    identity: str
+    revisions: tuple[int, ...]
+
+
+@dataclass(frozen=True)
 class Application:
     """One committed declaration: everything a Logix project is emitted from."""
 
@@ -935,6 +952,11 @@ class Application:
     canonical_host_services: bool = False
     # Disposable S3j acceptance source, never a production HAL driver.
     canonical_io_fixture: bool = False
+    # O12: the revisions this station's documents carried before the WP6.6
+    # collapse, which its build keeps loading. See ConfigPredecessors. It is
+    # compatibility metadata, not station content, so two declarations that
+    # differ only here are the same declaration.
+    config_predecessors: ConfigPredecessors | None = field(default=None, compare=False)
 
     @property
     def program(self) -> str:
@@ -1387,6 +1409,8 @@ def validate(app: Application) -> list[str]:
     findings.extend(part.validate(app))
     import fraktal_ab_signal_tower as tower
     findings.extend(tower.validate(app))
+    import fraktal_ab_document_revision as document_revision
+    findings.extend(document_revision.validate(app))
     line_records = [r for r in app.records if r.line_cfg]
     if app.line is not None:
         import fraktal_ab_line as line

@@ -154,9 +154,9 @@ def plan(app, medium):
 
 
 def empty_station(app):
-    import fraktal_ab_manifest as mf
+    import fraktal_ab_document_revision as document
     return sets.checked_document([{'set': LIVE_NAME, 'root': app.name, 'schema': 1,
-                                   'configRev': mf.config_revision(app), 'kind': 1, 'model': '',
+                                   'configRev': document.revision(app), 'kind': 1, 'model': '',
                                    'records': 0, 'created': 0, 'clock': 0}])
 
 

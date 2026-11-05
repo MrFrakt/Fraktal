@@ -22,6 +22,7 @@ command either runs within PARK_MS of arriving or is refused, so it never runs
 after the operator's client has given up on it.
 """
 import fraktal_ab_canonical_publication as pub
+import fraktal_ab_document_revision as document
 import fraktal_ab_host_service_binding as binding
 import fraktal_ab_host_services as host
 import fraktal_ab_mailbox as mb
@@ -151,13 +152,12 @@ def _name_bytes(app):
 
 def _stage_defaults(app):
     """The controller's own staging for a fresh command, as the broker staged it."""
-    import fraktal_ab_manifest as mf
     q, h, req = staged_tag(app), work_tag(app), mb.request_tag_name(app)
     i = h + '.Index'
     name = f'{req}.TextValue'
     lines = [f'{q}.SchemaVersion := 1;', f'{q}.Sequence := FRK_{app.name}_HmiLastSequence;',
              f'{q}.Operation := {req}.Kind;', f'{q}.Commit := 0;', f'{q}.Valid := 1;', f'{q}.RootId := 1;',
-             f'{q}.SetSchema := 1;', f'{q}.ConfigRev := {mf.config_revision(app)};', f'{q}.Kind := 1;',
+             f'{q}.SetSchema := 1;', f'{q}.ConfigRev := {document.revision(app)};', f'{q}.Kind := 1;',
              f'{q}.Count := 0;', f'{q}.StoreAck := 0;', f'{q}.StoreResult := 0;',
              f'IF ({req}.Kind = {mb.SAVE_CONFIG_SET}) OR ({req}.Kind = {mb.EXPORT_CURRENT_CONFIG}) THEN {q}.Kind := {req}.IntValue; END_IF;',
              f'IF {req}.Kind = {mb.IMPORT_CONFIG_SET} THEN {q}.Commit := {req}.BoolValue; END_IF;',
@@ -180,13 +180,12 @@ def _stage_defaults(app):
 def _snapshot(app):
     """The transaction's snapshot, published with the job a host renders it for."""
     import fraktal_ab_generate as gen
-    import fraktal_ab_manifest as mf
     h, q, s = work_tag(app), staged_tag(app), sets.state_tag(app)
     snapshot = host.work_tag(app) + '.Reply.Snapshot'
     return [f'{snapshot}.Kind := {q}.Kind;', f'{snapshot}.Count := {s}.Count;',
             f'{snapshot}.ModelOrdinal := {s}.ModelOrdinal;', f'{snapshot}.Date := {s}.Date;',
             f'{snapshot}.Clock := {s}.Clock;', f'{snapshot}.Synchronized := {s}.TimeSynchronized;',
-            f'{snapshot}.Revision := {mf.config_revision(app)};',
+            f'{snapshot}.Revision := {document.revision(app)};',
             f'FOR {h}.Index := 0 TO {max(1, len(gen.editable_values(app))) - 1} DO',
             f'{snapshot}.Values[{h}.Index] := {s}.Snapshot[{h}.Index];', 'END_FOR;']
 
@@ -409,7 +408,6 @@ def _reset(app):
 def _keep_open(app):
     """A host asks for one document's current values: station, line or model n."""
     import fraktal_ab_generate as gen
-    import fraktal_ab_manifest as mf
     import fraktal_ab_models as models
     w, s, r = host.work_tag(app), host.sample_tag(app), host.work_tag(app) + '.Reply'
     b, snapshot = s + '.' + host.CHUNK_MEMBER, r + '.Snapshot'
@@ -426,7 +424,7 @@ def _keep_open(app):
              f'{snapshot}.Kind := {b}.RecordKind;', f'{snapshot}.ModelOrdinal := 0;',
              f'{snapshot}.Date := FRK_{app.name}_NowDate;', f'{snapshot}.Clock := FRK_{app.name}_NowTime;',
              f'{snapshot}.Synchronized := {gen.health_probe_tag(app)}.TimeIsSynchronized;',
-             f'{snapshot}.Revision := {mf.config_revision(app)};', f'CASE {b}.RecordKind OF']
+             f'{snapshot}.Revision := {document.revision(app)};', f'CASE {b}.RecordKind OF']
     for kind, values in groups.items():
         if not values:
             continue
@@ -446,7 +444,6 @@ def _restore_open(app):
     """A host opens one restore document while the controller restores, under the session's Permits."""
     import fraktal_ab_generate as gen
     import fraktal_ab_live as live_documents
-    import fraktal_ab_manifest as mf
     w, s, r = host.work_tag(app), host.sample_tag(app), host.work_tag(app) + '.Reply'
     b, h, q = s + '.' + host.CHUNK_MEMBER, work_tag(app), staged_tag(app)
     creating = f'({s}.Operation = {mb.CREATE_MODEL})'
@@ -465,7 +462,7 @@ def _restore_open(app):
             *host.open_job(app, binding.SERVICES['LiveDocuments'], s + '.Operation', binding.RESTORE),
             f'{r}.JobInt := {s}.Argument;', *_literal(r + '.JobName', live_documents.LIVE_NAME),
             f'{q}.SchemaVersion := 1;', f'{q}.Sequence := 0;', f'{q}.Operation := {s}.Operation;', f'{q}.Commit := 0;',
-            f'{q}.Valid := 1;', f'{q}.RootId := 1;', f'{q}.SetSchema := 1;', f'{q}.ConfigRev := {mf.config_revision(app)};',
+            f'{q}.Valid := 1;', f'{q}.RootId := 1;', f'{q}.SetSchema := 1;', f'{q}.ConfigRev := {document.revision(app)};',
             f'{q}.Kind := 1;', f'{q}.Count := 0;', f'{q}.StoreAck := 0;',
             # The station document answers the restore: LOST says a document was lost.
             f'IF {s}.Status = {binding.LOST} THEN {q}.StoreResult := 2; ELSE {q}.StoreResult := 1; END_IF;',

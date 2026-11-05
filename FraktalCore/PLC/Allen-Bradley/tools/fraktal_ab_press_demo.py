@@ -44,6 +44,7 @@ import fraktal_ab_access as access
 import fraktal_ab_library as library
 import fraktal_ab_reasons as reasons
 import fraktal_ab_line as line
+import fraktal_ab_document_revision as document_revision
 
 
 # --- named reasons ----------------------------------------------------------
@@ -708,6 +709,7 @@ def application() -> decl.Application:
             for code, key, dwell, settle, ideal in MODELS
         ),
         chart_steps=32,
+        config_predecessors=document_revision.recorded('fraktal_ab_press_demo', '6F3F8CDA9A8F6B59'),
     )
 
 

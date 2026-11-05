@@ -417,7 +417,8 @@ def main(argv=None):
         after, _, _ = reader._read_raw(comm, manifest.header_tag(app))
         if after != before:
             raise HostEventsBad('manifest changed during host-event acquisition')
-    source = f'{serial}:{manifest.content_hash(app)}'
+    # The published LegacyContentHash, as the Dart adapter keys its cursor (O12).
+    source = f'{serial}:{__import__("fraktal_ab_document_revision").identity(app)}'
     cursor = Cursor(app.name, args.cursor, source=source)
     if args.sqlite_output:
         from fraktal_ab_host_sink import SqliteSink

@@ -16,13 +16,14 @@ from pathlib import Path
 import fraktal_ab_declaration as decl
 import fraktal_ab_press_demo as press
 import fraktal_ab_press_rendition_echo38 as oracle
+import fraktal_ab_document_revision as document_revision
 
 
 def application() -> decl.Application:
     return replace(oracle.application(), canonical_publication_stage=13, canonical_observation_period_ms=50,
                    canonical_table_driven=True, canonical_type_manifest=True, canonical_io_fixture=True,
                    io_modules=(replace(press._press_io(), sample_tag='FRK_Press_SimIo',
-                                       type_id='Fixture: sampled controller words'),))
+                                       type_id='Fixture: sampled controller words'),), config_predecessors=document_revision.recorded('fraktal_ab_press_canonical_echo38', '6F3F8CDA9A8F6B59'))
 
 
 def generate(source: Path, output: Path) -> dict[str, object]:

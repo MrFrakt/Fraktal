@@ -145,7 +145,7 @@ Each increment is one commit, or a few, and passes before the next starts:
 | # | Step | Surface difference it declares |
 |---|---|---|
 | C0 | This inventory, the schema-identity gate, and fixtures recorded from `6898dfb87` | None |
-| C0b | O12: the document revision redefined; every pre-collapse revision accepted | Each header value derived from the revision, changed |
+| C0b | O12: the document revision redefined; every pre-collapse revision accepted | None: only the derived hashes move |
 | C1 | R3: type AOIs write their canonical leaf; ScanCanonical keeps only per-instance calls | Context type members `OutImm_ExecState`, `Tim*`, and module `Error` where only FaultActive read it, removed |
 | C2 | R8, Unit: exact-counterpart members become canonical storage | Their Unit/Chart members removed |
 | C3 | R8, modules: contexts become AOI parameters and locals; `unused` deleted | `FRK_<Root>_Ctx*` tags and `FRK_T_*Ctx` types removed |
@@ -217,6 +217,29 @@ record, is a separate question outside O12.
 **Alternative, not chosen.** Keep the V5 content computation as an
 unemitted, frozen identity function. The revision is then unchanged forever,
 but the member declarations R8 deletes survive solely to feed a hash.
+
+**As built (C0b, [evidence](Evidence/AB_S6_O12_DOCUMENT_REVISION_OFFLINE_2026-11-05.md)).**
+
+- **Exact predecessors.** Each declaration accepts exactly the revisions its
+  own pre-collapse build accepted. A union over every in-tree declaration with
+  the same identity was tried first and rejected: all 26 press-family
+  declarations share one identity, so every press image's guard would have
+  grown from 5 terms to 197, the L24ER press's included. It would also have
+  accepted documents only some other demo ever saved.
+- **One field.** The predecessors are the declaration's
+  `config_predecessors`, in the tree and out of it. An in-tree declaration
+  names its entry in the record written at `a3e80ef54`, which the build
+  refuses to read if its SHA-256 changes.
+- **Bound to a meaning.** The predecessors carry the identity they were saved
+  under, and a build honours them only while its identity is still that one.
+  A declaration whose values then change meaning but still claims them does
+  not validate: the author migrates the documents or removes the claim. The
+  record schema version is part of the identity, so a record schema bump is
+  migrate-or-fault, as Core §3.8 requires.
+- **The V5 header keeps its own `ConfigRevision`.** Part III ties it to the V5
+  content, and readers cache the V5 manifest until it changes. It and the
+  V5-build capability tokens of the legacy Frame and staged paths stay as
+  they are until C5 and C6 remove those paths.
 
 **Order.** O12 lands as C0b, before C1. The V5 field rows that today's
 revision hashes include every context member. Removing even one, as C1 does,

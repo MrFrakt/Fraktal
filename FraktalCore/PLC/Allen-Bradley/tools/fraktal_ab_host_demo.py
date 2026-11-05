@@ -7,6 +7,7 @@ from dataclasses import replace
 
 import fraktal_ab_declaration as decl
 import fraktal_ab_press_echo38 as echo
+import fraktal_ab_document_revision as document_revision
 
 
 def application():
@@ -21,7 +22,7 @@ def application():
         nameplate=decl.Nameplate('Fraktal', "Offline fixture's $identity ]]> record", 'OFFLINE-ONLY',
             product_uri='urn:fraktal:offline:host-events', year='2026',
             hardware_version='test', firmware_version='38.011', software_version='1',
-            documentation_url='https://github.com/MrFrakt/Fraktal'))
+            documentation_url='https://github.com/MrFrakt/Fraktal'), config_predecessors=document_revision.recorded('fraktal_ab_host_demo', '6F3F8CDA9A8F6B59'))
 
 
 def generate(source, output):

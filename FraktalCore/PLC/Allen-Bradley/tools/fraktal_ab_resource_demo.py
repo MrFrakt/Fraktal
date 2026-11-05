@@ -1,6 +1,7 @@
 """Disposable confirmed-resource fixture; fictitious tool/lot, no device driver."""
 from dataclasses import replace
 import fraktal_ab_tower_demo as tower
+import fraktal_ab_document_revision as document_revision
 
 
 def application():
@@ -17,7 +18,7 @@ def application():
             replace(step, resource_kind='TOOL_CHANGED', resource_subject='Fixture.UpperDie',
                     resource_value=314) if step.number == 145 else step for step in chain.steps)
         chains.append(replace(chain, steps=steps))
-    return replace(base, chains=tuple(chains))
+    return replace(base, chains=tuple(chains), config_predecessors=document_revision.recorded('fraktal_ab_resource_demo', '6F3F8CDA9A8F6B59'))
 
 
 def generate(source, output):

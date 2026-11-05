@@ -423,7 +423,8 @@ def manifest_values(app, definitions=None):
     if app.canonical_publication_stage>=8:
         import fraktal_ab_config_provider as provider
     if definitions is None:definitions=schema(app)
-    fields, old_hash = field_rows(app,definitions), legacy.content_hash(app)
+    # O12: the document identity, so configRev = LegacyContentHash[:6] holds.
+    fields, old_hash = field_rows(app,definitions), __import__('fraktal_ab_document_revision').identity(app)
     minor = wire.SERVICE_MINOR if app.canonical_publication_stage>=8 else wire.FRAGMENT_MINOR if app.canonical_publication_stage>=5 else wire.VIEW_MINOR if app.canonical_publication_stage >= 3 else wire.MINOR
     if app.canonical_type_manifest:minor=wire.TYPE_MINOR
     if app.canonical_publication_stage>=12:minor=wire.PRODUCT_MINOR

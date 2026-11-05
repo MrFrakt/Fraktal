@@ -46,8 +46,11 @@ def apparatus(app, capture_bytes):
     # Preserve the captured runtime publication token, not the generator's
     # pre-run initializer. It is outside the immutable manifest hash body.
     metadata['normalized']['fragmentRevision'] = old_manifest['fragmentRevision']
+    # O12 derives legacyContentHash from the document identity, like the two
+    # hashes beside it; the captured value is the old image's.
     for key, value in old_manifest.items():
-        if key not in ('schemaMinor', 'contentHash', 'configRevision') and metadata['normalized'][key] != value:
+        if key not in ('schemaMinor', 'contentHash', 'configRevision', 'legacyContentHash') \
+                and metadata['normalized'][key] != value:
             raise ValueError('apparatus would change existing manifest facts: '+key)
     definitions = pub.schema(app)
     templates = capture['templates']

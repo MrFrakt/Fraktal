@@ -89,48 +89,17 @@ def value_type(member):
 
 
 def accepted_revisions(app):
-    """Every configuration revision this build loads, ascending: its own and exact predecessors."""
-    import dataclasses
-    import fraktal_ab_manifest as mf
-    revisions = {mf.config_revision(app)}
-    # Live documents add one release text, not a value: sets saved before them
-    # carry the earlier identity. Every earlier build predates them, so the
-    # historical variants below are of that identity, never hypothetical
-    # live builds (Studio v33 compiles at most five chained ANDs).
-    earlier = dataclasses.replace(app, config_medium=None) if decl.live_documents(app) else app
-    variants = [earlier]
-    if app.line is not None:
-        variants.append(dataclasses.replace(earlier, line=None, records=tuple(r for r in app.records if not r.line_cfg)))
-    # The catalog extension changes build identity, not the declared value
-    # schema. Recognize that exact prior content; all other revisions refuse.
-    if app.model_capacity:
-        variants += [dataclasses.replace(item, model_capacity=0) for item in variants[:]]
-    if app.signal_tower is not None:
-        # Tower convention/output fields change discovery, never the editable
-        # value schema. Accept only the exact same declaration without it.
-        variants += [dataclasses.replace(item,signal_tower=None) for item in (app,*variants)]
-    import fraktal_ab_resources as resources
-    import fraktal_ab_genealogy as genealogy
-    if genealogy.enabled(app):
-        variants += [genealogy.without(item) for item in (app,*variants)]
-    if resources.text_enabled(app):
-        variants += [resources.without_text(item) for item in (app,*variants)]
-    if resources.enabled(app):
-        variants += [resources.without(item) for item in (app,*variants)]
-    if app.canonical_publication_stage == 13:
-        # S3k versions the release-report owner and localization catalogue,
-        # changing publication identity without changing configuration Records.
-        # Derive the exact predecessor from this declaration; a foreign station
-        # or changed value schema still has a different revision and refuses.
-        variants.append(dataclasses.replace(app, canonical_publication_stage=12))
-    import fraktal_ab_host_services as host_services
-    if host_services.enabled(app):
-        # V6.11 host services change build identity, never the editable value
-        # schema: sets and live documents saved by this declaration without
-        # them (V6.10 and before) still load. Only those exact predecessors.
-        variants += [dataclasses.replace(item, canonical_host_services=False) for item in (app, *variants)]
-    revisions.update(mf.config_revision(item) for item in variants)
-    return sorted(revisions)
+    """Every configuration revision this build loads, ascending: its own and its
+    recorded pre-collapse predecessors (O12, `fraktal_ab_document_revision`).
+
+    It used to rebuild each predecessor by replaying the declaration without
+    each later feature: live documents, the line, the model catalog, the signal
+    tower, genealogy, resource events, the S3k stage and host services. Each
+    changed build identity but no saved value's meaning. The revision no
+    longer moves for such a change, and every revision those variants produced
+    is recorded."""
+    import fraktal_ab_document_revision as document
+    return document.accepted(app)
 
 
 def _conjunction(value, revisions):
@@ -439,7 +408,7 @@ def values_document(app, name, kind, value_of, model_code, created, clock):
     record, member)` supplies each number. The set snapshot and the live
     documents both render here, so their records cannot disagree."""
     import fraktal_ab_generate as gen
-    import fraktal_ab_manifest as mf
+    import fraktal_ab_document_revision as document
     records = []
     for ordinal, record, member in gen.editable_values(app):
         if config_kind(record) != kind:
@@ -447,8 +416,8 @@ def values_document(app, name, kind, value_of, model_code, created, clock):
         value = value_of(ordinal, record, member)
         text = ('TRUE' if value else 'FALSE') if member.kind == 'boolean' else str(value)
         records.append({'scope': app.name, 'key': member.write_key,
-                        'rev': mf.config_revision(app), 'kind': kind,
+                        'rev': document.revision(app), 'kind': kind,
                         'type': value_type(member), 'value': text})
     return checked_document([{'set': name, 'root': app.name, 'schema': 1,
-              'configRev': mf.config_revision(app), 'kind': kind, 'model': model_code,
+              'configRev': document.revision(app), 'kind': kind, 'model': model_code,
               'records': len(records), 'created': created, 'clock': clock}, *records])

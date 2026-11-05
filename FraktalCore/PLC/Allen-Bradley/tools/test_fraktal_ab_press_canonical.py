@@ -18,7 +18,8 @@ CANONICAL = ('canonical_publication_stage', 'canonical_observation_period_ms', '
 
 
 def changed(a, b):
-    return {f.name for f in fields(a) if getattr(a, f.name) != getattr(b, f.name)}
+    # Compatibility metadata (compare=False, such as O12's predecessors) is not content.
+    return {f.name for f in fields(a) if f.compare and getattr(a, f.name) != getattr(b, f.name)}
 
 
 def contract(app):

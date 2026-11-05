@@ -14,6 +14,7 @@ import fraktal_ab_canonical_commands as commands
 import fraktal_ab_canonical_mailbox as canonical_mailbox
 import fraktal_ab_canonical_publication as pub
 import fraktal_ab_declaration as decl
+import fraktal_ab_document_revision as docrev
 import fraktal_ab_generate as gen
 import fraktal_ab_genealogy_s4b_owner_demo as demo
 import fraktal_ab_host_service_binding as binding
@@ -490,7 +491,7 @@ class Operations(unittest.TestCase):
                     for o, r, m in gen.editable_values(APP) if r.station_cfg}
         self.assertEqual(snapshot, s.station())
         self.assertEqual((job['Snapshot']['Count'], job['Snapshot']['Kind'], job['Snapshot']['Revision']),
-                         (len(snapshot), 1, mf.config_revision(APP)))
+                         (len(snapshot), 1, docrev.revision(APP)))
         s.send(final=1, status=receipt)
         s.scan()
         return s
@@ -544,7 +545,7 @@ class Operations(unittest.TestCase):
 
 def catalog_entry(name, records=3, kind=1, created=1790899200, synchronized=1, model=''):
     return dict(Kind=binding.CATALOG, Count=records, Scope=APP.name, Name=name, Model=model, SetSchema=1,
-                ConfigRev=mf.config_revision(APP), RecordKind=kind, CreatedSeconds=created,
+                ConfigRev=docrev.revision(APP), RecordKind=kind, CreatedSeconds=created,
                 Synchronized=synchronized)
 
 

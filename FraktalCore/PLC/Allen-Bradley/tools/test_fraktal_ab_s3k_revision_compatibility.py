@@ -1,19 +1,29 @@
-"""Execute the shared revision guard at the S3k publication-only boundary."""
+"""Execute the shared revision guard at the S3k publication-only boundary.
+
+Since O12 the document revision no longer moves with the publication stage;
+what documents saved before carry is the pre-collapse record, so the
+revisions here come from it.
+"""
 from dataclasses import replace
+import json
 import unittest
 import fraktal_ab_declaration as decl
+import fraktal_ab_document_revision as docrev
 import fraktal_ab_genealogy_demo as baseline
 import fraktal_ab_genealogy_s3k_demo as candidate
-import fraktal_ab_manifest as manifest
 import fraktal_ab_sets as sets
 import fraktal_ab_st_model as st
+
+RECORD = {row['declaration']: row for row in
+          json.loads(docrev.RECORD.read_text(encoding='utf-8'))['declarations']}
 
 
 class PublicationRevisionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app=candidate.application();cls.old=baseline.application()
-        cls.old_revision=manifest.config_revision(cls.old)
+        cls.old_revision=RECORD['fraktal_ab_genealogy_demo']['configRevision']
+        cls.saved=RECORD['fraktal_ab_genealogy_s3k_demo']
 
     def rejected(self,app,revision):
         model=st.Controller(dict(Revision=revision,Rejected=0))
@@ -22,11 +32,10 @@ class PublicationRevisionTests(unittest.TestCase):
 
     def test_identical_configuration_records_accept_the_exact_previous_publication(self):
         self.assertEqual(self.app.records,self.old.records)
-        previous=replace(self.app,canonical_publication_stage=12)
-        self.assertEqual(manifest.content_hash(previous),manifest.content_hash(self.old))
-        self.assertNotEqual(manifest.config_revision(self.app),self.old_revision)
-        self.assertFalse(self.rejected(self.app,self.old_revision))
-        self.assertFalse(self.rejected(self.app,manifest.config_revision(self.app)))
+        self.assertEqual(docrev.revision(self.app),docrev.revision(self.old))
+        self.assertNotEqual(self.saved['configRevision'],self.old_revision)
+        for revision in (self.old_revision,self.saved['configRevision'],docrev.revision(self.app)):
+            with self.subTest(revision=revision):self.assertFalse(self.rejected(self.app,revision))
 
     def test_changed_configuration_shape_and_foreign_station_do_not_inherit_the_revision(self):
         record=next(r for r in self.app.records if r.station_cfg)
@@ -40,8 +49,8 @@ class PublicationRevisionTests(unittest.TestCase):
         for revision in (0,1,-1,0x7fffffff,self.old_revision^0x13579):
             with self.subTest(revision=revision):self.assertTrue(self.rejected(self.app,revision))
 
-    def test_older_profiles_do_not_accept_the_future_s3k_publication(self):
-        self.assertTrue(self.rejected(self.old,manifest.config_revision(self.app)))
+    def test_older_profiles_did_not_accept_the_future_s3k_publication(self):
+        self.assertNotIn(self.saved['configRevision'],RECORD['fraktal_ab_genealogy_demo']['acceptedRevisions'])
 
     def test_native_guard_snapshots_the_long_operand_without_changing_it(self):
         alias=sets.scratch_names(self.app)[1]
