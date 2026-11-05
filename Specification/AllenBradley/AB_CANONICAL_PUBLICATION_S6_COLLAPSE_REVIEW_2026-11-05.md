@@ -87,9 +87,10 @@ names. The legacy tags are:
      predecessor variants. Every one is a declaration change that left the
      editable value schema untouched but moved the revision.
 
-   Deleting the member declarations leaves no way to compute either the
-   revision or the predecessors it must accept. **O12** (§5) proposes the fix.
-   It is needed only by increment C6.
+   Every increment from C1 on changes those member declarations, so each
+   would move the revision and refuse every saved document; C6 then leaves no
+   way to compute it at all. **O12** (§5, approved) is the fix, and it lands
+   first, as increment C0b.
 
 ## 3. Where each member goes
 
@@ -144,23 +145,26 @@ Each increment is one commit, or a few, and passes before the next starts:
 | # | Step | Surface difference it declares |
 |---|---|---|
 | C0 | This inventory, the schema-identity gate, and fixtures recorded from `6898dfb87` | None |
+| C0b | O12: the document revision redefined; every pre-collapse revision accepted | Each header value derived from the revision, changed |
 | C1 | R3: type AOIs write their canonical leaf; ScanCanonical keeps only per-instance calls | Context type members `OutImm_ExecState`, `Tim*`, and module `Error` where only FaultActive read it, removed |
 | C2 | R8, Unit: exact-counterpart members become canonical storage | Their Unit/Chart members removed |
 | C3 | R8, modules: contexts become AOI parameters and locals; `unused` deleted | `FRK_<Root>_Ctx*` tags and `FRK_T_*Ctx` types removed |
 | C4 | R6 + O10: fixture observation structure in acceptance declarations; the press harness and the 15 HX modules read it; frame removed | Observation frame removed; observation structure added (acceptance only) |
 | C5 | O11 + O4: harnesses command through `writeBatch`; Frame ingress and staged services removed; header V6.12 | `FRK_<Root>_HmiRequest` removed; header minor and `Services` rows changed |
-| C6 | R8, tables: legacy published tags to `None`; eight V5 tables removed (needs O12) | Those tags removed from the surface |
+| C6 | R8, tables: legacy published tags to `None`; eight V5 tables removed | Those tags removed from the surface |
 | C7 | R5: a production declaration selects one AUTO rendition | Production only; acceptance declarations keep all three |
 
-Within these steps, C1 and C2 change no wire contract. C3 changes only private
+Within these steps, C0b changes no wire layout, only the revision's value.
+C1 and C2 change no wire contract. C3 changes only private
 storage. C4 to C6 change the published surface by declared removals, plus one
 versioned header minor. A native S6-Q session after C7 closes WP6.6. Running
 one earlier, after C3, is optional: it would catch a scan-time surprise
 sooner.
 
-## 5. Proposed owner decision O12: the configuration revision
+## 5. Owner decision O12: the configuration revision
 
-**Proposal.**
+**Approved 2026-11-05: option A.** The owner answered “ok lets do A” after the
+detailed explanation of both options.
 
 - **The revision.** It becomes the first six hex digits of a hash over what
   gives a stored value its meaning, and nothing else:
@@ -187,6 +191,11 @@ sooner.
   tree. This increment's fixtures already hold each gated declaration's own
   revision, as `LegacyContentHash`. So no set or live document saved before
   the collapse is refused.
+- **A station declared outside this tree.** The generator can freeze only
+  the declarations it contains. Such a station records its own accepted
+  revisions with the pre-collapse tools (`fraktal_ab_config_revisions.py
+  --declaration`) before it upgrades. It carries them in its declaration,
+  and WP6.8 documents the step.
 
 This is the principled fix the nine predecessor-variant families point at. A
 revision that moves whenever a status field is added forces every such
@@ -205,11 +214,13 @@ procedure retires the cursor, and afterwards only on a real schema change.
 Whether the adapter should start a new cursor by itself, with a data-loss
 record, is a separate question outside O12.
 
-**Alternative.** Keep the V5 content computation as an unemitted, frozen
-identity function. The revision is then unchanged forever, but the member
-declarations R8 deletes survive solely to feed a hash.
+**Alternative, not chosen.** Keep the V5 content computation as an
+unemitted, frozen identity function. The revision is then unchanged forever,
+but the member declarations R8 deletes survive solely to feed a hash.
 
-C1–C5 and C7 do not depend on O12. C6 waits for it.
+**Order.** O12 lands as C0b, before C1. The V5 field rows that today's
+revision hashes include every context member. Removing even one, as C1 does,
+would move every declaration's revision.
 
 ## 6. Out of scope here
 
