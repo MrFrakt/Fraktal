@@ -1406,9 +1406,16 @@ Status, 2026-11-04 ([evidence](Evidence/AB_S6_HOST_ADAPTER_OFFLINE_2026-11-04.md
   cursor and JSONL sink write the engineering collector's bytes. The work
   also found the gateway's projection refusing every V6.11 image (the ring's
   owner row), now fixed.
-- **Open.** The reader's native run (S6-Q). Two adapter findings from the
-  second session: `SessionPermits` covers only the set gate, and a denied
-  restore retries every 10 s.
+- **Session findings fixed** (2026-11-05; [evidence](Evidence/AB_S6_HOST_PERMITS_OFFLINE_2026-11-05.md)).
+  - `SessionPermits` now means the session could load every document (the
+    set gate and each value's write level), and a restore job is refused
+    `ACCESS` on exactly that.
+  - The adapter no longer retries a denied restore under the permission it
+    was denied under.
+
+  Both v38 targets build the change.
+- **Open.** The native run of the ring reader and of the new predicate
+  (S6-Q).
 
 **WP6.6 — Phase B: collapse the generator.** In `fraktal_ab_generate.py`:
 

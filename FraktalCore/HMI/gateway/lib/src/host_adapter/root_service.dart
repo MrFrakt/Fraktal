@@ -167,6 +167,9 @@ final class RootService {
   Map<String, String>? written; // live key -> content, loaded from the medium once
   int keepNext = 0;
   double keepAt = 0, retryAt = 0;
+  // A denied restore is not retried under the permission it was denied
+  // under: only once the session's permission has dropped and returned.
+  bool deniedWhilePermitted = false;
 
   RootService(this.port, this.store, this.medium,
       {double Function()? clock,
@@ -419,9 +422,12 @@ final class RootService {
   // -- LiveDocuments ---------------------------------------------------------------
   Future<void> _live(Map<String, Object?> reply) async {
     if (reply['Restoring'] != 0) {
-      if (reply['SessionPermits'] != 0 && clock() >= retryAt) await restore();
+      final permits = reply['SessionPermits'] != 0;
+      if (!permits) deniedWhilePermitted = false;
+      if (permits && !deniedWhilePermitted && clock() >= retryAt) await restore();
       return;
     }
+    deniedWhilePermitted = false;
     if (clock() >= keepAt) {
       keepAt = clock() + keepInterval;
       await keepOne();
@@ -618,6 +624,7 @@ final class RootService {
       return false;
     } on StateError catch (error) {
       _fail('restoring', error.message);
+      deniedWhilePermitted = true;
       return false;
     }
     health

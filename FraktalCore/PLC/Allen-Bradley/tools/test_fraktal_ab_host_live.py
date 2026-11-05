@@ -160,6 +160,22 @@ class Restoring(unittest.TestCase):
         s.restore_all()
         self.assertEqual(s.restore(changed(1)), binding.NOT_RESTORING)
 
+    def test_restore_jobs_are_offered_only_to_a_session_that_could_load_every_document(self):
+        # S6 session 02: the gate admitted a logged-out session that the line's
+        # level-3 values then refused, and a host retried on it every 10 s.
+        s = Restore()
+        state = s.t[access.tag(APP, 'State')]
+        self.assertEqual(state['Required'][access.GATES[mb.LOAD_CONFIG_SET]], 0)
+        state['CurrentLevel'] = 0
+        s.scan()
+        self.assertEqual((s.host_reply['Restoring'], s.host_reply['SessionPermits']), (1, 0))
+        self.assertEqual(s.restore(changed(1)), binding.ACCESS)
+        state['CurrentLevel'] = 4
+        s.scan()
+        self.assertEqual(s.host_reply['SessionPermits'], 1)
+        s.restore_all()
+        self.assertEqual(s.restore(changed(1)), binding.NOT_RESTORING)
+
     def test_a_parked_operator_command_holds_off_a_restore(self):
         s = Restore()
         s.restore_all()

@@ -115,11 +115,20 @@ def prologue(app):
         return lines
     import fraktal_ab_access as access
     import fraktal_ab_generate as gen
+    import fraktal_ab_data_access as data
     w, r = host.work_tag(app), host.work_tag(app) + '.Reply'
-    # What a host may open now: restore jobs only while restoring, under the
-    # same set-gate predicate the owner applies to the logged-in session.
+    levels = data.tag(app, 'Levels')
+    # What a host may open now: restore jobs only while restoring, and only when
+    # the logged-in session could load every document. That is the set gate and
+    # each value's own write level, as the owner checks them. The gate alone
+    # admitted a logged-out session the line's level-3 values then refused
+    # (S6 session 02); a host retried on it.
     return lines + [f'IF {gen.config_restoring(app)} THEN {h}.Restoring := 1; ELSE {h}.Restoring := 0; END_IF;',
                     f'IF {access.permits(app, access.GATES[mb.LOAD_CONFIG_SET])} THEN {h}.Permits := 1; ELSE {h}.Permits := 0; END_IF;',
+                    f'IF ({h}.Restoring <> 0) AND ({h}.Permits <> 0) THEN',
+                    f'FOR {h}.Index := 0 TO {max(1, len(gen.editable_values(app))) - 1} DO',
+                    f'IF NOT ({data.permits_level(app, f"{levels}.WriteLevel[{h}.Index]")}) THEN {h}.Permits := 0; END_IF;',
+                    'END_FOR;', 'END_IF;',
                     f'IF ({r}.Restoring <> {h}.Restoring) OR ({r}.SessionPermits <> {h}.Permits) THEN',
                     f'{r}.Restoring := {h}.Restoring;', f'{r}.SessionPermits := {h}.Permits;', f'{w}.Dirty := 1;', 'END_IF;']
 
@@ -434,8 +443,7 @@ def _keep_open(app):
 
 
 def _restore_open(app):
-    """A host opens one restore document while the controller restores, under the set gate."""
-    import fraktal_ab_access as access
+    """A host opens one restore document while the controller restores, under the session's Permits."""
     import fraktal_ab_generate as gen
     import fraktal_ab_live as live_documents
     import fraktal_ab_manifest as mf
@@ -443,7 +451,8 @@ def _restore_open(app):
     b, h, q = s + '.' + host.CHUNK_MEMBER, work_tag(app), staged_tag(app)
     creating = f'({s}.Operation = {mb.CREATE_MODEL})'
     return [f'IF NOT {gen.config_restoring(app)} THEN {w}.Error := {binding.NOT_RESTORING};',
-            f'ELSIF NOT ({access.permits(app, access.GATES[mb.LOAD_CONFIG_SET])}) THEN {w}.Error := {binding.ACCESS};',
+            # Exactly what the reply publishes: the set gate and every value's write level.
+            f'ELSIF {h}.Permits = 0 THEN {w}.Error := {binding.ACCESS};',
             f'ELSIF ({s}.Chunk <> 0) OR ({b}.Kind <> {binding.HEADER_CHUNK}) OR '
             f'(({s}.Status <> {binding.OK}) AND ({s}.Status <> {binding.LOST})) THEN {w}.Error := {binding.INVALID};',
             'ELSE',

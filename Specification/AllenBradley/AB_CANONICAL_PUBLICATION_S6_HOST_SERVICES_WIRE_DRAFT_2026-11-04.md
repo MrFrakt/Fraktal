@@ -204,8 +204,12 @@ change: the Python broker serialized such commands behind its lock instead.
 
 **LiveDocuments** (implemented: `fraktal_ab_host_sets`). A host opens these
 jobs itself, with `JobSequence` 0 and `Service` 3. The reply publishes
-`Restoring` (the station image is unstamped) and `SessionPermits` (the set
-gate's own predicate for the logged-in session) whenever either changes. Any
+`Restoring` (the station image is unstamped) and `SessionPermits` whenever
+either changes. `SessionPermits` means the logged-in session could load every
+document: the set gate, and while restoring each value's own write level.
+The gate alone admitted a logged-out session that the line's level-3 values
+then refused ([session 02](Evidence/AB_S6_HOST_SESSION_02_ATTEMPT_2026-11-04.md),
+[fix](Evidence/AB_S6_HOST_PERMITS_OFFLINE_2026-11-05.md)). Any
 host-opened job is refused `BUSY` while an operator command is parked or any
 job is active.
 
@@ -231,7 +235,8 @@ job is active.
 
   The job is refused:
   - `NOT_RESTORING` unless the controller restores;
-  - `ACCESS` unless the set gate permits the session.
+  - `ACCESS` unless `SessionPermits`: the set gate and every value's write
+    level, exactly what the reply publishes.
 
   Records follow as for a FETCH. A complete document resumes as a **silent
   owner pass**. The access check and the unchanged set transaction run, under
