@@ -71,7 +71,7 @@ The work is done when all six hold:
 | S4a coherence bindings | Done | [S4a](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md) | — |
 | S4b generic Dart client and desktop | **Done at Echo scope** | [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md): all E1–E9 pass together | Physical/security evidence remains S7; V2 activation remains S6 |
 | S5 gateway, Web, installer | **Done at Echo/package scope** | [S5 qualification](Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md): C1–C13, two-client stability, owner visual check, native gates and verified genealogy recovery | Original baseline START refusal retained; investigate in S6 harness migration. Physical/security acceptance remains S7 |
-| S6 retirement, collapse, persistence, events | WP6.1 classified; first offline WP6.2 harness migrated; shared row reader with bounded row-body batching passes offline replay; harness private facts assigned to a WP6.6 acceptance-only structure (O10); gateway command client built (O11); WP6.3 final oracle replay sealed; WP6.4 inventory and V6.11 layouts written, client binding and generic ingress pass offline; V6.11 opt-in emits; its set service (all eight operations) and LiveDocuments keep/restore pass on the emitted code offline; WP6.5 host adapter, ported to Dart and supervised by the tray, answers them offline (HostEvents open); Echo re-baselined onto the genealogy pin after a factory reset (§2.18); the first V6.11 candidate builds on both v38 targets and fits offline | [S6 consumer review](AB_CANONICAL_PUBLICATION_S6_CONSUMER_REVIEW_2026-11-02.md), [row-reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md), [current classification](AB_S6_CONSUMER_CLASSIFICATION_2026-11-02_03.json), [host-service inventory](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_2026-11-02.md), [Echo re-baseline](Evidence/AB_S6_ECHO_REBASELINE_2026-11-04.md), [V6.11 candidate](Evidence/AB_S6_HOST_CANDIDATE_OFFLINE_2026-11-04.md) | Live integration/native proof, remaining harnesses/replays, host-service layouts/implementation, collapse, retirement and activation (§5.3); S6 exit remains open |
+| S6 retirement, collapse, persistence, events | WP6.1 classified; first offline WP6.2 harness migrated; shared row reader with bounded row-body batching passes offline replay; harness private facts assigned to a WP6.6 acceptance-only structure (O10); gateway command client built (O11); WP6.3 final oracle replay sealed; WP6.4 inventory and V6.11 layouts written, client binding and generic ingress pass offline; V6.11 opt-in emits; its set service (all eight operations) and LiveDocuments keep/restore pass on the emitted code offline; WP6.5 host adapter, ported to Dart and supervised by the tray, answers them offline (HostEvents open); Echo re-baselined onto the genealogy pin after a factory reset (§2.18); the first V6.11 candidate builds on both v38 targets and fits offline; WP6.6 started: context inventory, schema-identity gate with pre-collapse fixtures, collapse increments C0–C7 and O12 proposed | [S6 consumer review](AB_CANONICAL_PUBLICATION_S6_CONSUMER_REVIEW_2026-11-02.md), [row-reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md), [current classification](AB_S6_CONSUMER_CLASSIFICATION_2026-11-02_03.json), [host-service inventory](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_2026-11-02.md), [Echo re-baseline](Evidence/AB_S6_ECHO_REBASELINE_2026-11-04.md), [V6.11 candidate](Evidence/AB_S6_HOST_CANDIDATE_OFFLINE_2026-11-04.md), [collapse review](AB_CANONICAL_PUBLICATION_S6_COLLAPSE_REVIEW_2026-11-05.md) | Live integration/native proof, remaining harnesses/replays, host-service layouts/implementation, collapse, retirement and activation (§5.3); S6 exit remains open |
 | S7 physical controller, CIP Security | Not started | — | §5.4 |
 
 S3 surface records: [S3a](Evidence/AB_S3A_CANONICAL_RUNTIME_2026-10-21.md),
@@ -1451,6 +1451,28 @@ Offline gates:
   with R8 alone, 0.9–1.4 M with R3.
 - The scan-risk proxy (ST token count) is recorded.
 
+**C0 done, 2026-11-05.** The [collapse review](AB_CANONICAL_PUBLICATION_S6_COLLAPSE_REVIEW_2026-11-05.md) splits WP6.6 into
+increments C0–C7. Each is proven before the next starts
+([evidence](Evidence/AB_S6_COLLAPSE_INVENTORY_OFFLINE_2026-11-05.md)).
+
+- **Inventory.** The 320 context members are classified by their data flow in
+  both S6-Q declarations: 108 private, 80 input, 62 output, 30 shared, 24
+  published and 16 unused in the genealogy.
+- **Gate.** `fraktal_ab_schema_identity.py` records each image's external
+  surface from the L5X itself. Every difference must be declared, with the plan
+  item that makes it.
+- **Baseline.** The S4b image `30315E6D…` predates the V6.10 and V6.11 header
+  additions, so no collapsed V6.11 image can equal it. The gate therefore
+  compares each collapsed image with the pre-collapse image of the same
+  declaration, recorded from `6898dfb87`: V6.11 genealogy, 94 published tags,
+  and the press, 78. The native path-set comparison stays S6-Q's.
+- **Findings the wording above does not show.**
+  - The header's V6.3 `Services` rows name the staged request, so removing the
+    staged endpoints is a new minor, V6.12.
+  - Two V5 tables are named by the canonical command binding and stay.
+  - The configuration revision is a hash of legacy content: proposed decision
+    O12 (§6.3), which only increment C6 needs.
+
 **WP6.7 — Delete and update the gates.**
 
 - Delete RT and MO per the classification file. After the baseline switch,
@@ -1695,7 +1717,26 @@ the acknowledgement and the machine through their own CIP reader.
 Plant stimulus and fault-injection writes remain direct, declared test-build
 writes. They are the simulated world, not commands.
 
-O1–O11 are decided. The later owner touchpoints include the C12 browser
+**O12 — the configuration revision after the collapse, proposed 2026-11-05.**
+Awaiting the owner. Set documents carry `configRev`, which is
+`LegacyContentHash[:6]`: a hash of the V5 tables, which are built from the
+context member declarations that R8 deletes. Recommended, per the
+[collapse review](AB_CANONICAL_PUBLICATION_S6_COLLAPSE_REVIEW_2026-11-05.md) §5:
+
+- the revision becomes a hash of what gives a stored value its meaning: each
+  editable value's record, scope, key and kind or type, plus the set schema and
+  the model and line layout. Ranges, write levels and ordinals stay out,
+  because the controller checks the first two at load and resolves keys
+  itself;
+- `LegacyContentHash` becomes that hash. Its path and the reader's
+  `configRev = LegacyContentHash[:6]` rule are unchanged;
+- the collapsed image also accepts every revision its pre-collapse build
+  accepts, recorded once as constants by the generator at `6898dfb87`.
+
+The alternative keeps a frozen, unemitted V5 content function solely to feed
+the hash. Only collapse increment C6 waits for this decision.
+
+O1–O11 are decided; O12 is proposed. The later owner touchpoints include the C12 browser
 checklist (owner-operated by design, P10) and any controller other than Echo.
 
 ## 7. Risks and mitigations
