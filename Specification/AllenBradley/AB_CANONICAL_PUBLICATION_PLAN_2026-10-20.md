@@ -710,6 +710,7 @@ Each session follows §4 under the standing Echo decision O3.
 |---|---|---|---|
 | 11-04 | [Echo re-baseline](Evidence/AB_S6_ECHO_REBASELINE_2026-11-04.md) | Echo found factory-reset and empty; genealogy pin downloaded, 31/31 baseline cases, preflight equal to the S5 baseline record, final checks and timing pass | — (no candidate; the genealogy baseline is restored) |
 | 11-04 | [V6.11 host session](Evidence/AB_S6_HOST_SESSION_ATTEMPT_2026-11-04.md) | Candidate `A4B4FC78…` downloaded and audited; the Dart adapter discovered the host services natively; TASK maximum 7,767 µs, 0 overlaps | First host request refused (CIP 0x0F): the chunk's strings are published Read Only types. Genealogy restored, 31/31 |
+| 11-04 | [V6.11 host session 02](Evidence/AB_S6_HOST_SESSION_02_ATTEMPT_2026-11-04.md) | Candidate `902831B4…` downloaded and audited; host requests accepted natively, restore jobs ran | The line document denied to the logged-out session (by design: no adapter login); the procedure now logs in first. Genealogy restored, 31/31 |
 
 ## 3. Invariants for every stage
 
