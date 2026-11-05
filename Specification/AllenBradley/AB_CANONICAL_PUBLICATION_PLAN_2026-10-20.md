@@ -1384,6 +1384,11 @@ Status, 2026-11-04 ([evidence](Evidence/AB_S6_HOST_ADAPTER_OFFLINE_2026-11-04.md
     `fraktal_ab_st_bool_operands`;
   - a revision guard too long to compile once it accepts the documents V6.10
     saved. Without those predecessors it would refuse them.
+  The first native session then found a third: the host request's strings
+  were Read Only types, so the controller refused the whole write (CIP
+  0x0F). The request now has its own Read/Write string family, and the
+  access audit checks every member nested inside a writable ingress
+  ([evidence](Evidence/AB_S6_HOST_WRITABLE_STRINGS_OFFLINE_2026-11-04.md)).
 - **Open.** HostEvents delivery over the canonical ring: its batch must be
   proven equal to the legacy one on a native capture, which the next Echo
   session takes on this candidate.

@@ -62,6 +62,43 @@ def controller_tags(path: Path) -> dict[str, str | None]:
     }
 
 
+def unwritable_members(path: Path, tags) -> list[str]:
+    """Members a client cannot write inside each named Read/Write tag.
+
+    A tag's own External Access is not its effective access. Logix refuses a
+    whole-structure write with CIP 0x0F (privilege violation) when any member
+    of a type nested inside it is less than Read/Write. The first V6.11 native
+    session found the host request refused this way: its texts used the
+    published Read Only string family. So every member reachable from a
+    writable ingress tag, through every nested type, must be Read/Write.
+    """
+    try:
+        root = ElementTree.parse(path).getroot()
+    except (OSError, ElementTree.ParseError) as exc:
+        raise AuditError(f"cannot parse {path}: {exc}") from exc
+    types = {dt.get("Name"): dt for dt in root.iter("DataType")}
+    kinds = {t.get("Name"): t.get("DataType") for t in root.findall("./Controller/Tags/Tag")}
+    findings: list[str] = []
+
+    def walk(kind, prefix, depth):
+        if depth > 32:
+            raise AuditError(f"type nesting too deep at {prefix}")
+        node = types.get(kind)
+        if node is None:
+            return  # an atomic type
+        for member in node.findall("Members/Member"):
+            name = f"{prefix}.{member.get('Name')}"
+            if member.get("ExternalAccess") != MAILBOX_ACCESS:
+                findings.append(f"{name}: {member.get('ExternalAccess')}")
+            walk(member.get("DataType"), name, depth + 1)
+
+    for tag in sorted(tags):
+        if tag not in kinds:
+            raise AuditError(f"writable tag {tag} is not a controller tag")
+        walk(kinds[tag], tag, 0)
+    return findings
+
+
 def audit(
     tags: dict[str, str | None],
     mailbox: set[str],

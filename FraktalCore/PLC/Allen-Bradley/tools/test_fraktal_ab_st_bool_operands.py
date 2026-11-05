@@ -1,13 +1,11 @@
-"""The BOOL-operand gate: what v38 refuses is found, what it accepts is not."""
-import tempfile
+"""The BOOL-operand gate: what v38 refuses is found, what it accepts is not.
+
+The emitted V6.11 image is checked in test_fraktal_ab_v611_image.
+"""
 import unittest
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
-import fraktal_ab_generate as gen
-import fraktal_ab_genealogy_s6_host_demo as candidate
 import fraktal_ab_st_bool_operands as gate
-from test_fraktal_ab_generate import SEED_38
 
 PROJECT = """<RSLogix5000Content><Controller>
 <DataTypes><DataType Name="T_Ring"><Members>
@@ -59,16 +57,6 @@ class Rule(unittest.TestCase):
     def test_aoi_parameters_and_locals_resolve(self):
         self.assertEqual(self.operands('Word := 0;', 'IF Enable = 1 THEN Latched := Limit > 3; END_IF;'), ['Enable'])
         self.assertEqual(self.operands('Word := 0;', 'IF Enable AND (Limit > 3) THEN Latched := 1; END_IF;'), [])
-
-
-class Emitted(unittest.TestCase):
-    def test_the_v611_host_services_image_has_no_bool_operand(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / 'seed.L5X'
-            source.write_text(SEED_38, encoding='utf-8')
-            output = Path(directory) / 'app.L5X'
-            gen.generate(candidate.application(), source, output)
-            self.assertEqual(gate.findings(ET.parse(output).getroot()), [])
 
 
 if __name__ == '__main__':

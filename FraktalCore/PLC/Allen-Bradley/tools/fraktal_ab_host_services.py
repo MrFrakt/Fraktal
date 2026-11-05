@@ -24,6 +24,27 @@ SNAPSHOT = P + 'HostSnapshotV611'
 WORK = P + 'HostWorkV611'
 ROW = P + 'HostServiceBindingV611'
 CHUNK_MEMBER = 'Body'
+
+
+def string_type(width):
+    # The host writes the request whole. A published canonical string's LEN and
+    # DATA are Read Only, which refuses that write with CIP 0x0F (privilege
+    # violation, first native session 2026-11-04), so the request's texts use
+    # this Read/Write family, as the typed command ingress uses its own.
+    return pub.PREFIX + f'String{width}HostV611'
+
+
+def string_data_types():
+    import xml.etree.ElementTree as ET
+    out = []
+    for width in sorted({*binding.TEXTS.values(), binding.KEY_WIDTH}):
+        node = ET.Element('DataType', Name=string_type(width), Family='StringFamily', Class='User')
+        fields = ET.SubElement(node, 'Members')
+        for name, kind, count, radix in (('LEN', 'DINT', 0, 'Decimal'), ('DATA', 'SINT', width, 'ASCII')):
+            ET.SubElement(fields, 'Member', Name=name, DataType=kind, Dimension=str(count), Radix=radix,
+                          Hidden='false', ExternalAccess='Read/Write')
+        out.append(ET.tostring(node, encoding='unicode'))
+    return out
 RECORDS_PER_CHUNK = 8
 CONNECTION_BYTES = 4000
 # An operator waits for FETCH and PRESENT: the HMI's acknowledgement budget is 2 s.
@@ -119,8 +140,8 @@ def rows(app):
 def augment(app, definitions, snapshot_count):
     M, S = pub.Member, pub.string_type
     definitions[CHUNK] = (*(M(n, 'DINT', access='Read/Write') for n in binding.SCALARS),
-                          *(M(n, S(w), access='Read/Write') for n, w in binding.TEXTS.items()),
-                          M('Keys', S(binding.KEY_WIDTH), count=RECORDS_PER_CHUNK, access='Read/Write'),
+                          *(M(n, string_type(w), access='Read/Write') for n, w in binding.TEXTS.items()),
+                          M('Keys', string_type(binding.KEY_WIDTH), count=RECORDS_PER_CHUNK, access='Read/Write'),
                           *(M(n, 'DINT', count=RECORDS_PER_CHUNK, access='Read/Write') for n in binding.COLUMNS))
     definitions[REQUEST] = (*(M(n, 'DINT', access='Read/Write') for n in (*binding.HEADER, *binding.ENVELOPE)),
                             M(CHUNK_MEMBER, CHUNK, access='Read/Write'))

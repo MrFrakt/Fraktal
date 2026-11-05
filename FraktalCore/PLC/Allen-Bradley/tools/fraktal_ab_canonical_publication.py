@@ -329,15 +329,16 @@ def field_rows(app, definitions=None):
 
 def string_width(kind):
     import re
-    match=re.fullmatch(PREFIX+r"String(\d+)(?:V6|CmdV66)",kind)
+    match=re.fullmatch(PREFIX+r"String(\d+)(?:V6|CmdV66|HostV611)",kind)
     if not match:raise ValueError("not a canonical StringFamily: "+kind)
     return int(match[1])
 
 
 def data_types(app):
     definitions = schema(app)
+    # The V6.11 host ingress carries its own Read/Write family, emitted below.
     widths = sorted({string_width(m.kind) for members in definitions.values() for m in members
-                     if m.kind.startswith(PREFIX+"String")})
+                     if m.kind.startswith(PREFIX+"String") and not m.kind.endswith("HostV611")})
     out = []
     for width in widths:
         node = ET.Element("DataType", Name=string_type(width), Family="StringFamily", Class="User")
@@ -349,6 +350,9 @@ def data_types(app):
     if app.canonical_publication_stage>=13:
         from fraktal_ab_canonical_commands import string_data_types
         out+=string_data_types()
+    import fraktal_ab_host_services as host_services
+    if host_services.enabled(app) and host_services.mutating(app):
+        out+=host_services.string_data_types()
     for kind, fields in definitions.items():
         node = ET.Element("DataType", Name=kind, Family="NoFamily", Class="User")
         members = ET.SubElement(node,"Members")
