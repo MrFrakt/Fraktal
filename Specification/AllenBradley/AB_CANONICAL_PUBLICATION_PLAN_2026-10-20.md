@@ -711,6 +711,7 @@ Each session follows §4 under the standing Echo decision O3.
 | 11-04 | [Echo re-baseline](Evidence/AB_S6_ECHO_REBASELINE_2026-11-04.md) | Echo found factory-reset and empty; genealogy pin downloaded, 31/31 baseline cases, preflight equal to the S5 baseline record, final checks and timing pass | — (no candidate; the genealogy baseline is restored) |
 | 11-04 | [V6.11 host session](Evidence/AB_S6_HOST_SESSION_ATTEMPT_2026-11-04.md) | Candidate `A4B4FC78…` downloaded and audited; the Dart adapter discovered the host services natively; TASK maximum 7,767 µs, 0 overlaps | First host request refused (CIP 0x0F): the chunk's strings are published Read Only types. Genealogy restored, 31/31 |
 | 11-04 | [V6.11 host session 02](Evidence/AB_S6_HOST_SESSION_02_ATTEMPT_2026-11-04.md) | Candidate `902831B4…` downloaded and audited; host requests accepted natively, restore jobs ran | The line document denied to the logged-out session (by design: no adapter login); the procedure now logs in first. Genealogy restored, 31/31 |
+| 11-04 | [V6.11 host session 03](Evidence/AB_S6_HOST_SESSION_03_RUNTIME_2026-11-04.md) | **Pass.** Native restore of all five documents by the Dart adapter under the ENGINEER login; 21 event rows; both host-event rings captured on one state, 220/220 leaves equal; TASK maximum 9,112 µs, 0 overlaps | — (genealogy restored, 31/31) |
 
 ## 3. Invariants for every stage
 
@@ -1390,9 +1391,18 @@ Status, 2026-11-04 ([evidence](Evidence/AB_S6_HOST_ADAPTER_OFFLINE_2026-11-04.md
   0x0F). The request now has its own Read/Write string family, and the
   access audit checks every member nested inside a writable ingress
   ([evidence](Evidence/AB_S6_HOST_WRITABLE_STRINGS_OFFLINE_2026-11-04.md)).
-- **Open.** HostEvents delivery over the canonical ring: its batch must be
-  proven equal to the legacy one on a native capture, which the next Echo
-  session takes on this candidate.
+- **Native** (2026-11-04,
+  [evidence](Evidence/AB_S6_HOST_SESSION_03_RUNTIME_2026-11-04.md)). On Echo:
+  - the Dart adapter discovered the V6.11 host services and restored the
+    candidate's live documents natively, under the ENGINEER login;
+  - the canonical HostEvents ring equals the legacy ring's projection, 220
+    of 220 leaves on one coherent, wrapped state.
+
+  The raw capture is sealed.
+- **Open.** The adapter's HostEvents delivery: reading the canonical ring
+  into the batch, proven against that capture, then the cursor and the sink.
+  And two adapter findings from the second session: `SessionPermits` covers
+  only the set gate, and a denied restore retries every 10 s.
 
 **WP6.6 — Phase B: collapse the generator.** In `fraktal_ab_generate.py`:
 

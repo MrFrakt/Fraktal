@@ -450,8 +450,9 @@ port are retired; the Dart one is the only one.
 ## Open before emission (WP6.5/WP6.6)
 
 - The adapter's HostEvents delivery over the canonical ring.
-- The S1 snapshot's V6.11 path is exercised only once a full V6.11 capture
-  exists.
+- The S1 snapshot's V6.11 path is exercised natively: a full V6.11 capture
+  exists ([session 03](Evidence/AB_S6_HOST_SESSION_03_RUNTIME_2026-11-04.md)),
+  and the canonical ring in it equals the legacy ring's projection.
 - Then the WP6.6 removal of the legacy staged and provider endpoints, both v38
   builds, exact-image Capacity and scan, and S6-Q. The 2 s budget, the
   one-packet reply, the CPS reply atomicity, the native request size and the

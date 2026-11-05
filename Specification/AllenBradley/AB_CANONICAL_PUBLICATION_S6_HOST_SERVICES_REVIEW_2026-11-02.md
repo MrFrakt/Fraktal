@@ -198,8 +198,12 @@ well as through plain values, and 12 one-line mutants are each killed. See
 the [Dart evidence](Evidence/AB_S6_HOST_ADAPTER_DART_OFFLINE_2026-11-04.md)
 (manifest SHA-256 `6D2F5A8B1EEED37C356FF3461FFA5F572EC3DAEAC8F9D4A815E76B7095409D5C`).
 HostEvents delivery is still open. The cursor's rules moved unchanged into
-`fraktal_ab_host_cursor`. Reading the canonical ring into the same batch
-needs equivalence proof on a native capture.
+`fraktal_ab_host_cursor`. The equivalence it needs is now proven natively: on
+Echo, the canonical ring equals the legacy ring's projection, 220 of 220
+leaves on one coherent state. The raw capture is sealed for the reader's
+offline proof
+([session 03](Evidence/AB_S6_HOST_SESSION_03_RUNTIME_2026-11-04.md), manifest SHA-256
+`517F63CEB9DC22183E20A5423214742813406F8871248CB7517626586C6EA1DB`).
 
 ## Implementation gates still open
 
