@@ -952,6 +952,9 @@ class Application:
     canonical_host_services: bool = False
     # Disposable S3j acceptance source, never a production HAL driver.
     canonical_io_fixture: bool = False
+    # S6 WP6.6: the canonical structures are the working storage
+    # (fraktal_ab_collapse). S6-Q declarations only, until WP6.7.
+    canonical_collapse: bool = False
     # O12: the revisions this station's documents carried before the WP6.6
     # collapse, which its build keeps loading. See ConfigPredecessors. It is
     # compatibility metadata, not station content, so two declarations that
@@ -1411,6 +1414,8 @@ def validate(app: Application) -> list[str]:
     findings.extend(tower.validate(app))
     import fraktal_ab_document_revision as document_revision
     findings.extend(document_revision.validate(app))
+    import fraktal_ab_collapse as collapse
+    findings.extend(collapse.validate(app))
     line_records = [r for r in app.records if r.line_cfg]
     if app.line is not None:
         import fraktal_ab_line as line

@@ -417,7 +417,7 @@ def content(app: decl.Application) -> dict[str, object]:
         # No prefix: the member IS the field, under this module's own path.
         # This is the line the whole change exists for - every module now
         # interns the same member names, however many there are.
-        add_fields(ids[module.name], "", gen.module_members(module), TIER_LIVE)
+        add_fields(ids[module.name], "", gen.module_members(module, app), TIER_LIVE)
 
     # Simulated plant inputs are published as writable fields rather than as
     # operations: they stand in for signals a real machine would take from I/O,

@@ -592,7 +592,8 @@ def cyclic(app):
              f'{root}.ModeActivePublished := {unit}.Mode;',
              f'{root}.RunStyle := '+(f'{unit}.RunStyle;' if gen.pacing(app) else '0;'),
              f'{root}.CurrentStep.StepNo := {unit}.Step;']
-    for module_index,module in enumerate(app.modules,1):
+    # Collapsed (WP6.6 R3), each type AOI publishes its module's state itself.
+    for module_index,module in enumerate(() if app.canonical_collapse else app.modules,1):
         ctx = gen.ctx_tag_for(app,module.name)
         lines += owner.write_header(app,module_index,'State',ctx+'.OutImm_ExecState')
         lines += [f'{root}.{module.name}.Status.FaultActive := {ctx}.Error <> 0;']

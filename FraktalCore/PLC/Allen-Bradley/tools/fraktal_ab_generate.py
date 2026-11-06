@@ -37,6 +37,7 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_config as config
 import fraktal_ab_line as line
 import fraktal_ab_library as library
+import fraktal_ab_collapse as collapse
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
 import fraktal_ab_host_events as host
@@ -116,14 +117,15 @@ def type_context_members(mtype: decl.ModuleType) -> tuple[decl.Member, ...]:
     raise decl.DeclarationError(f"no context layout for {mtype.type_key}")
 
 
-def module_context_members(mtype: decl.ModuleType) -> tuple[decl.Member, ...]:
-    """One type's full context: the common base, then the type's own."""
-    return common_context_members() + type_context_members(mtype)
+def module_context_members(mtype: decl.ModuleType, collapsed: bool = False) -> tuple[decl.Member, ...]:
+    """One type's full context: the common base, then the type's own. Collapsed
+    (WP6.6), the facts its AOI publishes into the canonical leaf leave it."""
+    return collapse.context_members(common_context_members() + type_context_members(mtype), collapsed)
 
 
-def module_members(module: decl.Module) -> tuple[decl.Member, ...]:
-    """An instance's context, which is its type's."""
-    return module_context_members(library.type_of(module))
+def module_members(module: decl.Module, app: decl.Application | None = None) -> tuple[decl.Member, ...]:
+    """An instance's context, which is its type's in that application."""
+    return module_context_members(library.type_of(module), collapse.enabled(app))
 
 
 def _digital_input_members() -> tuple[decl.Member, ...]:
@@ -311,15 +313,37 @@ def command_timing_members() -> tuple[decl.Member, ...]:
     )
 
 
-def _command_timing_logic() -> list[str]:
+def _command_timing_logic(leaf_rows: int | None = None) -> list[str]:
     """TC3's _M_RecordCmdTiming, once per scan at the end of the handshake.
 
     TC3 closes a row on its BUSY->not-BUSY edge between two of its cycles, so
     a command accepted and finished in ONE cycle - a cylinder sent to the end
     it is already at - leaves no edge and is never timed. Core §8.11.4(a) says
     every command. Here a row closes whenever Done, Error or Abort counts
-    move, which every completion does, including that one."""
+    move, which every completion does, including that one.
+
+    Collapsed (WP6.6 R3, `leaf_rows`), the row is the canonical leaf's own
+    `Timing.Rows`, kept only for the `leaf_rows` catalogued ordinals: exactly
+    the rows the copy layer published."""
     t = "Ctx.TimSlot"
+    columns = {source: (f"Leaf.Timing.Rows[{t}].{target}" if leaf_rows is not None else f"Ctx.{source}[{t}]")
+               for source, target in (("TimCount", "Count"), ("TimLast", "Last"), ("TimMin", "Minimum"),
+                                      ("TimMax", "Maximum"), ("TimAvg", "Avg"))}
+    count, last, low, high, mean = (columns[s] for s in ("TimCount", "TimLast", "TimMin", "TimMax", "TimAvg"))
+    row = [
+        f"{count} := {count} + 1;",
+        f"{last} := Ctx.TimMs;",
+        f"IF ({count} = 1) OR (Ctx.TimMs < {low}) THEN",
+        f"{low} := Ctx.TimMs;",
+        "END_IF;",
+        f"IF Ctx.TimMs > {high} THEN",
+        f"{high} := Ctx.TimMs;",
+        "END_IF;",
+        f"{mean} := {mean} + "
+        f"((Ctx.TimMs - {mean}) / {count});",
+    ]
+    if leaf_rows is not None:
+        row = [f"IF Ctx.ParCmd_Command <= {leaf_rows} THEN", *row, "END_IF;"]
     return [
         "",
         "(* Core 8.11.4(a): command timing (TC3 _M_RecordCmdTiming) *)",
@@ -327,16 +351,7 @@ def _command_timing_logic() -> list[str]:
         "Ctx.TimSeen := Ctx.DoneCount + Ctx.ErrorCount + Ctx.AbortCount;",
         f"IF (Ctx.ParCmd_Command >= 1) AND (Ctx.ParCmd_Command <= {CMD_STATS}) THEN",
         f"{t} := Ctx.ParCmd_Command - 1;",
-        f"Ctx.TimCount[{t}] := Ctx.TimCount[{t}] + 1;",
-        f"Ctx.TimLast[{t}] := Ctx.TimMs;",
-        f"IF (Ctx.TimCount[{t}] = 1) OR (Ctx.TimMs < Ctx.TimMin[{t}]) THEN",
-        f"Ctx.TimMin[{t}] := Ctx.TimMs;",
-        "END_IF;",
-        f"IF Ctx.TimMs > Ctx.TimMax[{t}] THEN",
-        f"Ctx.TimMax[{t}] := Ctx.TimMs;",
-        "END_IF;",
-        f"Ctx.TimAvg[{t}] := Ctx.TimAvg[{t}] + "
-        f"((Ctx.TimMs - Ctx.TimAvg[{t}]) / Ctx.TimCount[{t}]);",
+        *row,
         "ELSE",
         "Ctx.TimTrunc := 1;",
         "END_IF;",
@@ -572,8 +587,8 @@ def data_types(app: decl.Application) -> str:
         records.append(decl.Record(config.audit_name(), config.audit_members(),
                                    "Core 3.8c accepted configuration writes"))
     for mtype in library.types_used(app):
-        records.append(decl.Record(module_context_name(mtype),
-                                   module_context_members(mtype),
+        records.append(decl.Record(module_context_name(mtype, collapse.enabled(app)),
+                                   module_context_members(mtype, collapse.enabled(app)),
                                    f"the Core §6.1 context of {mtype.type_key}"))
     records.append(decl.Record(unit_context_name(app), unit_context_members(app),
                                "the mode owner's context"))
@@ -630,14 +645,15 @@ def data_types(app: decl.Application) -> str:
     return "<DataTypes>\n" + "\n".join(blocks) + "\n</DataTypes>"
 
 
-def module_context_name(mtype: decl.ModuleType) -> str:
+def module_context_name(mtype: decl.ModuleType, collapsed: bool = False) -> str:
     """A library type's context UDT: `std.moduleType.cylinder` ->
     `FRK_T_CylinderCtx`. Named for the type and for no application, because a
     library AOI's InOut parameter cannot name a type that changes with whoever
     embeds it - and one shape for every type stopped being true the day the
-    second type needed different members."""
+    second type needed different members. Collapsed (WP6.6), another layout
+    and so another name."""
     leaf = mtype.type_key.rsplit(".", 1)[-1]
-    return f"FRK_T_{leaf[:1].upper()}{leaf[1:]}Ctx"
+    return collapse.context_name(f"FRK_T_{leaf[:1].upper()}{leaf[1:]}Ctx", collapsed)
 
 
 def unit_context_name(app: decl.Application) -> str:
@@ -803,12 +819,12 @@ def module_aoi_name(app: decl.Application, module: decl.Module) -> str:
     """The AOI an instance calls: its type's. Kept by this name so every call
     site asks the one question - which AOI does this module run - and gets the
     library's answer."""
-    return type_aoi_name(library.type_of(module))
+    return collapse.aoi_name(type_aoi_name(library.type_of(module)), app)
 
 
 def module_logic(app: decl.Application, module: decl.Module) -> tuple[str, ...]:
     """The logic an instance runs, which is its type's and nothing else."""
-    return type_logic(library.type_of(module))
+    return type_aoi_logic(library.type_of(module), app)
 
 
 def unit_aoi_name(app: decl.Application) -> str:
@@ -1045,7 +1061,7 @@ def _two_hand_logic(mtype: decl.ModuleType) -> tuple[str, ...]:
     )
 
 
-def type_logic(mtype: decl.ModuleType) -> tuple[str, ...]:
+def type_logic(mtype: decl.ModuleType, timing_rows: int | None = None) -> tuple[str, ...]:
     """The §6.1 handshake over a simulated plant - a function of the TYPE alone.
 
     It takes no application and no module, and that is the point: this is the
@@ -1187,14 +1203,32 @@ def type_logic(mtype: decl.ModuleType) -> tuple[str, ...]:
         "ELSE Ctx.OutImm_Extended := 0; END_IF;",
         f"IF Ctx.OutImm_Pos <= {library.CYLINDER_RETRACTED} THEN Ctx.OutImm_Retracted := 1; "
         "ELSE Ctx.OutImm_Retracted := 0; END_IF;",
-        *_command_timing_logic(),
+        *_command_timing_logic(timing_rows),
         "Ctx.ExecutePrev := Ctx.Execute;",
     ]
     return tuple(lines)
 
 
+def type_aoi_logic(mtype: decl.ModuleType, app: decl.Application | None = None) -> tuple[str, ...]:
+    """The body of `mtype`'s AOI in `app`: the type's logic, which collapsed
+    (WP6.6 R3) publishes its own canonical leaf."""
+    if not collapse.enabled(app):
+        return type_logic(mtype)
+    timed = any(m.name == "TimSlot" for m in type_context_members(mtype))
+    rows = collapse.catalogued_rows(app, mtype) if timed else None
+    return collapse.type_logic(type_logic(mtype, rows), app)
+
+
+def module_leaf_arguments(app: decl.Application, module: decl.Module) -> str:
+    """The collapsed AOI's leaf and header revision, in call order; nothing otherwise."""
+    if not collapse.enabled(app):
+        return ""
+    revision = collapse.revision_symbol(app, module)
+    return f"{app.name}.{module.name}," + (f"{revision}," if revision else "")
+
+
 def type_aoi(mtype: decl.ModuleType,
-             software_revision: str = "v33.00") -> str:
+             software_revision: str = "v33.00", app: decl.Application | None = None) -> str:
     """One library type's AOI definition - the same bytes in every application
     on the same declared controller revision.
 
@@ -1203,24 +1237,44 @@ def type_aoi(mtype: decl.ModuleType,
     thing that made three cylinder definitions differ: instance documentation
     had leaked into a type.
     """
-    ctx = module_context_name(mtype)
+    collapsed = collapse.enabled(app)
+    ctx = module_context_name(mtype, collapsed)
+    if not collapsed:
+        return _aoi(
+            type_aoi_name(mtype),
+            f"Fraktal/AB library type {mtype.type_key}: {mtype.description}",
+            ENABLE_PARAMETERS + (
+                _parameter("Ctx", ctx, "InOut"),
+                _parameter("Scan", "DINT", "Input", radix="Decimal"),
+            ),
+            type_logic(mtype),
+            (ctx,),
+            software_revision=software_revision,
+        )
+    import fraktal_ab_owner_read_bindings as owner
+    leaf = collapse.leaf_type(app, mtype)
     return _aoi(
-        type_aoi_name(mtype),
-        f"Fraktal/AB library type {mtype.type_key}: {mtype.description}",
+        collapse.aoi_name(type_aoi_name(mtype), app),
+        f"Fraktal/AB library type {mtype.type_key}: {mtype.description}. "
+        "Publishes its own canonical leaf (WP6.6 R3).",
         ENABLE_PARAMETERS + (
             _parameter("Ctx", ctx, "InOut"),
+            _parameter("Leaf", leaf, "InOut"),
+            *((_parameter("Revision", "DINT", "InOut"),) if owner.enabled(app) else ()),
             _parameter("Scan", "DINT", "Input", radix="Decimal"),
         ),
-        type_logic(mtype),
-        (ctx,),
+        type_aoi_logic(mtype, app),
+        (ctx, leaf),
         software_revision=software_revision,
+        local_tags='<LocalTags><LocalTag Name="ExecState" DataType="DINT" Radix="Decimal" '
+                   'ExternalAccess="None"/></LocalTags>',
     )
 
 
 def module_aois(app: decl.Application) -> list[str]:
     """One AOI per library type the application uses, not one per instance."""
     revision = f"v{app.major_revision}.00"
-    return [type_aoi(mtype, software_revision=revision)
+    return [type_aoi(mtype, software_revision=revision, app=app)
             for mtype in library.types_used(app)]
 
 
@@ -1284,7 +1338,7 @@ class Names:
         if not isinstance(condition, decl.ModuleState):
             return [self.sim(condition)]
         module = next(m for m in self.app.modules if m.name == condition.module)
-        known = {m.name for m in module_members(module)}
+        known = {m.name for m in module_members(module, self.app)}
         for member in condition.members + condition.zero:
             if member not in known:
                 raise decl.DeclarationError(
@@ -2263,7 +2317,7 @@ def unit_parameters(app: decl.Application) -> tuple[str, ...]:
     ]
     for module in app.modules:
         params.append(_parameter(_module_ref(app, module.name),
-                                 module_context_name(library.type_of(module)),
+                                 module_context_name(library.type_of(module), app.canonical_collapse),
                                  "InOut"))
     if app.host_event_capacity:
         params.append(_parameter('HostEvents', host.type_name(app), 'InOut'))
@@ -2942,7 +2996,7 @@ def unit_aoi(app: decl.Application) -> str:
         ENABLE_PARAMETERS + unit_parameters(app),
         unit_logic(app),
         (unit_context_name(app), chart_name(app),
-         *(module_context_name(t) for t in library.types_used(app)),
+         *(module_context_name(t, app.canonical_collapse) for t in library.types_used(app)),
          app.records[0].name, *((host.type_name(app),) if app.host_event_capacity else ()),
          *((part.type_name(app), part.carrier_name(app)) if app.part_carrier is not None else ()),
          *((counting.type_name(),) if counting.enabled(app) else ())),
@@ -3330,10 +3384,10 @@ def controller_tags(app: decl.Application) -> str:
             m if m.name not in per_instance
             else decl.Member(m.name, m.comment, m.kind, m.dimension,
                              per_instance[m.name])
-            for m in module_members(module)
+            for m in module_members(module, app)
         )
         tags.append(_structure_tag(ctx_tag_for(app, module.name),
-                                   module_context_name(library.type_of(module)),
+                                   module_context_name(library.type_of(module), app.canonical_collapse),
                                    initial))
     tags.append(_structure_tag(f"FRK_{app.name}_Unit", unit_context_name(app),
                                unit_context_members(app)))
@@ -4688,7 +4742,8 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
             modules += routes.apply(app, module)
         modules += [
             *module_setup_lines(app, module, keys),
-            f"{module_aoi_name(app, module)}(FRK_{n}_Inst{module.name},{ctx},FRK_{n}_ScanCount);",
+            f"{module_aoi_name(app, module)}(FRK_{n}_Inst{module.name},{ctx},"
+            + module_leaf_arguments(app, module) + f"FRK_{n}_ScanCount);",
         ]
     add('Modules', modules)
     add('Start', start_release_call(app) + physical_start_logic(app))
@@ -4888,7 +4943,7 @@ SCOPE_FENCE_ALLOWED = ("RegistryIndex",)
 def all_generated_logic(app: decl.Application) -> str:
     parts: list[str] = []
     for mtype in library.types_used(app):
-        parts.extend(type_logic(mtype))
+        parts.extend(type_aoi_logic(mtype, app))
     parts.extend(unit_logic(app))
     parts.extend(routine_logic(app))
     import fraktal_ab_mailbox_frame as frame

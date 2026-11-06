@@ -14,7 +14,14 @@ from test_fraktal_ab_generate import SEED_38
 
 HERE = Path(__file__).resolve().parent
 FIXTURES = HERE / 'fixtures' / 'schema_identity'
-GATED = ('fraktal_ab_genealogy_s6_host_demo', 'fraktal_ab_press_canonical_echo38')
+# Each gated declaration, and the recorded pre-collapse surface it is held to.
+GATED = {
+    'fraktal_ab_genealogy_s6_host_demo': 'fraktal_ab_genealogy_s6_host_demo',
+    'fraktal_ab_press_canonical_echo38': 'fraktal_ab_press_canonical_echo38',
+    # The collapse (WP6.6), against the surface it started from.
+    'fraktal_ab_genealogy_s6_collapse_demo': 'fraktal_ab_genealogy_s6_host_demo',
+    'fraktal_ab_press_s6_collapse_echo38': 'fraktal_ab_press_canonical_echo38',
+}
 
 L5X = """<?xml version="1.0" encoding="UTF-8"?>
 <RSLogix5000Content><Controller Name="C">
@@ -134,10 +141,10 @@ class RecordedSurfaces(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             seed = Path(folder) / 'seed.L5X'
             seed.write_text(SEED_38, encoding='utf-8')
-            for declaration in GATED:
+            for declaration, baseline in GATED.items():
                 with self.subTest(declaration):
                     args = [sys.executable, str(HERE / 'fraktal_ab_schema_identity.py'), '--declaration', declaration,
-                            '--seed', str(seed), '--check', str(FIXTURES / f'{declaration}.json.gz'),
+                            '--seed', str(seed), '--check', str(FIXTURES / f'{baseline}.json.gz'),
                             '--declared', str(FIXTURES / f'{declaration}.declared.json')]
                     env = {k: v for k, v in os.environ.items() if k != 'FRAKTAL_AB_DECLARATION'}
                     done = subprocess.run(args, capture_output=True, text=True, cwd=HERE, env=env)

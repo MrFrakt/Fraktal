@@ -1474,6 +1474,11 @@ increments C0–C7. Each is proven before the next starts
     (§6.3, approved) redefines it, as increment C0b before C1: every later
     increment changes the declarations that today's revision hashes.
 
+**C1 done offline, 2026-11-05** ([evidence](Evidence/AB_S6_COLLAPSE_R3_OFFLINE_2026-11-05.md)). Behind the S6-Q
+opt-in `canonical_collapse`, each type AOI writes its own canonical leaf:
+its state, `FaultActive` and command timing rows. The copy lines are gone.
+The legacy branch every other declaration uses is unchanged byte for byte.
+
 **WP6.7 — Delete and update the gates.**
 
 - Delete RT and MO per the classification file. After the baseline switch,

@@ -146,13 +146,28 @@ Each increment is one commit, or a few, and passes before the next starts:
 |---|---|---|
 | C0 | This inventory, the schema-identity gate, and fixtures recorded from `6898dfb87` | None |
 | C0b | O12: the document revision redefined; every pre-collapse revision accepted | None: only the derived hashes move |
-| C1 | R3: type AOIs write their canonical leaf; ScanCanonical keeps only per-instance calls | Context type members `OutImm_ExecState`, `Tim*`, and module `Error` where only FaultActive read it, removed |
+| C1 | R3: type AOIs write their canonical leaf; ScanCanonical keeps only per-instance calls | `OutImm_ExecState` and the five `Tim*` arrays leave the contexts, which take R3 type names; the V5 rows and the numeric keys they intern follow |
 | C2 | R8, Unit: exact-counterpart members become canonical storage | Their Unit/Chart members removed |
 | C3 | R8, modules: contexts become AOI parameters and locals; `unused` deleted | `FRK_<Root>_Ctx*` tags and `FRK_T_*Ctx` types removed |
 | C4 | R6 + O10: fixture observation structure in acceptance declarations; the press harness and the 15 HX modules read it; frame removed | Observation frame removed; observation structure added (acceptance only) |
 | C5 | O11 + O4: harnesses command through `writeBatch`; Frame ingress and staged services removed; header V6.12 | `FRK_<Root>_HmiRequest` removed; header minor and `Services` rows changed |
 | C6 | R8, tables: legacy published tags to `None`; eight V5 tables removed | Those tags removed from the surface |
 | C7 | R5: a production declaration selects one AUTO rendition | Production only; acceptance declarations keep all three |
+
+**C1 as built** ([evidence](Evidence/AB_S6_COLLAPSE_R3_OFFLINE_2026-11-05.md)).
+
+- **Opt-in.** The collapse is `canonical_collapse`, set only on two new S6-Q
+  declarations derived from the V6.11 genealogy and the press S3 exit
+  candidate. Every other declaration keeps the legacy branch byte for byte
+  until WP6.7, as §5.3 already plans for the Frame path.
+- **Kept.** A passive module's `Error` stays in its context: it is the shared
+  §6.1 handshake the Unit and every type read, not a published copy.
+- **Observed effects.** Removing context members also renumbers the V5
+  localization's numeric keys, which every later key follows. The renumbering
+  is consistent within an image, and no persisted document carries a number.
+  It reaches two canonical header values: `CommandBindings.KeysCount`, and the
+  V5 build revision in the staged `Services` rows that C5 removes. Both are
+  declared.
 
 Within these steps, C0b changes no wire layout, only the revision's value.
 C1 and C2 change no wire contract. C3 changes only private

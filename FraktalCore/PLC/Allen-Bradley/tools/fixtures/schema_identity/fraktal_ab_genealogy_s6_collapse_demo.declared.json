@@ -1,0 +1,107 @@
+[
+ {
+  "pattern": "FRK_Press_Ctx*.Data.OutImm_ExecState",
+  "change": "removed",
+  "reason": "C1 (R3): the type AOI publishes State, FaultActive and its timing rows itself; the context loses them"
+ },
+ {
+  "pattern": "FRK_Press_Ctx*.Data.Tim*",
+  "change": "removed",
+  "reason": "C1 (R3): the type AOI publishes State, FaultActive and its timing rows itself; the context loses them"
+ },
+ {
+  "pattern": "FRK_Press_Ctx*.DataType",
+  "change": "changed",
+  "reason": "C1 (R3): a collapsed context is another layout, so another type name"
+ },
+ {
+  "pattern": "FRK_T_*Ctx",
+  "change": "removed",
+  "reason": "C1 (R3): a collapsed context is another layout, so another type name"
+ },
+ {
+  "pattern": "FRK_T_*CtxR3",
+  "change": "added",
+  "reason": "C1 (R3): a collapsed context is another layout, so another type name"
+ },
+ {
+  "pattern": "FRK_T_PressObservationFrameS3k.FRK_Press_Ctx*.DataType",
+  "change": "changed",
+  "reason": "C1 (R3): the S3h observation frame copies each context, so it carries the R3 types (C4 removes the frame)"
+ },
+ {
+  "pattern": "FRK_Press_MfFields.Data*",
+  "change": "removed",
+  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
+ },
+ {
+  "pattern": "FRK_Press_MfFields.Data*",
+  "change": "changed",
+  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
+ },
+ {
+  "pattern": "FRK_Press_MfFields.Dimensions",
+  "change": "changed",
+  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
+ },
+ {
+  "pattern": "FRK_Press_MfHeader.Data.*",
+  "change": "changed",
+  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
+ },
+ {
+  "pattern": "FRK_Press_MfLocalization.Data*",
+  "change": "removed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_MfLocalization.Data*",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_MfLocalization.Dimensions",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_MfOperations.Data*.OperationId",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_MfOptionalProfiles.Data*.ProfileId",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_MfRationalization.Data*Key",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_MfWriteCapabilities.Data*.ClassKey",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_DataPolicy.Data.*Key*",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_LineState.Data.*IdKey",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_CanonicalManifest.Data.CommandBindings*.KeysCount",
+  "change": "changed",
+  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
+ },
+ {
+  "pattern": "FRK_Press_CanonicalManifest.Data.Services*.BuildRevision",
+  "change": "changed",
+  "reason": "C1 (R3): the V6.3 staged Services rows carry the V5 build revision (C5 removes them)"
+ }
+]

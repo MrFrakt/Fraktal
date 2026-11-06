@@ -25,7 +25,7 @@ def operand_members(app):
     return {**{'Cfg.' + m.name: m for m in app.records[0].members},
             **{'Ctx.' + m.name: m for m in gen.unit_context_members(app)},
             **{module.name + '.' + m.name: m for module in app.modules
-               for m in gen.module_members(module)}}
+               for m in gen.module_members(module, app)}}
 
 
 def scalar_operands(app):

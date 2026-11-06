@@ -86,7 +86,9 @@ def augment(app,definitions):
     for name in leaf_names:definitions.pop(name,None)
     definitions[INPUTS]=tuple(M(n,'DINT') for n in INPUT_NAMES)
     definitions[CACHE]=(M('Initialized','DINT'),M('Inputs',INPUTS))
-    definitions[COMMAND_CACHE]=definitions[CACHE]+(M('TimingCount','DINT',count=gen.CMD_STATS),)
+    # Collapsed (WP6.6 R3), the type AOI keeps its own timing rows: no copy, no cache of them.
+    if not app.canonical_collapse:
+        definitions[COMMAND_CACHE]=definitions[CACHE]+(M('TimingCount','DINT',count=gen.CMD_STATS),)
     definitions[IO]=(M('Source','DINT'),M('Mask','DINT'),M('ElectricalTag',pub.string_type(80)),M('Address',pub.string_type(80)))
     definitions[WORK]=(M('Inputs',INPUTS),M('Diagnostic',DIAGNOSTIC),
         *(M(n,'DINT') for n in ('Changed','Index','ByteIndex','YearNo','MonthNo','DayNo','EraNo',
@@ -107,7 +109,7 @@ def initialize(app,values):
 def private_tags(app,serialize):
     # serialize is the owning publisher's typed initializer, with private access.
     result=[serialize(work_tag(app),WORK,{},access='None')]
-    result += [serialize(cache_tag(app,i),COMMAND_CACHE if m is not None and m.commands else CACHE,{},access='None')
+    result += [serialize(cache_tag(app,i),COMMAND_CACHE if m is not None and m.commands and not app.canonical_collapse else CACHE,{},access='None')
                for i,m in enumerate((None,*app.modules))]
     rows=bindings(app)
     # These arrays are private engineering data, not discovered module roots.
@@ -215,7 +217,7 @@ def cyclic(app):
             values=dict(Owner='0',Reason=ctx+'.DiagReason',Stamped=ctx+'.DiagStamped',DateCode=ctx+'.DiagSinceDate',
                         ClockCode=ctx+'.DiagSinceTime',IoSource=ctx+'.ErrorSource',IoRoles=ctx+'.DiagIoRoles',Fault=ctx+'.Error',Held='0',AreaSafe='1',Permit='1',PermitKey='0')
         else:
-            fields={m.name for m in gen.module_members(module)}
+            fields={m.name for m in gen.module_members(module,app)}
             values=dict(Owner=str(index),Reason=ctx+'.OutImm_Reason',Stamped=ctx+'.DiagStamped',DateCode=ctx+'.DiagSinceDate',
                         ClockCode=ctx+'.DiagSinceTime',IoSource=str(index),IoRoles=ctx+'.OutImm_IoRoles',Fault=ctx+'.Error',Held=ctx+'.OutImm_Held',
                         AreaSafe=ctx+'.AreaSafe' if 'AreaSafe' in fields else '1',
@@ -229,7 +231,7 @@ def cyclic(app):
         lines += [f'JSR({routine_name(app)},0);',
                   f'CPS({w}.Diagnostic,{target}.Status.Diagnostic,1);','END_IF;',
                   f'{target}.Status.Diagnostic.TimeSynchronized := FRK_{app.name}_HealthProbe.TimeIsSynchronized <> 0;']
-        if module is not None and module.commands:
+        if module is not None and module.commands and not app.canonical_collapse:
             for command in module.commands:
                 row=command.ordinal-1;destination=f'{target}.Timing.Rows[{row}]'
                 lines += [f'IF ({cache}.Initialized = 0) OR ({cache}.TimingCount[{row}] <> {ctx}.TimCount[{row}]) THEN']
