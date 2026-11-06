@@ -69,7 +69,9 @@ class Owners(unittest.TestCase):
     def test_fixture_and_cross_owner_facts_remain_parameters(self):
         for app in self.apps:
             for surface, names in app.fixture_observation:
-                if surface in ('Unit', 'Chart'):
+                # These facts belong to scalar record owners, not module AOIs.
+                # Their copy/access is covered by fixture_observation tests.
+                if surface in ('Unit', 'Chart', 'Mailbox'):
                     continue
                 module = next(m for m in app.modules if m.name == surface)
                 roles = storage.roles(app, library.type_of(module))

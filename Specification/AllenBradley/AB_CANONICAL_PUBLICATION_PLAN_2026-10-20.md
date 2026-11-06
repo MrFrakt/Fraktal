@@ -1507,6 +1507,27 @@ AOI layouts. All 2,584 AB/85 root tests and both v38 preparations pass; Capacity
 is 60% (1,914,768/3,145,728 Blocks). The C4a?c press/offline scope is complete;
 remaining HX/O11 migrations and integrated native S6-Q stay open.
 
+**C5a done offline, 2026-11-06** ([evidence](Evidence/AB_S6_COLLAPSE_C5A_OFFLINE_2026-11-06.md),
+[working notes](AB_CANONICAL_PUBLICATION_C5_NOTES_2026-11-06.md)). Collapsed press
+commands use O11 writeBatch through an owned, package/serial/root-pinned Dart
+gateway; their ACK and numeric refusal key are independently read over CIP.
+O10 V2 permits native member selection under the unchanged strict scan proof.
+The press gains the approved V6.7 counter bindings: its frozen S3 parent is
+V6.6, and C4b's earlier replay supplied those bindings synthetically. This
+closes a metadata prerequisite, not a native acceptance gate. All 2,612 AB and
+85 root tests pass, both profiles build/read back on both v38 targets, and the
+schema/token/default/access proofs pass. Capacity is 60% genealogy
+(1,915,620/3,145,728 Blocks), 46% press (1,447,072/3,145,728). No controller
+operations were performed; the legacy declarations remain byte-identical.
+
+C5 continues in two dependent increments without changing its exit gate:
+remaining HX fact/read/command migrations and the public host-adapter/set
+lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The
+press's configuration/set clients need the already approved read-view,
+owner-revision and host-service publications before they join. A shared
+command facade alone does not qualify a whole legacy harness. C6/C7 and
+integrated native S6-Q remain after C5.
+
 **WP6.7 — Delete and update the gates.**
 
 - Delete RT and MO per the classification file. After the baseline switch,

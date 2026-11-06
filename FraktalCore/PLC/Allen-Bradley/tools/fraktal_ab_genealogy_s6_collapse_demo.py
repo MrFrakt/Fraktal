@@ -13,4 +13,5 @@ def application():
     # The documents it loads are the V6.11 profile's: same values, same predecessors.
     # The S3h frame copied legacy contexts, which the collapse removes (R6). Its
     # candidate-case harnesses' private facts join O10 when they migrate.
-    return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0)
+    return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0,
+                   fixture_observation=(('Mailbox', ('DiagnosticKey',)),))

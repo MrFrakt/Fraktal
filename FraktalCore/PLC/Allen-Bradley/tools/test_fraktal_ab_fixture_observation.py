@@ -30,7 +30,7 @@ def generate(app):
 class Declaration(unittest.TestCase):
     def test_the_press_declares_its_harnesses_facts(self):
         self.assertEqual(decl.validate(APP), [])
-        self.assertEqual(len(fixture.facts(APP)), 29)
+        self.assertEqual(len(fixture.facts(APP)), 30)
 
     def test_only_a_collapsed_acceptance_image_observes(self):
         uncollapsed = dataclasses.replace(candidate.application(), fixture_observation=press.FIXTURE)
@@ -80,12 +80,45 @@ class Image(unittest.TestCase):
         manifest = ET.tostring(tags['FRK_Press_CanonicalManifest'], encoding='unicode')
         self.assertNotIn('FixtureObservation', manifest)
 
+    def test_the_press_emits_the_scan_bindings_its_live_reader_requires(self):
+        import fraktal_ab_canonical_manifest as wire
+        import fraktal_ab_canonical_publication as pub
+        import fraktal_ab_schema_identity as schema
+        from test_fraktal_ab_read_coherence import physical
+        tag = self.tags(self.press)[pub.header_tag(APP)]
+        record = schema._value(tag.find('./Data[@Format="Decorated"]/Structure'))
+        self.assertEqual(record['SchemaMinor'], '7')
+        # Decorated values are textual, not the S1 wire decoder's typed
+        # StringFamily objects. These two identifier fields have no escapes.
+        def identifier(value):
+            literal = value['DATA'].strip()
+            self.assertRegex(literal, r"^'[A-Za-z0-9_/]+'$")
+            self.assertEqual(int(value['LEN']), len(literal) - 2)
+            return literal[1:-1]
+        bindings = [dict(CanonicalPrefix=identifier(row['CanonicalPrefix']),
+                         RevisionSymbol=identifier(row['RevisionSymbol']),
+                         Protocol=int(row['Protocol']), MutationPeriodUs=int(row['MutationPeriodUs']))
+                    for row in record['ReadCoherenceBindings']]
+        self.assertEqual(int(record['ReadCoherenceBindingsCount']), len(bindings))
+        header = wire.normalize(physical(pub.manifest_values(APP)))
+        self.assertEqual(header['schemaMinor'], 7)
+        prefixes = {APP.name, *(p['CanonicalRoot'] for p in header['dataProducts'])}
+        self.assertEqual(bindings, header['readCoherenceBindings'])
+        self.assertEqual({b['CanonicalPrefix'] for b in bindings}, prefixes)
+        self.assertEqual({b['RevisionSymbol'] for b in bindings}, {pub.generation_tag(APP)})
+        self.assertEqual({b['MutationPeriodUs'] for b in bindings}, {APP.task_period_ms * 1000})
+
     def test_the_s3h_frame_is_gone_from_both_collapsed_images(self):
         for root in (self.press, self.genealogy):
             self.assertFalse([n for n in self.tags(root) if 'ObservationFrame' in n or 'ObservationGeneration' in n])
 
-    def test_the_genealogy_declares_no_fixture_until_its_harnesses_join(self):
-        self.assertNotIn(fixture.tag(APP), self.tags(self.genealogy))
+    def test_the_genealogy_joins_only_with_its_accounted_mailbox_key(self):
+        app = genealogy.application()
+        self.assertEqual([(surface, member.name) for surface, member, _, _ in fixture.facts(app)],
+                         [("Mailbox", "DiagnosticKey")])
+        tags = self.tags(self.genealogy)
+        self.assertEqual(tags[fixture.tag(app)].get("ExternalAccess"), "Read Only")
+        self.assertNotEqual(fixture.type_name(app), fixture.type_name(APP))
 
     def routines(self, root):
         return {r.get('Name'): '\n'.join(e.text or '' for e in r.iter() if e.tag in ('Line', 'Text'))

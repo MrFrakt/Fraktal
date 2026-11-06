@@ -11,10 +11,11 @@ and parsing never consume a proof window. Packets are not atomic (S4b host
 timing); only the counters prove a row.
 
 O10 acceptance fixtures may be co-read with canonical leaves under the
-published scan counter. Their V1 Template identifies the fixture; the generator
+published scan counter. Their V1/V2 Template identifies the fixture; the generator
 proves its writer lies inside that counter's odd window. Fixture values never
 enter the canonical value map or gain an owner-revision proof window.
 """
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 import json
@@ -51,6 +52,7 @@ class Location:
     width: int
     requirements: tuple
     bit: int | None = None
+    elements: int = 1
 
 
 @dataclass(frozen=True)
@@ -111,7 +113,7 @@ class PacketBody:
             ioi = self._comm._build_ioi(location.symbol, 0xC4)
             if not ioi or len(ioi) % 2 or len(ioi) > 510:
                 raise ValueError('canonical symbol exceeds the CIP path budget')
-            service, reply = self._comm._add_read_service(ioi, 1), self._reply_bytes(location)
+            service, reply = self._comm._add_read_service(ioi, location.elements), self._reply_bytes(location)
             # Connected data carries a two-byte sequence count each way.
             if 2 + len(service) > capacity or 6 + reply > capacity:
                 raise ValueError('canonical leaf exceeds the connection budget')
@@ -301,7 +303,7 @@ class CanonicalRowReader:
         return self._locations[path]
 
     def _private(self, symbol):
-        """Resolve an O10 V1 fixture from its own Symbol and Template only."""
+        """Resolve an O10 V1/V2 fixture from its own Symbol and Template only."""
         if not isinstance(symbol, str) or not PRIVATE.fullmatch(symbol):
             raise ValueError('invalid private structure name')
         found = self._symbols.get(symbol)
@@ -311,10 +313,13 @@ class CanonicalRowReader:
             raise ValueError('symbol is not an acceptance fixture')
         root, handle = self._fixture_roots[symbol], found['handle']
         fields = member_table(self._objects[handle])
-        if self._objects[handle].Name != f'FRK_T_{root}FixtureObservationV1' \
+        type_name = self._objects[handle].Name
+        versioned = isinstance(type_name, str) and (type_name == f'FRK_T_{root}FixtureObservationV1' or
+            re.fullmatch(re.escape(f'FRK_T_{root}FixtureV2_') + r'[0-9A-F]{8}', type_name))
+        if not versioned \
                 or not fields or any(r['struct'] or r['atomic'] != 0xC4 or r['array'] > 1
-                                     or '_' not in r['name'] for r in fields):
-            raise ValueError('private structure is not an O10 V1 fixture')
+                                     or not PRIVATE.fullmatch(r['name']) or '_' not in r['name'] for r in fields):
+            raise ValueError('private structure is not an O10 V1/V2 fixture')
         extents = sorted((r['offset'], r['offset'] + 4 * (r['info'] if r['array'] else 1))
                          for r in fields)
         if any(start % 4 or end <= start or end > self._sizes[handle] for start, end in extents) \
@@ -325,9 +330,47 @@ class CanonicalRowReader:
         return Location('#' + symbol, symbol, symbol, 0, row, MappingProxyType({}),
                         self._sizes[handle], ())
 
+    def _private_selection(self, private):
+        """A whole V1 fixture remains supported; V2 can select native members.
+
+        Selection comes from the apparatus, while names, types, array extents
+        and bytes come only from the controller. No station module is imported.
+        """
+        groups = private if isinstance(private, Mapping) else {symbol: None for symbol in private}
+        if len(groups) != len(private) or len(groups) > MAX_PRIVATE:
+            raise ValueError('duplicate or excessive private structure selection')
+        result = {}
+        for symbol, names in groups.items():
+            base = self._private(symbol)
+            if names is None:
+                locations = (base,)
+            else:
+                if isinstance(names, str):
+                    raise ValueError('private member selection must be a sequence')
+                names = tuple(names)
+                if not names or len(set(names)) != len(names) or len(names) > MAX_LEAVES:
+                    raise ValueError('empty, duplicate or excessive private member selection')
+                members = {row['name']: row for row in member_table(self._objects[base.row['handle']])}
+                locations = []
+                for name in names:
+                    if not isinstance(name, str) or name not in members:
+                        raise ValueError('private fixture member absent')
+                    row = members[name]
+                    count = row['info'] if row['array'] else 1
+                    locations.append(Location('#' + symbol + '/' + name, symbol + '.' + name,
+                        symbol, row['offset'], MappingProxyType(dict(row)), MappingProxyType({}),
+                        4 * count, (), elements=count))
+            result.update((location.path, location) for location in locations)
+        if len(result) > MAX_LEAVES:
+            raise ValueError('private member selection budget exceeded')
+        return result
+
     def _decode_private(self, location, raw):
         if len(raw) != location.width:
             raise ValueError('private structure reply length mismatch')
+        if not location.row['struct']:
+            values = list(struct.unpack('<%di' % location.elements, raw))
+            return {location.row['name']: values if location.row['array'] else values[0]}
         return decode(raw, 0, member_table(self._objects[location.row['handle']]),
                       self._objects, location.width, template_sizes=self._sizes,
                       strict=True, native_times=True)
@@ -374,12 +417,11 @@ class CanonicalRowReader:
         join the same published scan-counter proof, including when a canonical
         header also has a longer owner proof. They never borrow that window.
         """
-        paths, private = tuple(paths), tuple(private)
+        paths = tuple(paths)
+        private = private if isinstance(private, Mapping) else tuple(private)
         if not paths or len(paths) != len(set(paths)) or len(paths) > MAX_LEAVES:
             raise ValueError('empty, duplicate or excessive canonical row selection')
-        if len(private) != len(set(private)) or len(private) > MAX_PRIVATE:
-            raise ValueError('duplicate or excessive private structure selection')
-        extra = {location.path: location for location in map(self._private, private)}
+        extra = self._private_selection(private)
         selected, pending = {}, list(paths)
         while pending:
             path = pending.pop()
@@ -389,8 +431,10 @@ class CanonicalRowReader:
             pending.extend(p for p, unused, capacity in selected[path].requirements)
             if len(selected) > MAX_LEAVES:
                 raise ValueError('canonical row dependency budget exceeded')
+        if len(selected) + len(extra) > MAX_LEAVES:
+            raise ValueError('combined canonical/private row budget exceeded')
         bindings = {self._binding(p, scan=bool(extra)) for p in selected}
-        bindings.update(self._binding(self._fixture_roots[loc.symbol] + '/Status/FaultActive', scan=True)
+        bindings.update(self._binding(self._fixture_roots[loc.source] + '/Status/FaultActive', scan=True)
                         for loc in extra.values())
         if len(bindings) != 1:
             raise ValueError('mixed coherence owners require separate canonical rows')
@@ -439,8 +483,9 @@ class CanonicalRowReader:
                 if before == after and not after % 2 and proof_end - proof_start < window_us * 1000 \
                         and not initial % 2 and not advanced % 2 and _later(advanced, initial):
                     decoded = {p: self._decode(selected[p], raw) for p, raw in samples.items() if p in selected}
-                    structures = {loc.symbol: self._decode_private(loc, samples[path])
-                                  for path, loc in extra.items()}
+                    structures = {}
+                    for path, loc in extra.items():
+                        structures.setdefault(loc.source, {}).update(self._decode_private(loc, samples[path]))
                     for loc in selected.values():
                         for count_path, ordinal, capacity in loc.requirements:
                             count, count_type = decoded[count_path]

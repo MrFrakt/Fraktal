@@ -50,6 +50,8 @@ def legacy_surface(pair, name):
         return inputs['unit']
     if name == 'Chart':
         return inputs['additional']['chart']
+    if name == 'Mailbox':
+        return inputs['additional']['mailbox_response']
     return inputs['contexts'][name]
 
 
@@ -89,7 +91,7 @@ def from_pair(pair):
         counters.append(1)
         return 0 if len(counters) % 3 == 1 else 2
     def raw(location):
-        return fixture if location.symbol == observation.tag(APP) else replay.raw(location)
+        return fixture[location.offset:location.offset+location.width] if location.source == observation.tag(APP) else replay.raw(location)
     row_reader = live.CanonicalRowReader(capture, live.LeafBody(raw), counter,
                                         clock_ns=clock, sleep=clock.sleep)
     return views.FixtureReads(APP, row_reader)
@@ -142,8 +144,7 @@ class NativeViews(unittest.TestCase):
                     actual, expected = session.surface(surface), legacy_surface(pair, surface)
                     for name in names:
                         self.assertEqual(actual[name], expected[name])
-                    public = views.UNIT_PUBLIC if surface == 'Unit' else views.CHART_PUBLIC if surface == 'Chart' else {
-                        'OutImm_ExecState': surface + '/Status/State'}
+                    public = views.public_aliases(surface)
                     for name in public:
                         self.assertEqual(actual[name], expected[name])
 
@@ -215,7 +216,7 @@ class Boundaries(unittest.TestCase):
     def test_missing_asserted_fact_is_not_defaulted(self):
         class Reader:
             def read_row(self, paths, private):
-                return dict(values={p:0 for p in paths}, private={private[0]:{}})
+                return dict(values={p:0 for p in paths}, private={next(iter(private)):{}})
         subject = views.FixtureReads(APP, Reader())
         with self.assertRaises(KeyError):
             subject.surface('Unit')

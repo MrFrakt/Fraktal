@@ -6,10 +6,9 @@ exact controller serial, an explicit arm flag and the application's fingerprint
 before its first write, writes only the declared input tags, and restores every
 one of them in a ``finally`` block.
 
-Every structure is read in **one** request. The unit context, the chart and each
-module context are single CIP payloads, atomic on the wire. A press demo whose
-plant moves every 10 ms cannot be observed member-by-member: that is the tearing
-``AB_S9_COHERENCE_EVIDENCE.md`` measured and the S16 harness had to be fixed for.
+Legacy structures are read in one request. Collapsed profiles read canonical
+leaves and accounted O10 facts under one progressing scan proof, and command
+through O11's supervised gateway. Their reads never fall back to old contexts.
 
 Tag values are reported as shape and status; the record carries
 ``values_redacted: true``.
@@ -130,6 +129,9 @@ def seed_sequence(comm: Any) -> int:
     The mailbox refuses a sequence it has already answered, and a harness that
     restarted at 1 would have its first command ignored as a replay.
     """
+    if APP.canonical_collapse:
+        _SEQUENCE['value'] = fixture_reads.controls(comm, app=APP)['sequence']
+        return _SEQUENCE['value']
     request = read_scalar(comm, f"{mailbox.request_tag_name(APP)}.Sequence")
     if request is None:
         raise AssertionError("mailbox sequence read failed; nothing written")
@@ -139,10 +141,10 @@ def seed_sequence(comm: Any) -> int:
 
 def command(comm: Any, kind: int, settle: float = 2.0,
             **arguments: Any) -> dict[str, Any]:
-    """Issue one mailbox command over CIP and wait for its acknowledgement.
+    """Issue one command and independently wait for its PLC acknowledgement.
 
-    No gateway: the mailbox tag is Read/Write and this is the apparatus, not an
-    operator. The writes are issued in contract order and abandoned on the first
+    A collapsed profile uses the same gateway writeBatch path as the operator.
+    The legacy baseline below writes its Frame in contract order, abandoning the first
     failure, which is before the Sequence commit by construction - so a failed
     argument can never be committed with the previous request's value.
 
@@ -150,6 +152,8 @@ def command(comm: Any, kind: int, settle: float = 2.0,
     machine. An acknowledgement is not a result: the latching defect of
     2026-09-22 produced ten clean acks over a press that was latched aborted.
     """
+    if APP.canonical_collapse:
+        return fixture_reads.command(comm, kind, app=APP, settle=settle, **arguments)
     # Other fixture helpers use the gateway writer on this same mailbox. Read
     # its current cursor for every command, rather than reusing a process-local
     # counter which those helpers do not advance.
@@ -175,6 +179,14 @@ def command(comm: Any, kind: int, settle: float = 2.0,
 
 def await_response(comm: Any, sequence: int, settle: float = 2.0) -> dict[str, Any]:
     """Read the complete response only after its final acknowledgement."""
+    if APP.canonical_collapse:
+        deadline = time.monotonic() + settle
+        while time.monotonic() < deadline:
+            row = fixture_reads.controls(comm, app=APP)
+            if row['ack'] == (sequence & 0xffffffff):
+                return dict(sequence=sequence, accepted=row['accepted'], diagnosticKey=row['diagnosticKey'])
+            time.sleep(0.02)
+        raise AssertionError(f"no acknowledgement of sequence {sequence}")
     response = mailbox.response_tag_name(APP)
     deadline = time.monotonic() + settle
     while time.monotonic() < deadline:
@@ -194,6 +206,8 @@ def manual(comm: Any, module: str, value: int, settle: float = 2.0) -> dict[str,
     the module's identity in TargetPath, its ordinal where the controller
     reads it, the catalogue command in IntValue."""
     identity = f"{APP.name}.{module}"
+    if APP.canonical_collapse:
+        return command(comm, mailbox.MANUAL_COMMAND, settle=settle, TargetPath=identity, IntValue=value)
     return command(comm, mailbox.MANUAL_COMMAND, settle=settle, TargetPath=identity,
                    IntValue=value,
                    **{mailbox.MANUAL_TARGET_MEMBER: mailbox.manual_target(APP, identity)})

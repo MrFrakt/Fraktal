@@ -1,0 +1,62 @@
+{"label": "generate_genealogy_02", "exitCode": 0}
+{"label": "bool_scan_genealogy_02", "exitCode": 0}
+{"label": "build_genealogy_EchoController_02", "exitCode": 0}
+{"label": "readback_genealogy_EchoController_02", "exitCode": 0}
+{"label": "sdk_audit_genealogy_EchoController_02", "exitCode": 0}
+{"label": "access_genealogy_EchoController_02", "exitCode": 0}
+{"label": "build_genealogy_PhysicalController_02", "exitCode": 0}
+{"label": "readback_genealogy_PhysicalController_02", "exitCode": 0}
+{"label": "sdk_audit_genealogy_PhysicalController_02", "exitCode": 0}
+{"label": "access_genealogy_PhysicalController_02", "exitCode": 0}
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-c5-control-20261106\run_logged.py", line 8, in <module>
+    result=subprocess.run(sys.argv[3:],cwd=cwd,stdout=out,stderr=subprocess.STDOUT,text=True)
+  File "C:\Python314\Lib\subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\subprocess.py", line 1553, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+                             # no special security
+                             ^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+                             cwd,
+                             ^^^^
+                             startupinfo)
+                             ^^^^^^^^^^^^
+FileNotFoundError: [WinError 2] The system cannot find the file specified
+{
+ "passed": false,
+ "error": "RuntimeError: prepare_acd_genealogy_02 failed",
+ "exits": {
+  "generate_genealogy_02": 0,
+  "bool_scan_genealogy_02": 0,
+  "build_genealogy_EchoController_02": 0,
+  "readback_genealogy_EchoController_02": 0,
+  "sdk_audit_genealogy_EchoController_02": 0,
+  "access_genealogy_EchoController_02": 0,
+  "build_genealogy_PhysicalController_02": 0,
+  "readback_genealogy_PhysicalController_02": 0,
+  "sdk_audit_genealogy_PhysicalController_02": 0,
+  "access_genealogy_PhysicalController_02": 0,
+  "prepare_acd_genealogy_02": 1
+ },
+ "pins": {
+  "genealogy": {
+   "sourceSha256": "5557604A02885ECE5C67392B552F41F15FDC9B747ED139E275D987064273A95A",
+   "declaration": "fraktal_ab_genealogy_s6_collapse_demo"
+  }
+ },
+ "controllerAccess": false,
+ "downloads": 0
+}

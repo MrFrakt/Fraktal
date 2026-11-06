@@ -9,8 +9,8 @@ reads its private facts here and its published facts from the canonical
 rows.
 
 The declaration names those facts, per surface: `Application.fixture_observation`
-is a tuple of (surface, members), where a surface is `Unit`, `Chart` or a
-module name. The structure is one flat UDT whose members are named
+is a tuple of (surface, members), where a surface is `Unit`, `Chart`, `Mailbox`
+or a module name. The structure is one flat UDT whose members are named
 `<surface>_<member>`. The canonical publication copies it once a scan,
 after its own writes and before the generation's closing increment, so the
 copy lies inside the generation's odd window: a reader that sees one even
@@ -25,9 +25,14 @@ emits one (validation refuses it without the collapse). Contacts nothing.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import fraktal_ab_declaration as decl
 
-VERSION = 1
+# V2 adds selected-member acquisition and the numeric mailbox refusal key.
+# A shape signature prevents different acceptance profiles reusing one UDT
+# name with different layouts. V1 remains readable in the generic reader.
+VERSION = 2
 
 
 def enabled(app) -> bool:
@@ -43,7 +48,9 @@ def index_tag(app) -> str:
 
 
 def type_name(app) -> str:
-    return f'FRK_T_{app.name}FixtureObservationV{VERSION}'
+    shape = [(surface, member.name, member.kind, member.dimension) for surface, member, _, _ in facts(app)]
+    signature = hashlib.sha256(json.dumps(shape).encode()).hexdigest()[:8].upper()
+    return f'FRK_T_{app.name}FixtureV{VERSION}_{signature}'
 
 
 def routine_name(app) -> str:
@@ -55,6 +62,9 @@ def _surfaces(app):
     import fraktal_ab_generate as gen
     out = {'Unit': (gen.unit_context_members(app), f'FRK_{app.name}_Unit'),
            'Chart': (gen.chart_members(app), f'FRK_{app.name}_Chart')}
+    import fraktal_ab_mailbox as mailbox
+    out['Mailbox'] = ((decl.scalar('DiagnosticKey', 'the exact numeric refusal key asserted by the apparatus'),),
+                      mailbox.response_tag_name(app))
     for module in app.modules:
         out[module.name] = (gen.module_members(module, app), f'FRK_{app.name}_Inst{module.name}')
     return out

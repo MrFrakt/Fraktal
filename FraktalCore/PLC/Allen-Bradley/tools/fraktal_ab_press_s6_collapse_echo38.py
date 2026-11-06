@@ -22,6 +22,7 @@ FIXTURE = (
     ('PartSlide', ('ErrorID', 'Execute')),
     ('TwoHand', ('OutImm_Armed',)),
     ('PressRam', ('OutImm_Held',)),
+    ('Mailbox', ('DiagnosticKey',)),
 )
 
 
@@ -29,5 +30,8 @@ def application():
     # The documents it loads are the candidate's: same values, same predecessors.
     # The S3h frame copied legacy contexts, which the collapse removes (R6); O10
     # observes what the harnesses still need.
+    # O10/O11 read native rows with the approved V6.7 counter bindings. The
+    # frozen S3 exit parent is V6.6 and deliberately remains unchanged.
     return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0,
+                   canonical_read_coherence=True,
                    fixture_observation=FIXTURE)
