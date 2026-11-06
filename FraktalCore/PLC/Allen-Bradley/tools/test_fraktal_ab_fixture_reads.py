@@ -10,7 +10,6 @@ import gzip
 import json
 from pathlib import Path
 import struct
-import subprocess
 import sys
 import unittest
 from unittest.mock import patch
@@ -191,9 +190,10 @@ class NativeViews(unittest.TestCase):
         self.assertGreater(checked, 5000)
 
     def test_press_walk_and_canonical_case_predicates_are_unchanged_from_c3(self):
-        relative = 'FraktalCore/PLC/Allen-Bradley/tools/'
+        baseline = json.loads((Path(__file__).parent / 'fixtures/press_predicates_c3.json').read_bytes())
+        self.assertEqual(baseline['commit'], '8e74160c6')
         for module, names in ((px, {'run'}), (press, {'record','happy','nok','held','adopted_fault'})):
-            before = subprocess.check_output(['git','show','8e74160c6:'+relative+Path(module.__file__).name],cwd=ROOT)
+            before = '\n\n'.join(baseline['modules'][Path(module.__file__).name]['functions'].values())
             a, b = ast.parse(before), ast.parse(Path(module.__file__).read_text(encoding='utf-8'))
             def selected(tree):
                 return {n.name: ast.dump(n, include_attributes=False) for n in ast.walk(tree)

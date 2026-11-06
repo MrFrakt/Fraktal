@@ -1,0 +1,37 @@
+....F.usage: python.exe -m unittest [-h] [--root ROOT] [--strict] [--emit] [--quiet]
+                              [{inventory,localization,parity,readsurface} ...]
+python.exe -m unittest: error: argument checks: invalid choice: 'bogus' (choose from inventory, localization, parity, readsurface)
+...............................................................................
+======================================================================
+FAIL: test_the_read_surface_stays_on_the_reference_station (tools.test_check_consistency.AbStationSelectionTests.test_the_read_surface_stays_on_the_reference_station)
+In a fresh interpreter, because the projection binds its station at
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-c4-20261106\tools\test_check_consistency.py", line 292, in test_the_read_surface_stays_on_the_reference_station
+    self.assertEqual(done.returncode, 0, done.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import tools.check_consistency as cc;print(sorted(k for k in cc._ab_projection()['values'] if k.endswith('/Status/Name'))[0])
+                                                                 ~~~~~~~~~~~~~~~~~^^
+  File "C:\work\fraktal-ab-c4-20261106\tools\check_consistency.py", line 799, in _ab_projection
+    data_policy=fixture.data.policy_data(ab_projection.APP),
+                ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_data_access.py", line 100, in policy_data
+    for name, value in (('ClassKey', mf.numeric_key(app, item.class_id)),
+                                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_manifest.py", line 612, in numeric_key
+    for row in content(app)["Localization"]:
+               ~~~~~~~^^^^^
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_manifest.py", line 420, in content
+    add_fields(ids[module.name], "", gen.module_members(module, app), TIER_LIVE)
+                                     ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_generate.py", line 129, in module_members
+    import fraktal_ab_module_storage as storage
+ModuleNotFoundError: No module named 'fraktal_ab_module_storage'
+
+
+----------------------------------------------------------------------
+Ran 85 tests in 6.176s
+
+FAILED (failures=1)

@@ -1,0 +1,53 @@
+======================================================================
+ERROR: test_each_collapsed_aoi_takes_its_leaf_and_header_revision (test_fraktal_ab_collapse.Image.test_each_collapsed_aoi_takes_its_leaf_and_header_revision)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_collapse.py", line 163, in test_each_collapsed_aoi_takes_its_leaf_and_header_revision
+    params = {p.get('Name'): (p.get('DataType'), p.get('Usage')) for p in aois[name].iter('Parameter')}
+                                                                          ~~~~^^^^^^
+KeyError: 'FRK_M_CylinderR8Rev'
+
+======================================================================
+ERROR: test_each_instance_tag_carries_its_context_and_no_context_tag_remains (test_fraktal_ab_collapse.Image.test_each_instance_tag_carries_its_context_and_no_context_tag_remains)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_collapse.py", line 182, in test_each_instance_tag_carries_its_context_and_no_context_tag_remains
+    self.assertEqual(values[member.name], member.initial, (module.name, member.name))
+                     ~~~~~~^^^^^^^^^^^^^
+KeyError: 'SchemaVersion'
+
+======================================================================
+ERROR: test_the_unit_and_part_aois_reach_the_root (test_fraktal_ab_collapse.StorageImage.test_the_unit_and_part_aois_reach_the_root)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_collapse.py", line 253, in test_the_unit_and_part_aois_reach_the_root
+KeyError: 'FRK_U_Press_Host16V5T1G2_Part4V2G2R8'
+
+======================================================================
+FAIL: test_the_pre_collapse_images_are_unchanged (test_fraktal_ab_collapse.LegacyBranch.test_the_pre_collapse_images_are_unchanged) [fraktal_ab_genealogy_s6_host_demo]
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_collapse.py", line 272, in test_the_pre_collapse_images_are_unchanged
+    class LegacyBranch(unittest.TestCase):
+                    ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'AA0C0451B406B5CDA128E79A2114D49484FF596FEA7B9D9D99F74E8501A778BC' != 'C3720C153F19C17893A6E27B0429E9A779370E9FECB8B3D7E2D8A52682A168F5'
+- AA0C0451B406B5CDA128E79A2114D49484FF596FEA7B9D9D99F74E8501A778BC
++ C3720C153F19C17893A6E27B0429E9A779370E9FECB8B3D7E2D8A52682A168F5
+
+
+======================================================================
+FAIL: test_the_pre_collapse_images_are_unchanged (test_fraktal_ab_collapse.LegacyBranch.test_the_pre_collapse_images_are_unchanged) [fraktal_ab_press_canonical_echo38]
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\work\fraktal-ab-c4-20261106\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_collapse.py", line 272, in test_the_pre_collapse_images_are_unchanged
+    class LegacyBranch(unittest.TestCase):
+                    ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '9CF624B7E80E781A8536BD90CEDE6CB8FAB52EF2AC061C0F2F3F173DAF6B8244' != '5DCAF972DD52CB04B3CF14BD345837329E40408CD1E01326BDDEB4B74EF906C2'
+- 9CF624B7E80E781A8536BD90CEDE6CB8FAB52EF2AC061C0F2F3F173DAF6B8244
++ 5DCAF972DD52CB04B3CF14BD345837329E40408CD1E01326BDDEB4B74EF906C2
+
+
+----------------------------------------------------------------------
+Ran 33 tests in 595.008s
+
+FAILED (failures=2, errors=3)

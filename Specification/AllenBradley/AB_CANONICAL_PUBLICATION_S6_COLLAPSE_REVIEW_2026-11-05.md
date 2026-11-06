@@ -149,7 +149,7 @@ Each increment is one commit, or a few, and passes before the next starts:
 | C1 | R3: type AOIs write their canonical leaf; ScanCanonical keeps only per-instance calls | `OutImm_ExecState` and the five `Tim*` arrays leave the contexts, which take R3 type names; the V5 rows and the numeric keys they intern follow |
 | C2 | R8, Unit: exact-counterpart members become canonical storage | Their Unit/Chart members removed |
 | C3 | R8, modules: contexts become AOI parameters (all Input as built; C4 makes the private ones locals and deletes the unused) | `FRK_<Root>_Ctx*` tags and `FRK_T_*Ctx` types removed |
-| C4 | R6 + O10: fixture observation structure in acceptance declarations; the press harness and the 15 HX modules read it; frame removed | Observation frame removed; observation structure added (acceptance only) |
+| C4 | R6 + O10: acceptance fixture, accounted press readers, frame removal and private AOI narrowing; remaining HX join with C5/O11 before S6-Q | Observation frame removed; observation structure added (acceptance only) |
 | C5 | O11 + O4: harnesses command through `writeBatch`; Frame ingress and staged services removed; header V6.12 | `FRK_<Root>_HmiRequest` removed; header minor and `Services` rows changed |
 | C6 | R8, tables: legacy published tags to `None`; eight V5 tables removed | Those tags removed from the surface |
 | C7 | R5: a production declaration selects one AUTO rendition | Production only; acceptance declarations keep all three |
@@ -238,7 +238,16 @@ Each increment is one commit, or a few, and passes before the next starts:
   before/after records and unchanged row/wait predicates. Other HX profiles
   need their own fact accounting; their Frame/launcher migration stays open
   with C5/O11. A collapsed profile never falls back to old context reads.
-- **C4c.** Members only an AOI touches become locals, and unused ones go.
+- **C4c, as built** ([evidence](Evidence/AB_S6_COLLAPSE_C4C_OFFLINE_2026-11-06.md)).
+  One immutable plan derived from complete executable owners drives parameters,
+  local defaults, instance initializers and V5 fields. External reads/writes
+  and O10 facts remain addressable; instance-specific initial values cannot
+  become type defaults. Unused fields go; unknown whole-instance consumers
+  refuse generation. Different storage/leaf/body signatures get distinct module
+  AOI names, and the Unit name binds its actual typed parameter signature.
+  Final source 17, both v38 targets, initialization/token/schema proofs and
+  all 2,584 AB tests pass. This closes the split's press/offline work; extra
+  HX fact accounting/migration remains with C5/O11 before integrated S6-Q.
 
 Within these steps, C0b changes no wire layout, only the revision's value.
 C1 and C2 change no wire contract. C3 changes only private

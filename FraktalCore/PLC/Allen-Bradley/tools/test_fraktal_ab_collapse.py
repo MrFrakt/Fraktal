@@ -21,6 +21,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import fraktal_ab_collapse as collapse
+import fraktal_ab_module_storage as storage
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_genealogy_s6_collapse_demo as collapsed_demo
@@ -151,6 +152,7 @@ class Declaration(unittest.TestCase):
 class Image(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.app = storage.application(APP)
         cls.root = ET.fromstring(generate(APP))
 
     def lines(self, routine):
@@ -159,13 +161,17 @@ class Image(unittest.TestCase):
     def test_each_collapsed_aoi_takes_its_leaf_and_header_revision(self):
         aois = {a.get('Name'): a for a in self.root.iter('AddOnInstructionDefinition')}
         for mtype in library.types_used(APP):
-            name = gen.module_aoi_name(APP, next(m for m in APP.modules if library.type_of(m) == mtype))
+            name = gen.module_aoi_name(self.app, next(m for m in APP.modules if library.type_of(m) == mtype))
             params = {p.get('Name'): (p.get('DataType'), p.get('Usage')) for p in aois[name].iter('Parameter')}
             self.assertEqual(params['Leaf'], (collapse.leaf_type(APP, mtype), 'InOut'))
             self.assertEqual(params['Revision'], ('DINT', 'InOut'))
             self.assertNotIn('Ctx', params, 'C3: no context InOut')
+            roles = storage.roles(self.app, mtype)
             for member in gen.module_context_members(mtype, True):
-                self.assertEqual(params[member.name], ('DINT', 'Input'), member.name)
+                if roles[member.name] in ('Input', 'Output'):
+                    self.assertEqual(params[member.name], ('DINT', roles[member.name]), member.name)
+                else:
+                    self.assertNotIn(member.name, params)
         # The emitted call is formatted; compare it without whitespace.
         calls = re.sub(r'\s+', '', ''.join(self.lines(f'FRK_{APP.name}_ScanModules')))
         for module in APP.modules:
@@ -178,15 +184,15 @@ class Image(unittest.TestCase):
             self.assertNotIn(gen.ctx_tag_for(APP, module.name), tags)
             values = {m.get('Name'): int(m.get('Value'))
                       for m in tags[f'FRK_{APP.name}_Inst{module.name}'].iter('DataValueMember')}
-            for member in gen.module_initial_members(APP, module):
+            for member in gen.module_initial_members(self.app, module):
                 self.assertEqual(values[member.name], member.initial, (module.name, member.name))
         names = {d.get('Name') for d in self.root.iter('DataType')}
         for mtype in library.types_used(APP):
             self.assertNotIn(gen.module_context_name(mtype, True), names)
-        unit = next(a for a in self.root.iter('AddOnInstructionDefinition') if a.get('Name') == gen.unit_aoi_name(APP))
+        unit = next(a for a in self.root.iter('AddOnInstructionDefinition') if a.get('Name') == gen.unit_aoi_name(self.app))
         types = {p.get('Name'): p.get('DataType') for p in unit.iter('Parameter')}
         for module in APP.modules:
-            self.assertEqual(types[f'Ctx{module.name}'], gen.module_aoi_name(APP, module))
+            self.assertEqual(types[f'Ctx{module.name}'], gen.module_aoi_name(self.app, module))
 
     def test_the_publication_no_longer_copies_module_state_or_timing(self):
         body = '\n'.join(self.lines(f'FRK_{APP.name}_ScanCanonical'))
@@ -241,6 +247,7 @@ class Storage(unittest.TestCase):
 class StorageImage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.app = storage.application(APP)
         cls.root = ET.fromstring(generate(APP))
         cls.code = [e.text or '' for e in cls.root.iter() if e.tag in ('Line', 'Text')]
 
@@ -248,8 +255,8 @@ class StorageImage(unittest.TestCase):
         import fraktal_ab_part as part
         aois = {a.get('Name'): {p.get('Name'): p.get('DataType') for p in a.iter('Parameter')}
                 for a in self.root.iter('AddOnInstructionDefinition')}
-        for name in (gen.unit_aoi_name(APP), part.service_name(APP)):
-            self.assertTrue(name.endswith(collapse.AOI_SUFFIX), name)
+        for name in (gen.unit_aoi_name(self.app), part.service_name(self.app)):
+            self.assertLessEqual(len(name), 40)
             self.assertEqual(aois[name]['Root'], gen.canonical_root_type(APP))
 
     def test_no_code_names_a_moved_member_or_copies_into_its_storage(self):

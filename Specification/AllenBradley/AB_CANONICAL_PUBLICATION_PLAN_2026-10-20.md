@@ -1499,8 +1499,13 @@ proof; 86 accepted native-state replays preserve all accounted facts and the
 unchanged row predicates. All 2,574 AB tests pass, both v38 targets build/read
 back, and fresh Capacity remains 61%. Other HX profiles must account their
 extra facts before activation; their command/launcher migration remains with
-C5/O11 and S6-Q. C4c narrows the AOI
-parameters.
+C5/O11 and S6-Q. **C4c is done offline, 2026-11-06** ([evidence](Evidence/AB_S6_COLLAPSE_C4C_OFFLINE_2026-11-06.md)):
+a code-derived plan keeps external/fixture facts as parameters, moves private
+module state to locals and removes unused fields. Defaults and instance
+initialization survive compiled read-back; distinct signatures name distinct
+AOI layouts. All 2,584 AB/85 root tests and both v38 preparations pass; Capacity
+is 60% (1,914,768/3,145,728 Blocks). The C4a?c press/offline scope is complete;
+remaining HX/O11 migrations and integrated native S6-Q stay open.
 
 **WP6.7 — Delete and update the gates.**
 

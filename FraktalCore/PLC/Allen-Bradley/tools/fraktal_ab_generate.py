@@ -125,7 +125,11 @@ def module_context_members(mtype: decl.ModuleType, collapsed: bool = False) -> t
 
 def module_members(module: decl.Module, app: decl.Application | None = None) -> tuple[decl.Member, ...]:
     """An instance's context, which is its type's in that application."""
-    return module_context_members(library.type_of(module), collapse.enabled(app))
+    members = module_context_members(library.type_of(module), collapse.enabled(app))
+    if not collapse.enabled(app):
+        return members
+    import fraktal_ab_module_storage as storage
+    return storage.public_members(app, library.type_of(module), members)
 
 
 def _digital_input_members() -> tuple[decl.Member, ...]:
@@ -832,7 +836,7 @@ def module_aoi_name(app: decl.Application, module: decl.Module) -> str:
     """The AOI an instance calls: its type's. Kept by this name so every call
     site asks the one question - which AOI does this module run - and gets the
     library's answer."""
-    return collapse.aoi_name(type_aoi_name(library.type_of(module)), app)
+    return collapse.aoi_name(type_aoi_name(library.type_of(module)), app, library.type_of(module))
 
 
 def module_logic(app: decl.Application, module: decl.Module) -> tuple[str, ...]:
@@ -853,7 +857,12 @@ def unit_aoi_name(app: decl.Application) -> str:
         suffix += f'_Part{app.part_carrier.result_capacity}{part.version(app)}'
     if counting.enabled(app):
         suffix += '_CountV1'
-    return f"FRK_U_{app.name}{suffix}{collapse.aoi_suffix(app)}"
+    name = f"FRK_U_{app.name}{suffix}{collapse.aoi_suffix(app)}"
+    if collapse.enabled(app):
+        import fraktal_ab_module_storage as storage
+        if storage.planned(app):
+            name = storage.unit_name(app, name)
+    return name
 
 
 def _parameter(name: str, data_type: str, usage: str, *, radix: str | None = None,
@@ -1292,21 +1301,23 @@ def type_aoi(mtype: decl.ModuleType,
     import fraktal_ab_owner_read_bindings as owner
     del ctx  # C3: the context is the AOI's own parameters
     leaf = collapse.leaf_type(app, mtype)
+    import fraktal_ab_module_storage as storage
+    roles = storage.roles(app, mtype)
+    members = module_context_members(mtype, True)
     return _aoi(
-        collapse.aoi_name(type_aoi_name(mtype), app),
+        collapse.aoi_name(type_aoi_name(mtype), app, mtype),
         f"Fraktal/AB library type {mtype.type_key}: {mtype.description}. "
-        "Publishes its own canonical leaf (WP6.6 R3) and holds its context as its parameters (C3).",
+        "Publishes its own canonical leaf (WP6.6 R3); C4 derives storage from its executable owners.",
         ENABLE_PARAMETERS + (
             _parameter("Leaf", leaf, "InOut"),
             *((_parameter("Revision", "DINT", "InOut"),) if owner.enabled(app) else ()),
             _parameter("Scan", "DINT", "Input", radix="Decimal"),
-            *collapse.module_parameters(module_context_members(mtype, True)),
+            *collapse.module_parameters(members, roles),
         ),
         type_aoi_logic(mtype, app),
         (leaf,),
         software_revision=software_revision,
-        local_tags='<LocalTags><LocalTag Name="ExecState" DataType="DINT" Radix="Decimal" '
-                   'ExternalAccess="None"/></LocalTags>',
+        local_tags=collapse.module_locals(members, roles),
     )
 
 
@@ -5023,6 +5034,11 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
     if missing:
         raise ValueError(f"source is not the expected empty v33 seed: {missing}")
 
+    if collapse.enabled(app):
+        import fraktal_ab_module_storage as storage
+        # One immutable derived plan governs code, layouts and V5 metadata.
+        app = storage.application(app)
+
     # Reject an undiscoverable station before producing a downloadable file.
     # Evidence and this gate consume the same derived counts and byte estimate.
     manifest_info = manifest.evidence(app)
@@ -5134,6 +5150,7 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
     steps = ordered_steps(app)
     emitted = ET.fromstring(text)
     return {
+        **({"ModuleStorage": storage.report(app)} if collapse.enabled(app) else {}),
         "Schema": SCHEMA,
         "SchemaVersion": SCHEMA_VERSION,
         "Application": app.name,

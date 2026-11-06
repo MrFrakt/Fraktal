@@ -82,10 +82,14 @@ def context_name(base: str, collapsed: bool) -> str:
     return base + R3_SUFFIX if collapsed else base
 
 
-def aoi_name(base: str, app) -> str:
+def aoi_name(base: str, app, mtype=None) -> str:
     """A collapsed type AOI: its context is its own parameters (C3), another signature."""
+    if not enabled(app):
+        return base
     import fraktal_ab_owner_read_bindings as owner
-    return base + MODULE_SUFFIX + ('Rev' if owner.enabled(app) else '') if enabled(app) else base
+    import fraktal_ab_module_storage as storage
+    suffix = MODULE_SUFFIX + (storage.module_suffix(app,mtype) if storage.planned(app) else '')
+    return base + suffix + ('Rev' if owner.enabled(app) else '')
 
 
 def leaf_type(app, mtype) -> str:
@@ -163,7 +167,10 @@ def layout_name(base: str, app) -> str:
 
 def aoi_suffix(app) -> str:
     """The Unit and part AOIs take R1/R3 contexts and the root: another signature (S2)."""
-    return AOI_SUFFIX if enabled(app) else ''
+    if not enabled(app):
+        return ''
+    import fraktal_ab_module_storage as storage
+    return AOI_SUFFIX + ('C4' if storage.planned(app) else '')
 
 
 def rename_storage(text: str, app, scoped: set[str]) -> str:
@@ -213,11 +220,18 @@ def _default(value: int) -> str:
             f'<DefaultData Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="{value}"/></DefaultData>')
 
 
-def module_parameters(members) -> tuple[str, ...]:
-    """C3: each context member an Input parameter, defaulting to its declared initial."""
-    return tuple(f'<Parameter Name="{m.name}" TagType="Base" DataType="DINT" Usage="Input" Radix="Decimal" '
+def module_parameters(members, roles=None) -> tuple[str, ...]:
+    """C4 narrows C3's parameters from the complete generated-owner audit."""
+    roles = roles or {}
+    return tuple(f'<Parameter Name="{m.name}" TagType="Base" DataType="DINT" Usage="{roles.get(m.name, "Input")}" Radix="Decimal" '
                  f'Required="false" Visible="false" ExternalAccess="Read/Write">{_default(m.initial)}</Parameter>'
-                 for m in members)
+                 for m in members if roles.get(m.name, 'Input') in ('Input', 'Output'))
+
+
+def module_locals(members, roles) -> str:
+    return ('<LocalTags><LocalTag Name="ExecState" DataType="DINT" Radix="Decimal" ExternalAccess="None"/>' +
+            ''.join(f'<LocalTag Name="{m.name}" DataType="DINT" Radix="Decimal" ExternalAccess="None">'
+                    f'{_default(m.initial)}</LocalTag>' for m in members if roles.get(m.name) == 'Local') + '</LocalTags>')
 
 
 def instance_data(aoi: str, members) -> str:
