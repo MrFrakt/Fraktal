@@ -1,23 +1,33 @@
 [
  {
+  "pattern": "FRK_Press_ObservationFrame",
+  "change": "removed",
+  "reason": "C4 (R6): the S3h observation frame copied legacy contexts; the collapse removes them, so the frame goes"
+ },
+ {
+  "pattern": "FRK_Press_ObservationGeneration",
+  "change": "removed",
+  "reason": "C4 (R6): the S3h observation frame copied legacy contexts; the collapse removes them, so the frame goes"
+ },
+ {
+  "pattern": "FRK_T_PressObservationFrameS3k",
+  "change": "removed",
+  "reason": "C4 (R6): the S3h observation frame copied legacy contexts; the collapse removes them, so the frame goes"
+ },
+ {
+  "pattern": "FRK_Press_FixtureObservation",
+  "change": "added",
+  "reason": "C4 (O10): the acceptance-only fixture observation of the private facts the press harnesses assert"
+ },
+ {
+  "pattern": "FRK_T_PressFixtureObservationV1",
+  "change": "added",
+  "reason": "C4 (O10): the acceptance-only fixture observation of the private facts the press harnesses assert"
+ },
+ {
   "pattern": "FRK_Press_Ctx*",
   "change": "removed",
   "reason": "C3 (R8): a module's context is its AOI instance, so the context tag goes"
- },
- {
-  "pattern": "FRK_T_PressObservationFrameS3k.FRK_Press_Ctx*",
-  "change": "removed",
-  "reason": "C3 (R8): the S3h observation frame no longer copies module contexts, which are AOI instances now (C4 replaces the frame with O10's structure)"
- },
- {
-  "pattern": "FRK_T_PressObservationFrameS3k.@order*",
-  "change": "removed",
-  "reason": "C3 (R8): the S3h observation frame no longer copies module contexts, which are AOI instances now (C4 replaces the frame with O10's structure)"
- },
- {
-  "pattern": "FRK_T_PressObservationFrameS3k.@order*",
-  "change": "changed",
-  "reason": "C3 (R8): the S3h observation frame no longer copies module contexts, which are AOI instances now (C4 replaces the frame with O10's structure)"
  },
  {
   "pattern": "FRK_Press_Unit.Data.Mode",
@@ -88,16 +98,6 @@
   "pattern": "FRK_T_PressChartC2",
   "change": "added",
   "reason": "C2 (R8): a Unit context or chart without those members is another layout, so another type name"
- },
- {
-  "pattern": "FRK_T_PressObservationFrameS3k.FRK_Press_Unit.DataType",
-  "change": "changed",
-  "reason": "C2 (R8): the S3h observation frame copies the Unit context and chart, so it carries their C2 types (C4 removes it)"
- },
- {
-  "pattern": "FRK_T_PressObservationFrameS3k.FRK_Press_Chart.DataType",
-  "change": "changed",
-  "reason": "C2 (R8): the S3h observation frame copies the Unit context and chart, so it carries their C2 types (C4 removes it)"
  },
  {
   "pattern": "FRK_T_*Ctx",

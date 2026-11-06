@@ -597,6 +597,8 @@ def data_types(app: decl.Application) -> str:
     if editable_values(app):
         records.append(decl.Record(config.audit_name(), config.audit_members(),
                                    "Core 3.8c accepted configuration writes"))
+    import fraktal_ab_fixture_observation as fixture
+    records += fixture.records(app)
     for mtype in () if collapse.enabled(app) else library.types_used(app):  # C3: no context UDT
         records.append(decl.Record(module_context_name(mtype, collapse.enabled(app)),
                                    module_context_members(mtype, collapse.enabled(app)),
@@ -3420,6 +3422,11 @@ def controller_tags(app: decl.Application) -> str:
                                unit_context_members(app)))
     tags.append(_structure_tag(f"FRK_{app.name}_Chart", chart_name(app),
                                chart_members(app)))
+    import fraktal_ab_fixture_observation as fixture
+    if fixture.enabled(app):
+        # O10: Read Only, acceptance-only, beside the canonical rows it is proved with.
+        tags.append(_structure_tag(fixture.tag(app), fixture.type_name(app), fixture.records(app)[0].members))
+        tags.append(_dint_scratch_tag(fixture.index_tag(app)))
     # §11.2.1, emitted rather than asserted. The mailbox is the write surface;
     # a request tag the mailbox drives is None, and the stimulus surface is
     # Read/Write only in a declared test build. What the manifest publishes as a
@@ -4887,6 +4894,7 @@ def canonical_routines(app):
         import fraktal_ab_canonical_commands as commands
         result += commands.routines(app)
         result += __import__('fraktal_ab_host_services').routines(app)
+        result += __import__('fraktal_ab_fixture_observation').routines(app)
     return result
 
 

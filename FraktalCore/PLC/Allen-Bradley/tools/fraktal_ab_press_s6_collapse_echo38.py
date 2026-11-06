@@ -9,6 +9,25 @@ from dataclasses import replace
 import fraktal_ab_press_canonical_echo38 as previous
 
 
+# O10: the private facts the press harnesses assert (fraktal_ab_press_execute,
+# and PressRam's hold in fraktal_ab_press_canonical_execute). Facts with a
+# canonical home (the mode, step and scrap count, PartSlide's state) are read
+# from the canonical rows instead.
+FIXTURE = (
+    ('Unit', ('Aborted', 'Complete', 'CycleCount', 'DecisionId', 'Error', 'ErrorID', 'ErrorSource',
+              'ModeSwitches', 'OrderFail', 'Par_TaskPeriodMs', 'ReportedCount', 'ReportedReason',
+              'ReportedSource', 'Running', 'SchemaVersion', 'StartLatched')),
+    ('Chart', ('LastMs', 'StallReason', 'StepCursor', 'Visited')),
+    ('Door', ('DoneCount', 'Error', 'Execute', 'ManualCmd', 'OutImm_Pos')),
+    ('PartSlide', ('ErrorID', 'Execute')),
+    ('TwoHand', ('OutImm_Armed',)),
+    ('PressRam', ('OutImm_Held',)),
+)
+
+
 def application():
     # The documents it loads are the candidate's: same values, same predecessors.
-    return replace(previous.application(), canonical_collapse=True)
+    # The S3h frame copied legacy contexts, which the collapse removes (R6); O10
+    # observes what the harnesses still need.
+    return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0,
+                   fixture_observation=FIXTURE)

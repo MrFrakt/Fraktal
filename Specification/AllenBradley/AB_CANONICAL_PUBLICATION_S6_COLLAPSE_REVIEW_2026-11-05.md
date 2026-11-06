@@ -209,6 +209,33 @@ Each increment is one commit, or a few, and passes before the next starts:
   names, the dropped call argument and the dropped frame copies, token by
   token, with no numeric literal moving.
 
+**C4 runs in three steps.**
+
+- **C4a, as built** ([evidence](Evidence/AB_S6_COLLAPSE_C4A_OFFLINE_2026-11-05.md)).
+  - *Declaration.* An acceptance declaration names, per surface (`Unit`,
+    `Chart` or a module), the private facts its harnesses assert:
+    `Application.fixture_observation`, valid only with the collapse.
+  - *Structure.* The generator emits them as one flat Read Only structure,
+    `FRK_<Root>_FixtureObservation`, with members `<surface>_<member>`. It
+    never enters the manifest.
+  - *Writer.* The canonical publication calls its copy after its own writes,
+    immediately before the generation's closing increment. The copy then
+    lies inside the generation's odd window, so one even generation read
+    before and after proves it together with the canonical rows. Source 11
+    called it after that close, where no proof covers it; source 12 moves
+    it, and a test pins the placement.
+  - *Press.* The press collapse observes the 29 facts the press harnesses
+    read with no canonical home. Its harness's read sites give them per
+    instance: 16 Unit, 4 chart, 5 Door, 2 PartSlide, 1 TwoHand and 1
+    PressRam fact.
+  - *Frame.* Both collapse declarations drop the S3h frame, which copied the
+    legacy contexts the collapse removes.
+  - *Genealogy.* Its candidate-case harnesses join O10 when they migrate.
+- **C4b.** The press harnesses read the structure and the canonical rows,
+  with the offline gate that each row's predicate gives the same result over
+  the new sources as over the legacy contexts.
+- **C4c.** Members only an AOI touches become locals, and unused ones go.
+
 Within these steps, C0b changes no wire layout, only the revision's value.
 C1 and C2 change no wire contract. C3 changes only private
 storage. C4 to C6 change the published surface by declared removals, plus one

@@ -660,6 +660,9 @@ def cyclic(app):
               f'GSV(TASK,{app.task_name},MaxScanTime,{timing}.MaxScanUs);',
               f'GSV(TASK,{app.task_name},OverlapCount,{timing}.OverlapCount);']
     lines += owner.close_headers(app)
+    # O10: the fixture copy closes inside the generation's odd window, so one
+    # even generation proves it together with the canonical rows.
+    lines += __import__('fraktal_ab_fixture_observation').cyclic(app)
     lines += [f'{generation_tag(app)} := {generation_tag(app)} + 1;']
     import fraktal_ab_canonical_observation as observation
     return lines + observation.cyclic(app)

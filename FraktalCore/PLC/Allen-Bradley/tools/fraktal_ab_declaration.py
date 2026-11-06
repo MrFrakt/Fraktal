@@ -955,6 +955,9 @@ class Application:
     # S6 WP6.6: the canonical structures are the working storage
     # (fraktal_ab_collapse). S6-Q declarations only, until WP6.7.
     canonical_collapse: bool = False
+    # O10: the private facts this acceptance declaration's harnesses assert,
+    # per surface (fraktal_ab_fixture_observation). Never in production.
+    fixture_observation: tuple[tuple[str, tuple[str, ...]], ...] = ()
     # O12: the revisions this station's documents carried before the WP6.6
     # collapse, which its build keeps loading. See ConfigPredecessors. It is
     # compatibility metadata, not station content, so two declarations that
@@ -1416,6 +1419,8 @@ def validate(app: Application) -> list[str]:
     findings.extend(document_revision.validate(app))
     import fraktal_ab_collapse as collapse
     findings.extend(collapse.validate(app))
+    import fraktal_ab_fixture_observation as fixture
+    findings.extend(fixture.validate(app))
     line_records = [r for r in app.records if r.line_cfg]
     if app.line is not None:
         import fraktal_ab_line as line

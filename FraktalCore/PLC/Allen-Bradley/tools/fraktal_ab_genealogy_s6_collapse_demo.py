@@ -11,4 +11,6 @@ import fraktal_ab_genealogy_s6_host_demo as previous
 
 def application():
     # The documents it loads are the V6.11 profile's: same values, same predecessors.
-    return replace(previous.application(), canonical_collapse=True)
+    # The S3h frame copied legacy contexts, which the collapse removes (R6). Its
+    # candidate-case harnesses' private facts join O10 when they migrate.
+    return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0)

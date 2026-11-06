@@ -1488,6 +1488,14 @@ context is its AOI instance: its members are the type AOI's parameters, and
 the instance tag carries its initial values. The context tags and types are
 gone. Narrowing to locals waits for C4's O10 structure.
 
+**C4a done offline, 2026-11-05** ([evidence](Evidence/AB_S6_COLLAPSE_C4A_OFFLINE_2026-11-05.md)). O10's fixture
+observation is declared per surface and emitted as one Read Only structure,
+copied inside the canonical generation's odd window, so one generation proof
+covers it with the canonical rows. The press collapse observes the 29
+private facts its harnesses assert. Both collapse declarations drop the S3h
+frame. C4b migrates the press harnesses onto it, and C4c narrows the AOI
+parameters.
+
 **WP6.7 — Delete and update the gates.**
 
 - Delete RT and MO per the classification file. After the baseline switch,
