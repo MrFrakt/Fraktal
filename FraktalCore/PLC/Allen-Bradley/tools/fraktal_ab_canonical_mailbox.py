@@ -136,8 +136,10 @@ def cyclic(app):
         f'{q}.Accepted := {owner}.Accepted;',f'{q}.DiagnosticKey := {owner}.DiagnosticKey;',
         f'{q}.ResponseRevision := {w}.ResponseRevision;',f'{q}.CoreSerial := {w}.CoreSerial;',
         f'{app.name}.HmiRequest.Sequence := {input_tag(app)}.Sequence;',
+        # Collapsed (WP6.6 C2), the part counts are stored at their canonical paths.
         *(f'{app.name}.{target} := {unit}.{source};' for target,source in
-            (('GoodCount','GoodCount'),('NokCount','ScrapCount'),('ReworkCount','ReworkCount'))),
+            (() if app.canonical_collapse else
+             (('GoodCount','GoodCount'),('NokCount','ScrapCount'),('ReworkCount','ReworkCount')))),
         *machine.wait_logic(app,app.name+'.Starved',app.name+'.Blocked',unit),f'JSR({routine(app)},0);',
         *commands.publish_reply(app),*commands.service_status(app)]
 

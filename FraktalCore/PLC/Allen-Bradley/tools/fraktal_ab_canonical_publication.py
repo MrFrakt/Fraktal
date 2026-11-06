@@ -589,9 +589,11 @@ def cyclic(app):
              'ELSE',f'{state} := {gen.STATE_READY};','END_IF;',
              *(owner.write_header(app,0,'State',state) if owner.enabled(app) else []),
              f'{root}.Status.FaultActive := {unit}.Error <> 0;',
-             f'{root}.ModeActivePublished := {unit}.Mode;',
-             f'{root}.RunStyle := '+(f'{unit}.RunStyle;' if gen.pacing(app) else '0;'),
-             f'{root}.CurrentStep.StepNo := {unit}.Step;']
+             # Collapsed (WP6.6 C2), the root stores these itself: nothing to copy.
+             *([] if app.canonical_collapse else [f'{root}.ModeActivePublished := {unit}.Mode;']),
+             *([] if app.canonical_collapse and gen.pacing(app) else
+               [f'{root}.RunStyle := '+(f'{unit}.RunStyle;' if gen.pacing(app) else '0;')]),
+             *([] if app.canonical_collapse else [f'{root}.CurrentStep.StepNo := {unit}.Step;'])]
     # Collapsed (WP6.6 R3), each type AOI publishes its module's state itself.
     for module_index,module in enumerate(() if app.canonical_collapse else app.modules,1):
         ctx = gen.ctx_tag_for(app,module.name)

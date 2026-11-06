@@ -101,7 +101,8 @@ def put_text(target, text, width):
 def cyclic(app):
     import fraktal_ab_models as models
     root, unit = app.name, f'FRK_{app.name}_Unit'
-    lines = [f'{root}.Decision.Default := {unit}.DecisionAnswer;']
+    # Collapsed (WP6.6 C2), the decision default is stored at its canonical path.
+    lines = [] if app.canonical_collapse else [f'{root}.Decision.Default := {unit}.DecisionAnswer;']
     if app.decisions:
         previous = f'FRK_{app.name}_CanonicalDecisionId'
         lines += [f'IF {previous} <> {unit}.DecisionId THEN',f'{root}.Decision.Prompt.LEN := 0;']

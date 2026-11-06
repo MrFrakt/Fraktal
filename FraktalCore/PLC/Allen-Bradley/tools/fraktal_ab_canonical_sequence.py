@@ -203,7 +203,8 @@ def current_logic(app):
     state=state_tag(app);root=app.name;unit=f'FRK_{root}_Unit';chart=f'FRK_{root}_Chart'
     source=source_tag(app)+'.Entries';i=state+'.CurrentIndex';c=state+'.ConditionIndex'
     current=root+'.CurrentStep';count=core.core_limit('MAX_STEP_CONDS')
-    lines=[f'{root}.CurrentStepElapsed := {chart}.CurrentStepMs;',
+    # Collapsed (WP6.6 C2), the step's elapsed time is stored at its canonical path.
+    lines=[*([] if app.canonical_collapse else [f'{root}.CurrentStepElapsed := {chart}.CurrentStepMs;']),
         f'{root}.CurrentStepTimedOut := {unit}.StepTimedOut <> 0;',f'{state}.CurrentSelected := 0;',
         f'FOR {i} := 0 TO {len(authored_steps(app))-1} DO',
         f'IF ({source}[{i}].Mode = {unit}.Mode) AND ({source}[{i}].Definition.StepNo = {unit}.Step) THEN',

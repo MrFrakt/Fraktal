@@ -169,6 +169,26 @@ Each increment is one commit, or a few, and passes before the next starts:
   V5 build revision in the staged `Services` rows that C5 removes. Both are
   declared.
 
+**C2 as built** ([evidence](Evidence/AB_S6_COLLAPSE_C2_OFFLINE_2026-11-05.md)).
+
+- **Scope.** Eight members move: seven from the Unit context and one from
+  the chart. They are the mode, the step, the decision default, the three
+  part counts, the run style (the application paces) and the current step's
+  elapsed time. Each was copied unconditionally into its canonical path.
+- **Kept.** Three are not exact copies and keep their own storage. The
+  step's expected time is published only while a step is selected; the
+  active-step row's elapsed time only while the cursor matches; and the
+  per-step last durations are slot-mapped into history rows.
+- **How.** One asserted rename pass over the emitted code points every
+  reference at the canonical path; the four copy sites emit nothing. The
+  Unit and part AOIs reach the root through an InOut `Root`, and their names
+  take an `R8` suffix. That also corrects C1, which changed the Unit AOI's
+  parameter types without renaming it.
+- **Proof.** Against the C1 image, C2 is that rename and nothing else, token
+  by token, once the key renumbering and the text-pool shift it causes are
+  accounted for. No routine read these canonical paths before, so no reader
+  sees a value at a different moment.
+
 Within these steps, C0b changes no wire layout, only the revision's value.
 C1 and C2 change no wire contract. C3 changes only private
 storage. C4 to C6 change the published surface by declared removals, plus one

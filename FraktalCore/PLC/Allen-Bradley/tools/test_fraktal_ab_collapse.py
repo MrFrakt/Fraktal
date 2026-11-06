@@ -1,4 +1,5 @@
-"""WP6.6 C1 (R3): each type AOI publishes its own canonical leaf.
+"""WP6.6 C1 (R3): each type AOI publishes its own canonical leaf; C2 (R8):
+the canonical root stores what the publication copied from the Unit.
 
 The proof is behavioural. Each library type's legacy body and its collapsed
 body run side by side, scan by scan, under the same seeded random inputs.
@@ -180,6 +181,65 @@ class Image(unittest.TestCase):
         pattern = re.compile(rf'{APP.name}\.({names})\.(Status\.(State|FaultActive)|Timing)')
         found = [t.text for t in self.root.iter() if t.tag in ('Line', 'Text') and t.text and pattern.search(t.text)]
         self.assertEqual(found, [])
+
+
+class Storage(unittest.TestCase):
+    """C2: one storage per fact, named the same way by every reader and writer."""
+
+    LINE = '<Line Number="0"><![CDATA[{}]]></Line>'
+
+    def aoi(self, name, code):
+        return f'<AddOnInstructionDefinition Name="{name}">{self.LINE.format(code)}</AddOnInstructionDefinition>'
+
+    def test_the_rename_reaches_every_reference_and_only_those(self):
+        text = (self.LINE.format('FRK_Press_Unit.Mode := FRK_Press_Unit.ModeRequest; '
+                                 'x := FRK_Press_Chart.CurrentStepMs; y := FRK_Press_Unit.ScrapCount;')
+                + self.aoi('Owner', 'Ctx.Step := Ctx.StepScan; Chart.CurrentStepMs := 0;')
+                + self.aoi('FRK_M_CylinderR3Rev', 'Ctx.Mode := 1;'))
+        out = collapse.rename_storage(text, APP, {'Owner'})
+        self.assertIn('Press.ModeActivePublished := FRK_Press_Unit.ModeRequest;', out)
+        self.assertIn('x := Press.CurrentStepElapsed; y := Press.NokCount;', out)
+        self.assertIn('Root.CurrentStep.StepNo := Ctx.StepScan; Root.CurrentStepElapsed := 0;', out)
+        self.assertIn('Ctx.Mode := 1;', out, "another AOI's Ctx is its module's own")
+
+    def test_only_the_named_aois_have_their_context_moved(self):
+        code = self.aoi('Owner', 'Ctx.Mode := 1;')
+        self.assertEqual(collapse.rename_storage(code, APP, set()), code, 'an unnamed AOI keeps its own Ctx')
+        self.assertEqual(collapse.rename_storage(code, APP, {'Owner'}),
+                         self.aoi('Owner', 'Root.ModeActivePublished := 1;'))
+
+    def test_the_contexts_carry_no_member_the_root_stores(self):
+        unit = {m.name for m in gen.unit_context_members(APP)}
+        chart = {m.name for m in gen.chart_members(APP)}
+        self.assertEqual(unit & set(collapse.unit_storage(APP)), set())
+        self.assertEqual(chart & set(collapse.chart_storage(APP)), set())
+        self.assertEqual(set(collapse.unit_storage(APP)), {m for m, _ in collapse.C2_UNIT}, 'the press paces')
+        legacy = host_demo.application()
+        self.assertEqual({m.name for m in gen.unit_context_members(legacy)} - unit, set(collapse.unit_storage(APP)))
+
+
+class StorageImage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.root = ET.fromstring(generate(APP))
+        cls.code = [e.text or '' for e in cls.root.iter() if e.tag in ('Line', 'Text')]
+
+    def test_the_unit_and_part_aois_reach_the_root(self):
+        import fraktal_ab_part as part
+        aois = {a.get('Name'): {p.get('Name'): p.get('DataType') for p in a.iter('Parameter')}
+                for a in self.root.iter('AddOnInstructionDefinition')}
+        for name in (gen.unit_aoi_name(APP), part.service_name(APP)):
+            self.assertTrue(name.endswith(collapse.AOI_SUFFIX), name)
+            self.assertEqual(aois[name]['Root'], gen.canonical_root_type(APP))
+
+    def test_no_code_names_a_moved_member_or_copies_into_its_storage(self):
+        moved = '|'.join(collapse.unit_storage(APP))
+        paths = '|'.join(re.escape(c) for c in [*collapse.unit_storage(APP).values(), *collapse.chart_storage(APP).values()])
+        for line in self.code:
+            with self.subTest(line=line[:80]):
+                self.assertIsNone(re.search(rf'FRK_Press_Unit\.({moved})(?![\w])', line))
+                self.assertNotIn('FRK_Press_Chart.CurrentStepMs', line)
+                self.assertIsNone(re.search(rf'Press\.({paths})\s*:=\s*Press\.({paths})\s*;', line))
 
 
 class LegacyBranch(unittest.TestCase):

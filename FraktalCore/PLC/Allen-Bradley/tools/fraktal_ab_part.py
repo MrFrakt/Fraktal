@@ -128,7 +128,8 @@ def service_name(app):
     import fraktal_ab_host_events as host
     suffix = (f'_Host{app.host_event_capacity}{host.profile(app)}' if genealogy.enabled(app) else
               f'_HostV{host.schema(app)}' if host.schema(app) >= 3 else '')
-    return f'FRK_{app.name}Part{app.part_carrier.result_capacity}{version(app)}{suffix}'
+    import fraktal_ab_collapse as collapse
+    return f'FRK_{app.name}Part{app.part_carrier.result_capacity}{version(app)}{suffix}{collapse.aoi_suffix(app)}'
 
 
 def instance_tag(app):
@@ -162,10 +163,13 @@ def records(app):
 
 def call(app, action, *, in_aoi=False, verdict=0, reason=0, record=0, value=0):
     import fraktal_ab_host_events as host
+    import fraktal_ab_collapse as collapse
     p, c, r, u, instance = ('Part', 'Carrier', 'HostEvents', 'Ctx', 'PartService') if in_aoi else (
         tag(app), carrier_tag(app), host.tag(app), f'FRK_{app.name}_Unit', instance_tag(app))
+    # Collapsed (WP6.6 C2), the part counts live in the canonical root.
+    root = (('Root' if in_aoi else app.name) + ',') if collapse.enabled(app) else ''
     operation = 6 if action == 'parents' and genealogy.enabled(app) else ACTIONS[action]
-    return f'{service_name(app)}({instance},{p},{c},{r},{u},{operation},{verdict},{reason},{record},{value})'
+    return f'{service_name(app)}({instance},{p},{c},{r},{u},{root}{operation},{verdict},{reason},{record},{value})'
 
 
 def step_call(app, step, names):
@@ -280,11 +284,13 @@ def logic(app):
 
 
 def service(app):
+    import fraktal_ab_collapse as collapse
     import fraktal_ab_generate as gen
     import fraktal_ab_host_events as host
     params = tuple(gen._parameter(n, t, 'InOut') for n,t in (
         ('Part', type_name(app)), ('Carrier', carrier_name(app)),
-        ('Ring', host.type_name(app)), ('Ctx', gen.unit_context_name(app)))) + tuple(
+        ('Ring', host.type_name(app)), ('Ctx', gen.unit_context_name(app)),
+        *((('Root', gen.canonical_root_type(app)),) if collapse.enabled(app) else ()))) + tuple(
         gen._parameter(n, 'DINT', 'Input', radix='Decimal') for n in
         ('Operation', 'Verdict', 'Reason', 'RecordKind', 'MeasuredValue'))
     local = '<LocalTags>' + ''.join(f'<LocalTag Name="{n}" DataType="DINT"/>' for n in
@@ -292,7 +298,8 @@ def service(app):
          *(genealogy.LOCALS if genealogy.enabled(app) else ()))) + f'<LocalTag Name="HostEmitter" DataType="{host.emitter_name(app)}"/></LocalTags>'
     return gen._aoi(service_name(app), 'Core 3.16 typed local carrier and result owner',
         gen.ENABLE_PARAMETERS + params, logic(app),
-        (type_name(app), carrier_name(app), host.type_name(app), gen.unit_context_name(app)),
+        (type_name(app), carrier_name(app), host.type_name(app), gen.unit_context_name(app),
+         *((gen.canonical_root_type(app),) if collapse.enabled(app) else ())),
         software_revision=f'v{app.major_revision}.00', local_tags=local,
         aoi_dependencies=(host.emitter_name(app),))
 

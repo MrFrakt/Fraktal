@@ -432,6 +432,12 @@ CONFIG_STORE_LOCAL_RETAIN = 0
 
 
 def unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
+    """The mode owner's context. Collapsed (WP6.6 C2), the members the
+    canonical root stores are not in it."""
+    return collapse.without(_unit_context_members(app), collapse.unit_storage(app))
+
+
+def _unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
     return (
         decl.scalar("SchemaVersion", "", initial=SCHEMA_VERSION),
         decl.scalar("Par_TaskPeriodMs", "the declared period this project was emitted for",
@@ -510,7 +516,12 @@ def unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
 
 
 def chart_members(app: decl.Application) -> tuple[decl.Member, ...]:
-    """Core §3.13 in miniature: a cursor, per-step marks and a stall reason."""
+    """Core §3.13 in miniature: a cursor, per-step marks and a stall reason.
+    Collapsed (WP6.6 C2), the members the canonical root stores are not in it."""
+    return collapse.without(_chart_members(app), collapse.chart_storage(app))
+
+
+def _chart_members(app: decl.Application) -> tuple[decl.Member, ...]:
     n = app.chart_steps
     return (
         decl.scalar("StepCursor", "index of the active step in these arrays"),
@@ -657,7 +668,7 @@ def module_context_name(mtype: decl.ModuleType, collapsed: bool = False) -> str:
 
 
 def unit_context_name(app: decl.Application) -> str:
-    return f"FRK_T_{app.name}UnitCtx"
+    return collapse.layout_name(f"FRK_T_{app.name}UnitCtx", app)
 
 
 def config_persist_name(app: decl.Application) -> str:
@@ -801,7 +812,7 @@ def config_persist_members() -> tuple[decl.Member, ...]:
 
 
 def chart_name(app: decl.Application) -> str:
-    return f"FRK_T_{app.name}Chart"
+    return collapse.layout_name(f"FRK_T_{app.name}Chart", app)
 
 
 def type_aoi_name(mtype: decl.ModuleType) -> str:
@@ -827,6 +838,12 @@ def module_logic(app: decl.Application, module: decl.Module) -> tuple[str, ...]:
     return type_aoi_logic(library.type_of(module), app)
 
 
+def canonical_root_type(app: decl.Application) -> str:
+    """The canonical root's type: the Unit and part AOIs' `Root` once collapsed (C2)."""
+    import fraktal_ab_canonical_publication as pub
+    return pub.root_type(app)
+
+
 def unit_aoi_name(app: decl.Application) -> str:
     # Required InOut additions cannot replace a released AOI signature (S2).
     suffix = f'_Host{app.host_event_capacity}{host.profile(app)}' if app.host_event_capacity else ''
@@ -834,7 +851,7 @@ def unit_aoi_name(app: decl.Application) -> str:
         suffix += f'_Part{app.part_carrier.result_capacity}{part.version(app)}'
     if counting.enabled(app):
         suffix += '_CountV1'
-    return f"FRK_U_{app.name}{suffix}"
+    return f"FRK_U_{app.name}{suffix}{collapse.aoi_suffix(app)}"
 
 
 def _parameter(name: str, data_type: str, usage: str, *, radix: str | None = None,
@@ -2313,6 +2330,7 @@ def unit_parameters(app: decl.Application) -> tuple[str, ...]:
     params = [
         _parameter("Ctx", unit_context_name(app), "InOut"),
         _parameter("Chart", chart_name(app), "InOut"),
+        *((_parameter("Root", canonical_root_type(app), "InOut"),) if collapse.enabled(app) else ()),
         _parameter("Cfg", app.records[0].name, "InOut"),
     ]
     for module in app.modules:
@@ -2996,6 +3014,7 @@ def unit_aoi(app: decl.Application) -> str:
         ENABLE_PARAMETERS + unit_parameters(app),
         unit_logic(app),
         (unit_context_name(app), chart_name(app),
+         *((canonical_root_type(app),) if collapse.enabled(app) else ()),
          *(module_context_name(t, app.canonical_collapse) for t in library.types_used(app)),
          app.records[0].name, *((host.type_name(app),) if app.host_event_capacity else ()),
          *((part.type_name(app), part.carrier_name(app)) if app.part_carrier is not None else ()),
@@ -4758,6 +4777,7 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
           if app.models else []),
         (
             f"{unit_aoi_name(app)}(FRK_{n}_InstUnit,FRK_{n}_Unit,FRK_{n}_Chart,"
+            + (f"{n}," if collapse.enabled(app) else "")
             + f"{app.records[0].name}Tag,"
             + "".join(f"{ctx_tag_for(app, m.name)}," for m in app.modules)
             + (host.tag(app) + ',' if app.host_event_capacity else '')
@@ -5067,6 +5087,11 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
         if changed != 1:
             raise ValueError(
                 "embedded Discrete_IO module inhibit was not set exactly once")
+
+    if collapse.enabled(app):
+        # WP6.6 C2: every reference to a member the canonical root now stores.
+        scoped = {unit_aoi_name(app), *((part.service_name(app),) if app.part_carrier is not None else ())}
+        text = collapse.rename_storage(text, app, scoped)
 
     fenced = text
     for allowed in SCOPE_FENCE_ALLOWED:

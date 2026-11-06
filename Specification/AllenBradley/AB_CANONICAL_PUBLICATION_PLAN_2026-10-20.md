@@ -1479,6 +1479,10 @@ opt-in `canonical_collapse`, each type AOI writes its own canonical leaf:
 its state, `FaultActive` and command timing rows. The copy lines are gone.
 The legacy branch every other declaration uses is unchanged byte for byte.
 
+**C2 done offline, 2026-11-05** ([evidence](Evidence/AB_S6_COLLAPSE_C2_OFFLINE_2026-11-05.md)). Eight Unit and chart
+members the publication copied unconditionally are stored at their canonical
+paths. Every reader and writer names those paths, and the copies are gone.
+
 **WP6.7 — Delete and update the gates.**
 
 - Delete RT and MO per the classification file. After the baseline switch,
