@@ -9,6 +9,11 @@ A row body is planned once before its first proof, sent as bounded packets
 between the counter reads, and validated after each proof closes, so encoding
 and parsing never consume a proof window. Packets are not atomic (S4b host
 timing); only the counters prove a row.
+
+O10 acceptance fixtures may be co-read with canonical leaves under the
+published scan counter. Their V1 Template identifies the fixture; the generator
+proves its writer lies inside that counter's odd window. Fixture values never
+enter the canonical value map or gain an owner-revision proof window.
 """
 from copy import deepcopy
 from dataclasses import dataclass
@@ -31,6 +36,8 @@ MAX_PACKET_READS = 64
 MAX_PACKET_BYTES = 4000
 MIN_PACKET_BYTES = 500
 MSP_HEADER = b'\x0a\x02\x20\x02\x24\x01'  # Multiple Service Packet, Message Router
+MAX_PRIVATE = 4
+PRIVATE = re.compile(r'[A-Za-z_][A-Za-z0-9_]{0,39}\Z')
 
 
 @dataclass(frozen=True)
@@ -88,6 +95,11 @@ class PacketBody:
         return 4 + self._sizes[row['handle']] if row['struct'] else 2 + location.width
 
     def plan(self, locations):
+        locations = tuple(locations)
+        for location in locations:
+            handle = location.row['handle']
+            if location.row['struct'] and handle not in self._handles:
+                self._handles[handle] = template_structure_handle(self._comm, handle)
         capacity = self._comm.ConnectionSize
         if type(capacity) is not int or capacity < MIN_PACKET_BYTES:
             raise ValueError('invalid canonical connection size')
@@ -158,7 +170,7 @@ class PacketBody:
         if row['struct']:
             if code != 0x02A0 or len(item) < 8 \
                     or struct.unpack_from('<H', item, 6)[0] != self._handles[row['handle']]:
-                raise ValueError('canonical StringFamily reply type mismatch')
+                raise ValueError('canonical structure reply type mismatch')
             value = item[8:]
         else:
             if code != row['atomic']:
@@ -196,6 +208,11 @@ class CanonicalRowReader:
         self._sources = [(root, root) for root in roots]
         self._sources += [(b['TargetRoot'], b['SourceSymbol']) for b in self._manifest['bindings']]
         self._sources += [(p['CanonicalRoot'], p['SourceSymbol']) for p in self._manifest['dataProducts']]
+        self._public = {source for unused, source in self._sources}
+        for table in ('commandBindings', 'services', 'hostServiceBindings'):
+            self._public.update(value for row in self._manifest.get(table, [])
+                                for key, value in row.items() if key.endswith('Symbol') and value)
+        self._fixture_roots = {f'FRK_{root}_FixtureObservation': root for root in roots}
         self._body, self._counter = body, read_counter
         self._clock, self._sleep = clock_ns, sleep
         self._locations = {}
@@ -283,8 +300,40 @@ class CanonicalRowReader:
             self._locations[path] = found[0]
         return self._locations[path]
 
-    def _binding(self, path):
-        for binding in self._manifest.get('ownerReadBindings', []):
+    def _private(self, symbol):
+        """Resolve an O10 V1 fixture from its own Symbol and Template only."""
+        if not isinstance(symbol, str) or not PRIVATE.fullmatch(symbol):
+            raise ValueError('invalid private structure name')
+        found = self._symbols.get(symbol)
+        if found is None or found.get('arrayRank', 0) or found.get('handle') not in self._objects:
+            raise ValueError('private structure absent: ' + symbol)
+        if symbol in self._public or symbol not in self._fixture_roots:
+            raise ValueError('symbol is not an acceptance fixture')
+        root, handle = self._fixture_roots[symbol], found['handle']
+        fields = member_table(self._objects[handle])
+        if self._objects[handle].Name != f'FRK_T_{root}FixtureObservationV1' \
+                or not fields or any(r['struct'] or r['atomic'] != 0xC4 or r['array'] > 1
+                                     or '_' not in r['name'] for r in fields):
+            raise ValueError('private structure is not an O10 V1 fixture')
+        extents = sorted((r['offset'], r['offset'] + 4 * (r['info'] if r['array'] else 1))
+                         for r in fields)
+        if any(start % 4 or end <= start or end > self._sizes[handle] for start, end in extents) \
+                or any(right[0] < left[1] for left, right in zip(extents, extents[1:])):
+            raise ValueError('invalid O10 fixture Template extents')
+        row = MappingProxyType(dict(name=symbol, handle=handle, struct=True, atomic=None,
+                                    array=0, info=0, offset=0))
+        return Location('#' + symbol, symbol, symbol, 0, row, MappingProxyType({}),
+                        self._sizes[handle], ())
+
+    def _decode_private(self, location, raw):
+        if len(raw) != location.width:
+            raise ValueError('private structure reply length mismatch')
+        return decode(raw, 0, member_table(self._objects[location.row['handle']]),
+                      self._objects, location.width, template_sizes=self._sizes,
+                      strict=True, native_times=True)
+
+    def _binding(self, path, *, scan=False):
+        for binding in (() if scan else self._manifest.get('ownerReadBindings', [])):
             prefix = binding['CanonicalPrefix']
             members = json.loads(binding['MembersJson'])
             selections = [prefix + '/' + member for member in members] if members else [prefix]
@@ -315,17 +364,22 @@ class CanonicalRowReader:
             return bool(value >> location.bit & 1), 'Boolean'
         return scalar_value(value, row['atomic'], location.annotation)
 
-    def read_row(self, paths):
+    def read_row(self, paths, private=()):
         """Acquire one owner, at most 20 attempts within one second.
 
         Occupancy counts are part of the same proof, each read once. A coherent
         but unoccupied index refuses; a changed count/revision retries. A
         malformed reply refuses even from a torn attempt. No result contains
-        bootstrap values or values from a failed attempt.
+        bootstrap values or values from a failed attempt. O10 `private` fixtures
+        join the same published scan-counter proof, including when a canonical
+        header also has a longer owner proof. They never borrow that window.
         """
-        paths = tuple(paths)
+        paths, private = tuple(paths), tuple(private)
         if not paths or len(paths) != len(set(paths)) or len(paths) > MAX_LEAVES:
             raise ValueError('empty, duplicate or excessive canonical row selection')
+        if len(private) != len(set(private)) or len(private) > MAX_PRIVATE:
+            raise ValueError('duplicate or excessive private structure selection')
+        extra = {location.path: location for location in map(self._private, private)}
         selected, pending = {}, list(paths)
         while pending:
             path = pending.pop()
@@ -335,14 +389,16 @@ class CanonicalRowReader:
             pending.extend(p for p, unused, capacity in selected[path].requirements)
             if len(selected) > MAX_LEAVES:
                 raise ValueError('canonical row dependency budget exceeded')
-        bindings = {self._binding(p) for p in selected}
+        bindings = {self._binding(p, scan=bool(extra)) for p in selected}
+        bindings.update(self._binding(self._fixture_roots[loc.symbol] + '/Status/FaultActive', scan=True)
+                        for loc in extra.values())
         if len(bindings) != 1:
             raise ValueError('mixed coherence owners require separate canonical rows')
         revision, progress, protocol, window_us, period_us = bindings.pop()
         started, failures, attempt = self._clock(), [], 0
         # Planned before the first counter read: encoding never opens inside a proof.
-        packets = self._body.plan(tuple(selected.values()))
-        if sorted(loc.path for packet in packets for loc in packet.locations) != sorted(selected):
+        packets = self._body.plan((*selected.values(), *extra.values()))
+        if sorted(loc.path for packet in packets for loc in packet.locations) != sorted([*selected, *extra]):
             raise ValueError('row body plan does not cover the selection exactly')
 
         def bounded(operation):
@@ -382,7 +438,9 @@ class CanonicalRowReader:
                     break
                 if before == after and not after % 2 and proof_end - proof_start < window_us * 1000 \
                         and not initial % 2 and not advanced % 2 and _later(advanced, initial):
-                    decoded = {p: self._decode(selected[p], raw) for p, raw in samples.items()}
+                    decoded = {p: self._decode(selected[p], raw) for p, raw in samples.items() if p in selected}
+                    structures = {loc.symbol: self._decode_private(loc, samples[path])
+                                  for path, loc in extra.items()}
                     for loc in selected.values():
                         for count_path, ordinal, capacity in loc.requirements:
                             count, count_type = decoded[count_path]
@@ -398,6 +456,7 @@ class CanonicalRowReader:
                     return dict(schema='fraktal.ab.canonical-row',
                                 values={p: decoded[p][0] for p in paths},
                                 types={p: decoded[p][1] for p in paths},
+                                private=structures,
                                 revision=after, progress=advanced, protocol=protocol,
                                 attempts=attempt, packets=len(packets), sourceStartedNs=started,
                                 acquisitionNs=elapsed, proofWindowNs=proof_end - proof_start)

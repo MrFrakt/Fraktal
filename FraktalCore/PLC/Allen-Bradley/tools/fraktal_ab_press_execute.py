@@ -22,6 +22,7 @@ import json
 import struct
 import sys
 import time
+from functools import partial
 from typing import Any
 
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
@@ -31,6 +32,8 @@ import fraktal_ab_library as library
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 import fraktal_ab_station as station
+import fraktal_ab_fixture_reads as fixture_reads
+from fraktal_ab_legacy_reads import read_layout
 
 
 SCHEMA = "fraktal.ab.press-execute"
@@ -99,45 +102,9 @@ def read_flat(comm: Any, tag: str, names: tuple[str, ...]) -> dict[str, int] | N
     return _unpack_flat(_value(reply), names)
 
 
-def read_chart(comm: Any) -> dict[str, Any] | None:
-    """The §3.13 chart, including its per-step arrays, in one request."""
-    return read_layout(comm, CHART, CHART_LAYOUT)
-
-
-def read_layout(comm: Any, tag: str, layout) -> dict[str, Any] | None:
-    """Any all-DINT structure, scalars and arrays, in ONE request.
-
-    One request so the structure is one coherent CIP payload - the tearing
-    AB_S9_COHERENCE_EVIDENCE measured is what reading member by member buys.
-    The chart and the alarm log both read through here; a second copy of this
-    unpacking would be a second place for the member order to go wrong.
-    """
-    reply = comm.Read(tag)
-    if not _success(reply):
-        return None
-    payload = _value(reply)
-    total = sum(m.dimension or 1 for m in layout)
-    if not isinstance(payload, (bytes, bytearray)) or len(payload) < total * 4:
-        return None
-    values = struct.unpack_from(f"<{total}i", payload, 0)
-    out: dict[str, Any] = {}
-    i = 0
-    for member in layout:
-        if member.dimension:
-            out[member.name] = list(values[i:i + member.dimension])
-            i += member.dimension
-        else:
-            out[member.name] = values[i]
-            i += 1
-    return out
-
-
-def read_unit(comm: Any) -> dict[str, Any] | None:
-    return read_layout(comm, UNIT, UNIT_LAYOUT)
-
-
-def read_module(comm: Any, name: str) -> dict[str, Any] | None:
-    return read_layout(comm, MODULE_CTX[name], MODULE_LAYOUT[name])
+read_unit = partial(fixture_reads.read_unit, app=APP)
+read_chart = partial(fixture_reads.read_chart, app=APP)
+read_module = partial(fixture_reads.read_module, app=APP)
 
 
 def read_scalar(comm: Any, tag: str) -> int | None:
@@ -291,9 +258,11 @@ def row(name: str, expectation: str, observed, elapsed_ms: float, holds: bool):
     }
 
 
-def fingerprint(comm: Any) -> dict[str, Any]:
+def fingerprint(comm: Any, *, expect_serial=None) -> dict[str, Any]:
     """Prove this is the generated press demo before writing anything."""
     readings: dict[str, Any] = {}
+    if APP.canonical_collapse:
+        fixture_reads.bind(comm, APP, expect_serial)
     unit = read_unit(comm)
     if unit is None:
         return {"passed": False, "failed_tag": UNIT, "status": "unreadable"}
@@ -771,7 +740,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
 
-        print_ready = fingerprint(comm)
+        print_ready = fingerprint(comm, expect_serial=args.expect_serial)
         evidence["fingerprint"] = print_ready
         if not print_ready.get("passed"):
             evidence["error"] = "press-demo fingerprint failed; nothing was written"

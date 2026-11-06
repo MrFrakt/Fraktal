@@ -1493,7 +1493,13 @@ observation is declared per surface and emitted as one Read Only structure,
 copied inside the canonical generation's odd window, so one generation proof
 covers it with the canonical rows. The press collapse observes the 29
 private facts its harnesses assert. Both collapse declarations drop the S3h
-frame. C4b migrates the press harnesses onto it, and C4c narrows the AOI
+frame. **C4b is done offline, 2026-11-06** ([evidence](Evidence/AB_S6_COLLAPSE_C4B_OFFLINE_2026-11-06.md)):
+the press readers use O10 plus exact canonical aliases under the same scan
+proof; 86 accepted native-state replays preserve all accounted facts and the
+unchanged row predicates. All 2,574 AB tests pass, both v38 targets build/read
+back, and fresh Capacity remains 61%. Other HX profiles must account their
+extra facts before activation; their command/launcher migration remains with
+C5/O11 and S6-Q. C4c narrows the AOI
 parameters.
 
 **WP6.7 — Delete and update the gates.**

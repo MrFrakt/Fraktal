@@ -231,9 +231,13 @@ Each increment is one commit, or a few, and passes before the next starts:
   - *Frame.* Both collapse declarations drop the S3h frame, which copied the
     legacy contexts the collapse removes.
   - *Genealogy.* Its candidate-case harnesses join O10 when they migrate.
-- **C4b.** The press harnesses read the structure and the canonical rows,
-  with the offline gate that each row's predicate gives the same result over
-  the new sources as over the legacy contexts.
+- **C4b, as built** ([evidence](Evidence/AB_S6_COLLAPSE_C4B_OFFLINE_2026-11-06.md)).
+  The basic press walk and inherited canonical-press state readers use the
+  structure and exact canonical aliases under one progressing scan proof.
+  All 86 accepted native-state replays preserve the accounted facts, 85
+  before/after records and unchanged row/wait predicates. Other HX profiles
+  need their own fact accounting; their Frame/launcher migration stays open
+  with C5/O11. A collapsed profile never falls back to old context reads.
 - **C4c.** Members only an AOI touches become locals, and unused ones go.
 
 Within these steps, C0b changes no wire layout, only the revision's value.
