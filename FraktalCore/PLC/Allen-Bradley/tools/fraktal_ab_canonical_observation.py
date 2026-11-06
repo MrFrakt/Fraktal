@@ -65,7 +65,8 @@ def legacy_sources(app):
     import fraktal_ab_sets as sets
     import fraktal_ab_signal_tower as tower
     n = app.name
-    result = [f"FRK_{n}_Unit", *(gen.ctx_tag_for(app, m.name) for m in app.modules),
+    # Collapsed (WP6.6 C3), a module's context is its AOI instance, which the frame does not copy.
+    result = [f"FRK_{n}_Unit", *(() if app.canonical_collapse else (gen.ctx_tag_for(app, m.name) for m in app.modules)),
               f"FRK_{n}_Chart", *(f"{r.name}Tag" for r in app.records),
               gen.alarm_active_tag(app), gen.alarm_ring_tag(app)]
     if app.state_flags:result.append(gen.state_flags_tag(app))

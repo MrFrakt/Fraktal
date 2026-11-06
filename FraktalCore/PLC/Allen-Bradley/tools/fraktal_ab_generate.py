@@ -597,7 +597,7 @@ def data_types(app: decl.Application) -> str:
     if editable_values(app):
         records.append(decl.Record(config.audit_name(), config.audit_members(),
                                    "Core 3.8c accepted configuration writes"))
-    for mtype in library.types_used(app):
+    for mtype in () if collapse.enabled(app) else library.types_used(app):  # C3: no context UDT
         records.append(decl.Record(module_context_name(mtype, collapse.enabled(app)),
                                    module_context_members(mtype, collapse.enabled(app)),
                                    f"the Core §6.1 context of {mtype.type_key}"))
@@ -1236,6 +1236,25 @@ def type_aoi_logic(mtype: decl.ModuleType, app: decl.Application | None = None) 
     return collapse.type_logic(type_logic(mtype, rows), app)
 
 
+def module_initial_members(app: decl.Application, module: decl.Module) -> tuple[decl.Member, ...]:
+    """An instance's context members with its own initial values.
+
+    What is per INSTANCE is set here, in the instance's own context, so the
+    type's AOI stays one definition. The task period joins speed and timeout:
+    it is the application's, the instance carries it, and the type reads it at
+    run time instead of having it baked in."""
+    per_instance = {
+        "Par_Speed": module.speed_per_scan,
+        "Par_TimeoutMs": module.timeout_ms,
+        "Par_TaskPeriodMs": app.task_period_ms,
+    }
+    return tuple(
+        m if m.name not in per_instance
+        else decl.Member(m.name, m.comment, m.kind, m.dimension, per_instance[m.name])
+        for m in module_members(module, app)
+    )
+
+
 def module_leaf_arguments(app: decl.Application, module: decl.Module) -> str:
     """The collapsed AOI's leaf and header revision, in call order; nothing otherwise."""
     if not collapse.enabled(app):
@@ -1269,19 +1288,20 @@ def type_aoi(mtype: decl.ModuleType,
             software_revision=software_revision,
         )
     import fraktal_ab_owner_read_bindings as owner
+    del ctx  # C3: the context is the AOI's own parameters
     leaf = collapse.leaf_type(app, mtype)
     return _aoi(
         collapse.aoi_name(type_aoi_name(mtype), app),
         f"Fraktal/AB library type {mtype.type_key}: {mtype.description}. "
-        "Publishes its own canonical leaf (WP6.6 R3).",
+        "Publishes its own canonical leaf (WP6.6 R3) and holds its context as its parameters (C3).",
         ENABLE_PARAMETERS + (
-            _parameter("Ctx", ctx, "InOut"),
             _parameter("Leaf", leaf, "InOut"),
             *((_parameter("Revision", "DINT", "InOut"),) if owner.enabled(app) else ()),
             _parameter("Scan", "DINT", "Input", radix="Decimal"),
+            *collapse.module_parameters(module_context_members(mtype, True)),
         ),
         type_aoi_logic(mtype, app),
-        (ctx, leaf),
+        (leaf,),
         software_revision=software_revision,
         local_tags='<LocalTags><LocalTag Name="ExecState" DataType="DINT" Radix="Decimal" '
                    'ExternalAccess="None"/></LocalTags>',
@@ -2335,7 +2355,8 @@ def unit_parameters(app: decl.Application) -> tuple[str, ...]:
     ]
     for module in app.modules:
         params.append(_parameter(_module_ref(app, module.name),
-                                 module_context_name(library.type_of(module), app.canonical_collapse),
+                                 module_aoi_name(app, module) if collapse.enabled(app)
+                                 else module_context_name(library.type_of(module), app.canonical_collapse),
                                  "InOut"))
     if app.host_event_capacity:
         params.append(_parameter('HostEvents', host.type_name(app), 'InOut'))
@@ -3015,7 +3036,7 @@ def unit_aoi(app: decl.Application) -> str:
         unit_logic(app),
         (unit_context_name(app), chart_name(app),
          *((canonical_root_type(app),) if collapse.enabled(app) else ()),
-         *(module_context_name(t, app.canonical_collapse) for t in library.types_used(app)),
+         *(() if collapse.enabled(app) else (module_context_name(t) for t in library.types_used(app))),
          app.records[0].name, *((host.type_name(app),) if app.host_event_capacity else ()),
          *((part.type_name(app), part.carrier_name(app)) if app.part_carrier is not None else ()),
          *((counting.type_name(),) if counting.enabled(app) else ())),
@@ -3024,7 +3045,9 @@ def unit_aoi(app: decl.Application) -> str:
                     (f'<LocalTag Name="PartService" DataType="{part.service_name(app)}"/>' if app.part_carrier is not None else '') + '</LocalTags>'
                     if app.host_event_capacity else '<LocalTags/>'),
         aoi_dependencies=(((host.emitter_name(app),) if app.host_event_capacity else ()) +
-                          ((part.service_name(app),) if app.part_carrier is not None else ())),
+                          ((part.service_name(app),) if app.part_carrier is not None else ()) +
+                          (tuple(dict.fromkeys(module_aoi_name(app, m) for m in app.modules))
+                           if collapse.enabled(app) else ())),
     )
 
 
@@ -3389,25 +3412,10 @@ def controller_tags(app: decl.Application) -> str:
                             stall_limit_tag(app): 0,
                             release_index_tag(app): 0}.items():
         tags.append(_dint_scratch_tag(name, dimension))
-    for module in app.modules:
-        # What is per INSTANCE is set here, in the instance's own context, so
-        # the type's AOI stays one definition. The task period joins speed and
-        # timeout: it is the application's, the instance carries it, and the
-        # type reads it at run time instead of having it baked in.
-        per_instance = {
-            "Par_Speed": module.speed_per_scan,
-            "Par_TimeoutMs": module.timeout_ms,
-            "Par_TaskPeriodMs": app.task_period_ms,
-        }
-        initial = tuple(
-            m if m.name not in per_instance
-            else decl.Member(m.name, m.comment, m.kind, m.dimension,
-                             per_instance[m.name])
-            for m in module_members(module, app)
-        )
+    for module in () if collapse.enabled(app) else app.modules:  # C3: the instance tag holds it
         tags.append(_structure_tag(ctx_tag_for(app, module.name),
                                    module_context_name(library.type_of(module), app.canonical_collapse),
-                                   initial))
+                                   module_initial_members(app, module)))
     tags.append(_structure_tag(f"FRK_{app.name}_Unit", unit_context_name(app),
                                unit_context_members(app)))
     tags.append(_structure_tag(f"FRK_{app.name}_Chart", chart_name(app),
@@ -3443,6 +3451,15 @@ def controller_tags(app: decl.Application) -> str:
     for name in force_tags(app):
         tags.append(scalar_tag(name, "DINT", "Decimal", "0", "Read Only"))
     for module in app.modules:
+        if collapse.enabled(app):
+            # C3: the instance is the module's context, so its tag carries the
+            # instance's initial values, as Studio exports an AOI instance.
+            tags.append(
+                f'<Tag Name="FRK_{app.name}_Inst{module.name}" TagType="Base" '
+                f'DataType="{module_aoi_name(app, module)}" Constant="false" ExternalAccess="None">'
+                + collapse.instance_data(module_aoi_name(app, module), module_initial_members(app, module))
+                + '</Tag>')
+            continue
         tags.append(
             f'<Tag Name="FRK_{app.name}_Inst{module.name}" TagType="Base" '
             f'DataType="{module_aoi_name(app, module)}" Constant="false" '
@@ -4761,7 +4778,8 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
             modules += routes.apply(app, module)
         modules += [
             *module_setup_lines(app, module, keys),
-            f"{module_aoi_name(app, module)}(FRK_{n}_Inst{module.name},{ctx},"
+            f"{module_aoi_name(app, module)}(FRK_{n}_Inst{module.name},"
+            + ("" if collapse.enabled(app) else f"{ctx},")
             + module_leaf_arguments(app, module) + f"FRK_{n}_ScanCount);",
         ]
     add('Modules', modules)
@@ -5092,6 +5110,8 @@ def generate(app: decl.Application, source: Path, output: Path, *, initial_confi
         # WP6.6 C2: every reference to a member the canonical root now stores.
         scoped = {unit_aoi_name(app), *((part.service_name(app),) if app.part_carrier is not None else ())}
         text = collapse.rename_storage(text, app, scoped)
+        # C3: each module's context tag is its AOI instance.
+        text = collapse.rename_contexts(text, app)
 
     fenced = text
     for allowed in SCOPE_FENCE_ALLOWED:

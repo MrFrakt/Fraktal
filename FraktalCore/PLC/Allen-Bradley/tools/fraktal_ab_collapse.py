@@ -24,6 +24,16 @@ write its own canonical leaf through an InOut, `Leaf`, written once per type:
   and writer names the canonical path, the copy goes, and the Unit and part
   AOIs reach it through an InOut `Root`. A conditional copy (the step's
   expected time, the active-step row) is not storage and stays.
+- **C3 (R8).** A module's context is its AOI instance. Each context member is
+  an Input parameter of the type AOI (not required, not passed in calls), so
+  the instance tag `FRK_<Root>_Inst<Name>` holds the module's state and the
+  context tag and type go. The AOI body names its members directly; every
+  reader and writer names `FRK_<Root>_Inst<Name>.<member>`, and the Unit AOI
+  takes each module's instance as an InOut of the AOI's type. A type's
+  declared initial values are its parameters' defaults; an instance's own
+  values (its speed, timeout and task period) are its tag's initial data, as
+  a download carries them. C4 narrows the parameters: what only the AOI
+  touches becomes a local tag.
 
 The legacy branch stays for every other declaration until WP6.7 deletes it.
 A collapsed context or AOI is a different layout, so it is a different type
@@ -36,6 +46,7 @@ import re
 
 R3_REMOVED = ('OutImm_ExecState', 'TimCount', 'TimLast', 'TimMin', 'TimMax', 'TimAvg')
 R3_SUFFIX = 'R3'
+MODULE_SUFFIX = 'R8'
 TIMING = (('TimCount', 'Count'), ('TimLast', 'Last'), ('TimMin', 'Minimum'), ('TimMax', 'Maximum'),
           ('TimAvg', 'Avg'))
 
@@ -46,6 +57,7 @@ C2_UNIT = (('Mode', 'ModeActivePublished'), ('Step', 'CurrentStep.StepNo'), ('De
 C2_CHART = (('CurrentStepMs', 'CurrentStepElapsed'),)
 C2_SUFFIX = 'C2'
 AOI_SUFFIX = 'R8'
+_CTX = re.compile(r'(?<![\w.])Ctx\.(\w+)')
 _CODE = re.compile(r'(<(Line|Text)\b[^>]*><!\[CDATA\[)(.*?)(\]\]></\2>)', re.S)
 _AOI = re.compile(r'<AddOnInstructionDefinition Name="([^"]+)".*?</AddOnInstructionDefinition>', re.S)
 
@@ -71,8 +83,9 @@ def context_name(base: str, collapsed: bool) -> str:
 
 
 def aoi_name(base: str, app) -> str:
+    """A collapsed type AOI: its context is its own parameters (C3), another signature."""
     import fraktal_ab_owner_read_bindings as owner
-    return base + R3_SUFFIX + ('Rev' if owner.enabled(app) else '') if enabled(app) else base
+    return base + MODULE_SUFFIX + ('Rev' if owner.enabled(app) else '') if enabled(app) else base
 
 
 def leaf_type(app, mtype) -> str:
@@ -124,7 +137,8 @@ def type_logic(lines, app) -> tuple[str, ...]:
     else:
         out += ['Leaf.Status.State := ExecState;']
     out += ['Leaf.Status.FaultActive := Ctx.Error <> 0;']
-    return tuple(out)
+    # C3: the context is the AOI's own parameters, named directly.
+    return tuple(_CTX.sub(r'\1', line) for line in out)
 
 
 def unit_storage(app) -> dict[str, str]:
@@ -191,4 +205,38 @@ def rename_storage(text: str, app, scoped: set[str]) -> str:
             left += [p.pattern for p, _ in local if any(p.search(m.group(3)) for m in _CODE.finditer(aoi.group(0)))]
     if left:
         raise ValueError(f'C2 storage still referenced: {left}')
+    return result
+
+
+def _default(value: int) -> str:
+    return (f'<DefaultData Format="L5K"><![CDATA[{value}]]></DefaultData>'
+            f'<DefaultData Format="Decorated"><DataValue DataType="DINT" Radix="Decimal" Value="{value}"/></DefaultData>')
+
+
+def module_parameters(members) -> tuple[str, ...]:
+    """C3: each context member an Input parameter, defaulting to its declared initial."""
+    return tuple(f'<Parameter Name="{m.name}" TagType="Base" DataType="DINT" Usage="Input" Radix="Decimal" '
+                 f'Required="false" Visible="false" ExternalAccess="Read/Write">{_default(m.initial)}</Parameter>'
+                 for m in members)
+
+
+def instance_data(aoi: str, members) -> str:
+    """C3: an instance tag's initial data, as Studio exports it: EnableIn, EnableOut,
+    then each non-InOut parameter in definition order (`Scan`, then the members)."""
+    values = [('EnableIn', 'BOOL', 1), ('EnableOut', 'BOOL', 0), ('Scan', 'DINT', 0),
+              *((m.name, 'DINT', m.initial) for m in members)]
+    rows = ''.join(f'<DataValueMember Name="{n}" DataType="{d}"' + (' Radix="Decimal"' if d == 'DINT' else '')
+                   + f' Value="{v}"/>' for n, d, v in values)
+    return f'<Data Format="Decorated"><Structure DataType="{aoi}">{rows}</Structure></Data>'
+
+
+def rename_contexts(text: str, app) -> str:
+    """C3: a module's context tag is its AOI instance. Code only, as `rename_storage`."""
+    names = '|'.join(re.escape(m.name) for m in app.modules)
+    if not names:
+        return text
+    pattern = re.compile(rf'(?<![\w.])FRK_{re.escape(app.name)}_Ctx({names})(?![\w])')
+    result = _CODE.sub(lambda m: m.group(1) + pattern.sub(rf'FRK_{app.name}_Inst\1', m.group(3)) + m.group(4), text)
+    if any(pattern.search(m.group(3)) for m in _CODE.finditer(result)):
+        raise ValueError('a module context tag is still referenced')
     return result

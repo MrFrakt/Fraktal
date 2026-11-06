@@ -1,5 +1,6 @@
 """WP6.6 C1 (R3): each type AOI publishes its own canonical leaf; C2 (R8):
-the canonical root stores what the publication copied from the Unit.
+the canonical root stores what the publication copied from the Unit; C3: a
+module's context is its AOI instance, whose parameters the body names directly.
 
 The proof is behavioural. Each library type's legacy body and its collapsed
 body run side by side, scan by scan, under the same seeded random inputs.
@@ -76,14 +77,15 @@ class Parity(unittest.TestCase):
             if 'Par_TaskPeriodMs' in ctx:
                 ctx['Par_TaskPeriodMs'] = APP.task_period_ms
         published = leaf()
-        tags = {'Ctx': new, 'Leaf': published, 'Scan': 0, 'ExecState': 0, 'S:FS': True, 'Revision': 0}
+        # C3: the members are the AOI's own parameters, beside its leaf, revision and local.
+        tags = {**new, 'Leaf': published, 'Scan': 0, 'ExecState': 0, 'S:FS': True, 'Revision': 0}
         rows = collapse.catalogued_rows(APP, mtype) if 'TimSlot' in old else 0
         rng, members, seen = random.Random(seed), inputs(mtype), set()
         for scan in range(1, SCANS + 1):
             for member in members:
                 if rng.random() < 0.08:
                     value = rng.choice((0, 1)) if member.kind == 'boolean' else rng.choice((0, 1, 2, 3))
-                    old[member.name] = new[member.name] = value
+                    old[member.name] = tags[member.name] = value
             st.Controller({'Ctx': old, 'Scan': scan}).run(legacy_code)
             tags['Scan'], tags['S:FS'] = scan, scan == 1
             st.Controller(tags).run(collapsed_code)
@@ -92,7 +94,7 @@ class Parity(unittest.TestCase):
             with self.subTest(type=mtype.type_key, seed=seed, scan=scan):
                 self.assertEqual(published['Status']['State'], old['OutImm_ExecState'])
                 self.assertEqual(bool(published['Status']['FaultActive']), old['Error'] != 0)
-                self.assertEqual({k: v for k, v in old.items() if k in new}, new)
+                self.assertEqual({k: v for k, v in old.items() if k in new}, {k: tags[k] for k in new})
                 for r in range(rows):
                     self.assertEqual(tuple(published['Timing']['Rows'][r][c] for _, c in COLUMNS),
                                      tuple(old[s][r] for s, _ in COLUMNS))
@@ -117,7 +119,7 @@ class Parity(unittest.TestCase):
         code = st.parse('\n'.join(gen.type_aoi_logic(mtype, APP)))
         ctx = st.structure(gen.module_context_members(mtype, True))
         ctx['Par_TaskPeriodMs'] = APP.task_period_ms
-        tags = {'Ctx': ctx, 'Leaf': leaf(), 'Scan': 1, 'ExecState': 0, 'S:FS': True, 'Revision': 0}
+        tags = {**ctx, 'Leaf': leaf(), 'Scan': 1, 'ExecState': 0, 'S:FS': True, 'Revision': 0}
         st.Controller(tags).run(code)
         self.assertEqual(tags['Revision'], 1, 'opened on the first scan, as the publication did')
         tags['Revision'] += 1
@@ -125,7 +127,7 @@ class Parity(unittest.TestCase):
             tags.update(Scan=scan, **{'S:FS': False})
             st.Controller(tags).run(code)
         self.assertEqual(tags['Revision'], 2, 'nothing changed, nothing opened')
-        ctx.update(ParCmd_Command=1, ParCmd_Target=0, Execute=1)
+        tags.update(ParCmd_Command=1, ParCmd_Target=0, Execute=1)
         tags['Scan'] = 6
         st.Controller(tags).run(code)
         self.assertNotEqual(tags['Leaf']['Status']['State'], gen.STATE_READY, 'the command changed the state')
@@ -158,15 +160,33 @@ class Image(unittest.TestCase):
         aois = {a.get('Name'): a for a in self.root.iter('AddOnInstructionDefinition')}
         for mtype in library.types_used(APP):
             name = gen.module_aoi_name(APP, next(m for m in APP.modules if library.type_of(m) == mtype))
-            params = {p.get('Name'): p.get('DataType') for p in aois[name].iter('Parameter')}
-            self.assertEqual(params['Leaf'], collapse.leaf_type(APP, mtype))
-            self.assertEqual(params['Revision'], 'DINT')
-            self.assertEqual(params['Ctx'], gen.module_context_name(mtype, True))
+            params = {p.get('Name'): (p.get('DataType'), p.get('Usage')) for p in aois[name].iter('Parameter')}
+            self.assertEqual(params['Leaf'], (collapse.leaf_type(APP, mtype), 'InOut'))
+            self.assertEqual(params['Revision'], ('DINT', 'InOut'))
+            self.assertNotIn('Ctx', params, 'C3: no context InOut')
+            for member in gen.module_context_members(mtype, True):
+                self.assertEqual(params[member.name], ('DINT', 'Input'), member.name)
         # The emitted call is formatted; compare it without whitespace.
         calls = re.sub(r'\s+', '', ''.join(self.lines(f'FRK_{APP.name}_ScanModules')))
         for module in APP.modules:
-            self.assertIn(f'{gen.ctx_tag_for(APP, module.name)},{APP.name}.{module.name},'
+            self.assertIn(f'(FRK_{APP.name}_Inst{module.name},{APP.name}.{module.name},'
                           f'{owner.header_revision(APP, APP.modules.index(module) + 1)},', calls)
+
+    def test_each_instance_tag_carries_its_context_and_no_context_tag_remains(self):
+        tags = {t.get('Name'): t for t in self.root.find('Controller').find('Tags')}
+        for module in APP.modules:
+            self.assertNotIn(gen.ctx_tag_for(APP, module.name), tags)
+            values = {m.get('Name'): int(m.get('Value'))
+                      for m in tags[f'FRK_{APP.name}_Inst{module.name}'].iter('DataValueMember')}
+            for member in gen.module_initial_members(APP, module):
+                self.assertEqual(values[member.name], member.initial, (module.name, member.name))
+        names = {d.get('Name') for d in self.root.iter('DataType')}
+        for mtype in library.types_used(APP):
+            self.assertNotIn(gen.module_context_name(mtype, True), names)
+        unit = next(a for a in self.root.iter('AddOnInstructionDefinition') if a.get('Name') == gen.unit_aoi_name(APP))
+        types = {p.get('Name'): p.get('DataType') for p in unit.iter('Parameter')}
+        for module in APP.modules:
+            self.assertEqual(types[f'Ctx{module.name}'], gen.module_aoi_name(APP, module))
 
     def test_the_publication_no_longer_copies_module_state_or_timing(self):
         body = '\n'.join(self.lines(f'FRK_{APP.name}_ScanCanonical'))

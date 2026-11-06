@@ -1483,6 +1483,11 @@ The legacy branch every other declaration uses is unchanged byte for byte.
 members the publication copied unconditionally are stored at their canonical
 paths. Every reader and writer names those paths, and the copies are gone.
 
+**C3 done offline, 2026-11-05** ([evidence](Evidence/AB_S6_COLLAPSE_C3_OFFLINE_2026-11-05.md)). Each module's
+context is its AOI instance: its members are the type AOI's parameters, and
+the instance tag carries its initial values. The context tags and types are
+gone. Narrowing to locals waits for C4's O10 structure.
+
 **WP6.7 — Delete and update the gates.**
 
 - Delete RT and MO per the classification file. After the baseline switch,

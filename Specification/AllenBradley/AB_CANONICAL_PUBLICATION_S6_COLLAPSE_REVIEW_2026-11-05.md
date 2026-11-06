@@ -148,7 +148,7 @@ Each increment is one commit, or a few, and passes before the next starts:
 | C0b | O12: the document revision redefined; every pre-collapse revision accepted | None: only the derived hashes move |
 | C1 | R3: type AOIs write their canonical leaf; ScanCanonical keeps only per-instance calls | `OutImm_ExecState` and the five `Tim*` arrays leave the contexts, which take R3 type names; the V5 rows and the numeric keys they intern follow |
 | C2 | R8, Unit: exact-counterpart members become canonical storage | Their Unit/Chart members removed |
-| C3 | R8, modules: contexts become AOI parameters and locals; `unused` deleted | `FRK_<Root>_Ctx*` tags and `FRK_T_*Ctx` types removed |
+| C3 | R8, modules: contexts become AOI parameters (all Input as built; C4 makes the private ones locals and deletes the unused) | `FRK_<Root>_Ctx*` tags and `FRK_T_*Ctx` types removed |
 | C4 | R6 + O10: fixture observation structure in acceptance declarations; the press harness and the 15 HX modules read it; frame removed | Observation frame removed; observation structure added (acceptance only) |
 | C5 | O11 + O4: harnesses command through `writeBatch`; Frame ingress and staged services removed; header V6.12 | `FRK_<Root>_HmiRequest` removed; header minor and `Services` rows changed |
 | C6 | R8, tables: legacy published tags to `None`; eight V5 tables removed | Those tags removed from the surface |
@@ -188,6 +188,26 @@ Each increment is one commit, or a few, and passes before the next starts:
   by token, once the key renumbering and the text-pool shift it causes are
   accounted for. No routine read these canonical paths before, so no reader
   sees a value at a different moment.
+
+**C3 as built** ([evidence](Evidence/AB_S6_COLLAPSE_C3_OFFLINE_2026-11-05.md)).
+
+- **Storage.** Each module's context is its AOI instance. Every context
+  member is an Input parameter of its type AOI: not required, not passed in
+  calls, read and written as `FRK_<Root>_Inst<Name>.<member>`. The AOI body
+  names its members directly.
+- **Initial values.** A type's declared initial values are its parameters'
+  defaults. An instance's own (its speed, timeout and task period) are its
+  tag's initial data, in the form Studio itself exports an AOI instance.
+  Read-back confirms both survive.
+- **Signatures.** The Unit AOI takes each instance as an InOut of the
+  instance's AOI type, which v38 accepts on both targets. The context tags
+  and types are gone. The S3h frame no longer copies module contexts.
+- **Deferred to C4.** No locals yet and no member deleted. Which members a
+  harness still needs is what O10's structure decides, so C4 narrows the
+  parameters with it: private ones become locals, unused ones go.
+- **Proof.** Against the C2 image, C3 is the context rename, the bare member
+  names, the dropped call argument and the dropped frame copies, token by
+  token, with no numeric literal moving.
 
 Within these steps, C0b changes no wire layout, only the revision's value.
 C1 and C2 change no wire contract. C3 changes only private
