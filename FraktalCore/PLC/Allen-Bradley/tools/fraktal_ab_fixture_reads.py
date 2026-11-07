@@ -146,6 +146,113 @@ def read_access(comm, *, app, audit=False):
     return legacy.read_access(comm, audit=audit)
 
 
+def part_identity(comm, *, app):
+    """Only the two live leaves used by held/abort waits; UID is PLC text."""
+    if not app.canonical_collapse:
+        import fraktal_ab_part as legacy
+        raw = legacy.read(comm, app)
+        return dict(Present=raw['Present'], Uid=legacy.uid(raw['Uid']))
+    paths = (app.name + '/Part/Present', app.name + '/Part/Uid')
+    held = values(comm, paths, app=app)
+    return dict(Present=held[paths[0]], Uid=held[paths[1]])
+
+
+def part_values(comm, *, app):
+    """The Part result as published; no UID, tolerance or timestamp projection."""
+    if not app.canonical_collapse:
+        import fraktal_ab_part as legacy
+        return legacy.project(app, legacy.read(comm, app))
+    if app.part_carrier is None:
+        raise ValueError('Part fixture requires a declared carrier')
+    names = ['Uid', 'Present', 'CarrierKind', 'Result/Verdict', 'Result/ReasonCode',
+             'Result/StationPath', 'Result/TimeSynchronized', 'Result/Stamp']
+    if app.part_carrier.genealogy_capacity:
+        names += ['ParentCapacity', 'ParentCount', *(f'Parents[{i}]'
+                  for i in range(1, app.part_carrier.genealogy_capacity + 1))]
+    names += [f'Result/Records[{i}]/{leaf}'
+              for i in range(1, app.part_carrier.result_capacity + 1)
+              for leaf in ('Name', 'Unit', 'Value', 'Minimum', 'Maximum', 'Target', 'InTol')]
+    prefix = app.name + '/'
+    held = values(comm, (prefix + 'Part/' + name for name in names), app=app)
+    return {path[len(prefix):]: value for path, value in held.items()}
+
+
+def host_events(comm, *, app, attempts=3):
+    """Alias the PLC-formatted canonical ring into the fixture's batch shape.
+
+    The ring has its own V6.11 owner revision. Only occupied slots are read;
+    a changed planning header retries within the original three-read bound.
+    Strings, times, resource values and parents come directly from the PLC.
+    """
+    if not app.canonical_collapse:
+        import fraktal_ab_host_events as legacy
+        return legacy.read(comm, app, tuple(m.code for m in app.models), attempts=attempts)
+    from fraktal_ab_host_cursor import META, validate_metadata
+    from fraktal_ab_host_service_binding import SERVICES
+    from datetime import datetime
+    if type(attempts) is not int or not 1 <= attempts <= 3:
+        raise ValueError('host fixture acquisition exceeds its original attempt bound')
+    session = _session(comm, app)
+    bindings = [b for b in session.reader._manifest.get('hostServiceBindings', [])
+                if b['RootSymbol'] == session.root and b['Service'] == SERVICES['HostEvents']]
+    if len(bindings) != 1 or bindings[0]['CanonicalRoot'] != session.root + '/HostEvents':
+        raise ValueError('fixture requires the published read-only host ring')
+    prefix = session.root + '/HostEvents/'
+    fields = ('Sequence', 'Kind', 'StationPath', 'PartUid', 'Subject', 'Value',
+              'Stamp', 'TimeSynchronized', 'Verdict', 'ReasonCode')
+    parent_capacity = app.part_carrier.genealogy_capacity if app.part_carrier else 0
+    headers = (*META, 'RingHead', *(('GenealogyCapacity',) if parent_capacity else ()))
+    paths = tuple(prefix + name for name in headers)
+    for _ in range(attempts):
+        before = values(comm, paths, app=app)
+        def metadata(held):
+            if type(held[prefix + 'Wrapped']) is not bool:
+                raise ValueError('host ring Wrapped is not a published Boolean')
+            return {name: int(held[prefix + name]) if name == 'Wrapped' else held[prefix + name]
+                    for name in META}
+        meta = metadata(before)
+        capacity, count, head, newest = validate_metadata(meta)
+        if before[prefix + 'RingHead'] != head or parent_capacity and before[prefix + 'GenealogyCapacity'] != parent_capacity:
+            raise ValueError('host ring extent/head differs from its published metadata')
+        slots = [(head - count + i) % capacity + 1 for i in range(count)]
+        leaves = (*fields, *(('ParentCount', *(f'Parents[{i}]' for i in range(1, parent_capacity + 1)))
+                            if parent_capacity else ()))
+        held = values(comm, (*paths, *(f'{prefix}Ring[{i}]/{name}' for i in slots for name in leaves)), app=app)
+        if any(held[path] != before[path] for path in paths):
+            continue
+        events = []
+        for offset, slot in enumerate(slots):
+            stem = f'{prefix}Ring[{slot}]/'
+            event = {name: held[stem + name] for name in fields}
+            if event['Sequence'] != newest - count + offset + 1 or event['StationPath'] != session.root:
+                raise ValueError('host event interval or station differs')
+            kind, verdict, reason = (event[n] for n in ('Kind', 'Verdict', 'ReasonCode'))
+            if (any(type(event[n]) is not int for n in ('Sequence', 'Kind', 'Verdict', 'ReasonCode'))
+                    or not 1 <= kind <= 10 or type(event['TimeSynchronized']) is not bool
+                    or kind == 3 and verdict not in (0, 1, 2, 3)
+                    or kind != 3 and verdict != (2 if kind == 10 else 0)
+                    or (verdict == 2 or kind == 10) and reason == 0
+                    or kind not in (3, 4, 10) and reason != 0
+                    or any(not isinstance(event[n], str) for n in ('StationPath', 'PartUid', 'Subject', 'Value', 'Stamp'))):
+                raise ValueError('invalid canonical host event semantics')
+            if bool(event['PartUid']) != (meta['SchemaVersion'] >= 2 and 1 <= kind <= 4) \
+                    or bool(event['Subject']) != (meta['SchemaVersion'] >= 3 and kind in (7, 8)):
+                raise ValueError('host event identity leaked or is missing')
+            if not event['Stamp'].endswith('Z'):
+                raise ValueError('host event timestamp unavailable')
+            datetime.fromisoformat(event['Stamp'].replace('Z', '+00:00'))
+            if parent_capacity:
+                n = held[stem + 'ParentCount']
+                parents = [held[stem + f'Parents[{i}]'] for i in range(1, parent_capacity + 1)]
+                if (type(n) is not int or not 0 <= n <= parent_capacity or n and not 1 <= kind <= 4
+                        or any(not isinstance(p, str) or not p for p in parents[:n]) or any(parents[n:])):
+                    raise ValueError('host parent slots differ from their count')
+                event['Parents'] = parents[:n]
+            events.append(event)
+        return dict(metadata=meta, events=events, **(dict(genealogyCapacity=parent_capacity) if parent_capacity else {}))
+    raise ValueError('host ring changed during every bounded fixture acquisition')
+
+
 def read_alarm_log(comm, *, app):
     if app.canonical_collapse:
         return surface(comm, 'AlarmActive', app=app), surface(comm, 'AlarmRing', app=app)

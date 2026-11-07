@@ -1,0 +1,40 @@
+test_the_genealogy_joins_only_with_its_accounted_mailbox_key (test_fraktal_ab_fixture_observation.Image.test_the_genealogy_joins_only_with_its_accounted_mailbox_key) ... FAIL
+
+======================================================================
+FAIL: test_the_genealogy_joins_only_with_its_accounted_mailbox_key (test_fraktal_ab_fixture_observation.Image.test_the_genealogy_joins_only_with_its_accounted_mailbox_key)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_observation.py", line 117, in test_the_genealogy_joins_only_with_its_accounted_mailbox_key
+    expected = [(surface, name) for surface, names in app.fixture_observation for name in names]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    self.assertEqual([(surface, member.name) for surface, member, _, _ in fixture.facts(app)],
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [('Ma[19 chars]Key'), ('Unit', 'Aborted'), ('Unit', 'Complete[257 chars]ed')] != [('Ma[19 chars]Key')]
+
+First list contains 12 additional elements.
+First extra element 1:
+('Unit', 'Aborted')
+
+- [('Mailbox', 'DiagnosticKey'),
+?                              ^
+
++ [('Mailbox', 'DiagnosticKey')]
+?                              ^
+
+-  ('Unit', 'Aborted'),
+-  ('Unit', 'Complete'),
+-  ('Unit', 'CycleCount'),
+-  ('Unit', 'DecisionId'),
+-  ('Unit', 'Error'),
+-  ('Unit', 'ErrorID'),
+-  ('Unit', 'Running'),
+-  ('TwoHand', 'OutImm_Armed'),
+-  ('PressRam', 'OutImm_Held'),
+-  ('AccessState', 'CurrentLevel'),
+-  ('AccessState', 'LoginBusy'),
+-  ('AccessState', 'Required')]
+
+----------------------------------------------------------------------
+Ran 1 test in 244.436s
+
+FAILED (failures=1)

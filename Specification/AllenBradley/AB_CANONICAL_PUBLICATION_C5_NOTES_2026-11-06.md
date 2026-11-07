@@ -398,3 +398,27 @@ Next in C5b3: migrate `fraktal_ab_part_execute.py` (3 direct legacy calls),
 `fraktal_ab_genealogy_execute.py`, inherited runners and
 `fraktal_ab_press_canonical_execute.py`, then retire Frame/staged endpoints and
 publish V6.12 in C5c before C6/C7 and native S6-Q.
+
+
+## C5b3 Part/genealogy acquisition slice - 2026-11-07
+
+The [acquisition record](Evidence/AB_S6_COLLAPSE_C5B3_PART_READS_OFFLINE_2026-11-07.md) passes offline: 2,707 AB tests,
+85 root and 74 focused tests; 25 checks/11 waits preserved; 40-leaf Part/native-result and
+HostEvents replays; both v38 target/read-back/access/default/SDK gates; 60%
+Capacity (1,916,892 used / 1,228,836 available / 3,145,728 Blocks,
++1,272). O10 grows from one to thirteen facts for the Part recovery matrix.
+Twelve exact copies add 111 ST tokens; all 72 routines otherwise match.
+Other public data and the three manifest hashes remain identical. Both press
+profiles regenerate byte-identically and reuse their 54% qualification.
+The lightweight fresh manifest pin uses discovered native Templates; no
+cached activation value substitutes for the read. Shipping Dart is unchanged.
+
+This is the acquisition slice, not a complete runner/C5 exit. Next are the
+inherited tower bootstrap/snapshot/configuration reads and document-preserving
+isolated host lifecycle, including the explicit disconnect boundary, then the
+canonical press launcher. Existing predicates and disconnect time bounds stay.
+The previous Phase 5 narrative genealogy hash is corrected by this new record:
+the artifact-bound source is `5557604A...273A95A`, not `07C771DF...36DB417`.
+The old evidence stays immutable. No controller operation ran. C5c/V6.12,
+C6/C7, native S6-Q and final retirement/spec activation remain open; O2/O5
+remain decided as recorded in the plan.

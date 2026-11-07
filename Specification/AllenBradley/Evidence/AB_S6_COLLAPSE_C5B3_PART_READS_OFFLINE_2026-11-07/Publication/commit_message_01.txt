@@ -1,0 +1,12 @@
+S6 C5b3: migrate Part and host-event acquisition to canonical rows
+
+Keep the Part recovery matrix predicates while reading PLC-published Part
+identity/results and occupied HostEvents ring rows. Pin each primitive write
+with a fresh native Template-based manifest identity read. Account for the
+genealogy matrix with 12 copy-only O10 facts (13 total).
+
+Validation: 2,707 AB tests, 85 root tests, 74 focused checks, accepted Part
+and host-batch replays, unchanged 25 checks/11 waits, both v38 build/read-back
+and SDK/access/default audits. Capacity 60%, +1,272 Blocks. Public data and
+manifest hashes unchanged; press profiles byte-identical. No Echo operations.
+Inherited bootstrap/configuration/disconnect lifecycle remains a later slice.

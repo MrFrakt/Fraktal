@@ -14,4 +14,12 @@ def application():
     # The S3h frame copied legacy contexts, which the collapse removes (R6). Its
     # candidate-case harnesses' private facts join O10 when they migrate.
     return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0,
-                   fixture_observation=(('Mailbox', ('DiagnosticKey',)),))
+                   fixture_observation=(
+                       ('Mailbox', ('DiagnosticKey',)),
+                       # Part's restored recovery matrix and its start helper.
+                       ('Unit', ('Aborted', 'Complete', 'CycleCount', 'DecisionId',
+                                 'Error', 'ErrorID', 'Running')),
+                       ('TwoHand', ('OutImm_Armed',)),
+                       ('PressRam', ('OutImm_Held',)),
+                       ('AccessState', ('CurrentLevel', 'LoginBusy', 'Required')),
+                   ))

@@ -112,10 +112,14 @@ class Image(unittest.TestCase):
         for root in (self.press, self.genealogy):
             self.assertFalse([n for n in self.tags(root) if 'ObservationFrame' in n or 'ObservationGeneration' in n])
 
-    def test_the_genealogy_joins_only_with_its_accounted_mailbox_key(self):
+    def test_the_genealogy_joins_only_with_its_accounted_part_facts(self):
         app = genealogy.application()
+        expected = [(surface, name) for surface, names in app.fixture_observation for name in names]
         self.assertEqual([(surface, member.name) for surface, member, _, _ in fixture.facts(app)],
-                         [("Mailbox", "DiagnosticKey")])
+                         expected)
+        record = self.genealogy.find(f"./Controller/DataTypes/DataType[@Name='{fixture.type_name(app)}']")
+        self.assertEqual([member.get('Name') for member in record.find('Members')],
+                         [surface + '_' + name for surface, name in expected])
         tags = self.tags(self.genealogy)
         self.assertEqual(tags[fixture.tag(app)].get("ExternalAccess"), "Read Only")
         self.assertNotEqual(fixture.type_name(app), fixture.type_name(APP))

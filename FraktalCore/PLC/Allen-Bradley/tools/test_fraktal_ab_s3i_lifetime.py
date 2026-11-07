@@ -52,6 +52,10 @@ class Model:
 
     def unit(self):return self.plc.tags[f'FRK_{self.app.name}_Unit']
 
+    def read_access(self, comm, *, audit=False):
+        if audit:raise AssertionError('calendar model does not supply the access audit table')
+        return self.session
+
     def command(self,run,kind,**arguments):
         self.commands.append((kind,{k:v for k,v in arguments.items() if k!='Secret'}))
         if kind==mb.LOGIN:
@@ -96,7 +100,7 @@ class Model:
              patch.object(lifetime.CalendarRun,'scalar',lambda run,name:self.pub.root[name]), \
              patch.object(lifetime.CalendarRun,'observe',lambda run,phase:self.observe(run,phase)), \
              patch.object(lifetime.fixture.Run,'restore_configuration',lambda run:None), \
-             patch.object(lifetime.projection,'read_access',lambda comm:self.session):
+             patch.object(lifetime.projection,'read_access',self.read_access):
             return self.run.calendar()
 
 

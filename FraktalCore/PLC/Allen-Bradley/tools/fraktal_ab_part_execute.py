@@ -28,6 +28,7 @@ import fraktal_ab_projection as projection
 import fraktal_ab_set_broker as broker
 import fraktal_ab_sets as sets
 import fraktal_ab_station as station
+import fraktal_ab_fixture_reads as views
 
 
 class FixtureRefused(RuntimeError):
@@ -40,6 +41,9 @@ class Guarded:
         self.allowed = frozenset(gen.externally_writable(app)) | frozenset(
             tag for tag, _ in mb.command_writes(app, mb.STOP, 1)) | frozenset(
             mb.request_tag_name(app) + '.ConfigSet.' + member.name for member in sets.request_members())
+        if app.canonical_collapse:
+            import fraktal_ab_canonical_publication as publication
+            self._canonical_hash = publication.manifest_values(app)['ContentHash']
 
     def __getattr__(self, name):
         return getattr(self.comm, name)
@@ -61,6 +65,14 @@ class Guarded:
                 or value.Revision != '38.11' or self.comm.IPAddress != '127.0.0.1'
                 or self.comm.ProcessorSlot != 0):
             raise FixtureRefused('exact local Echo identity guard failed')
+        if self.app.canonical_collapse:
+            state = views.connection_state(self)
+            if getattr(state, '_fraktal_fixture_reads', None) is None:
+                views.bind(self, self.app, f'{self.serial:08X}')
+            held = views._session(self, self.app).reader.manifest_identity()
+            if held != dict(Valid=True, Truncated=False, ContentHash=self._canonical_hash):
+                raise FixtureRefused('canonical manifest pin acquisition or identity failed')
+            return
         raw, status, _ = reader._read_raw(self.comm, manifest.header_tag(self.app))
         if raw is None:
             raise FixtureRefused('manifest header acquisition failed')
@@ -108,7 +120,7 @@ class Run:
     def login(self):
         self.command(mb.LOGIN, User=self.account['user'], Secret=self.account['pin'])
         def settled():
-            state = projection.read_access(self.comm)
+            state = views.read_access(self.comm, app=self.app)
             return state is not None and not state['LoginBusy'] and state['CurrentLevel'] == self.account['level']
         self.wait(settled, 'login', timeout=15)
 
@@ -186,7 +198,7 @@ class Run:
             raise FixtureRefused('START refused')
 
     def batch(self):
-        return host.read(self.comm, self.app, self.codes)
+        return views.host_events(self.comm, app=self.app)
 
     def verify_sink(self, output):
         """Read-only PLC acquisition; a rejected event cannot advance its cursor."""
@@ -229,7 +241,7 @@ class Run:
         u = self.unit()
         delta = {n:u[n]-counters[n] for n in ('GoodCount','ScrapCount','ReworkCount','CycleCount')}
         row = dict(language=language, case=case, passed=False, counters=delta,
-                   events=rows, part=part.project(self.app, part.read(self.comm,self.app)), **extra)
+                   events=rows, part=views.part_values(self.comm, app=self.app), **extra)
         self.rows.append(row)
         return row
 
@@ -275,9 +287,9 @@ class Run:
         self.set(px.HOLD['PressRam'], 1)
         self.begin()
         self.wait(lambda: (px.read_module(self.comm,'PressRam') or {}).get('OutImm_Held'), 'recoverable hold')
-        present = part.read(self.comm,self.app)
+        present = views.part_identity(self.comm, app=self.app)
         self.check(present['Present'] != 0,'part must be present during hold')
-        identity = part.uid(present['Uid'])
+        identity = present['Uid']
         if ending == 'resume':
             time.sleep(.75)  # exceeds the cylinder command's 500 ms timeout
             self.check(self.unit()['Error'] == 0 and self.unit()['Running'] == 1,'held timeout must not accrue')
@@ -289,7 +301,7 @@ class Run:
         else:
             self.command(mb.STOP if ending == 'abort' else mb.SET_MODE,
                          **({} if ending == 'abort' else dict(IntValue=self.app.manual_mode)))
-            self.wait(lambda: not part.read(self.comm,self.app)['Present'], 'part abort')
+            self.wait(lambda: not views.part_identity(self.comm, app=self.app)['Present'], 'part abort')
             self.set(px.HOLD['PressRam'],0)
             row = self.record(language,'abort' if ending == 'abort' else 'mode_change',before,baseline)
             self.check([e['Kind'] for e in row['events'] if 1 <= e['Kind'] <= 4] == [1,4], 'abort must occur once without processed')
@@ -301,7 +313,7 @@ class Run:
         self.set(px.FAULT['PartSlide'],1)
         self.begin()
         failed = self.wait(lambda: self.unit() if self.unit()['Error'] else None, 'adopted slide fault')
-        self.wait(lambda: not part.read(self.comm,self.app)['Present'],'fault abort')
+        self.wait(lambda: not views.part_identity(self.comm, app=self.app)['Present'],'fault abort')
         row = self.record(language,'adopted_fault',before,baseline,firstOut=failed['ErrorID'])
         aborted = [e for e in row['events'] if e['Kind'] == 4]
         self.check(len(aborted) == 1 and aborted[0]['ReasonCode'] == failed['ErrorID'], 'fault abort preserves first-out')

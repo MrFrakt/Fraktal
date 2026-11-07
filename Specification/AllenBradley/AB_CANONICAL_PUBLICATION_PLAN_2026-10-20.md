@@ -1594,6 +1594,20 @@ precondition is proven offline on the shelving profile while the normal press
 retains its metrics exclusion. Part, genealogy/inherited runners and the
 canonical press launcher remain in C5b3 before C5c/V6.12, C6/C7 and native S6-Q.
 
+**C5b3 Part/genealogy acquisition slice done offline, 2026-11-07** ([evidence](Evidence/AB_S6_COLLAPSE_C5B3_PART_READS_OFFLINE_2026-11-07.md)).
+Part identity/result and HostEvents acquisition use canonical rows, and native
+access facts use O10 (genealogy: 1 -> 13 facts). All 25 checks and 11 waits
+remain; 2,707 AB, 85 root and 74 focused tests pass, as do both v38 target
+build/read-back/access/default/SDK gates. Capacity is 60% (1,916,892 Blocks,
++1,272). Twelve copies add 111 ST tokens; all 72 routines otherwise match,
+with no other public-data or manifest-hash changes. Press artifacts are
+byte-identical to Phase 5. This is not the inherited runner's exit: tower
+bootstrap/access/snapshot, common configuration preservation and the explicit
+disconnect/service-ownership boundary remain, followed by the standalone
+canonical press launcher. Native acceptance stays S6-Q after C7. The new
+record also corrects the earlier Phase 5 narrative genealogy source hash from
+the sealed artifact pin; it does not rewrite historical evidence.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The

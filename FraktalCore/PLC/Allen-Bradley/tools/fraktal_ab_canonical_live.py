@@ -306,6 +306,28 @@ class CanonicalRowReader:
         self._command_capabilities[root] = MappingProxyType(result)
         return self._command_capabilities[root]
 
+    def manifest_identity(self):
+        """Fresh native header pin, using discovered Templates and string widths.
+
+        No activation value is returned from the cached bootstrap manifest.
+        This is a metadata read, not a certificate for cyclic row coherence.
+        """
+        from fraktal_ab_canonical_manifest import manifest_candidates
+        found = manifest_candidates(list(self._symbols.values()),
+                                    [dict(handle=h, members=member_table(t)) for h, t in self._objects.items()])
+        if len(found) != 1:
+            raise ValueError('canonical manifest is absent or ambiguous')
+        source = found[0]['name']
+        names = ('Valid', 'Truncated', 'ContentHash')
+        locations = tuple(self._resolve_in('@manifest/' + n, '@manifest', source) for n in names)
+        if any(location is None for location in locations):
+            raise ValueError('canonical manifest identity members unavailable')
+        result = {}
+        for packet in self._body.plan(locations):
+            for location, raw in zip(packet.locations, self._body.parse(packet, self._body.send(packet)), strict=True):
+                result[location.path.rsplit('/', 1)[1]] = self._decode(location, raw)[0]
+        return result
+
     def host_status(self, root):
         """V6.11 CPS-published reply, in one native structure read.
 
