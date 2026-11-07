@@ -1567,6 +1567,17 @@ excludes controller metrics, so the original/migrated shelving preflight both
 refuse its required reason-21 event. A dedicated shelving acceptance profile
 remains before positive native shelving acceptance; no guard is relaxed.
 
+**C5b3 shelving acceptance profile, offline follow-up.**
+`fraktal_ab_press_s6_shelving_echo38` inherits the collapsed press and changes
+only `SystemHealth.require_controller_metrics` to true. This is an
+acceptance-only requirement: the existing health/alarm owner opens reason 21
+after its first-sample guard. The normal press retains its exclusion. The
+original shelving eligibility and restoration guards remain unchanged. See
+the [offline qualification](Evidence/AB_S6_COLLAPSE_C5B3_SHELVING_OFFLINE_2026-11-06.md).
+Positive native shelving remains S6-Q after C7; this profile is not a native
+acceptance result. Its exact image must be regenerated and qualified after
+the remaining collapse increments.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The
@@ -1606,8 +1617,12 @@ integrated native S6-Q remain after C5.
 - The AB README, `AB_NEW_PROJECT_GUIDE.md`, and `HMI_CONTRACT.md` (AB adopts
   TC3's bounds for the five D2 arrays).
 
-**Native session S6-Q** follows §4. One approval covers two candidate images in
-sequence: the collapsed genealogy-S4b image, then the collapsed press image.
+**Native session S6-Q** follows §4 under standing Echo authorization O3. The
+candidate sequence is the collapsed genealogy-S4b image, a dedicated shelving
+acceptance image, then the normal collapsed press image. The added shelving
+image supplies a real warning through the existing optional health requirement;
+it preserves the normal press's platform exclusion. Each image retains fresh
+guards, backup, Capacity, build/read-back, scan and rollback gates.
 
 - **Genealogy gates:**
   - the 41 candidate cases on canonical harnesses;
@@ -1617,6 +1632,14 @@ sequence: the collapsed genealogy-S4b image, then the collapsed press image.
   - Capacity and scan (< 10,000 µs, zero overlaps).
 - **Press gates:** the 47 rows, with the seven core cases in each of ST, SFC and
   LD; schema identity; Capacity and scan.
+- **Shelving phase:** run the unchanged Phase 6 shelving cases with
+  `FRAKTAL_AB_DECLARATION=fraktal_ab_press_s6_shelving_echo38`, independent
+  canonical/O10 observation, O11 commands and complete document/session
+  restoration. Require the actual standing reason-21 event in preflight;
+  never inject an alarm slot or weaken eligibility. Finish this phase before
+  the normal press validation; end the session on the qualified genealogy
+  baseline. The additional download is acceptance apparatus, not a production
+  health-policy change.
 - **Baseline switch (O6, approved 2026-10-27).** The collapsed genealogy image
   becomes the Echo rollback baseline, with its own 31 canonical baseline cases
   recorded in this session. The legacy genealogy pin stays archived and is no
@@ -1869,7 +1892,7 @@ checklist (owner-operated by design, P10) and any controller other than Echo.
 |---|---|---|
 | S4b: WP4b.1–4b.6 | 3–4 days | 1 (S4b-Q) |
 | S5: WP5.1–5.4 | 4–5 days | 1 (S5-Q) |
-| S6: WP6.1–6.8 | 3–4 weeks, plus the O4 review | 1 (S6-Q, two images) |
+| S6: WP6.1–6.8 | 3–4 weeks, plus the O4 review | 1 (S6-Q, three images including shelving acceptance) |
 | S7: WP7.1–7.5 | 1–2 weeks after hardware | 1–2 on hardware |
 
 Owner approvals and native sessions set the real pace. The plan avoids the

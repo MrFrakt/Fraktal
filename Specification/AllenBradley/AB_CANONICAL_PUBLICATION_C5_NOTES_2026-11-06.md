@@ -331,3 +331,33 @@ The accepted idle input and the parent/migrated preflights both refuse that
 precondition. Preserve the base exclusion and the guard. A dedicated shelving
 acceptance profile/event precondition remains before positive native shelving
 acceptance; the offline migration does not close this gap.
+
+
+## C5b3 shelving acceptance profile - offline follow-up
+
+The [dedicated profile qualification](Evidence/AB_S6_COLLAPSE_C5B3_SHELVING_OFFLINE_2026-11-06.md) passes:
+2,689 AB tests, 85 root tests, 52 focused service/profile checks, both v38
+build/read-back/access/default/SDK gates and 54% Studio Capacity
+(1,713,240 used / 1,432,488 available / 3,145,728 Blocks, +36 used versus
+the normal press). Only the optional metrics requirement changes: nine added
+ST tokens in ScanHealth, 65 routines unchanged, identical public schema,
+initial values and manifest hashes. The existing 102-field fixture remains.
+
+`fraktal_ab_press_s6_shelving_echo38` supplies the standing reason-21 warning
+through the existing health/alarm owner after its first-sample guard. The
+normal press keeps the exclusion, and every original eligibility/session
+guard remains. This is offline service/preparation proof, not a typed-wire,
+gateway, scan, retention or native shelving acceptance result. S6-Q after C7
+now sequences genealogy, the dedicated shelving profile, then the normal
+press, ending on the qualified genealogy baseline. Rebuild/requalify the
+profile after intervening collapse work. No controller operation ran.
+
+All shipping HMI/Dart/runtime bindings are unchanged; the hash-bound C5b2
+44-test package qualification is reused. Early failed setup/proof/receipt
+runs are sealed, with corrected fresh runs passing. Owner edits remain out.
+The next source inventory finds 18 direct legacy calls/21 row sites in Phase 5
+and three calls in Part; genealogy delegates its reads. Phase 5 also requires
+reason 21. Those migrations, inherited reads and the canonical launcher are
+next, followed by C5c/V6.12, C6/C7 and native S6-Q. O5 already chose FileMedium;
+O2 defers hardware-only S7 without a date as a declared exclusion. Revisit
+software CIP Security only after S4b-S6 exit.

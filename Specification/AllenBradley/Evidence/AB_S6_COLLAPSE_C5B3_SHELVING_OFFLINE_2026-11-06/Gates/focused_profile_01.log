@@ -1,0 +1,163 @@
+test_active_shelf_still_refuses_preflight (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_active_shelf_still_refuses_preflight) ... ERROR
+test_base_press_keeps_its_exclusion_and_preflight_refusal (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_base_press_keeps_its_exclusion_and_preflight_refusal) ... ERROR
+test_claimed_admin_still_cannot_bypass_the_native_shelving_gate (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_claimed_admin_still_cannot_bypass_the_native_shelving_gate) ... ERROR
+test_event_is_the_existing_nonblocking_registry_warning (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_event_is_the_existing_nonblocking_registry_warning) ... ok
+test_first_sample_is_not_eligible_then_the_health_owner_opens_one_event (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_first_sample_is_not_eligible_then_the_health_owner_opens_one_event) ... ERROR
+test_only_the_explicit_health_requirement_changes (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_only_the_explicit_health_requirement_changes) ... ok
+test_shelf_unshelf_and_logged_out_expiry_leave_the_condition_open (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_shelf_unshelf_and_logged_out_expiry_leave_the_condition_open) ... ERROR
+test_unknown_session_still_refuses_preflight (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_unknown_session_still_refuses_preflight) ... ERROR
+
+======================================================================
+ERROR: test_active_shelf_still_refuses_preflight (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_active_shelf_still_refuses_preflight)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 106, in test_active_shelf_still_refuses_preflight
+    b = Bench()
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 29, in __init__
+    self.c = controller(app)
+             ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_access.py", line 128, in controller
+    c.run('\n'.join(gen.start_release_logic(app)))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 467, in _exec
+    self.write(stmt[1], self.eval(stmt[2]))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 394, in write
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_StartRelease.Overflow: no member Overflow
+
+======================================================================
+ERROR: test_base_press_keeps_its_exclusion_and_preflight_refusal (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_base_press_keeps_its_exclusion_and_preflight_refusal)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 99, in test_base_press_keeps_its_exclusion_and_preflight_refusal
+    b = Bench(base.application())
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 29, in __init__
+    self.c = controller(app)
+             ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_access.py", line 128, in controller
+    c.run('\n'.join(gen.start_release_logic(app)))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 467, in _exec
+    self.write(stmt[1], self.eval(stmt[2]))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 394, in write
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_StartRelease.Overflow: no member Overflow
+
+======================================================================
+ERROR: test_claimed_admin_still_cannot_bypass_the_native_shelving_gate (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_claimed_admin_still_cannot_bypass_the_native_shelving_gate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 143, in test_claimed_admin_still_cannot_bypass_the_native_shelving_gate
+    b = Bench()
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 29, in __init__
+    self.c = controller(app)
+             ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_access.py", line 128, in controller
+    c.run('\n'.join(gen.start_release_logic(app)))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 467, in _exec
+    self.write(stmt[1], self.eval(stmt[2]))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 394, in write
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_StartRelease.Overflow: no member Overflow
+
+======================================================================
+ERROR: test_first_sample_is_not_eligible_then_the_health_owner_opens_one_event (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_first_sample_is_not_eligible_then_the_health_owner_opens_one_event)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 85, in test_first_sample_is_not_eligible_then_the_health_owner_opens_one_event
+    b = Bench()
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 29, in __init__
+    self.c = controller(app)
+             ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_access.py", line 128, in controller
+    c.run('\n'.join(gen.start_release_logic(app)))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 467, in _exec
+    self.write(stmt[1], self.eval(stmt[2]))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 394, in write
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_StartRelease.Overflow: no member Overflow
+
+======================================================================
+ERROR: test_shelf_unshelf_and_logged_out_expiry_leave_the_condition_open (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_shelf_unshelf_and_logged_out_expiry_leave_the_condition_open)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 120, in test_shelf_unshelf_and_logged_out_expiry_leave_the_condition_open
+    b = Bench()
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 29, in __init__
+    self.c = controller(app)
+             ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_access.py", line 128, in controller
+    c.run('\n'.join(gen.start_release_logic(app)))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 467, in _exec
+    self.write(stmt[1], self.eval(stmt[2]))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 394, in write
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_StartRelease.Overflow: no member Overflow
+
+======================================================================
+ERROR: test_unknown_session_still_refuses_preflight (test_fraktal_ab_s6_shelving_profile.AcceptanceProfile.test_unknown_session_still_refuses_preflight)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 113, in test_unknown_session_still_refuses_preflight
+    b = Bench()
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_s6_shelving_profile.py", line 29, in __init__
+    self.c = controller(app)
+             ~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_access.py", line 128, in controller
+    c.run('\n'.join(gen.start_release_logic(app)))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 462, in run
+    self._exec(stmt)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 467, in _exec
+    self.write(stmt[1], self.eval(stmt[2]))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 394, in write
+    holder, key = self._container(ref)
+                  ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_st_model.py", line 369, in _container
+    raise StFault(f"{self.describe(ref)}: no member {step[1]}")
+fraktal_ab_st_model.StFault: FRK_Press_StartRelease.Overflow: no member Overflow
+
+----------------------------------------------------------------------
+Ran 8 tests in 2.140s
+
+FAILED (errors=6)

@@ -1,5 +1,4 @@
-"""The WP6.6 schema-identity gate: what it records, what it compares, and that
-the two S6-Q declarations still publish their recorded pre-collapse surface."""
+"""The WP6.6 schema-identity gate and the S6-Q acceptance declarations."""
 
 import json
 import os
@@ -21,7 +20,11 @@ GATED = {
     # The collapse (WP6.6), against the surface it started from.
     'fraktal_ab_genealogy_s6_collapse_demo': 'fraktal_ab_genealogy_s6_host_demo',
     'fraktal_ab_press_s6_collapse_echo38': 'fraktal_ab_press_canonical_echo38',
+    'fraktal_ab_press_s6_shelving_echo38': 'fraktal_ab_press_canonical_echo38',
 }
+# The shelving-only requirement changes no public schema or initial values.
+# Reuse the press's exact declared differences, rather than another allowlist.
+DECLARATIONS = {'fraktal_ab_press_s6_shelving_echo38': 'fraktal_ab_press_s6_collapse_echo38'}
 
 L5X = """<?xml version="1.0" encoding="UTF-8"?>
 <RSLogix5000Content><Controller Name="C">
@@ -132,7 +135,7 @@ class Gate(unittest.TestCase):
 
 
 class RecordedSurfaces(unittest.TestCase):
-    """The two S6-Q declarations against their surfaces recorded before WP6.6.
+    """S6-Q declarations against their surfaces recorded before WP6.6.
 
     Each collapse increment adds what it intends to the declaration's
     `.declared.json`; nothing else may move."""
@@ -145,7 +148,7 @@ class RecordedSurfaces(unittest.TestCase):
                 with self.subTest(declaration):
                     args = [sys.executable, str(HERE / 'fraktal_ab_schema_identity.py'), '--declaration', declaration,
                             '--seed', str(seed), '--check', str(FIXTURES / f'{baseline}.json.gz'),
-                            '--declared', str(FIXTURES / f'{declaration}.declared.json')]
+                            '--declared', str(FIXTURES / f'{DECLARATIONS.get(declaration, declaration)}.declared.json')]
                     env = {k: v for k, v in os.environ.items() if k != 'FRAKTAL_AB_DECLARATION'}
                     done = subprocess.run(args, capture_output=True, text=True, cwd=HERE, env=env)
                     self.assertEqual(done.returncode, 0, done.stdout[-4000:] + done.stderr[-4000:])
