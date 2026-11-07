@@ -22,7 +22,7 @@ MAILBOX_PUBLIC = {}
 DEFAULT_GATEWAY = 'ws://127.0.0.1:8080/fraktal'
 
 def public_aliases(name):
-    if name in ('ConfigAudit', 'Profiler', 'SetState', 'Persist') or name.startswith('Cfg') and name[3:].isdigit():
+    if name in ('ConfigAudit', 'Profiler', 'SetState', 'Persist', 'AccessState', 'AccessAudit', 'AlarmActive', 'AlarmRing', 'ReleaseStart') or name.startswith('Cfg') and name[3:].isdigit():
         return {}
     return UNIT_PUBLIC if name == 'Unit' else CHART_PUBLIC if name == 'Chart' else MAILBOX_PUBLIC if name == 'Mailbox' else {
         'OutImm_ExecState': name + '/Status/State'}
@@ -130,6 +130,150 @@ def surface(comm, name, *, app):
     if session is None:
         raise ValueError('accounted surface requires the collapsed fixture')
     return session.surface(name)
+
+
+def read_access(comm, *, app, audit=False):
+    if app.canonical_collapse:
+        return surface(comm, 'AccessAudit' if audit else 'AccessState', app=app)
+    import fraktal_ab_projection as legacy
+    return legacy.read_access(comm, audit=audit)
+
+
+def read_alarm_log(comm, *, app):
+    if app.canonical_collapse:
+        return surface(comm, 'AlarmActive', app=app), surface(comm, 'AlarmRing', app=app)
+    import fraktal_ab_projection as legacy
+    return legacy.read_alarm_log(comm)
+
+
+def config_capability(comm, key, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_mailbox as legacy
+        return legacy.config_ordinal(app, key)
+    try:
+        return session.reader.command_capabilities(session.root)[key]
+    except KeyError as error:
+        raise ValueError('asserted configuration key has no published capability') from error
+
+
+def class_levels(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        import fraktal_ab_data_access as data
+        import fraktal_ab_manifest as manifest
+        held = data.policy_status(app, manifest.content(app), legacy.read_data_access(comm, policy=True))
+        return {held[f'Access/Classes[{i}]/ClassId']: {
+            'read': held[f'Access/Classes[{i}]/ReadLevel'], 'write': held[f'Access/Classes[{i}]/WriteLevel']}
+            for i in range(1, held['Access/ClassCount'] + 1)}
+    count_path = session.root + '/Access/ClassCount'
+    count = values(comm, (count_path,), app=app)[count_path]
+    if type(count) is not int or not 0 <= count <= 10000:
+        raise ValueError('invalid published access class count')
+    names = ('ClassId', 'ReadLevel', 'WriteLevel')
+    paths = (count_path, *(f'{session.root}/Access/Classes[{i}]/{n}' for i in range(1, count + 1) for n in names))
+    held = values(comm, paths, app=app)
+    if held[count_path] != count:
+        raise ValueError('access class count changed')
+    result = {}
+    for i in range(1, count + 1):
+        identity, read, write = (held[f'{session.root}/Access/Classes[{i}]/{n}'] for n in names)
+        if not isinstance(identity, str) or not identity or identity in result or any(type(v) is not int or not 0 <= v <= 4 for v in (read, write)):
+            raise ValueError('invalid or duplicate access class')
+        result[identity] = dict(read=read, write=write)
+    return result
+
+
+def alarm_descriptions(comm, slots, *, app):
+    # Each text is a separate row proof; there is no whole-history certificate.
+    session = _session(comm, app)
+    if session is None:
+        raise ValueError('canonical history requires the collapsed fixture')
+    result = {}
+    for slot in slots:
+        if type(slot) is not int or slot < 0:
+            raise ValueError('invalid native audit slot')
+        suffix = f'AlarmLog/Ring[{slot + 1}]/Description'
+        path = session.root + '/' + suffix
+        result[suffix] = values(comm, (path,), app=app)[path]
+    return result
+
+
+def configuration_entries(comm, *, app, keys=None):
+    """Active-bank definitions and masked text, read independently from the PLC."""
+    from fraktal_ab_canonical_reader import MAX_LEAVES
+    session = _session(comm, app)
+    bindings = [b for b in session.reader._manifest.get('readServices', [])
+                if b['RootSymbol'] == session.root and b['Kind'] == 1 and b['Version'] == 1]
+    if len(bindings) != 1:
+        raise ValueError('fixture requires one published configuration view')
+    prefix = bindings[0]['CanonicalRoot']
+    names = ('SchemaVersion', 'RootIdentity', 'Revision', 'DefinitionCount', 'ValueCount')
+    header = values(comm, (prefix + '/' + n for n in names), app=app)
+    definitions, total = header[prefix + '/DefinitionCount'], header[prefix + '/ValueCount']
+    if header[prefix + '/SchemaVersion'] != 1 or header[prefix + '/RootIdentity'] != session.root \
+            or type(definitions) is not int or type(total) is not int or not 0 < definitions <= total <= 65535 \
+            or 5 + definitions * 5 + total * 5 > MAX_LEAVES:
+        raise ValueError('invalid configuration view identity/counts')
+    fields = ('DefinitionIndex', 'WriteKey', 'ClassId', 'ReadLevel', 'WriteLevel')
+    row_fields = ('DefinitionIndex', 'ModelOrdinal', 'ValueText', 'Readable', 'Revision')
+    # Static key/ordinal directories select only the values this caller consumes.
+    key_paths = tuple(f'{prefix}/Definitions[{i}]/WriteKey' for i in range(definitions))
+    directory_keys = values(comm, key_paths, app=app)
+    by_key = {}
+    for i, path in enumerate(key_paths):
+        key = directory_keys[path]
+        if not isinstance(key, str) or not key or key in by_key:
+            raise ValueError('invalid or duplicate configuration key directory')
+        by_key[key] = i
+    wanted = set(by_key) if keys is None else set(keys)
+    if not wanted or not wanted <= set(by_key):
+        raise ValueError('asserted configuration key absent from its published view')
+    wanted_indices = {by_key[key] for key in wanted}
+    # Discover active-bank addresses from published ordinals. Other banks'
+    # ValueText/Readable payloads are never acquired by this fixture view.
+    directory = values(comm, (f'{prefix}/Values[{i}]/{n}' for i in range(total)
+                              for n in ('DefinitionIndex', 'ModelOrdinal')), app=app)
+    active = []
+    for i in range(total):
+        index, bank = (directory[f'{prefix}/Values[{i}]/{n}'] for n in ('DefinitionIndex', 'ModelOrdinal'))
+        if type(index) is not int or not 0 <= index < definitions or type(bank) is not int or bank < 0:
+            raise ValueError('invalid configuration bank directory')
+        if bank == 0 and index in wanted_indices:
+            active.append((i, index))
+    if sorted(index for _, index in active) != sorted(wanted_indices):
+        raise ValueError('active configuration directory is incomplete or duplicated')
+    paths = (*(prefix + '/' + n for n in names),
+             *(f'{prefix}/Definitions[{i}]/{n}' for i in sorted(wanted_indices) for n in fields),
+             *(f'{prefix}/Values[{i}]/{n}' for i, _ in active for n in row_fields))
+    held = values(comm, paths, app=app)
+    if any(held[prefix + '/' + n] != header[prefix + '/' + n] for n in names):
+        raise ValueError('configuration changed while planning its entries')
+    result, indices = {}, {}
+    for i in sorted(wanted_indices):
+        row = {n: held[f'{prefix}/Definitions[{i}]/{n}'] for n in fields}
+        key = row.pop('WriteKey')
+        if row.pop('DefinitionIndex') != i or key != directory_keys[f'{prefix}/Definitions[{i}]/WriteKey'] or key in result:
+            raise ValueError('invalid or duplicate configuration definition')
+        if not isinstance(row['ClassId'], str) or any(type(row[n]) is not int or not 0 <= row[n] <= 4 for n in ('ReadLevel', 'WriteLevel')):
+            raise ValueError('invalid configuration access metadata')
+        result[key] = dict(WriteKey=key, **row)
+        indices[i] = key
+    selected = set()
+    for i, planned_index in active:
+        row = {n: held[f'{prefix}/Values[{i}]/{n}'] for n in row_fields}
+        if row['Revision'] != header[prefix + '/Revision'] or row['ModelOrdinal'] != 0 or row['DefinitionIndex'] != planned_index:
+            raise ValueError('configuration values cross a revision/bank change')
+        index = row['DefinitionIndex']
+        if index not in indices or index in selected or type(row['Readable']) is not bool \
+                or not isinstance(row['ValueText'], str) or not row['Readable'] and row['ValueText'] != '':
+            raise ValueError('invalid or duplicate active configuration value')
+        selected.add(index)
+        result[indices[index]].update(Readable=row['Readable'], ValueText=row['ValueText'])
+    if selected != set(indices):
+        raise ValueError('active configuration values are incomplete')
+    return result
 
 
 def read_records(comm, *, app):

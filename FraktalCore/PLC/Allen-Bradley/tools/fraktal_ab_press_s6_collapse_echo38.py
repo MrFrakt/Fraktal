@@ -35,6 +35,14 @@ FIXTURE = (
     *((f'Cfg{i}', tuple(m.name for m in r.members)) for i, r in enumerate(_RECORDS) if i),
     ('SetState', ('SchemaVersion', 'AuditSequence')),
     ('Persist', ('RestoreLost',)),
+    # Phase 6 policy cases assert native DINTs, packed actors and full audit slots.
+    ('AccessState', ('SchemaVersion', 'CurrentLevel', 'UserLength', 'LoginFailed', 'LoginBusy',
+                     'SessionTimeout', 'Required', 'UserBytes', 'LoginTimeoutMs', 'LoginResultSequence')),
+    ('AccessAudit', ('Count', 'Sequence', 'Kind', 'Accepted', 'Key', 'DataCapability',
+                     'DataRequiredLevel', 'UserLength')),
+    ('AlarmActive', ('SchemaVersion', 'ActReasonCode', 'ActState', 'ActShelved', 'Blocking', 'FaultEvt')),
+    ('AlarmRing', ('SchemaVersion',)),
+    ('ReleaseStart', ('Count', 'Key')),
 )
 
 

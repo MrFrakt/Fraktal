@@ -1,0 +1,242 @@
+{
+  "passed": true,
+  "parentCommit": "f68314e3b2d46d4497be5e204818ae5df5bd26f0",
+  "modules": [
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_access_execute.py",
+      "cases": 15,
+      "predicates": [
+        {
+          "case": "'controller_access_contract_present'",
+          "before": "s['SchemaVersion'] == access.STATE_SCHEMA and s['CurrentLevel'] == 0 and (s['UserLength'] == 0) and (s['LoginTimeoutMs'] == access.login_timeout_ms(APP)) and (s['Required'] == [0] * 12) and (s['SessionTimeout'] == 0) and (s['LoginBusy'] == 0)",
+          "after": "s['SchemaVersion'] == access.STATE_SCHEMA and s['CurrentLevel'] == 0 and (s['UserLength'] == 0) and (s['LoginTimeoutMs'] == access.login_timeout_ms(APP)) and (s['Required'] == [0] * 12) and (s['SessionTimeout'] == 0) and (s['LoginBusy'] == 0)"
+        },
+        {
+          "case": "'admin_pin_authenticates_on_controller'",
+          "before": "authenticated(s, admin)",
+          "after": "authenticated(s, admin)"
+        },
+        {
+          "case": "'wrong_pin_consumed_without_replacing_session'",
+          "before": "answer['accepted'] and s['LoginFailed'] and (s['CurrentLevel'] == 4)",
+          "after": "answer['accepted'] and s['LoginFailed'] and (s['CurrentLevel'] == 4)"
+        },
+        {
+          "case": "'logout_clears_controller_session'",
+          "before": "logout['accepted'] and logged_out['CurrentLevel'] == 0 and (logged_out['UserLength'] == 0) and (logged_out['LoginBusy'] == 0)",
+          "after": "logout['accepted'] and logged_out['CurrentLevel'] == 0 and (logged_out['UserLength'] == 0) and (logged_out['LoginBusy'] == 0)"
+        },
+        {
+          "case": "'operator_has_its_declared_level'",
+          "before": "authenticated(s, operator)",
+          "after": "authenticated(s, operator)"
+        },
+        {
+          "case": "'native_mailbox_cannot_spoof_admin'",
+          "before": "not answer['accepted'] and after == before and (answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED))",
+          "after": "not answer['accepted'] and after == before and (answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP))"
+        },
+        {
+          "case": "'set_mutation_rechecks_controller_level'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)"
+        },
+        {
+          "case": "'operator_cannot_lower_locked_policy'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)"
+        },
+        {
+          "case": "'technician_has_its_declared_level'",
+          "before": "authenticated(s, tech)",
+          "after": "authenticated(s, tech)"
+        },
+        {
+          "case": "'accepted_authenticated_write_changes_plant'",
+          "before": "answer['accepted'] and after == before + 1",
+          "after": "answer['accepted'] and after == before + 1"
+        },
+        {
+          "case": "'accepted_action_rearms_idle_timeout'",
+          "before": "accepted['accepted'] and s['CurrentLevel'] == 4",
+          "after": "accepted['accepted'] and s['CurrentLevel'] == 4"
+        },
+        {
+          "case": "'background_queries_do_not_keep_session_alive'",
+          "before": "s['CurrentLevel'] == 0 and s['UserLength'] == 0",
+          "after": "s['CurrentLevel'] == 0 and s['UserLength'] == 0"
+        },
+        {
+          "case": "'expired_session_cannot_edit_policy'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)"
+        },
+        {
+          "case": "'controller_audit_contains_denied_actor_and_action'",
+          "before": "slot is not None and f\": {operator['user']} [kind={mb.WRITE_CONFIG}, gate={access.GATES[mb.WRITE_CONFIG]}]\" in actor and ('[value=station.number, required=2]' in actor)",
+          "after": "slot is not None and f\": {operator['user']} [kind={mb.WRITE_CONFIG}, gate={access.GATES[mb.WRITE_CONFIG]}]\" in actor and ('[value=station.number, required=2]' in actor)"
+        },
+        {
+          "case": "name",
+          "before": "passed",
+          "after": "passed"
+        }
+      ]
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_data_execute.py",
+      "cases": 17,
+      "predicates": [
+        {
+          "case": "'data_class_contract_present'",
+          "before": "set(policy) == {'public', 'commissioning'} and raised.get('ClassId') == 'commissioning' and (raised.get('WriteLevel') == 3)",
+          "after": "set(policy) == {'public', 'commissioning'} and raised.get('ClassId') == 'commissioning' and (raised.get('WriteLevel') == 3)"
+        },
+        {
+          "case": "'data_fixture_starts_anonymous'",
+          "before": "projection.read_access(comm)['CurrentLevel'] == 0",
+          "after": "users.read_access(comm)['CurrentLevel'] == 0"
+        },
+        {
+          "case": "'operator_sees_public_value_and_hidden_builtin_metadata'",
+          "before": "entries[COUNTER]['Readable'] and entries[COUNTER]['ValueText'] != '' and (not entries[BUILTIN]['Readable']) and (entries[BUILTIN]['ValueText'] == '') and (entries[BUILTIN]['ReadLevel'] == 3)",
+          "after": "entries[COUNTER]['Readable'] and entries[COUNTER]['ValueText'] != '' and (not entries[BUILTIN]['Readable']) and (entries[BUILTIN]['ValueText'] == '') and (entries[BUILTIN]['ReadLevel'] == 3)"
+        },
+        {
+          "case": "'operator_public_write_changes_actual_value'",
+          "before": "answer['accepted'] and changed[COUNTER] == before[COUNTER] + 1",
+          "after": "answer['accepted'] and changed[COUNTER] == before[COUNTER] + 1"
+        },
+        {
+          "case": "'claimed_admin_cannot_bypass_builtin_write_level'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED) and (sets_fixture.station_values(comm)[BUILTIN] == before[BUILTIN])",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP) and (sets_fixture.station_values(comm)[BUILTIN] == before[BUILTIN])"
+        },
+        {
+          "case": "'capture_checks_effective_value_write_level'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)"
+        },
+        {
+          "case": "'operator_cannot_lower_class_policy'",
+          "before": "not answer['accepted'] and users.class_levels(comm) == policy_before",
+          "after": "not answer['accepted'] and users.class_levels(comm) == policy_before"
+        },
+        {
+          "case": "'minimum_engineer_level_refuses_technician'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED) and (sets_fixture.station_values(comm)[CALIBRATION] == before[CALIBRATION])",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP) and (sets_fixture.station_values(comm)[CALIBRATION] == before[CALIBRATION])"
+        },
+        {
+          "case": "'lower_class_level_cannot_lower_value_minimum'",
+          "before": "entries[CALIBRATION]['WriteLevel'] == 3",
+          "after": "entries[CALIBRATION]['WriteLevel'] == 3"
+        },
+        {
+          "case": "'admin_can_write_guarded_value'",
+          "before": "answer['accepted'] and sets_fixture.station_values(comm)[CALIBRATION] == candidate",
+          "after": "answer['accepted'] and sets_fixture.station_values(comm)[CALIBRATION] == candidate"
+        },
+        {
+          "case": "'save_uses_config_set_gate_without_read_write_gate'",
+          "before": "answer['accepted']",
+          "after": "answer['accepted']"
+        },
+        {
+          "case": "'set_load_refuses_before_any_value_changes'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED) and (state.get(APP.name + '/ConfigPersist/LastRejectKey') == CALIBRATION) and (sets_fixture.station_values(comm) == before_load)",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP) and (state.get(APP.name + '/ConfigPersist/LastRejectKey') == CALIBRATION) and (sets_fixture.station_values(comm) == before_load)"
+        },
+        {
+          "case": "'export_refuses_before_revealing_even_header'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED) and (state.get(APP.name + '/ConfigSetDocument') == '')",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP) and (state.get(APP.name + '/ConfigSetDocument') == '')"
+        },
+        {
+          "case": "'admin_load_applies_saved_value'",
+          "before": "answer['accepted'] and sets_fixture.station_values(comm)[COUNTER] == saved_number",
+          "after": "answer['accepted'] and sets_fixture.station_values(comm)[COUNTER] == saved_number"
+        },
+        {
+          "case": "'admin_export_returns_document'",
+          "before": "answer['accepted'] and bool(client.state.sets.values.get(APP.name + '/ConfigSetDocument'))",
+          "after": "answer['accepted'] and bool(client.values('ConfigSetDocument').get(APP.name + '/ConfigSetDocument'))"
+        },
+        {
+          "case": "'data_denial_audit_names_value_level_and_actual_actor'",
+          "before": "slot is not None and audit['Key'][slot] == mf.numeric_key(APP, data.DENIED) and (audit['DataCapability'][slot] == mb.config_ordinal(APP, CALIBRATION)) and (audit['DataRequiredLevel'][slot] == 3) and (f\": {tech['user']} [kind=\" in description) and ('[value=' + CALIBRATION + ', required=3]' in description)",
+          "after": "slot is not None and audit['Key'][slot] == views.numeric_key(comm, data.DENIED, app=APP) and (audit['DataCapability'][slot] == views.config_capability(comm, CALIBRATION, app=APP)) and (audit['DataRequiredLevel'][slot] == 3) and (f\": {tech['user']} [kind=\" in description) and ('[value=' + CALIBRATION + ', required=3]' in description)"
+        },
+        {
+          "case": "name",
+          "before": "passed",
+          "after": "passed"
+        }
+      ]
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_shelving_execute.py",
+      "cases": 11,
+      "predicates": [
+        {
+          "case": "'shelving_contract_present'",
+          "before": "active['SchemaVersion'] == gen.ALARM_SCHEMA and ring['SchemaVersion'] == gen.ALARM_SCHEMA and any((code == STANDING and active['ActState'][i] != gen.ALARM_CLOSED for i, code in enumerate(active['ActReasonCode']))) and (not any((active['ActShelved'][i] for i, state in enumerate(active['ActState']) if state != gen.ALARM_CLOSED)))",
+          "after": "active['SchemaVersion'] == gen.ALARM_SCHEMA and ring['SchemaVersion'] == gen.ALARM_SCHEMA and any((code == STANDING and active['ActState'][i] != gen.ALARM_CLOSED for i, code in enumerate(active['ActReasonCode']))) and (not any((active['ActShelved'][i] for i, state in enumerate(active['ActState']) if state != gen.ALARM_CLOSED)))"
+        },
+        {
+          "case": "'shelving_session_can_be_restored'",
+          "before": "known and (not state['LoginBusy']) and (state['Required'] == [0] * 12) and (state['SessionTimeout'] == 0)",
+          "after": "known and (not state['LoginBusy']) and (state['Required'] == [0] * 12) and (state['SessionTimeout'] == 0)"
+        },
+        {
+          "case": "'shelf_changes_published_annunciation_only'",
+          "before": "answer['accepted'] and active['ActShelved'][slot] == 1 and (active['Blocking'] == 0) and public[f'AlarmLog/Active[{slot + 1}]/Shelved']",
+          "after": "answer['accepted'] and active['ActShelved'][slot] == 1 and (active['Blocking'] == 0) and published_shelved"
+        },
+        {
+          "case": "'manual_unshelve_restores_annunciation'",
+          "before": "answer['accepted'] and active['ActShelved'][slot] == 0",
+          "after": "answer['accepted'] and active['ActShelved'][slot] == 0"
+        },
+        {
+          "case": "'above_cap_request_is_accepted_as_bounded_shelf'",
+          "before": "answer['accepted'] and active['ActShelved'][slot] == 1",
+          "after": "answer['accepted'] and active['ActShelved'][slot] == 1"
+        },
+        {
+          "case": "'shelf_auto_expires_after_logout_and_logs'",
+          "before": "answer['accepted'] and seen_shelved and (not active['ActShelved'][slot]) and (2.5 <= elapsed <= settle + 3) and bool(expiry)",
+          "after": "answer['accepted'] and seen_shelved and (not active['ActShelved'][slot]) and (2.5 <= elapsed <= settle + 3) and bool(expiry)"
+        },
+        {
+          "case": "'unshelvable_defect_still_blocks_start_and_report'",
+          "before": "not answer['accepted'] and code == APP.reasons['CYL_NOT_EXTENDED'] and (active['Blocking'] == 1) and (not active['ActShelved'][fault_slot]) and (not start['accepted']) and (mf.numeric_key(APP, gen.MANUAL_RESET_KEY) in report['Key'][:report['Count']])",
+          "after": "not answer['accepted'] and code == APP.reasons['CYL_NOT_EXTENDED'] and (active['Blocking'] == 1) and (not active['ActShelved'][fault_slot]) and (not start['accepted']) and (views.numeric_key(comm, gen.MANUAL_RESET_KEY, app=APP) in report['Key'][:report['Count']])"
+        },
+        {
+          "case": "'lifecycle_events_are_controller_history'",
+          "before": "any((shelf.SHELVED in str(v) for v in messages.values())) and any((shelf.UNSHELVED in str(v) for v in messages.values()))",
+          "after": "any((shelf.SHELVED in str(v) for v in messages.values())) and any((shelf.UNSHELVED in str(v) for v in messages.values()))"
+        },
+        {
+          "case": "name",
+          "before": "passed",
+          "after": "passed"
+        },
+        {
+          "case": "'native_spoofed_admin_refused_' + str(kind)",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED) and (active['ActShelved'][slot] == 1)",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP) and (active['ActShelved'][slot] == 1)"
+        },
+        {
+          "case": "name + '_refused_without_shelf'",
+          "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, key) and (not active['ActShelved'][slot])",
+          "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, key, app=APP) and (not active['ActShelved'][slot])"
+        }
+      ]
+    }
+  ],
+  "normalization": "Only deployed key/capability lookup and independently read public text/annunciation; every logical operator, value comparison, no-change predicate and time bound retained",
+  "protocolSubject": "The old direct Frame probe becomes the approved typed gateway path with independent native ACK; no legacy writer or reinitialization remains in the collapsed branch",
+  "controllerAccess": false
+}

@@ -1547,6 +1547,26 @@ byte-identical and retains its hash-bound 60% qualification. No controller
 operations or scan measurements ran. Remaining HX migrations are C5b3;
 Frame/staged retirement and V6.12 remain C5c. C6/C7 and native S6-Q still follow.
 
+**C5b3 policy slice done offline, 2026-11-06** ([evidence](Evidence/AB_S6_COLLAPSE_C5B3_POLICY_OFFLINE_2026-11-06.md)).
+The Phase 6 access/data-class/shelving fixtures use O11, independent canonical
+policy/configuration/text reads and 27 additional exact O10 fields (102 total).
+The original 43 case-site predicates retain all value, no-change and timing
+conditions after acquisition/lookup normalization. Native serials/extents and
+all 27 additions replay from the 86 accepted captures; annotation/annunciation
+replay also passes. All 2,681 AB, 85 root and 63 focused tests pass, as do both
+v38 builds/read-backs/default/access/SDK audits. Studio Capacity is 54%
+(1,713,204 used / 1,432,524 available / 3,145,728 Blocks), +9,532 used. Exactly
+27 fixture copies add 411 ST tokens; 65 other routines are unchanged.
+Genealogy remains byte-identical with its hash-bound 60% qualification; the
+unchanged shipping Dart packages retain C5b2's hash-bound 44-test qualification.
+No controller operation or scan measurement ran. This completes the policy
+slice only: Phase 5 metrics/reports, Part/genealogy/inherited runners and the
+standalone canonical press launcher still need C5b3 accounting/migration.
+Frame/staged removal remains C5c, then C6/C7 and native S6-Q. The base press
+excludes controller metrics, so the original/migrated shelving preflight both
+refuse its required reason-21 event. A dedicated shelving acceptance profile
+remains before positive native shelving acceptance; no guard is relaxed.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The

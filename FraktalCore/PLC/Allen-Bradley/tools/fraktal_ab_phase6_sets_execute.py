@@ -80,6 +80,12 @@ class Client:
         if self._own_host:
             self.host.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *unused):
+        self.close()
+
     def values(self, *suffixes):
         paths = tuple(APP.name + '/' + name for name in suffixes)
         if APP.canonical_collapse:
@@ -302,6 +308,27 @@ async def restore(client, original, settle, evidence):
     evidence['sets_restore_passed'] = all(v['accepted'] for v in result.values()) and evidence['sets_restored'] == original and evidence['sets_store_empty']
 
 
+def finish(client, prefix, original_records, evidence):
+    """Independent final checks shared by fixtures using the same host owner."""
+    try:
+        if not APP.canonical_collapse or original_records is None:
+            return True
+        checks = (
+            ('all_records_restored', lambda: read_records(client.comm) == original_records),
+            ('original_medium_unchanged', client.host.originals_unchanged),
+            ('live_documents', lambda: documents.ready(client.comm, APP, client.host)),
+        )
+        for name, operation in checks:
+            try:
+                evidence[prefix + '_' + name] = operation()
+            except Exception as error:
+                evidence[prefix + '_' + name] = False
+                evidence.setdefault(prefix + '_final_check_errors', {})[prefix + '_' + name] = str(error)
+        return all(evidence[prefix + '_' + name] for name, _ in checks)
+    finally:
+        client.close()
+
+
 def run(comm, serial, settle, rows, evidence):
     base = Path('C:/work/FraktalPhase6Sets').resolve()
     directory = (base / (datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex)).resolve()
@@ -321,23 +348,8 @@ def run(comm, serial, settle, rows, evidence):
                 await restore(client, original, settle, evidence)
         asyncio.run(guarded())
     finally:
-        try:
-            if APP.canonical_collapse and original_records is not None:
-                checks = (
-                    ('sets_all_records_restored', lambda: read_records(comm) == original_records),
-                    ('sets_original_medium_unchanged', client.host.originals_unchanged),
-                    ('sets_live_documents', lambda: documents.ready(comm, APP, client.host)),
-                )
-                for name, operation in checks:
-                    try:
-                        evidence[name] = operation()
-                    except Exception as error:
-                        evidence[name] = False
-                        evidence.setdefault('sets_final_check_errors', {})[name] = str(error)
-                evidence['sets_restore_passed'] = bool(evidence.get('sets_restore_passed')
-                    and all(evidence[name] for name, _ in checks))
-        finally:
-            client.close()
+        restored = finish(client, 'sets', original_records, evidence)
+        evidence['sets_restore_passed'] = bool(evidence.get('sets_restore_passed') and restored)
     return {'tests': len(rows), 'successful': sum(r['passed'] for r in rows),
             'failed': sum(not r['passed'] for r in rows), 'rows': rows,
             'passed': all(r['passed'] for r in rows) and evidence['sets_restore_passed']}

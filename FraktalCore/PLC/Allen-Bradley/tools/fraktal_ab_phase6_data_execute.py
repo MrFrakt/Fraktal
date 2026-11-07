@@ -17,6 +17,8 @@ import fraktal_ab_phase6_sets_execute as sets_fixture
 import fraktal_ab_press_execute as px
 import fraktal_ab_projection as projection
 
+import fraktal_ab_fixture_reads as views
+
 APP = px.APP
 COUNTER = 'station.number'
 CALIBRATION = 'station.airPressureMinKpa'
@@ -25,6 +27,8 @@ SET_NAME = 'phase6-data-classes'
 
 
 def page_entries(comm):
+    if APP.canonical_collapse:
+        return views.configuration_entries(comm, keys=(COUNTER, CALIBRATION, BUILTIN), app=APP)
     values = projection.read_document(comm)['values']
     base = APP.name + '/HmiResponse/ConfigPage/'
     result = {}
@@ -44,18 +48,24 @@ def read_rows(comm):
                    set(policy) == {'public', 'commissioning'} and raised.get('ClassId') == 'commissioning'
                    and raised.get('WriteLevel') == 3),
             px.row('data_fixture_starts_anonymous', 'fresh download starts with no authenticated session',
-                   {'level': projection.read_access(comm)['CurrentLevel']}, 0, projection.read_access(comm)['CurrentLevel'] == 0)]
+                   {'level': users.read_access(comm)['CurrentLevel']}, 0, users.read_access(comm)['CurrentLevel'] == 0)]
 
 
 async def fixture(comm, serial, rows, evidence, directory):
+    with users.Client(comm, serial, directory) as client:
+        return await _exercise(client, serial, rows, evidence)
+
+
+async def _exercise(client, serial, rows, evidence):
+    comm = client.comm
+    original_records = sets_fixture.read_records(comm) if APP.canonical_collapse else None
     accounts = users.credentials(serial)
     admin, operator, tech = accounts[4], accounts[1], accounts[2]
-    held = projection.read_access(comm)
+    held = users.read_access(comm)
     original = {'Required': held['Required'], 'SessionTimeout': held['SessionTimeout'],
                 'station.number': sets_fixture.station_values(comm)[COUNTER], 'classes': users.class_levels(comm),
                 'values': {CALIBRATION: sets_fixture.station_values(comm)[CALIBRATION]}}
     evidence['data_original'] = original
-    client = users.Client(comm, serial, directory)
     def check(name, observed, passed):
         rows.append(px.row(name, name.replace('_', ' '), observed, 0, passed))
     async def command(kind, **arguments):
@@ -75,7 +85,8 @@ async def fixture(comm, serial, rows, evidence, directory):
         await command(mb.SET_CLASS_LEVEL, NameValue='commissioning', IntValue=0, BoolValue=0)
         await command(mb.SET_CLASS_LEVEL, NameValue='commissioning', IntValue=0, BoolValue=1)
         await client.login(operator)
-        await command(mb.QUERY_CONFIG, IntValue=0)
+        if not APP.canonical_collapse:
+            await command(mb.QUERY_CONFIG, IntValue=0)
         entries = page_entries(comm)
         check('operator_sees_public_value_and_hidden_builtin_metadata',
               {'public': {k: entries[COUNTER][k] for k in ('ClassId', 'ReadLevel', 'WriteLevel', 'Readable', 'ValueText')},
@@ -87,23 +98,23 @@ async def fixture(comm, serial, rows, evidence, directory):
         changed = sets_fixture.station_values(comm)
         check('operator_public_write_changes_actual_value', {'answer': answer, 'value': changed[COUNTER]},
               answer['accepted'] and changed[COUNTER] == before[COUNTER] + 1)
-        answer = client.native(mb.WRITE_CONFIG, IntValue=mb.config_ordinal(APP, BUILTIN), BoolValue=before[BUILTIN], User=admin['user'])
+        answer = client.probe_config(BUILTIN, before[BUILTIN], User=admin['user'])
         check('claimed_admin_cannot_bypass_builtin_write_level', answer,
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)
               and sets_fixture.station_values(comm)[BUILTIN] == before[BUILTIN])
         answer = await client.command(mb.CAPTURE_CONFIG, NameValue='press.recipe.baselineWorkMs', TargetPath=APP.name,
-                                      IntValue=mf.config_revision(APP), TextValue='1')
+                                      IntValue=views.revision(comm, app=APP), TextValue='1')
         check('capture_checks_effective_value_write_level', answer,
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED))
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP))
         policy_before = users.class_levels(comm)
         answer = client.native(mb.SET_CLASS_LEVEL, NameValue='public', IntValue=0, BoolValue=1, User=admin['user'])
         check('operator_cannot_lower_class_policy', answer,
               not answer['accepted'] and users.class_levels(comm) == policy_before)
         await client.login(tech)
-        answer = client.native(mb.WRITE_CONFIG, IntValue=mb.config_ordinal(APP, CALIBRATION), BoolValue=before[CALIBRATION], User=admin['user'])
+        answer = client.probe_config(CALIBRATION, before[CALIBRATION], User=admin['user'])
         denied_sequence = answer['sequence']
         check('minimum_engineer_level_refuses_technician', answer,
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)
               and sets_fixture.station_values(comm)[CALIBRATION] == before[CALIBRATION])
         await client.login(admin)
         await command(mb.SET_CLASS_LEVEL, NameValue='commissioning', IntValue=1, BoolValue=1)
@@ -123,18 +134,18 @@ async def fixture(comm, serial, rows, evidence, directory):
         await client.login(tech)
         before_load = sets_fixture.station_values(comm)
         answer = await client.command(mb.LOAD_CONFIG_SET, TextValue=SET_NAME)
-        state = client.state.sets.values
+        state = client.values('ConfigPersist/LastRejectKey', 'ConfigSetDocument')
         check('set_load_refuses_before_any_value_changes',
               {'answer': answer, 'rejectKey': state.get(APP.name + '/ConfigPersist/LastRejectKey')},
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)
               and state.get(APP.name + '/ConfigPersist/LastRejectKey') == CALIBRATION
               and sets_fixture.station_values(comm) == before_load)
         answer = await client.command(mb.EXPORT_CONFIG_SET, TextValue=SET_NAME, IntValue=0)
-        state = client.state.sets.values
+        state = client.values('ConfigPersist/LastRejectKey', 'ConfigSetDocument')
         check('export_refuses_before_revealing_even_header',
               {'answer': answer, 'rejectKey': state.get(APP.name + '/ConfigPersist/LastRejectKey'),
                'document': state.get(APP.name + '/ConfigSetDocument')},
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED)
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP)
               and state.get(APP.name + '/ConfigSetDocument') == '')
         await client.login(admin)
         answer = await client.command(mb.LOAD_CONFIG_SET, TextValue=SET_NAME)
@@ -142,22 +153,25 @@ async def fixture(comm, serial, rows, evidence, directory):
               answer['accepted'] and sets_fixture.station_values(comm)[COUNTER] == saved_number)
         answer = await client.command(mb.EXPORT_CONFIG_SET, TextValue=SET_NAME, IntValue=0)
         check('admin_export_returns_document', {'answer': answer},
-              answer['accepted'] and bool(client.state.sets.values.get(APP.name + '/ConfigSetDocument')))
-        audit = projection.read_access(comm, audit=True)
+              answer['accepted'] and bool(client.values('ConfigSetDocument').get(APP.name + '/ConfigSetDocument')))
+        audit = users.read_access(comm, audit=True)
         slot = next((i for i, sequence in enumerate(audit['Sequence']) if sequence == denied_sequence), None)
         description = ''
         if slot is not None:
-            _active, ring = projection.read_alarm_log(comm)
-            description = access.audit_status(APP, mf.content(APP), audit, ring).get(f'AlarmLog/Ring[{slot + 1}]/Description', '')
+            description = users.audit_messages(comm, audit, (slot,)).get(f'AlarmLog/Ring[{slot + 1}]/Description', '')
         check('data_denial_audit_names_value_level_and_actual_actor',
               {'slot': slot, 'sequence': denied_sequence, 'description': description},
-              slot is not None and audit['Key'][slot] == mf.numeric_key(APP, data.DENIED)
-              and audit['DataCapability'][slot] == mb.config_ordinal(APP, CALIBRATION)
+              slot is not None and audit['Key'][slot] == views.numeric_key(comm, data.DENIED, app=APP)
+              and audit['DataCapability'][slot] == views.config_capability(comm, CALIBRATION, app=APP)
               and audit['DataRequiredLevel'][slot] == 3 and f": {tech['user']} [kind=" in description
               and '[value=' + CALIBRATION + ', required=3]' in description)
     finally:
-        evidence['data_cleanup_passed'] = await users.restore(client, original, admin, evidence)
-        evidence['data_login_timings'] = client.login_timings
+        try:
+            evidence['data_cleanup_passed'] = await users.restore(client, original, admin, evidence, set_names=(SET_NAME,))
+        finally:
+            verified = sets_fixture.finish(client, 'data', original_records, evidence)
+            evidence['data_cleanup_passed'] = bool(evidence.get('data_cleanup_passed') and verified)
+            evidence['data_login_timings'] = client.login_timings
     return {'tests': len(rows), 'successful': sum(r['passed'] for r in rows),
             'failed': sum(not r['passed'] for r in rows), 'rows': rows,
             'passed': all(r['passed'] for r in rows) and evidence['data_cleanup_passed']}

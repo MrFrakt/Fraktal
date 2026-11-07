@@ -181,7 +181,13 @@ class HarnessGuards(unittest.TestCase):
         class Client:
             login_timings = []
             def __init__(self, *args):
-                self.logins = 0
+                self.logins, self.comm = 0, args[0]
+            def __enter__(self):
+                return self
+            def __exit__(self, *unused):
+                self.close()
+            def close(self):
+                calls.append('closed')
             async def login(self, account):
                 self.logins += 1
                 if self.logins == 1:
@@ -206,6 +212,7 @@ class HarnessGuards(unittest.TestCase):
         self.assertTrue(evidence['shelving_restore']['timeout']['accepted'])
         self.assertTrue(evidence['shelving_restore']['original_session']['accepted'])
         self.assertEqual(calls.count('login'), 2)
+        self.assertIn('closed', calls)
 
     def test_shelving_cannot_be_combined_with_another_fixture(self):
         for other in ('--sets', '--access', '--data-classes'):

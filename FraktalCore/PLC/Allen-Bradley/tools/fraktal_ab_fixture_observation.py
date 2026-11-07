@@ -71,6 +71,13 @@ def _surfaces(app):
     import fraktal_ab_sets as sets
     out['SetState'] = (sets.state_members(app), sets.state_tag(app))
     out['Persist'] = (gen.config_persist_members(), gen.config_persist_tag(app))
+    import fraktal_ab_access as access
+    if app.access_users is not None:
+        out['AccessState'] = (access.state_members(app), access.tag(app, 'State'))
+        out['AccessAudit'] = (access.audit_members(), access.tag(app, 'Audit'))
+    out['AlarmActive'] = (gen.alarm_active_members(), gen.alarm_active_tag(app))
+    out['AlarmRing'] = (gen.alarm_ring_members(), gen.alarm_ring_tag(app))
+    out['ReleaseStart'] = (gen.release_report_members(app=app), gen.release_report_tag(app))
     for index, record in enumerate(app.records):
         out[f'Cfg{index}'] = (record.members, record.name + 'Tag')
     for module in app.modules:

@@ -219,73 +219,92 @@ class CanonicalRowReader:
         self._clock, self._sleep = clock_ns, sleep
         self._locations = {}
         self._command_keys = {}
+        self._command_capabilities = {}
 
-    def command_keys(self, root):
-        """The immutable key side table named by this root's command binding.
-
-        These are activation metadata, never cyclic values or a row proof.
-        No station table, numeric ordinal or string width is guessed. A fresh
-        root configuration revision before/after the acquisition rejects a
-        changed image/configuration context; nothing from a failed acquisition
-        is cached. Like the namespace itself, this cache lives for one guarded
-        controller session and must not survive a download/reconnect.
-        """
-        if root in self._command_keys:
-            return self._command_keys[root]
+    def _command_side_table(self, root, stem, names):
+        """Native activation metadata selected only by a command binding."""
         found = [b for b in self._manifest.get('commandBindings', []) if b['RootSymbol'] == root]
-        if len(found) != 1:
+        if len(found) != 1 or stem not in ('Keys', 'Capabilities'):
             raise ValueError('root has no unique published command binding')
         binding = found[0]
-        symbol, count = binding['KeysSymbol'], binding['KeysCount']
+        symbol, count = binding[stem + 'Symbol'], binding[stem + 'Count']
+        if stem == 'Capabilities' and type(count) is int and count == 0 and symbol == '':
+            return ()
         source = self._symbols.get(symbol)
         if not source or source.get('arrayRank') != 1 or source.get('handle') not in self._objects \
                 or type(count) is not int or not 1 <= count <= 100000:
-            raise ValueError('invalid command key table Symbol/count')
+            raise ValueError('invalid command metadata table Symbol/count')
         handle = source['handle']
         fields = {r['name']: r for r in member_table(self._objects[handle])}
-        numeric, portable = fields.get('NumericKey'), fields.get('PortableKey')
-        if not numeric or numeric['struct'] or numeric['array'] or numeric['atomic'] != 0xC4 \
-                or not portable or portable['array'] or not portable['struct'] \
-                or portable['handle'] not in self._objects \
-                or is_string(member_table(self._objects[portable['handle']])) is None:
-            raise ValueError('invalid command key table Template')
-        spans = sorted((r['offset'], r['offset'] + (self._sizes[r['handle']] if r['struct'] else 4))
-                       for r in (numeric, portable))
-        if any(a < 0 or b > self._sizes[handle] for a, b in spans) or spans[1][0] < spans[0][1]:
-            raise ValueError('command key fields overlap or exceed their Template')
+        selected, spans = [], []
+        for name, text in names:
+            row = fields.get(name)
+            if not row or row['array'] or (not text and (row['struct'] or row['atomic'] != 0xC4)) \
+                    or (text and (not row['struct'] or row['handle'] not in self._objects
+                                  or is_string(member_table(self._objects[row['handle']])) is None)):
+                raise ValueError('invalid command metadata table Template')
+            width = self._sizes[row['handle']] if row['struct'] else 4
+            selected.append((name, row, width))
+            spans.append((row['offset'], row['offset'] + width))
+        spans.sort()
+        if any(a < 0 or b > self._sizes[handle] for a, b in spans) \
+                or any(a[1] > b[0] for a, b in zip(spans, spans[1:])):
+            raise ValueError('command metadata fields overlap or exceed their Template')
         epoch = root + '/Status/ConfigRev'
         before = self.read_row((epoch,))['values'][epoch]
-        numbers, keys = set(), {}
-        # Bounded per-packet activation reads. The published count is the
-        # logical extent, not unused physical capacity slots. No command-only
-        # payload or arbitrary metadata Symbol can be selected by the caller.
+        result = []
         for start in range(0, count, 32):
             locations = []
             for index in range(start, min(start + 32, count)):
-                for name, row in (('NumericKey', numeric), ('PortableKey', portable)):
-                    width = self._sizes[row['handle']] if row['struct'] else 4
-                    locations.append(Location(f'#keys/{index}/{name}', f'{symbol}[{index}].{name}', symbol,
+                for name, row, width in selected:
+                    locations.append(Location(f'#metadata/{index}/{name}', f'{symbol}[{index}].{name}', symbol,
                         index * self._sizes[handle] + row['offset'], MappingProxyType(dict(row)),
                         MappingProxyType({}), width, ()))
             packets = self._body.plan(locations)
             if sorted(loc.path for packet in packets for loc in packet.locations) != sorted(loc.path for loc in locations):
-                raise ValueError('command key plan does not cover its selection exactly')
+                raise ValueError('command metadata plan does not cover its selection exactly')
             decoded = {}
             for packet in packets:
                 reply = self._body.send(packet)
                 for loc, raw in zip(packet.locations, self._body.parse(packet, reply), strict=True):
                     decoded[loc.path] = self._decode(loc, raw)[0]
-            for index in range(start, min(start + 32, count)):
-                number, text = (decoded[f'#keys/{index}/{n}'] for n in ('NumericKey', 'PortableKey'))
-                if type(number) is not int or number <= 0 or number in numbers or not isinstance(text, str) \
-                        or not text or '\0' in text or text in keys:
-                    raise ValueError('invalid or duplicate published command key')
-                numbers.add(number); keys[text] = number
-        after = self.read_row((epoch,))['values'][epoch]
-        if before != after:
-            raise ValueError('command key acquisition crossed a root revision; rediscover')
+            result += [{name: decoded[f'#metadata/{index}/{name}'] for name, unused in names}
+                       for index in range(start, min(start + 32, count))]
+        if before != self.read_row((epoch,))['values'][epoch]:
+            raise ValueError('command metadata acquisition crossed a root revision; rediscover')
+        return tuple(result)
+
+    def command_keys(self, root):
+        """Immutable sparse keys, cached for this guarded controller session."""
+        if root in self._command_keys:
+            return self._command_keys[root]
+        rows = self._command_side_table(root, 'Keys', (('NumericKey', False), ('PortableKey', True)))
+        numbers, keys = set(), {}
+        for row in rows:
+            number, text = row['NumericKey'], row['PortableKey']
+            if type(number) is not int or number <= 0 or number in numbers or not isinstance(text, str) \
+                    or not text or '\0' in text or text in keys:
+                raise ValueError('invalid or duplicate published command key')
+            numbers.add(number); keys[text] = number
         self._command_keys[root] = MappingProxyType(keys)
         return self._command_keys[root]
+
+    def command_capabilities(self, root):
+        """Write keys to the native capability IDs published by the controller."""
+        if root in self._command_capabilities:
+            return self._command_capabilities[root]
+        keys = {v: k for k, v in self.command_keys(root).items()}
+        rows = self._command_side_table(root, 'Capabilities',
+            (('CapabilityIndex', False), ('WriteKeyKey', False), ('ConfigKind', False)))
+        ids, result = set(), {}
+        for row in rows:
+            number, key = row['CapabilityIndex'], keys.get(row['WriteKeyKey'])
+            if type(number) is not int or number <= 0 or number in ids or not key or key in result \
+                    or row['ConfigKind'] not in (0, 1, 2):
+                raise ValueError('invalid or duplicate published command capability')
+            ids.add(number); result[key] = number
+        self._command_capabilities[root] = MappingProxyType(result)
+        return self._command_capabilities[root]
 
     def host_status(self, root):
         """V6.11 CPS-published reply, in one native structure read.

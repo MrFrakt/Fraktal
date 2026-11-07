@@ -18,12 +18,25 @@ import fraktal_ab_phase6_sets_execute as sets_fixture
 import fraktal_ab_press_execute as px
 import fraktal_ab_projection as projection
 
+import fraktal_ab_fixture_reads as views
+
 APP = px.APP
 CREDENTIALS = Path('C:/work/fraktal_phase6_access_fixture.json')
 
 
+def read_access(comm, audit=False):
+    return views.read_access(comm, app=APP, audit=audit)
+
+
+def audit_messages(comm, audit, slots=None):
+    if APP.canonical_collapse:
+        return views.alarm_descriptions(comm, (i for i, key in enumerate(audit['Key']) if key) if slots is None else slots, app=APP)
+    _active, ring = projection.read_alarm_log(comm)
+    return access.audit_status(APP, mf.content(APP), audit, ring)
+
+
 def read_rows(comm):
-    s = projection.read_access(comm)
+    s = read_access(comm)
     return [px.row('controller_access_contract_present', f'read-only V{access.STATE_SCHEMA} session, twelve gates, anonymous open default',
                    {'schema': s['SchemaVersion'], 'currentLevel': s['CurrentLevel'], 'userLength': s['UserLength'],
                     'required': s['Required'], 'sessionTimeout': s['SessionTimeout'], 'loginTimeoutMs': s['LoginTimeoutMs']}, 0,
@@ -53,30 +66,28 @@ def authenticated(s, account):
 
 
 def class_levels(comm):
-    held = projection.read_data_access(comm, policy=True)
-    values = data.policy_status(APP, mf.content(APP), held)
-    return {values[f'Access/Classes[{i}]/ClassId']: {
-                'read': values[f'Access/Classes[{i}]/ReadLevel'],
-                'write': values[f'Access/Classes[{i}]/WriteLevel']}
-            for i in range(1, values['Access/ClassCount'] + 1)}
-
+    return views.class_levels(comm, app=APP)
 
 class Client(sets_fixture.Client):
     def __init__(self, comm, serial, directory):
-        super().__init__(comm, serial, directory)
+        isolated = Path(directory) / 'owned-host' if APP.canonical_collapse else directory
+        super().__init__(comm, serial, isolated)
         self.serial, self.directory = serial, directory
         if not hasattr(self, 'login_timings'):
             self.login_timings = []
 
     async def login(self, account, pin=None):
+        timeout = read_access(self.comm)['LoginTimeoutMs'] if APP.canonical_collapse else access.login_timeout_ms(APP)
+        if type(timeout) is not int or not 0 < timeout <= 180000:
+            raise ValueError('invalid published login timeout; nothing written')
         started = time.monotonic()
         answer = await self.command(mb.LOGIN, User=account['user'], Secret=account['pin'] if pin is None else pin)
         consumed_ms = round((time.monotonic() - started) * 1000, 3)
         if not answer['accepted']:
             raise ValueError('controller refused the fixture login request')
-        deadline = time.monotonic() + access.login_timeout_ms(APP) / 1000
+        deadline = time.monotonic() + timeout / 1000
         while time.monotonic() < deadline:
-            state = projection.read_access(self.comm)
+            state = read_access(self.comm)
             if not state['LoginBusy'] and (state['LoginResultSequence'] & 0xffffffff) == answer['sequence']:
                 self.login_timings.append({'sequence': answer['sequence'], 'level': account['level'],
                     'consumedMs': consumed_ms, 'resultMs': round((time.monotonic() - started) * 1000, 3),
@@ -85,7 +96,17 @@ class Client(sets_fixture.Client):
             await asyncio.sleep(.03)
         raise ValueError('controller login result did not settle')
 
+    def probe_config(self, key, value, **arguments):
+        if APP.canonical_collapse:
+            return self.native(mb.WRITE_CONFIG, TargetPath=APP.name, NameValue=key,
+                IntValue=views.revision(self.comm, app=APP), TextValue=str(value), DurationMs=0, **arguments)
+        return self.native(mb.WRITE_CONFIG, IntValue=mb.config_ordinal(APP, key),
+                           BoolValue=value, DurationMs=0, **arguments)
+
     def native(self, kind, **arguments):
+        if APP.canonical_collapse:
+            # One typed request and independent CIP ACK; no legacy writer/reinitialization.
+            return px.command(self.comm, kind, settle=4, **arguments)
         # Prove the PLC predicate independent of the gateway. Recreate the
         # local apparatus afterwards so one mailbox sequence owner remains.
         actual, matches = projection.verify_serial(self.comm, self.serial)
@@ -97,7 +118,7 @@ class Client(sets_fixture.Client):
         return answer
 
 
-async def restore(client, original, admin, evidence):
+async def restore(client, original, admin, evidence, *, set_names=()):
     """Every independent restoration is attempted even if a prior one fails."""
     record = {}
     async def attempt(name, operation):
@@ -124,9 +145,15 @@ async def restore(client, original, admin, evidence):
     await attempt('station_number', lambda: client.write_config('station.number', original['station.number']))
     for key, value in original.get('values', {}).items():
         await attempt('value_' + key, lambda name=key, n=value: client.write_config(name, n))
+    for name in set_names:
+        async def remove(name=name):
+            if not any(row['set'] == name for row in client.store.list()):
+                return {'accepted': True}
+            return await client.command(mb.DELETE_CONFIG_SET, TextValue=name)
+        await attempt('delete:' + name, remove)
     await attempt('timeout', lambda: client.command(mb.SET_SESSION_TIMEOUT, DurationMs=original['SessionTimeout']))
     await attempt('logout', lambda: client.command(mb.LOGOUT))
-    held = projection.read_access(client.comm)
+    held = read_access(client.comm)
     station = sets_fixture.station_values(client.comm)
     evidence['access_restore'] = record
     evidence['access_restored'] = {'Required': held['Required'], 'SessionTimeout': held['SessionTimeout'],
@@ -141,12 +168,18 @@ async def restore(client, original, admin, evidence):
 
 
 async def fixture(comm, serial, rows, evidence, directory):
+    with Client(comm, serial, directory) as client:
+        return await _exercise(client, serial, rows, evidence)
+
+
+async def _exercise(client, serial, rows, evidence):
+    comm = client.comm
+    original_records = sets_fixture.read_records(comm) if APP.canonical_collapse else None
     accounts = credentials(serial)
-    original_state = projection.read_access(comm)
+    original_state = read_access(comm)
     original = {'Required': original_state['Required'], 'SessionTimeout': original_state['SessionTimeout'],
                 'station.number': sets_fixture.station_values(comm)['station.number'], 'classes': class_levels(comm)}
     evidence['access_original'] = original
-    client = Client(comm, serial, directory)
     admin, operator, tech = accounts[4], accounts[1], accounts[2]
     def check(name, description, observed, passed):
         rows.append(px.row(name, description, observed, 0, passed))
@@ -164,7 +197,7 @@ async def fixture(comm, serial, rows, evidence, directory):
         await client.command(mb.SET_ACCESS_LEVEL, IntValue=access.GATES[mb.SAVE_CONFIG_SET], TextValue='4')
         await client.command(mb.SET_ACCESS_LEVEL, IntValue=access.GATES[mb.SET_ACCESS_LEVEL], TextValue='4')
         logout = await client.command(mb.LOGOUT)
-        logged_out = projection.read_access(comm)
+        logged_out = read_access(comm)
         check('logout_clears_controller_session', 'LOGOUT withdraws the user and level with no pending login',
               {'answer': logout, 'level': logged_out['CurrentLevel'], 'userLength': logged_out['UserLength'],
                'loginBusy': logged_out['LoginBusy']},
@@ -174,19 +207,18 @@ async def fixture(comm, serial, rows, evidence, directory):
         check('operator_has_its_declared_level', 'a second salted registration gives OPERATOR, not ADMIN',
               {'consumed': answer['accepted'], 'level': s['CurrentLevel']}, authenticated(s, operator))
         before = sets_fixture.station_values(comm)['station.number']
-        answer = client.native(mb.WRITE_CONFIG, IntValue=mb.config_ordinal(APP, 'station.number'),
-                               BoolValue=before + 1, DurationMs=0, User=admin['user'])
+        answer = client.probe_config('station.number', before + 1, User=admin['user'])
         denied_write = answer.copy()
         after = sets_fixture.station_values(comm)['station.number']
         check('native_mailbox_cannot_spoof_admin', 'the PLC refuses below the value write level; the plant value stays unchanged',
               {'answer': answer, 'before': before, 'after': after}, not answer['accepted'] and after == before
-              and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED))
+              and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP))
         answer = await client.command(mb.SAVE_CONFIG_SET, TextValue='phase6-access-denied', IntValue=1)
         check('set_mutation_rechecks_controller_level', 'OPERATOR cannot save through CONFIG_SET=ADMIN', answer,
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED))
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP))
         answer = await client.command(mb.SET_ACCESS_LEVEL, IntValue=access.GATES[mb.WRITE_CONFIG], TextValue='0')
         check('operator_cannot_lower_locked_policy', 'ACCESS_POLICY=ADMIN is rechecked by the PLC', answer,
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED))
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP))
         await client.command(mb.LOGOUT)
         answer, s = await client.login(tech)
         check('technician_has_its_declared_level', 'the third salted registration gives TECHNICIAN',
@@ -201,32 +233,36 @@ async def fixture(comm, serial, rows, evidence, directory):
         await asyncio.sleep(3)
         accepted = await client.command(mb.SET_MODE, IntValue=px.read_unit(comm)['Mode'])
         await asyncio.sleep(3)
-        s = projection.read_access(comm)
+        s = read_access(comm)
         check('accepted_action_rearms_idle_timeout', 'the session survives past its original login deadline',
               {'answer': accepted, 'level': s['CurrentLevel']}, accepted['accepted'] and s['CurrentLevel'] == 4)
         deadline = time.monotonic() + 7
-        while time.monotonic() < deadline and projection.read_access(comm)['CurrentLevel']:
+        while time.monotonic() < deadline and read_access(comm)['CurrentLevel']:
             # A targeted background read consumes no operator activity.
             await client.command(mb.RELEASE_ACTION, IntValue=4)
-        s = projection.read_access(comm)
+        s = read_access(comm)
         check('background_queries_do_not_keep_session_alive', 'idle timeout clears level and user',
               {'level': s['CurrentLevel'], 'userLength': s['UserLength']}, s['CurrentLevel'] == 0 and s['UserLength'] == 0)
         answer = client.native(mb.SET_ACCESS_LEVEL, IntValue=access.GATES[mb.SET_ACCESS_LEVEL], TextValue='0', User=admin['user'])
         check('expired_session_cannot_edit_policy', 'a claimed user cannot revive expired privilege', answer,
-              not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, access.DENIED))
-        audit = projection.read_access(comm, audit=True)
+              not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, access.DENIED, app=APP))
+        audit = read_access(comm, audit=True)
         slot = next((i for i in range(access.AUDIT_CAPACITY)
                      if audit['Sequence'][i] == denied_write['sequence'] and audit['Kind'][i] == mb.WRITE_CONFIG
                      and not audit['Accepted'][i]), None)
-        values = projection.read_document(comm)['values']
-        actor = values.get(f'{APP.name}/AlarmLog/Ring[{slot + 1}]/Description', '') if slot is not None else ''
+        messages = audit_messages(comm, audit, (slot,) if slot is not None else ())
+        actor = messages.get(f'AlarmLog/Ring[{slot + 1}]/Description', '') if slot is not None else ''
         check('controller_audit_contains_denied_actor_and_action', 'bounded MESSAGE trace records native denial without PINs',
               {'count': audit['Count'], 'sequence': denied_write['sequence'], 'slot': slot, 'description': actor},
               slot is not None and f": {operator['user']} [kind={mb.WRITE_CONFIG}, gate={access.GATES[mb.WRITE_CONFIG]}]" in actor
               and '[value=station.number, required=2]' in actor)
     finally:
-        evidence['access_cleanup_passed'] = await restore(client, original, admin, evidence)
-        evidence['access_login_timings'] = client.login_timings
+        try:
+            evidence['access_cleanup_passed'] = await restore(client, original, admin, evidence)
+        finally:
+            verified = sets_fixture.finish(client, 'access', original_records, evidence)
+            evidence['access_cleanup_passed'] = bool(evidence.get('access_cleanup_passed') and verified)
+            evidence['access_login_timings'] = client.login_timings
     return {'tests': len(rows), 'successful': sum(r['passed'] for r in rows),
             'failed': sum(not r['passed'] for r in rows), 'rows': rows,
             'passed': all(r['passed'] for r in rows) and evidence['access_cleanup_passed']}

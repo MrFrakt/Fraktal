@@ -64,6 +64,10 @@ def legacy_surface(pair, name):
         return inputs['additional']['persist']
     if name == 'Profiler':
         return inputs['additional']['profiler']
+    policy = dict(AccessState='accessState', AccessAudit='accessAudit', AlarmActive='alarmActive',
+                  AlarmRing='alarmRing', ReleaseStart='release_report')
+    if name in policy:
+        return inputs['additional'][policy[name]]
     return inputs['contexts'][name]
 
 
@@ -159,6 +163,27 @@ class NativeViews(unittest.TestCase):
                     public = views.public_aliases(surface)
                     for name in public:
                         self.assertEqual(actual[name], expected[name])
+
+    def test_policy_public_text_and_annunciation_equal_the_native_projection(self):
+        import fraktal_ab_access as access
+        import fraktal_ab_manifest as manifest
+        frozen = profile.previous.application()
+        rows = manifest.content(frozen)
+        checked = 0
+        for label, pair in self.pairs:
+            session = from_pair(pair)
+            extra = pair['legacyInputs']['additional']
+            expected = access.audit_status(frozen, rows, extra['accessAudit'], extra['alarmRing'])
+            for path, value in expected.items():
+                if not path.endswith('/Description'):
+                    continue
+                full = APP.name + '/' + path
+                self.assertEqual(session.reader.read_row((full,))['values'][full], value, (label, path))
+                checked += 1
+            for slot, value in enumerate(extra['alarmActive']['ActShelved'], 1):
+                full = f'{APP.name}/AlarmLog/Active[{slot}]/Shelved'
+                self.assertEqual(session.reader.read_row((full,))['values'][full], bool(value), (label, slot))
+        self.assertGreater(checked, 0)
 
     def test_canonical_press_record_is_identical_on_native_before_after_states(self):
         for (label, before), (unused, after) in zip(self.pairs, self.pairs[1:]):

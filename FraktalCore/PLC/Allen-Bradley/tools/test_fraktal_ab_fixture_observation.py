@@ -30,7 +30,7 @@ def generate(app):
 class Declaration(unittest.TestCase):
     def test_the_press_declares_its_harnesses_facts(self):
         self.assertEqual(decl.validate(APP), [])
-        self.assertEqual(len(fixture.facts(APP)), 75)
+        self.assertEqual(len(fixture.facts(APP)), 102)
 
     def test_only_a_collapsed_acceptance_image_observes(self):
         uncollapsed = dataclasses.replace(candidate.application(), fixture_observation=press.FIXTURE)

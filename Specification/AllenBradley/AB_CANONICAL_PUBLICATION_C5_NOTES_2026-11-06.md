@@ -258,3 +258,76 @@ Remaining C5 work: account/migrate the other HX readers and launchers, then
 remove Frame/staged endpoints and publish V6.12 in C5c. C6/C7 and native S6-Q
 follow. Native set receipts, original-document restoration, scan/retention and
 the complete HX walk remain unproven on the collapsed image until that gate.
+
+
+## C5b3 policy slice - access, data classes and shelving
+
+C5b3 policy qualification passes offline: 2,681 AB tests, 85 root tests and
+63 focused checks pass, along with 25 replay/storage checks and the separate
+annotation replay. Records are in `C:/work/fraktal-ab-c5b3-control-20261106/`.
+This slice migrates the three Phase 6 policy fixtures. C5b3's other HX
+consumers and launchers remain open; this is not C5's exit.
+
+The collapsed fixtures read exact native access/session, audit-slot, alarm and
+Start-release facts through O10. The 27 appended fields retain DINT values and
+full native extents, including signed audit/login serials and current-user
+byte cells. All 27 occur in all 86 accepted press captures. The fixture now has
+102 facts; the native audits absent from the older captures remain S6-Q's.
+Public class policy, selected configuration metadata/values, alarm text and
+annunciation come directly from their canonical paths. No Python formatter
+supplies those values. Configuration acquisition reads only the active values
+of the three keys the data fixture consumes; other model-bank value text is
+not acquired. Audit descriptions are separate row proofs, never a whole-ring
+certificate, and single-slot checks acquire only their consumed slot.
+
+A shared command-side-table reader owns native Template/extent validation,
+packet bounds and root-revision checks for both keys and capability IDs.
+Sparse published IDs, not generator ordinals, govern the data-audit assertion.
+Only complete validated activation metadata is cached on the guarded session;
+no cyclic state is cached. Configuration probes use typed identity, text and
+live revisions. The old direct Frame probe becomes one O11 request with an
+independent CIP acknowledgement; the collapsed branch neither invokes a
+legacy writer nor reinitializes the existing adapter. Claimed-user denial,
+no-change, actual actor/level and time-bound predicates remain.
+
+Client context ownership now encloses the original snapshots. Login keeps its
+own modulo-uint32 result correlation and polls the PLC's published timeout;
+invalid timeouts refuse before a PIN is sent. Each fixture retains independent
+policy, timeout, value and session restoration. The data fixture explicitly
+deletes its isolated named set before logout; this replaces disposal of its
+old temporary Python store. Shared finalization checks all original records,
+original medium hashes and every kept document, and closes owned helpers even
+when a prior check fails. The primitive stimulus guard remains the existing
+identity-only HL helper; legacy branches/imports retire with WP6.7.
+
+The executable delta from C5b2 is exactly 27 fixture copies: 65 other routines
+are identical. ST tokens increase 115,596 to 116,007 (+411). Both v38 targets
+build/read back and pass access/default/SDK audits. Studio Capacity is
+1,713,204 used / 1,432,524 available / 3,145,728 Blocks (54%), +9,532 used.
+Genealogy is byte-identical and retains its hash-bound 60% qualification.
+
+Early failures are retained: the cleanup test double lacked the newly required
+context/close boundary; the first predicate helper missed an acquisition
+alias; the schema summary printer used the wrong result field name after a
+passing comparison. Corrected focused/predicate/schema runs pass. No PLC
+algorithm or acceptance predicate was changed to resolve them.
+
+No controller operation or native scan measurement ran. Shipping HMI/Dart
+sources and both prepared runtime executables match the sealed C5b2 bindings;
+its 44-test Dart/analyzer/locked-dependency qualification is reused by hashes.
+The full Flutter suite/UI builds are not rerun for unchanged shipping sources.
+The seed-copy workflow makes no production persistence-medium decision.
+
+Next: remaining Phase 5 OEE/report/metric reads, Part/genealogy and inherited
+runners, and the standalone canonical press launcher need their own fact and
+predicate accounting. Frame/staged retirement/V6.12 stays behind those
+migrations. C6, C7, native S6-Q, final retirement/spec activation and physical
+S7 acceptance follow. Native policy/security/retention, original document
+restore/keep and scan acceptance remain unproven on the collapsed image.
+
+Native eligibility finding: the base press has `require_controller_metrics=False`,
+while the original shelving fixture requires metrics-unavailable reason 21.
+The accepted idle input and the parent/migrated preflights both refuse that
+precondition. Preserve the base exclusion and the guard. A dedicated shelving
+acceptance profile/event precondition remains before positive native shelving
+acceptance; the offline migration does not close this gap.

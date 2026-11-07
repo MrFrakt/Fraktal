@@ -1,0 +1,25 @@
+======================================================================
+ERROR: test_shelving_cleanup_failure_still_restores_other_gates_and_owner (test_fraktal_ab_phase6_execute.HarnessGuards.test_shelving_cleanup_failure_still_restores_other_gates_and_owner)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_phase6_execute.py", line 202, in test_shelving_cleanup_failure_still_restores_other_gates_and_owner
+    asyncio.run(sf.fixture(object(), '7036B510', 4, [], evidence, 'unused'))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\asyncio\runners.py", line 205, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Python314\Lib\asyncio\runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python314\Lib\asyncio\base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_phase6_shelving_execute.py", line 99, in fixture
+    with users.Client(comm, serial, directory) as client:
+         ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: 'test_fraktal_ab_phase6_execute.HarnessGuards.test_shelving_cleanup_failure_still_restores_other_gates_and_owner.<locals>.Client' object does not support the context manager protocol (missed __exit__ method)
+
+----------------------------------------------------------------------
+Ran 47 tests in 0.870s
+
+FAILED (errors=1)
