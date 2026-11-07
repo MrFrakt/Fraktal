@@ -570,6 +570,10 @@ def module_ctx(comm: Any, name: str) -> dict[str, Any] | None:
 def write_config(comm: Any, key: str, value: int, ack: float) -> dict[str, Any]:
     """WRITE_CONFIG for the running record (model 0), resolved as the gateway
     resolves a client's write key."""
+    if APP.canonical_collapse:
+        from fraktal_ab_fixture_reads import revision
+        return px.command(comm, mailbox.WRITE_CONFIG, settle=ack, TargetPath=APP.name,
+                          NameValue=key, TextValue=str(value), IntValue=revision(comm, app=APP), DurationMs=0)
     return px.command(comm, mailbox.WRITE_CONFIG, settle=ack,
                       IntValue=mailbox.config_ordinal(APP, key), BoolValue=value,
                       **{mailbox.CONFIG_MODEL_MEMBER: 0})

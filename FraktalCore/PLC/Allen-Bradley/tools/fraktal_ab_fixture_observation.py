@@ -65,6 +65,11 @@ def _surfaces(app):
     import fraktal_ab_mailbox as mailbox
     out['Mailbox'] = ((decl.scalar('DiagnosticKey', 'the exact numeric refusal key asserted by the apparatus'),),
                       mailbox.response_tag_name(app))
+    import fraktal_ab_config as config
+    out['ConfigAudit'] = (config.audit_members(), config.audit_tag(app))
+    out['Profiler'] = (gen.profiler_members(app), gen.profiler_tag(app))
+    for index, record in enumerate(app.records):
+        out[f'Cfg{index}'] = (record.members, record.name + 'Tag')
     for module in app.modules:
         out[module.name] = (gen.module_members(module, app), f'FRK_{app.name}_Inst{module.name}')
     return out

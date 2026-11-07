@@ -23,6 +23,11 @@ FIXTURE = (
     ('TwoHand', ('OutImm_Armed',)),
     ('PressRam', ('OutImm_Held',)),
     ('Mailbox', ('DiagnosticKey',)),
+    # Phase 6 capture: exact unmasked value and native audit, not a client cache.
+    ('Cfg0', ('SchemaVersion', 'BaselineWorkMs')),
+    ('ConfigAudit', ('Head', 'Sequence', 'Kind', 'Value', 'SourceKey', 'Revision')),
+    ('Profiler', ('LastWork',)),
+    ('AirPressureMonitor', ('OutImm_PressureOk',)),
 )
 
 
@@ -33,5 +38,6 @@ def application():
     # O10/O11 read native rows with the approved V6.7 counter bindings. The
     # frozen S3 exit parent is V6.6 and deliberately remains unchanged.
     return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0,
-                   canonical_read_coherence=True,
+                   canonical_read_coherence=True, canonical_config_read_view=True,
+                   canonical_owner_revisions=True,
                    fixture_observation=FIXTURE)

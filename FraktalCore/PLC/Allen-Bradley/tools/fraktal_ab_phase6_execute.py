@@ -21,6 +21,7 @@ import fraktal_ab_phase5_execute as phase5
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
 import fraktal_ab_projection as projection
+import fraktal_ab_fixture_reads as fixture
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 
 SCHEMA = 'fraktal.ab.phase6-capture-on-controller'
@@ -29,10 +30,21 @@ KEY = 'press.recipe.baselineWorkMs'
 
 
 def configuration(comm):
+    if APP.canonical_collapse:
+        return fixture.surface(comm, 'Cfg0', app=APP)
     return projection.read_records(comm)[APP.records[0].name]
 
 
+def audit_rows(comm):
+    return (fixture.surface(comm, 'ConfigAudit', app=APP) if APP.canonical_collapse
+            else projection.read_config_audit(comm))
+
+
 def capture(comm, ack, *, key=KEY, revision=None, scope=None):
+    if APP.canonical_collapse:
+        return px.command(comm, mb.CAPTURE_CONFIG, settle=ack, TargetPath=scope or APP.name,
+                          NameValue=key, IntValue=fixture.revision(comm, app=APP) if revision is None else revision,
+                          BoolValue=False, TextValue='999999', User='phase6-fixture')
     # The same whole-batch translation the browser gateway uses, including
     # the revision carrier; never invent a direct target write for the fixture.
     root = APP.name + '/HmiRequest'
@@ -46,12 +58,13 @@ def capture(comm, ack, *, key=KEY, revision=None, scope=None):
 
 
 def read_rows(comm):
-    values = projection.read_document(comm)['values']
-    entries = [k for k, v in values.items() if k.endswith('/WriteKey') and v == KEY]
-    prefix = entries[0].rsplit('/', 1)[0] if entries else ''
-    offered = {'source': values.get(prefix + '/CaptureSource'),
-               'canCapture': values.get(prefix + '/CanCapture'),
-               'enabled': values.get(APP.name + '/Features/CaptureEnabled')}
+    if APP.canonical_collapse:
+        definition = fixture.capture_definition(comm, KEY, app=APP)
+        path = APP.name + '/Features/CaptureEnabled'
+        enabled = fixture._session(comm, APP).reader.read_row((path,))['values'][path]
+        offered = dict(source=definition['CaptureSource'], canCapture=definition['CanCapture'], enabled=enabled)
+    else:
+        offered = legacy_capture_offer(comm)
     unit = px.read_unit(comm)
     return [px.row('capture_is_registered_beside_its_editable_value',
                    'published source Profiler.LastWork, capturable and enabled', offered, 0,
@@ -61,7 +74,34 @@ def read_rows(comm):
                    unit['Running'] == 0 and unit['Error'] == 0)]
 
 
+def legacy_capture_offer(comm):
+    values = projection.read_document(comm)['values']
+    entries = [k for k, v in values.items() if k.endswith('/WriteKey') and v == KEY]
+    prefix = entries[0].rsplit('/', 1)[0] if entries else ''
+    return {'source': values.get(prefix + '/CaptureSource'),
+               'canCapture': values.get(prefix + '/CanCapture'),
+               'enabled': values.get(APP.name + '/Features/CaptureEnabled')}
+
+
 async def viewer_rows(comm, serial, ack):
+    if APP.canonical_collapse:
+        before = px.seed_sequence(comm)
+        with fixture.viewer(comm, app=APP) as viewer:
+            page = viewer.read_configuration_page(APP.name)
+            after_page = px.seed_sequence(comm)
+            refused = viewer.write_batch(APP.name, (before + 1) & 0xffffffff, Kind=mb.START)
+            after_start = px.seed_sequence(comm)
+        values = page.result if page.ok and isinstance(page.result, dict) else {}
+        return [px.row('read_only_viewer_queries_configuration',
+                       'read-only configuration API returns published entries without a mailbox commit',
+                       {'ok': page.ok, 'entries': values.get('EntryCount'), 'sequence': after_page}, 0,
+                       page.ok and type(values.get('EntryCount')) is int and values['EntryCount'] > 0
+                       and any(v == KEY for k, v in values.items() if k.endswith('/WriteKey'))
+                       and after_page == before),
+                px.row('read_only_viewer_cannot_start',
+                       'START refused before any controller write; mailbox sequence unchanged',
+                       {'refused': not refused.ok, 'sequence': after_start}, 0,
+                       not refused.ok and after_start == before)]
     # Exercise the real gateway route in its read-only posture, pinned to this
     # controller. No server or write root is created. The writer checks serial
     # again immediately before the inert page transaction.
@@ -101,12 +141,13 @@ def run(comm, serial, settle, rows):
         px.write(comm, tag, 1)
     px._idle(comm, ack)
     cycle = phase5.auto_cycle(comm, ack, settle)
-    work = phase5.profile_raw(comm)['LastWork']
+    work = (fixture.surface(comm, 'Profiler', app=APP) if APP.canonical_collapse
+            else phase5.profile_raw(comm))['LastWork']
     px._idle(comm, ack)
     px.command(comm, mb.SET_MODE, settle=ack, IntValue=APP.manual_mode)
     answer = capture(comm, ack)
     stored = configuration(comm)['BaselineWorkMs']
-    audit = projection.read_config_audit(comm)
+    audit = audit_rows(comm)
     slot = audit['Head'] - 1
     observed = {'cycle': cycle, 'work': work, 'answer': answer, 'stored': stored,
                 'audit': {name: audit[name][slot] for name in ('Sequence', 'Kind', 'Value', 'SourceKey', 'Revision')}}
@@ -115,21 +156,21 @@ def run(comm, serial, settle, rows):
                        cycle and work > 0 and answer['accepted'] and stored == work
                        and audit['Value'][slot] == work and audit['Kind'][slot] == mb.CAPTURE_CONFIG
                        and audit['Sequence'][slot] == answer['sequence']
-                       and audit['SourceKey'][slot] == mf.numeric_key(APP, 'Profiler.LastWork')))
+                       and audit['SourceKey'][slot] == fixture.numeric_key(comm, 'Profiler.LastWork', app=APP)))
     before_head = audit['Head']
     for name, args, reason in (
-        ('stale_capture_revision', {'revision': mf.config_revision(APP) + 1}, config.CAPTURE_REVISION_KEY),
+        ('stale_capture_revision', {'revision': (fixture.revision(comm, app=APP) + 1) & 0x7fffffff}, config.CAPTURE_REVISION_KEY),
         ('unregistered_capture', {'key': 'station.number'}, config.CAPTURE_UNAVAILABLE_KEY),
-        ('foreign_capture_scope', {'scope': 'Other'}, mb.CONFIG_KEY_UNKNOWN_KEY)):
+        ('foreign_capture_scope', {'scope': 'Other'}, mb.TARGET_KEY if APP.canonical_collapse else mb.CONFIG_KEY_UNKNOWN_KEY)):
         answer = capture(comm, ack, **args)
         rows.append(px.row(name, 'refused by name; configuration and accepted-write audit unchanged',
-                           answer, 0, not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, reason)
+                           answer, 0, not answer['accepted'] and answer['diagnosticKey'] == fixture.numeric_key(comm, reason, app=APP)
                            and configuration(comm)['BaselineWorkMs'] == work
-                           and projection.read_config_audit(comm)['Head'] == before_head))
+                           and audit_rows(comm)['Head'] == before_head))
     px.command(comm, mb.SET_MODE, settle=ack, IntValue=px.MODE_AUTO)
     answer = capture(comm, ack)
     rows.append(px.row('capture_requires_setup', 'AUTO is not a capture setup mode', answer, 0,
-                       not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, config.CAPTURE_SETUP_KEY)))
+                       not answer['accepted'] and answer['diagnosticKey'] == fixture.numeric_key(comm, config.CAPTURE_SETUP_KEY, app=APP)))
     px.command(comm, mb.SET_MODE, settle=ack, IntValue=APP.manual_mode)
     px.write(comm, px.AIR_OK, 0)
     px.await_unit(comm, lambda _u: not px.read_module(comm, 'AirPressureMonitor')['OutImm_PressureOk'], settle)
@@ -198,7 +239,7 @@ def main(argv=None):
             if not evidence['serial_matches']:
                 evidence['error'] = 'controller serial does not match --expect-serial'
             else:
-                evidence['fingerprint'] = px.fingerprint(comm)
+                evidence['fingerprint'] = px.fingerprint(comm, expect_serial=serial)
                 if not evidence['fingerprint']['passed']:
                     evidence['error'] = 'press fingerprint failed; nothing written'
                 else:

@@ -9,6 +9,7 @@ keep the legacy-baseline reader until its retirement.
 from fraktal_ab_canonical_reader import open_row_reader
 from fraktal_ab_legacy_reads import read_layout
 from fraktal_ab_harness_gateway import connection_state
+from contextlib import contextmanager
 
 
 UNIT_PUBLIC = dict(Mode='ModeActivePublished', Step='CurrentStep/StepNo',
@@ -21,6 +22,8 @@ MAILBOX_PUBLIC = {}
 DEFAULT_GATEWAY = 'ws://127.0.0.1:8080/fraktal'
 
 def public_aliases(name):
+    if name in ('ConfigAudit', 'Profiler') or name.startswith('Cfg') and name[3:].isdigit():
+        return {}
     return UNIT_PUBLIC if name == 'Unit' else CHART_PUBLIC if name == 'Chart' else MAILBOX_PUBLIC if name == 'Mailbox' else {
         'OutImm_ExecState': name + '/Status/State'}
 
@@ -36,9 +39,9 @@ class FixtureReads:
         self.modules = {module.name for module in app.modules}
 
     def surface(self, name):
-        if name not in ('Unit', 'Chart', 'Mailbox') and name not in self.modules:
+        if name not in self.fields and name not in ('Unit', 'Chart', 'Mailbox') and name not in self.modules:
             raise ValueError('unknown fixture surface: ' + name)
-        public = public_aliases(name)
+        public = public_aliases(name) if name in ('Unit', 'Chart', 'Mailbox') or name in self.modules else {}
         # A canonical anchor makes even a private-only surface a scan-domain row.
         paths = tuple(dict.fromkeys([self.root + '/CurrentStep/StepNo',
                                      *(self.root + '/' + path for path in public.values())]))
@@ -108,6 +111,79 @@ def read_module(comm, name, *, app):
     import fraktal_ab_generate as gen
     module = next(m for m in app.modules if m.name == name)
     return read_layout(comm, gen.ctx_tag_for(app, name), gen.module_members(module, app))
+
+
+def numeric_key(comm, text, *, app):
+    """An asserted refusal key belongs to the deployed image's own key table."""
+    session = _session(comm, app)
+    if session is not None:
+        try:
+            return session.reader.command_keys(session.root)[text]
+        except KeyError as error:
+            raise ValueError('asserted key is absent from the published command metadata') from error
+    import fraktal_ab_manifest as legacy
+    return legacy.numeric_key(app, text)
+
+
+def surface(comm, name, *, app):
+    session = _session(comm, app)
+    if session is None:
+        raise ValueError('accounted surface requires the collapsed fixture')
+    return session.surface(name)
+
+
+def revision(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_manifest as legacy
+        return legacy.config_revision(app)
+    path = session.root + '/Status/ConfigRev'
+    return session.reader.read_row((path,))['values'][path]
+
+
+def capture_definition(comm, key, *, app):
+    """Read the PLC's read-only definition view, independently of the gateway."""
+    session = _session(comm, app)
+    bindings = [b for b in session.reader._manifest.get('readServices', [])
+                if b['RootSymbol'] == session.root and b['Kind'] == 1 and b['Version'] == 1]
+    if len(bindings) != 1:
+        raise ValueError('fixture requires one published configuration view')
+    prefix = bindings[0]['CanonicalRoot']
+    count_path = prefix + '/DefinitionCount'
+    count = session.reader.read_row((count_path,))['values'][count_path]
+    if type(count) is not int or not 0 < count <= 32767:
+        raise ValueError('invalid published definition count')
+    names = ('WriteKey', 'CaptureSource', 'CanCapture')
+    paths = (count_path, *(f'{prefix}/Definitions[{i}]/{name}'
+                          for i in range(count) for name in names))
+    values = session.reader.read_row(paths)['values']
+    if values[count_path] != count:
+        raise ValueError('configuration definition count changed')
+    found = [{name: values[f'{prefix}/Definitions[{i}]/{name}'] for name in names}
+             for i in range(count) if values[f'{prefix}/Definitions[{i}]/WriteKey'] == key]
+    if len(found) != 1:
+        raise ValueError('capture key absent or ambiguous in published definitions')
+    return found[0]
+
+
+@contextmanager
+def viewer(comm, *, app):
+    """A separate, owned read-only deployment of the same pinned gateway."""
+    from fraktal_ab_harness_gateway import GatewayLease
+    from fraktal_ab_harness_commands import GatewayCommands
+    session = _session(comm, app)
+    _guard_command(comm, session)
+    prepared = connection_state(comm)._fraktal_gateway_lease
+    with GatewayLease(prepared.executable, prepared.digest, host=comm.IPAddress,
+                      slot=comm.ProcessorSlot, serial=session.expected_serial,
+                      root=session.root, directory=prepared.directory, read_only=True) as lease:
+        if not lease.guard(serial=session.expected_serial, root=session.root, url=lease.url):
+            raise ValueError('read-only gateway target binding changed')
+        client = GatewayCommands(lease.url)
+        try:
+            yield client
+        finally:
+            client.close()
 
 
 class _CommandRows:

@@ -1,0 +1,70 @@
+C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\fraktal_ab_harness_commands.py:118: DeprecationWarning: connect() must be used as a context manager: with connect(...) as websocket: ...; alternatively, use websocket = connect(..., legacy=True) to connect directly
+  self._socket.send(message)
+======================================================================
+ERROR: test_all_press_row_and_wait_predicates_keep_their_native_verdicts (test_fraktal_ab_fixture_reads.NativeViews.test_all_press_row_and_wait_predicates_keep_their_native_verdicts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 168, in test_all_press_row_and_wait_predicates_keep_their_native_verdicts
+    self.assertEqual(a, b)
+                       ^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 76, in from_pair
+    capture['symbols'].append(dict(name=generation, atomic=0xc4, arrayRank=0))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 55, in legacy_surface
+    if name == 'Chart':
+           ^^^^^^^^^^^^
+KeyError: 'Cfg0'
+
+======================================================================
+ERROR: test_canonical_press_record_is_identical_on_native_before_after_states (test_fraktal_ab_fixture_reads.NativeViews.test_canonical_press_record_is_identical_on_native_before_after_states)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 156, in test_canonical_press_record_is_identical_on_native_before_after_states
+    for name in public:
+      ^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 76, in from_pair
+    capture['symbols'].append(dict(name=generation, atomic=0xc4, arrayRank=0))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 55, in legacy_surface
+    if name == 'Chart':
+           ^^^^^^^^^^^^
+KeyError: 'Cfg0'
+
+======================================================================
+ERROR: test_every_accounted_fact_and_exact_alias_matches_all_native_pairs (test_fraktal_ab_fixture_reads.NativeViews.test_every_accounted_fact_and_exact_alias_matches_all_native_pairs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 141, in test_every_accounted_fact_and_exact_alias_matches_all_native_pairs
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 76, in from_pair
+    capture['symbols'].append(dict(name=generation, atomic=0xc4, arrayRank=0))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_reads.py", line 55, in legacy_surface
+    if name == 'Chart':
+           ^^^^^^^^^^^^
+KeyError: 'Cfg0'
+
+======================================================================
+FAIL: test_the_press_declares_its_harnesses_facts (test_fraktal_ab_fixture_observation.Declaration.test_the_press_declares_its_harnesses_facts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_observation.py", line 33, in test_the_press_declares_its_harnesses_facts
+    self.assertEqual(len(fixture.facts(APP)), 30)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 40 != 30
+
+======================================================================
+FAIL: test_the_press_emits_the_scan_bindings_its_live_reader_requires (test_fraktal_ab_fixture_observation.Image.test_the_press_emits_the_scan_bindings_its_live_reader_requires)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\SoftIndVM\Fraktal\FraktalCore\PLC\Allen-Bradley\tools\test_fraktal_ab_fixture_observation.py", line 90, in test_the_press_emits_the_scan_bindings_its_live_reader_requires
+    self.assertEqual(record['SchemaMinor'], '10')
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '10' != '7'
+- 10
++ 7
+
+
+----------------------------------------------------------------------
+Ran 64 tests in 344.102s
+
+FAILED (failures=2, errors=3)

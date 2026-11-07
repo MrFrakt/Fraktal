@@ -280,7 +280,8 @@ def fingerprint(comm: Any, *, expect_serial=None) -> dict[str, Any]:
     unit = read_unit(comm)
     if unit is None:
         return {"passed": False, "failed_tag": UNIT, "status": "unreadable"}
-    cfg = read_flat(comm, CFG, tuple(m.name for m in APP.records[0].members))
+    cfg = (fixture_reads.surface(comm, 'Cfg0', app=APP) if APP.canonical_collapse else
+           read_flat(comm, CFG, tuple(m.name for m in APP.records[0].members)))
     if cfg is None:
         return {"passed": False, "failed_tag": CFG, "status": "unreadable"}
     for tag in (SCAN_COUNT, TASK_PERIOD, ORDER_FAIL):

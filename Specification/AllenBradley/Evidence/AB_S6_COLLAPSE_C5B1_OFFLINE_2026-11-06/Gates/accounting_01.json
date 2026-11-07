@@ -1,0 +1,201 @@
+{
+  "schema": "fraktal.ab.c5b1-fact-and-case-accounting",
+  "schemaVersion": 1,
+  "scope": "Phase 6 capture and read-only viewer only; not all HX clients",
+  "parentCommit": "df647e2f34b28e7c5f9962d4b93a2ea564755862",
+  "fixtureFacts": 40,
+  "addedFacts": [
+    {
+      "surface": "Cfg0",
+      "member": "SchemaVersion",
+      "nativeKind": "scalar",
+      "elements": 1,
+      "source": "FRK_T_PressParCfgTag.SchemaVersion",
+      "observed": "Cfg0_SchemaVersion",
+      "consumer": "px.fingerprint/cfg_schema",
+      "nativeReplay": "old 86 accepted press captures",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "Cfg0",
+      "member": "BaselineWorkMs",
+      "nativeKind": "duration_ms",
+      "elements": 1,
+      "source": "FRK_T_PressParCfgTag.BaselineWorkMs",
+      "observed": "Cfg0_BaselineWorkMs",
+      "consumer": "phase6.configuration/run/restore",
+      "nativeReplay": "old 86 accepted press captures",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "ConfigAudit",
+      "member": "Head",
+      "nativeKind": "scalar",
+      "elements": 1,
+      "source": "FRK_Press_ConfigAudit.Head",
+      "observed": "ConfigAudit_Head",
+      "consumer": "phase6.run/capture accepted-write observation and refusal/no-change checks",
+      "nativeReplay": "not available in old captures; S6-Q remains open",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "ConfigAudit",
+      "member": "Sequence",
+      "nativeKind": "scalar",
+      "elements": 16,
+      "source": "FRK_Press_ConfigAudit.Sequence",
+      "observed": "ConfigAudit_Sequence",
+      "consumer": "phase6.run/capture accepted-write observation and refusal/no-change checks",
+      "nativeReplay": "not available in old captures; S6-Q remains open",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "ConfigAudit",
+      "member": "Kind",
+      "nativeKind": "scalar",
+      "elements": 16,
+      "source": "FRK_Press_ConfigAudit.Kind",
+      "observed": "ConfigAudit_Kind",
+      "consumer": "phase6.run/capture accepted-write observation and refusal/no-change checks",
+      "nativeReplay": "not available in old captures; S6-Q remains open",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "ConfigAudit",
+      "member": "Value",
+      "nativeKind": "scalar",
+      "elements": 16,
+      "source": "FRK_Press_ConfigAudit.Value",
+      "observed": "ConfigAudit_Value",
+      "consumer": "phase6.run/capture accepted-write observation and refusal/no-change checks",
+      "nativeReplay": "not available in old captures; S6-Q remains open",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "ConfigAudit",
+      "member": "SourceKey",
+      "nativeKind": "scalar",
+      "elements": 16,
+      "source": "FRK_Press_ConfigAudit.SourceKey",
+      "observed": "ConfigAudit_SourceKey",
+      "consumer": "phase6.run/capture accepted-write observation and refusal/no-change checks",
+      "nativeReplay": "not available in old captures; S6-Q remains open",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "ConfigAudit",
+      "member": "Revision",
+      "nativeKind": "scalar",
+      "elements": 16,
+      "source": "FRK_Press_ConfigAudit.Revision",
+      "observed": "ConfigAudit_Revision",
+      "consumer": "phase6.run/capture accepted-write observation and refusal/no-change checks",
+      "nativeReplay": "not available in old captures; S6-Q remains open",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "Profiler",
+      "member": "LastWork",
+      "nativeKind": "duration_ms",
+      "elements": 1,
+      "source": "FRK_Press_Profiler.LastWork",
+      "observed": "Profiler_LastWork",
+      "consumer": "phase6.run/work sampled before CAPTURE_CONFIG",
+      "nativeReplay": "old 86 accepted press captures",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    },
+    {
+      "surface": "AirPressureMonitor",
+      "member": "OutImm_PressureOk",
+      "nativeKind": "boolean",
+      "elements": 1,
+      "source": "FRK_Press_InstAirPressureMonitor.OutImm_PressureOk",
+      "observed": "AirPressureMonitor_OutImm_PressureOk",
+      "consumer": "phase6.run/air-loss wait predicate",
+      "nativeReplay": "old 86 accepted press captures",
+      "offlineProof": "emitted writer/ST model, exact literal token append, template/default/read-back audits"
+    }
+  ],
+  "protocols": [
+    {
+      "case": "read_only_viewer_queries_configuration",
+      "before": "legacy Python gateway special-cases QUERY_CONFIG and acknowledges a mailbox write",
+      "after": "packaged Dart readConfigurationPage; the sequence must not change",
+      "authority": "approved S4b/D9 read-only configuration view"
+    },
+    {
+      "case": "foreign_capture_scope",
+      "before": "legacy CONFIG_KEY_UNKNOWN_KEY",
+      "after": "Core TARGET_KEY",
+      "authority": "approved S3k typed Core binding"
+    }
+  ],
+  "beforeRunPredicates": [
+    {
+      "test": "'capture_stores_the_published_machine_value'",
+      "assertion": "cycle and work > 0 and answer['accepted'] and (stored == work) and (audit['Value'][slot] == work) and (audit['Kind'][slot] == mb.CAPTURE_CONFIG) and (audit['Sequence'][slot] == answer['sequence']) and (audit['SourceKey'][slot] == mf.numeric_key(APP, 'Profiler.LastWork'))"
+    },
+    {
+      "test": "'capture_requires_setup'",
+      "assertion": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, config.CAPTURE_SETUP_KEY)"
+    },
+    {
+      "test": "'capture_respects_the_release_permissive'",
+      "assertion": "not answer['accepted'] and configuration(comm)['BaselineWorkMs'] == work"
+    },
+    {
+      "test": "name",
+      "assertion": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, reason) and (configuration(comm)['BaselineWorkMs'] == work) and (projection.read_config_audit(comm)['Head'] == before_head)"
+    }
+  ],
+  "afterRunPredicates": [
+    {
+      "test": "'capture_stores_the_published_machine_value'",
+      "assertion": "cycle and work > 0 and answer['accepted'] and (stored == work) and (audit['Value'][slot] == work) and (audit['Kind'][slot] == mb.CAPTURE_CONFIG) and (audit['Sequence'][slot] == answer['sequence']) and (audit['SourceKey'][slot] == fixture.numeric_key(comm, 'Profiler.LastWork', app=APP))"
+    },
+    {
+      "test": "'capture_requires_setup'",
+      "assertion": "not answer['accepted'] and answer['diagnosticKey'] == fixture.numeric_key(comm, config.CAPTURE_SETUP_KEY, app=APP)"
+    },
+    {
+      "test": "'capture_respects_the_release_permissive'",
+      "assertion": "not answer['accepted'] and configuration(comm)['BaselineWorkMs'] == work"
+    },
+    {
+      "test": "name",
+      "assertion": "not answer['accepted'] and answer['diagnosticKey'] == fixture.numeric_key(comm, reason, app=APP) and (configuration(comm)['BaselineWorkMs'] == work) and (audit_rows(comm)['Head'] == before_head)"
+    }
+  ],
+  "preserved": [
+    "exact stored raw BaselineWorkMs equals sampled WORK, not candidate 999999",
+    "native audit value/kind/sequence/source key",
+    "rejected capture leaves configuration and accepted-write audit unchanged",
+    "setup and air release gates",
+    "baseline/mode/style restoration and final input disarm"
+  ],
+  "pending": [
+    "set workflows/Dart host process lifecycle",
+    "other HX consumers",
+    "Frame/staged endpoint removal/V6.12",
+    "native capture/audit, scan and integrated S6-Q after C7"
+  ],
+  "sources": [
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_execute.py",
+      "sha256": "2CBC0F6A9CB122C54030AC6FAB3DB676D19F65BE8027B51A724C02BD5CAD4F4B"
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase5_execute.py",
+      "sha256": "C3CE3F93942FB8889E37F413F41E83E12844725C5CCCEE4B80B87BE3FCA2CA09"
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_press_execute.py",
+      "sha256": "AC0DB7AD4A3C44B36288D7D3C8F1E36D09453314A6F80361327174657C5DA1FB"
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_fixture_reads.py",
+      "sha256": "8841F07EC33A81879DC98263624B8DA52A6022F0D3BA03CAFC8282C6FD84820F"
+    }
+  ],
+  "controllerAccess": false
+}

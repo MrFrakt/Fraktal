@@ -6,6 +6,7 @@ and C2/C3 pin the storage moves. Live workload proof remains S6-Q.
 """
 import ast
 from copy import deepcopy
+from dataclasses import replace
 import gzip
 import json
 from pathlib import Path
@@ -23,7 +24,10 @@ import fraktal_ab_press_execute as px
 import fraktal_ab_press_canonical_execute as press
 from test_fraktal_ab_canonical_live import Clock, Replay
 
-APP = profile.application()
+# The old accepted capture has no ConfigAudit bytes. Its new writer is tested
+# separately; native audit/capture acceptance remains S6-Q, never synthesized.
+APP = replace(profile.application(), fixture_observation=tuple(
+    (surface, names) for surface, names in profile.FIXTURE if surface != 'ConfigAudit'))
 ROOT = Path(__file__).resolve().parents[4]
 SESSION = ROOT/'Specification/AllenBradley/Evidence/AB_PRESS_S3_EXIT_RUNTIME_2026-10-25/Session'
 
@@ -52,6 +56,10 @@ def legacy_surface(pair, name):
         return inputs['additional']['chart']
     if name == 'Mailbox':
         return inputs['additional']['mailbox_response']
+    if name == 'Cfg0':
+        return inputs['additional']['records'][APP.records[0].name]
+    if name == 'Profiler':
+        return inputs['additional']['profiler']
     return inputs['contexts'][name]
 
 

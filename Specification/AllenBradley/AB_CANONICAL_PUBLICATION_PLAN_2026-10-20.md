@@ -1520,11 +1520,24 @@ schema/token/default/access proofs pass. Capacity is 60% genealogy
 (1,915,620/3,145,728 Blocks), 46% press (1,447,072/3,145,728). No controller
 operations were performed; the legacy declarations remain byte-identical.
 
+**C5b1 done offline, 2026-11-06** ([evidence](Evidence/AB_S6_COLLAPSE_C5B1_OFFLINE_2026-11-06.md)).
+The capture/configuration slice uses typed Core requests, live revisions and
+PLC-published refusal keys, with independent O10 value/audit checks. The
+read-only viewer uses the existing Dart `readConfigurationPage` RPC and proves
+START cannot commit. The S6-Q press gains the approved V6.8/V6.10 publications;
+its fixture gains ten facts (40 total). All 2,629 AB and 85 root tests pass,
+both v38 builds/read-backs/access/defaults pass, and schema/token proofs pass.
+Press Capacity is 49% (1,554,428 used / 1,591,300 available / 3,145,728 Blocks).
+Genealogy is byte-identical to C5a and retains its hash-bound 60% qualification.
+No controller operations or scan measurement ran. The six native audit fields
+are absent from old captures; their native acceptance remains S6-Q. The
+remaining set/host lifecycle is C5b2; this does not qualify other HX consumers.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The
-press's configuration/set clients need the already approved read-view,
-owner-revision and host-service publications before they join. A shared
+press's capture client now has the read-view and owner-revision publications;
+its set clients still need the host-service publication and Dart adapter lifecycle. A shared
 command facade alone does not qualify a whole legacy harness. C6/C7 and
 integrated native S6-Q remain after C5.
 

@@ -96,10 +96,20 @@ class GatewayCommands:
 
     def write_batch(self, root, sequence, **arguments):
         params = encode(root, sequence, arguments)
+        return self._rpc('writeBatch', params)
+
+    def read_configuration_page(self, root, model=0):
+        # Reuse the released read-only RPC; never emulate a mailbox query.
+        encode(root, 0, {})  # root spelling validation, no I/O
+        if type(model) is not int or model < 0:
+            raise ValueError('configuration model must be a nonnegative ordinal')
+        return self._rpc('readConfigurationPage', dict(root=root, model=model))
+
+    def _rpc(self, method, params):
         if self._closed:
             raise GatewayCommandUnavailable('gateway command client closed after a failure')
         self._id += 1
-        message = json.dumps(dict(protocol=PROTOCOL, id=self._id, method='writeBatch',
+        message = json.dumps(dict(protocol=PROTOCOL, id=self._id, method=method,
                                   params=params))
         try:
             if self._socket is None:

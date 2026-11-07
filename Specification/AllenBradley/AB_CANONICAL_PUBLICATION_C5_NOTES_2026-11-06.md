@@ -118,3 +118,66 @@ at high-bit/wrap boundaries; do not infer raw equivalence from normal captures.
 - Remove Frame/staged services, publish V6.12 and update Python/Dart readers;
   run all stage gates before C6. C6 removes legacy exposure/tables, C7 narrows
   production AUTO, then S6-Q proves native integration and retirement.
+
+## C5b1 - capture and read-only configuration browsing
+
+C5b1 is complete offline, with 2,629 AB and 85 root tests passing. The final
+85-test focused run also passes. Qualification records are in
+`C:/work/fraktal-ab-c5b-control-20261106/`. This is the configuration/capture
+slice of C5b, not its exit. The collapsed press enables the already approved
+V6.8 read view and V6.10 owner revisions; its frozen S3 declaration remains
+unchanged. Host services are not enabled on the press by this increment.
+
+Phase 6 capture now uses typed Core identity/key/revision arguments. It reads
+the current PLC revision rather than a generator-side constant, and checks
+refusals against the deployed command key table. That table is immutable
+activation metadata resolved through its published Symbol and native Template,
+cached for one guarded connection only. Sparse numeric keys are valid; wrong
+types, malformed strings, duplicate keys and a changed root revision refuse
+without caching a partial result. No cyclic value is supplied from this cache.
+
+The independent capture check reads definitions from the PLC's read-only view.
+The viewer check starts a separately owned, hash/serial/root-pinned read-only
+Dart gateway and uses its existing `readConfigurationPage` RPC. It verifies
+the returned key and unchanged controller sequence, then attempts START and
+requires refusal before a commit. It neither writes QUERY_CONFIG nor enables
+the old unsecured-CIP mailbox exception. The new RPC reuses the command
+client's framing and failure-close behavior; it adds no transport encoder.
+
+The typed foreign-root refusal is the approved Core `TARGET_KEY`, rather than
+the legacy Frame `CONFIG_KEY_UNKNOWN_KEY`. The capture candidate remains
+999999 in TextValue and must still be ignored by the PLC. All machine-value,
+audit, no-change, restoration and final disarm assertions remain. Restoration
+uses typed WRITE_CONFIG with the live revision. These are the two protocol
+subject adaptations recorded above, not relaxed equipment acceptance.
+
+O10 grows from 30 to 40 facts: Cfg0.SchemaVersion/BaselineWorkMs; ConfigAudit
+Head/Sequence/Kind/Value/SourceKey/Revision; Profiler.LastWork; and the air
+permissive. ConfigAudit arrays retain all 16 native cells. The fingerprint uses
+the accounted configuration schema; capture compares the exact unmasked raw
+value and audit, independently of gateway output. Neither access masking nor
+configuration values are reconstructed in the apparatus.
+
+The old 86 accepted press captures contain four of the new facts. The replay
+adds those facts from their original raw inputs. They do not contain
+ConfigAudit: its six fields are covered by the generated-writer/ST model and
+exact token proof only, with native capture/audit acceptance explicitly left
+to S6-Q. The frozen C5a source, overlaid with just the two approved feature
+flags, produces a reference whose other 62 routines match exactly. The sole
+executable delta is the literal append for the ten O10 facts. Genealogy's
+image remains byte-identical to C5a.
+
+The press builds on both v38 targets and passes read-back/access/default
+audits. Studio Capacity is 1,554,428 used / 1,591,300 available / 3,145,728
+Blocks (49%), 107,356 more used than C5a. Genealogy retains its hash-bound
+C5a build/read-back/Capacity evidence (60%). Scan is not measured offline.
+No controller operation or native acceptance has run. Failed preparation
+and superseded test attempts are retained.
+
+Next: C5b2 moves the set/document workflows onto the Dart V6.11 host adapter
+with an isolated store, explicit original-document restoration and an owned
+process lifecycle. Other HX facts/clients still need individual accounting;
+the partial capture migration does not qualify the whole Phase 5/6 suite.
+The Python gateway actor-state test must retire with that subject, with an
+honest packaged write-scope refusal replacing it. Frame/staged endpoints stay
+until all consumers migrate in C5c/V6.12; C6, C7 and S6-Q follow afterward.

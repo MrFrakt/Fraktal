@@ -218,6 +218,74 @@ class CanonicalRowReader:
         self._body, self._counter = body, read_counter
         self._clock, self._sleep = clock_ns, sleep
         self._locations = {}
+        self._command_keys = {}
+
+    def command_keys(self, root):
+        """The immutable key side table named by this root's command binding.
+
+        These are activation metadata, never cyclic values or a row proof.
+        No station table, numeric ordinal or string width is guessed. A fresh
+        root configuration revision before/after the acquisition rejects a
+        changed image/configuration context; nothing from a failed acquisition
+        is cached. Like the namespace itself, this cache lives for one guarded
+        controller session and must not survive a download/reconnect.
+        """
+        if root in self._command_keys:
+            return self._command_keys[root]
+        found = [b for b in self._manifest.get('commandBindings', []) if b['RootSymbol'] == root]
+        if len(found) != 1:
+            raise ValueError('root has no unique published command binding')
+        binding = found[0]
+        symbol, count = binding['KeysSymbol'], binding['KeysCount']
+        source = self._symbols.get(symbol)
+        if not source or source.get('arrayRank') != 1 or source.get('handle') not in self._objects \
+                or type(count) is not int or not 1 <= count <= 100000:
+            raise ValueError('invalid command key table Symbol/count')
+        handle = source['handle']
+        fields = {r['name']: r for r in member_table(self._objects[handle])}
+        numeric, portable = fields.get('NumericKey'), fields.get('PortableKey')
+        if not numeric or numeric['struct'] or numeric['array'] or numeric['atomic'] != 0xC4 \
+                or not portable or portable['array'] or not portable['struct'] \
+                or portable['handle'] not in self._objects \
+                or is_string(member_table(self._objects[portable['handle']])) is None:
+            raise ValueError('invalid command key table Template')
+        spans = sorted((r['offset'], r['offset'] + (self._sizes[r['handle']] if r['struct'] else 4))
+                       for r in (numeric, portable))
+        if any(a < 0 or b > self._sizes[handle] for a, b in spans) or spans[1][0] < spans[0][1]:
+            raise ValueError('command key fields overlap or exceed their Template')
+        epoch = root + '/Status/ConfigRev'
+        before = self.read_row((epoch,))['values'][epoch]
+        numbers, keys = set(), {}
+        # Bounded per-packet activation reads. The published count is the
+        # logical extent, not unused physical capacity slots. No command-only
+        # payload or arbitrary metadata Symbol can be selected by the caller.
+        for start in range(0, count, 32):
+            locations = []
+            for index in range(start, min(start + 32, count)):
+                for name, row in (('NumericKey', numeric), ('PortableKey', portable)):
+                    width = self._sizes[row['handle']] if row['struct'] else 4
+                    locations.append(Location(f'#keys/{index}/{name}', f'{symbol}[{index}].{name}', symbol,
+                        index * self._sizes[handle] + row['offset'], MappingProxyType(dict(row)),
+                        MappingProxyType({}), width, ()))
+            packets = self._body.plan(locations)
+            if sorted(loc.path for packet in packets for loc in packet.locations) != sorted(loc.path for loc in locations):
+                raise ValueError('command key plan does not cover its selection exactly')
+            decoded = {}
+            for packet in packets:
+                reply = self._body.send(packet)
+                for loc, raw in zip(packet.locations, self._body.parse(packet, reply), strict=True):
+                    decoded[loc.path] = self._decode(loc, raw)[0]
+            for index in range(start, min(start + 32, count)):
+                number, text = (decoded[f'#keys/{index}/{n}'] for n in ('NumericKey', 'PortableKey'))
+                if type(number) is not int or number <= 0 or number in numbers or not isinstance(text, str) \
+                        or not text or '\0' in text or text in keys:
+                    raise ValueError('invalid or duplicate published command key')
+                numbers.add(number); keys[text] = number
+        after = self.read_row((epoch,))['values'][epoch]
+        if before != after:
+            raise ValueError('command key acquisition crossed a root revision; rediscover')
+        self._command_keys[root] = MappingProxyType(keys)
+        return self._command_keys[root]
 
     def _resolve_in(self, path, prefix, source):
         if not path.startswith(prefix + '/'):

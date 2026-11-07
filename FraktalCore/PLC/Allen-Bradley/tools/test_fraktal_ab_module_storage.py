@@ -71,7 +71,7 @@ class Owners(unittest.TestCase):
             for surface, names in app.fixture_observation:
                 # These facts belong to scalar record owners, not module AOIs.
                 # Their copy/access is covered by fixture_observation tests.
-                if surface in ('Unit', 'Chart', 'Mailbox'):
+                if surface not in {module.name for module in app.modules}:
                     continue
                 module = next(m for m in app.modules if m.name == surface)
                 roles = storage.roles(app, library.type_of(module))
