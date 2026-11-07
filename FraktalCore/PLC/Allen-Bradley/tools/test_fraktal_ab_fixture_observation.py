@@ -30,7 +30,7 @@ def generate(app):
 class Declaration(unittest.TestCase):
     def test_the_press_declares_its_harnesses_facts(self):
         self.assertEqual(decl.validate(APP), [])
-        self.assertEqual(len(fixture.facts(APP)), 40)
+        self.assertEqual(len(fixture.facts(APP)), 75)
 
     def test_only_a_collapsed_acceptance_image_observes(self):
         uncollapsed = dataclasses.replace(candidate.application(), fixture_observation=press.FIXTURE)
@@ -87,7 +87,7 @@ class Image(unittest.TestCase):
         from test_fraktal_ab_read_coherence import physical
         tag = self.tags(self.press)[pub.header_tag(APP)]
         record = schema._value(tag.find('./Data[@Format="Decorated"]/Structure'))
-        self.assertEqual(record['SchemaMinor'], '10')
+        self.assertEqual(record['SchemaMinor'], '11')
         # Decorated values are textual, not the S1 wire decoder's typed
         # StringFamily objects. These two identifier fields have no escapes.
         def identifier(value):
@@ -101,7 +101,7 @@ class Image(unittest.TestCase):
                     for row in record['ReadCoherenceBindings']]
         self.assertEqual(int(record['ReadCoherenceBindingsCount']), len(bindings))
         header = wire.normalize(physical(pub.manifest_values(APP)))
-        self.assertEqual(header['schemaMinor'], 10)
+        self.assertEqual(header['schemaMinor'], 11)
         prefixes = {APP.name, *(p['CanonicalRoot'] for p in header['dataProducts'])}
         self.assertEqual(bindings, header['readCoherenceBindings'])
         self.assertEqual({b['CanonicalPrefix'] for b in bindings}, prefixes)

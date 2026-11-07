@@ -1,0 +1,43 @@
+{
+  "schema": "fraktal.ab.c5b3-next-boundary-review",
+  "schemaVersion": 1,
+  "readOnly": true,
+  "controllerAccess": false,
+  "manualSourceReview": true,
+  "retirementAcceptance": false,
+  "limitations": "Preparation only. Not an accepted complete fact inventory, wire contract or claim that these consumers run on the collapsed image.",
+  "reviews": [
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_access_execute.py",
+      "sourceSha256": "24E51909CC87F75C7D297A8417871A9FA99959289AF2E981CB11264BE4F2909C",
+      "subject": "Client.native",
+      "review": "Reinitializes the inherited set client after each request. Collapsed transport and owned adapter/gateway lifecycle need one explicit owner; review login settlement, Required array, user bytes and audit arrays without inferring unsigned/native equivalence.",
+      "implemented": false,
+      "qualified": false
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_data_execute.py",
+      "sourceSha256": "03012FAB839898183724FD5979C2FF3D509C9B68ADB381DA8F3C62EE0D7BDCBC",
+      "subject": "page_entries",
+      "review": "Reads legacy HmiResponse ConfigPage and calls QUERY_CONFIG. Move browsing to the published read-only view/RPC while retaining per-value mask/policy and no-change predicates; replace generator-side configuration ordinals/revisions/keys with published identities.",
+      "implemented": false,
+      "qualified": false
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase6_shelving_execute.py",
+      "sourceSha256": "CACAF053464A2143486E3C02D33E62B8C338E3895813BDF21C09EA47B599008B",
+      "subject": "current",
+      "review": "Asserts fixed active/ring slots, state and shelving arrays. Map exact raw/private facts separately from canonical logical extents, retain the standing-event identity, owner session/policy restoration and all cleanup attempts.",
+      "implemented": false,
+      "qualified": false
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_part_execute.py",
+      "sourceSha256": "95A0729D4D9563998AF5C30DAF2B793F5B80F1F937538E9CCBEA23DB21E540A6",
+      "subject": "Guarded.guard",
+      "review": "The restore method alone is migrated. Guard/login, main preflight/final checks, sink verification and inherited genealogy/text-resource runners still contain legacy reads and require their own accounting before C6 hides legacy exposure.",
+      "implemented": false,
+      "qualified": false
+    }
+  ]
+}

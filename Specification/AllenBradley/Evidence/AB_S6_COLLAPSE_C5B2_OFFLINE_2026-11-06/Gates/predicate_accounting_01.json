@@ -1,0 +1,65 @@
+{
+  "passed": true,
+  "parentCommit": "ca786c6c9e549a9ff60287cba4c290afca9ac289",
+  "caseSites": 11,
+  "predicates": [
+    {
+      "case": "'save_export_and_reopen_station_set'",
+      "before": "saved['accepted'] and sets.FileStore(client.store.directory).read(FIXTURE_NAMES[0]) == doc and (doc[0]['records'] == len(original))",
+      "after": "saved['accepted'] and (host.ReadOnlyStore(client.store.directory) if APP.canonical_collapse else sets.FileStore(client.store.directory)).read(FIXTURE_NAMES[0]) == doc and (doc[0]['records'] == len(original))"
+    },
+    {
+      "case": "'list_uses_the_generic_hmi_contract'",
+      "before": "values[APP.name + '/ConfigSetCount'] == 1 and values[APP.name + '/ConfigSets[1]/SetName'] == FIXTURE_NAMES[0]",
+      "after": "values[APP.name + '/ConfigSetCount'] == 1 and values[APP.name + '/ConfigSets[1]/SetName'] == FIXTURE_NAMES[0]"
+    },
+    {
+      "case": "'load_restores_the_values_not_just_the_ack'",
+      "before": "changed == candidate and candidate != original[first.write_key] and answer['accepted'] and (station_values(comm) == original)",
+      "after": "changed == candidate and candidate != original[first.write_key] and answer['accepted'] and (station_values(comm) == original)"
+    },
+    {
+      "case": "'import_only_stores_the_document'",
+      "before": "answer['accepted'] and station_values(comm) == before",
+      "after": "answer['accepted'] and station_values(comm) == before"
+    },
+    {
+      "case": "'imported_station_set_loads_atomically'",
+      "before": "answer['accepted'] and station_values(comm) == expected",
+      "after": "answer['accepted'] and station_values(comm) == expected"
+    },
+    {
+      "case": "'model_load_refuses_as_tc3_does'",
+      "before": "answer['accepted'] and model_doc[0]['kind'] == 0 and (not load['accepted']) and (load['diagnosticKey'] == mf.numeric_key(APP, sets.MODEL_KEY)) and (projection.read_records(comm) == before)",
+      "after": "answer['accepted'] and model_doc[0]['kind'] == 0 and (not load['accepted']) and (load['diagnosticKey'] == views.numeric_key(comm, sets.MODEL_KEY, app=APP)) and (read_records(comm) == before)"
+    },
+    {
+      "case": "'load_checks_root_ready_on_controller'",
+      "before": "bool(running) and (not answer['accepted']) and (station_values(comm) == before)",
+      "after": "bool(running) and (not answer['accepted']) and (station_values(comm) == before)"
+    },
+    {
+      "case": "'sets_retain_the_gateway_write_gate'",
+      "before": "refused and px.seed_sequence(comm) == sequence",
+      "after": "refused and px.seed_sequence(comm) == sequence"
+    },
+    {
+      "case": "'restore_ack_requires_a_reported_loss'",
+      "before": "not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, mb.RESTORE_ACK_REFUSED_KEY)",
+      "after": "not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, mb.RESTORE_ACK_REFUSED_KEY, app=APP)"
+    },
+    {
+      "case": "'delete_releases_the_bounded_slot'",
+      "before": "client.state.sets.values[APP.name + '/ConfigSetCount'] == 3",
+      "after": "values[APP.name + '/ConfigSetCount'] == 3"
+    },
+    {
+      "case": "'load_refuses_' + fault",
+      "before": "not answer['accepted'] and station_values(comm) == before and exact",
+      "after": "not answer['accepted'] and station_values(comm) == before and exact"
+    }
+  ],
+  "normalization": "Only acquisition aliases, the portable read-only file reopen, and deployed numeric keys; no logical operator or value predicate removed",
+  "protocolSubjectAdaptation": "sets_retain_the_gateway_write_gate now tests the packaged read-only deployment instead of Python _ConnState.authenticated; the refusal/unchanged-sequence predicate is unchanged",
+  "controllerAccess": false
+}

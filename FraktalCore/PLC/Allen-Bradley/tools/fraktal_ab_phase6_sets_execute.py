@@ -11,6 +11,12 @@ import copy
 import datetime
 from pathlib import Path
 import uuid
+import time
+
+import fraktal_ab_fixture_reads as views
+import fraktal_ab_harness_host as host
+import fraktal_ab_harness_documents as documents
+from fraktal_ab_harness_gateway import connection_state
 
 import fraktal_ab_gateway as gateway
 import fraktal_ab_generate as gen
@@ -26,14 +32,18 @@ APP = px.APP
 FIXTURE_NAMES = ('phase6-station', 'phase6-import', 'phase6-reject', 'phase6-model')
 
 
+def read_records(comm):
+    return views.read_records(comm, app=APP) if APP.canonical_collapse else projection.read_records(comm)
+
+
 def station_values(comm):
-    records = projection.read_records(comm)
+    records = read_records(comm)
     return {m.write_key: records[r.name][m.name] for _o, r, m in gen.editable_values(APP) if r.station_cfg}
 
 
 def read_rows(comm):
-    state = broker.read_state(comm, APP)
-    persist = projection.read_persist(comm)
+    state = views.surface(comm, 'SetState', app=APP) if APP.canonical_collapse else broker.read_state(comm, APP)
+    persist = views.surface(comm, 'Persist', app=APP) if APP.canonical_collapse else projection.read_persist(comm)
     expected = sets.state_version(APP)
     return [px.row('set_controller_contract_is_present', f'V{expected} bounded transaction and restore status read coherently',
                    {'schema': state['SchemaVersion'], 'auditCapacity': len(state['AuditSequence']),
@@ -45,6 +55,20 @@ def read_rows(comm):
 class Client:
     def __init__(self, comm, serial, directory):
         self.comm = comm
+        self._own_host = False
+        if APP.canonical_collapse:
+            prior = getattr(connection_state(comm), '_fraktal_host_lease', None)
+            self.host = host.bind(comm, APP, store=directory)
+            self._own_host = prior is None
+            try:
+                self.store = host.ReadOnlyStore(self.host.store)
+                if self.store.list():
+                    raise ValueError('set fixture requires an empty isolated named-set store')
+                documents.ready(comm, APP, self.host)
+            except BaseException:
+                self.close()
+                raise
+            return
         self.store = sets.FileStore(directory)
         self.writer = gateway.MailboxWriter(comm.IPAddress, comm.ProcessorSlot, serial, set_store=self.store)
         self.gateway = gateway.Gateway(gateway.Station(lambda: projection.read_document(comm), cache_ttl=0),
@@ -52,7 +76,59 @@ class Client:
         self.state = gateway._ConnState()
         self.state.authenticated = True  # named harness, no real credential or listener
 
+    def close(self):
+        if self._own_host:
+            self.host.close()
+
+    def values(self, *suffixes):
+        paths = tuple(APP.name + '/' + name for name in suffixes)
+        if APP.canonical_collapse:
+            return views.values(self.comm, paths, app=APP)
+        return {path: self.state.sets.values[path] for path in paths}
+
+    async def viewer_refuses(self):
+        if APP.canonical_collapse:
+            with views.viewer(self.comm, app=APP) as viewer:
+                reply = viewer.write_batch(APP.name, (px.seed_sequence(self.comm) + 1) & 0xffffffff,
+                                           Kind=mb.LIST_CONFIG_SETS)
+                return not reply.ok
+        try:
+            await self.command(mb.LIST_CONFIG_SETS, state=gateway._ConnState())
+        except gateway.WriteRefused:
+            return True
+        return False
+
+    def wait_store(self):
+        values = self.values('ConfigPersist/Pending', 'ConfigPersist/Failed', 'ConfigPersist/WindowMs')
+        window = values[APP.name + '/ConfigPersist/WindowMs']
+        if type(window) is not int or not 0 < window <= 180000:
+            raise ValueError('invalid published persistence window')
+        deadline = time.monotonic() + window / 1000
+        while True:
+            if not self.host.guard(serial=self.host.serial, root=APP.name):
+                raise RuntimeError('host adapter failed before its store receipt')
+            if values[APP.name + '/ConfigPersist/Failed']:
+                raise RuntimeError('controller reported a failed store receipt')
+            if not values[APP.name + '/ConfigPersist/Pending']:
+                return
+            if time.monotonic() >= deadline:
+                raise TimeoutError('controller persistence window expired')
+            time.sleep(.02)
+            values = self.values('ConfigPersist/Pending', 'ConfigPersist/Failed')
+
     async def command(self, kind, state=None, **arguments):
+        if APP.canonical_collapse:
+            if state is not None:
+                raise ValueError('Python gateway connection state is not a Core command argument')
+            if kind in sets.SET_KINDS and not self.host.guard(serial=self.host.serial, root=APP.name):
+                raise RuntimeError('owned host adapter is not ready; no command written')
+            payload = {'User': 'phase6-fixture', **arguments}
+            answer = px.command(self.comm, kind, settle=4, **payload)
+            stored = kind in (mb.SAVE_CONFIG_SET, mb.DELETE_CONFIG_SET) or (
+                kind == mb.IMPORT_CONFIG_SET and bool(arguments.get('BoolValue')))
+            if answer['accepted'] and stored:
+                self.wait_store()
+            return answer
         sequence = px.seed_sequence(self.comm) + 1
         root = APP.name + '/HmiRequest'
         supplied = dict(Kind=kind, Sequence=sequence, User='phase6-fixture')
@@ -90,7 +166,7 @@ class Client:
 
     async def write_config(self, key, value):
         return await self.command(mb.WRITE_CONFIG, TargetPath=APP.name,
-            IntValue=mf.config_revision(APP), NameValue=key, TextValue=str(value), DurationMs=0)
+            IntValue=views.revision(self.comm, app=APP), NameValue=key, TextValue=str(value), DurationMs=0)
 
     async def export_document(self, name):
         result = []
@@ -99,7 +175,7 @@ class Client:
             answer = await self.command(mb.EXPORT_CONFIG_SET, TextValue=name, IntValue=line)
             if not answer['accepted']:
                 raise RuntimeError('export refused: ' + str(answer))
-            values = self.state.sets.values
+            values = self.values('ConfigSetDocumentLine', 'ConfigSetDocument', 'ConfigSetDocumentLines')
             if values[APP.name + '/ConfigSetDocumentLine'] != line:
                 raise RuntimeError('export line cursor differs')
             result.append(sets.parse_line(values[APP.name + '/ConfigSetDocument']))
@@ -118,10 +194,10 @@ async def exercise(client, settle, rows):
     doc = await client.export_document(FIXTURE_NAMES[0])
     rows.append(px.row('save_export_and_reopen_station_set', 'controller snapshot is portable and the host file survives reopen',
                        {'answer': saved, 'header': doc[0]}, 0,
-                       saved['accepted'] and sets.FileStore(client.store.directory).read(FIXTURE_NAMES[0]) == doc
+                       saved['accepted'] and (host.ReadOnlyStore(client.store.directory) if APP.canonical_collapse else sets.FileStore(client.store.directory)).read(FIXTURE_NAMES[0]) == doc
                        and doc[0]['records'] == len(original)))
     await client.command(mb.LIST_CONFIG_SETS)
-    values = client.state.sets.values
+    values = client.values('ConfigSetCount', 'ConfigSets[1]/SetName')
     rows.append(px.row('list_uses_the_generic_hmi_contract', 'one named set with the controller record count',
                        {'count': values[APP.name + '/ConfigSetCount'],
                         'name': values[APP.name + '/ConfigSets[1]/SetName']}, 0,
@@ -159,20 +235,21 @@ async def exercise(client, settle, rows):
         await client.import_document(bad)
         before = station_values(comm)
         answer = await client.command(mb.LOAD_CONFIG_SET, TextValue=FIXTURE_NAMES[2])
-        rejection = {n: client.state.sets.values[APP.name + '/ConfigPersist/LastReject' + n] for n in ('Scope', 'Key')}
+        values = client.values('ConfigPersist/LastRejectScope', 'ConfigPersist/LastRejectKey')
+        rejection = {n: values[APP.name + '/ConfigPersist/LastReject' + n] for n in ('Scope', 'Key')}
         exact = rejection['Scope'] == 'Other' if fault == 'foreign_root' else rejection == {'Scope': bad[-1]['scope'], 'Key': bad[-1]['key']}
         rows.append(px.row('load_refuses_' + fault, 'no value changes; the rejection names the offending identity',
                            {'answer': answer, 'rejection': rejection}, 0,
                            not answer['accepted'] and station_values(comm) == before and exact))
     answer = await client.command(mb.SAVE_CONFIG_SET, TextValue=FIXTURE_NAMES[3], IntValue=0)
     model_doc = await client.export_document(FIXTURE_NAMES[3])
-    before = projection.read_records(comm)
+    before = read_records(comm)
     load = await client.command(mb.LOAD_CONFIG_SET, TextValue=FIXTURE_NAMES[3])
     rows.append(px.row('model_load_refuses_as_tc3_does', 'model save/export works; load awaits recipe-store integration',
                        {'save': answer, 'load': load, 'header': model_doc[0]}, 0,
                        answer['accepted'] and model_doc[0]['kind'] == 0 and not load['accepted']
-                       and load['diagnosticKey'] == mf.numeric_key(APP, sets.MODEL_KEY)
-                       and projection.read_records(comm) == before))
+                       and load['diagnosticKey'] == views.numeric_key(comm, sets.MODEL_KEY, app=APP)
+                       and read_records(comm) == before))
     for tag, value in ((px.PART_PRESENT, 0), (px.AIR_OK, 1), (px.TWO_HAND, 1)):
         px.write(comm, tag, value)
     await client.command(mb.SET_MODE, IntValue=px.MODE_AUTO)
@@ -184,23 +261,21 @@ async def exercise(client, settle, rows):
                        {'running': running, 'answer': answer}, 0,
                        bool(running) and not answer['accepted'] and station_values(comm) == before))
     await client.idle(ack)
-    viewer, sequence = gateway._ConnState(), px.seed_sequence(comm)
-    refused = False
-    try:
-        await client.command(mb.LIST_CONFIG_SETS, state=viewer)
-    except gateway.WriteRefused:
-        refused = True
-    rows.append(px.row('sets_retain_the_gateway_write_gate', 'no authenticated actor: no controller commit',
+    sequence = px.seed_sequence(comm)
+    refused = await client.viewer_refuses()
+    rows.append(px.row('sets_retain_the_gateway_write_gate',
+                       'read-only deployment: no controller commit' if APP.canonical_collapse else 'no authenticated actor: no controller commit',
                        {'refused': refused, 'sequence': px.seed_sequence(comm)}, 0,
                        refused and px.seed_sequence(comm) == sequence))
     answer = await client.command(mb.ACK_CONFIG_RESTORE)
     rows.append(px.row('restore_ack_requires_a_reported_loss', 'no restore loss: acknowledgement refuses by TC3 key', answer, 0,
-                       not answer['accepted'] and answer['diagnosticKey'] == mf.numeric_key(APP, mb.RESTORE_ACK_REFUSED_KEY)))
+                       not answer['accepted'] and answer['diagnosticKey'] == views.numeric_key(comm, mb.RESTORE_ACK_REFUSED_KEY, app=APP)))
     await client.command(mb.DELETE_CONFIG_SET, TextValue=FIXTURE_NAMES[2])
     await client.command(mb.LIST_CONFIG_SETS)
+    values = client.values('ConfigSetCount')
     rows.append(px.row('delete_releases_the_bounded_slot', 'three names remain after deleting one',
-                       {'count': client.state.sets.values[APP.name + '/ConfigSetCount']}, 0,
-                       client.state.sets.values[APP.name + '/ConfigSetCount'] == 3))
+                       {'count': values[APP.name + '/ConfigSetCount']}, 0,
+                       values[APP.name + '/ConfigSetCount'] == 3))
 
 
 async def restore(client, original, settle, evidence):
@@ -233,15 +308,36 @@ def run(comm, serial, settle, rows, evidence):
     if not directory.is_relative_to(base):
         raise ValueError('fixture store escaped its named workspace')
     client = Client(comm, serial, directory)
-    original = station_values(comm)
-    evidence['sets_original'] = original
-    evidence['sets_store_directory'] = str(directory)
-    async def guarded():
+    original_records = None
+    try:
+        original = station_values(comm)
+        original_records = read_records(comm)
+        evidence['sets_original'] = original
+        evidence['sets_store_directory'] = str(client.store.directory)
+        async def guarded():
+            try:
+                await exercise(client, settle, rows)
+            finally:
+                await restore(client, original, settle, evidence)
+        asyncio.run(guarded())
+    finally:
         try:
-            await exercise(client, settle, rows)
+            if APP.canonical_collapse and original_records is not None:
+                checks = (
+                    ('sets_all_records_restored', lambda: read_records(comm) == original_records),
+                    ('sets_original_medium_unchanged', client.host.originals_unchanged),
+                    ('sets_live_documents', lambda: documents.ready(comm, APP, client.host)),
+                )
+                for name, operation in checks:
+                    try:
+                        evidence[name] = operation()
+                    except Exception as error:
+                        evidence[name] = False
+                        evidence.setdefault('sets_final_check_errors', {})[name] = str(error)
+                evidence['sets_restore_passed'] = bool(evidence.get('sets_restore_passed')
+                    and all(evidence[name] for name, _ in checks))
         finally:
-            await restore(client, original, settle, evidence)
-    asyncio.run(guarded())
+            client.close()
     return {'tests': len(rows), 'successful': sum(r['passed'] for r in rows),
             'failed': sum(not r['passed'] for r in rows), 'rows': rows,
             'passed': all(r['passed'] for r in rows) and evidence['sets_restore_passed']}

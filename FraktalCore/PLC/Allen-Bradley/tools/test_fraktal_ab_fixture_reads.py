@@ -56,8 +56,12 @@ def legacy_surface(pair, name):
         return inputs['additional']['chart']
     if name == 'Mailbox':
         return inputs['additional']['mailbox_response']
-    if name == 'Cfg0':
-        return inputs['additional']['records'][APP.records[0].name]
+    if name.startswith('Cfg') and name[3:].isdigit():
+        return inputs['additional']['records'][APP.records[int(name[3:])].name]
+    if name == 'SetState':
+        return inputs['additional']['sets']
+    if name == 'Persist':
+        return inputs['additional']['persist']
     if name == 'Profiler':
         return inputs['additional']['profiler']
     return inputs['contexts'][name]

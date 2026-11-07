@@ -68,6 +68,9 @@ def _surfaces(app):
     import fraktal_ab_config as config
     out['ConfigAudit'] = (config.audit_members(), config.audit_tag(app))
     out['Profiler'] = (gen.profiler_members(app), gen.profiler_tag(app))
+    import fraktal_ab_sets as sets
+    out['SetState'] = (sets.state_members(app), sets.state_tag(app))
+    out['Persist'] = (gen.config_persist_members(), gen.config_persist_tag(app))
     for index, record in enumerate(app.records):
         out[f'Cfg{index}'] = (record.members, record.name + 'Tag')
     for module in app.modules:

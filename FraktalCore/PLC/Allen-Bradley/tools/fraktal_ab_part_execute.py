@@ -114,6 +114,10 @@ class Run:
 
     def restore_configuration(self):
         """Commission through the existing keeper and controller set validator."""
+        if self.app.canonical_collapse:
+            from fraktal_ab_harness_documents import restore_configuration
+            self.evidence['configuration'] = restore_configuration(self.comm, self.app)
+            return
         from fraktal_ab_gateway import MailboxWriter
         directory = live.live_directory(self.app, self.evidence['serial'])
         keeper = live.Keeper(self.app, live.FileMedium(directory))

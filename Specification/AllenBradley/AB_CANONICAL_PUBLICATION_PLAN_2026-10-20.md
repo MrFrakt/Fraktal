@@ -1533,11 +1533,26 @@ No controller operations or scan measurement ran. The six native audit fields
 are absent from old captures; their native acceptance remains S6-Q. The
 remaining set/host lifecycle is C5b2; this does not qualify other HX consumers.
 
+**C5b2 done offline, 2026-11-06** ([evidence](Evidence/AB_S6_COLLAPSE_C5B2_OFFLINE_2026-11-06.md)).
+The set fixture and shared collapsed restore branch use the Dart V6.11
+adapter, an owned pinned child and an isolated copy of original documents.
+Operator commands use O11; canonical reads and raw O10 records independently
+verify results, store receipts and restoration. All 2,664 AB / 85 root tests,
+75 focused checks, 25 replay/writer/storage checks and 44 Dart tests pass.
+The press enables the approved V6.11 host jobs (75 O10 facts), passes both v38
+builds/read-backs/access/defaults and fits at 54% (1,703,672 used / 1,442,056
+available / 3,145,728 Blocks). A frozen flag-only reference has 65 unchanged
+other routines and the fixture's exact 35 fact copies. Genealogy remains
+byte-identical and retains its hash-bound 60% qualification. No controller
+operations or scan measurements ran. Remaining HX migrations are C5b3;
+Frame/staged retirement and V6.12 remain C5c. C6/C7 and native S6-Q still follow.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The
 press's capture client now has the read-view and owner-revision publications;
-its set clients still need the host-service publication and Dart adapter lifecycle. A shared
+its Phase 6 set client and shared restore branch now use the host-service publication
+and Dart adapter lifecycle. Other HX consumers still need migration. A shared
 command facade alone does not qualify a whole legacy harness. C6/C7 and
 integrated native S6-Q remain after C5.
 

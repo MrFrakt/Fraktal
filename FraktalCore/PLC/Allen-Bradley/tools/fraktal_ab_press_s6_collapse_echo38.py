@@ -13,6 +13,8 @@ import fraktal_ab_press_canonical_echo38 as previous
 # and PressRam's hold in fraktal_ab_press_canonical_execute). Facts with a
 # canonical home (the mode, step and scrap count, PartSlide's state) are read
 # from the canonical rows instead.
+_RECORDS = previous.application().records
+
 FIXTURE = (
     ('Unit', ('Aborted', 'Complete', 'CycleCount', 'DecisionId', 'Error', 'ErrorID', 'ErrorSource',
               'ModeSwitches', 'OrderFail', 'Par_TaskPeriodMs', 'ReportedCount', 'ReportedReason',
@@ -24,10 +26,15 @@ FIXTURE = (
     ('PressRam', ('OutImm_Held',)),
     ('Mailbox', ('DiagnosticKey',)),
     # Phase 6 capture: exact unmasked value and native audit, not a client cache.
-    ('Cfg0', ('SchemaVersion', 'BaselineWorkMs')),
+    ('Cfg0', ('SchemaVersion', 'BaselineWorkMs') + tuple(
+        m.name for m in _RECORDS[0].members if m.name not in ('SchemaVersion', 'BaselineWorkMs'))),
     ('ConfigAudit', ('Head', 'Sequence', 'Kind', 'Value', 'SourceKey', 'Revision')),
     ('Profiler', ('LastWork',)),
     ('AirPressureMonitor', ('OutImm_PressureOk',)),
+    # Set rejection compares every record unchanged, not only the edited value.
+    *((f'Cfg{i}', tuple(m.name for m in r.members)) for i, r in enumerate(_RECORDS) if i),
+    ('SetState', ('SchemaVersion', 'AuditSequence')),
+    ('Persist', ('RestoreLost',)),
 )
 
 
@@ -39,5 +46,5 @@ def application():
     # frozen S3 exit parent is V6.6 and deliberately remains unchanged.
     return replace(previous.application(), canonical_collapse=True, canonical_observation_period_ms=0,
                    canonical_read_coherence=True, canonical_config_read_view=True,
-                   canonical_owner_revisions=True,
+                   canonical_owner_revisions=True, canonical_host_services=True,
                    fixture_observation=FIXTURE)

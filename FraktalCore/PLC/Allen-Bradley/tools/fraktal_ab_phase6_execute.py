@@ -265,11 +265,19 @@ def main(argv=None):
                         if args.execute_fixture and all(r['passed'] for r in rows):
                             if args.shelving:
                                 comm = shelf_fixture.GuardedPLC(comm, serial)
+                            if APP.canonical_collapse and APP.canonical_host_services:
+                                # The adapter may restore immediately. Arm evidence before
+                                # startup and capture originals only after the seed is applied.
+                                evidence['wrote'] = True
+                                evidence['write_surface'] = ['published V6.11 host bindings']
+                                from fraktal_ab_harness_documents import restore_configuration
+                                evidence['configuration'] = restore_configuration(comm, APP)
                             original = {'baseline': configuration(comm)['BaselineWorkMs'],
                                         'mode': px.read_unit(comm)['Mode'], 'style': px.read_unit(comm)['RunStyle']}
                             evidence['original'] = original
                             evidence['wrote'] = True
-                            evidence['write_surface'] = list(px.WRITABLE) + ['mailbox']
+                            evidence['write_surface'] = list(px.WRITABLE) + ['mailbox'] + (
+                                ['published V6.11 host bindings'] if APP.canonical_collapse and APP.canonical_host_services else [])
                             if args.sets:
                                 evidence['write_surface'] += ['registered StationCfg values', 'isolated fixture set documents']
                             if args.access:

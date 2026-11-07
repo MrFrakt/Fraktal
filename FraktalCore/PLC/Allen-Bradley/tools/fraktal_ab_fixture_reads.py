@@ -22,7 +22,7 @@ MAILBOX_PUBLIC = {}
 DEFAULT_GATEWAY = 'ws://127.0.0.1:8080/fraktal'
 
 def public_aliases(name):
-    if name in ('ConfigAudit', 'Profiler') or name.startswith('Cfg') and name[3:].isdigit():
+    if name in ('ConfigAudit', 'Profiler', 'SetState', 'Persist') or name.startswith('Cfg') and name[3:].isdigit():
         return {}
     return UNIT_PUBLIC if name == 'Unit' else CHART_PUBLIC if name == 'Chart' else MAILBOX_PUBLIC if name == 'Mailbox' else {
         'OutImm_ExecState': name + '/Status/State'}
@@ -130,6 +130,27 @@ def surface(comm, name, *, app):
     if session is None:
         raise ValueError('accounted surface requires the collapsed fixture')
     return session.surface(name)
+
+
+def read_records(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        raise ValueError('canonical records require the collapsed fixture')
+    result = {}
+    for index, record in enumerate(app.records):
+        name = f'Cfg{index}'
+        if set(session.fields.get(name, ())) != {m.name for m in record.members}:
+            raise ValueError('record comparison requires every original native member accounted in O10')
+        result[record.name] = session.surface(name)
+    return result
+
+
+def values(comm, paths, *, app):
+    """An independent canonical row; no projection or gateway value cache."""
+    session = _session(comm, app)
+    if session is None:
+        raise ValueError('canonical values require the collapsed fixture')
+    return session.reader.read_row(tuple(paths))['values']
 
 
 def revision(comm, *, app):

@@ -287,6 +287,41 @@ class CanonicalRowReader:
         self._command_keys[root] = MappingProxyType(keys)
         return self._command_keys[root]
 
+    def host_status(self, root):
+        """V6.11 CPS-published reply, in one native structure read.
+
+        This is an atomic host-protocol status, not a canonical row freshness
+        proof. Fragmented acquisition refuses: CPS cannot protect fragments
+        spanning several publications. The caller still owns its job deadline.
+        """
+        import fraktal_ab_host_service_binding as host
+        rows = [r for r in self._manifest.get('hostServiceBindings', [])
+                if r['RootSymbol'] == root and r['Service'] in host.MUTATING]
+        if not rows or len({r['ReplySymbol'] for r in rows}) != 1:
+            raise ValueError('root has no shared host reply')
+        binding = rows[0]
+        host.schema(binding, self._symbols, self._objects, self._sizes, member_table, is_string)
+        symbol = binding['ReplySymbol']
+        handle = self._symbols[symbol]['handle']
+        width = self._sizes[handle]
+        if width + 10 > binding['ConnectionBytes']:
+            raise ValueError('host reply requires fragmentation; atomic status unavailable')
+        row = MappingProxyType(dict(name=symbol, handle=handle, struct=True,
+                                    atomic=None, array=0, info=0, offset=0))
+        location = Location('#host/' + root, symbol, symbol, 0, row, MappingProxyType({}), width, ())
+        packets = self._body.plan((location,))
+        if len(packets) != 1 or packets[0].locations != (location,):
+            raise ValueError('host reply must be one native read')
+        values = self._body.parse(packets[0], self._body.send(packets[0]))
+        if len(values) != 1 or len(values[0]) != width:
+            raise ValueError('host reply size differs from its Template')
+        fields = {r['name']: r for r in member_table(self._objects[handle])}
+        result = {name: struct.unpack_from('<i', values[0], fields[name]['offset'])[0] for name in host.REPLY}
+        if result['SchemaVersion'] != host.VERSION or any(result[n] not in (0, 1)
+                for n in ('Accepted', 'Restoring', 'SessionPermits')):
+            raise ValueError('invalid host reply status')
+        return result
+
     def _resolve_in(self, path, prefix, source):
         if not path.startswith(prefix + '/'):
             return None

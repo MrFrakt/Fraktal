@@ -181,3 +181,80 @@ the partial capture migration does not qualify the whole Phase 5/6 suite.
 The Python gateway actor-state test must retire with that subject, with an
 honest packaged write-scope refusal replacing it. Frame/staged endpoints stay
 until all consumers migrate in C5c/V6.12; C6, C7 and S6-Q follow afterward.
+
+## C5b2 - Dart set and live-document ownership
+
+C5b2 is complete offline: 2,664 AB tests, 85 root tests, 75 focused checks and
+25 native-capture replay/writer/storage checks pass. The fresh Dart gateway
+suite has 44 passes; locked dependencies, analyzer, host compile and CLI check
+pass on Dart 3.13.4. Records are in `C:/work/fraktal-ab-c5b2-control-20261106/`.
+This increment migrates the Phase 6 set fixture and the shared
+`Run.restore_configuration` branch for collapsed profiles. It does not qualify
+the remaining Part/genealogy/access/data/shelving harnesses as a whole.
+
+- The set fixture commands through O11 and independently reads exports,
+  catalog entries and named rejections from canonical CIP rows. It waits for
+  the PLC's published ConfigPersist receipt, not just the command ACK. Ordinary
+  cleanup requests remain possible after an adapter failure; a set request
+  cannot proceed without its live owned adapter.
+- The existing Dart V6.11 adapter owns the files and every keep/restore job.
+  Python provides a process lease, an opaque seed copy and read-only file
+  comparisons. The collapsed branch constructs no broker or keeper.
+- Gateway and adapter share the process/close boundary. Both are executable-
+  hash and target pinned; only their owned children are closed. Adapter startup
+  checks for another recognized Echo adapter. Serving roots and failures come
+  from the child's JSON status; failure is latched and there is no restart.
+- Every adapter uses a fresh isolated store. `fraktal_ab_harness_seed.py`
+  records confirmed original live files and their hashes, outside the original
+  folder. Named sets are opt-in; unrelated files and unconfirmed leftovers are
+  excluded. The adapter opens a copy, and original source hashes are checked
+  afterward. A shared restore requires its prepared seed; it cannot silently
+  substitute an empty medium for original documents.
+- Live verification reads all configured keys, kinds, readable values and
+  model banks through the published V6.8 view, and the active/catalog identities
+  through Core paths. It brackets the catalog with the configuration revision.
+  It compares every expected portable record against confirmed medium files,
+  including current document revisions. It supplies no missing/masked value.
+- The V6.11 reply is read from its published Symbol and native Template in one
+  CPS-protected structure read. Fragmentation refuses. This host status is not
+  a canonical freshness certificate; ordinary values retain their row proofs.
+- Originals are captured after Dart restoration. All station values and four
+  fixture set names are restored independently; final checks include every raw
+  record, original-medium hashes and every kept live document. A failed final
+  check does not skip the others or closing the owned child.
+
+The press enables the already approved V6.11 host binding. Its eight set
+operations now advertise `RequiresSetStage=false`; Frame/staged endpoints are
+still present for the remaining migration. O10 grows 40 to 75: the remaining 32 record
+members, set SchemaVersion/AuditSequence, and RestoreLost join the earlier
+facts. The 35 additions replay from the old 86 accepted captures. The six
+ConfigAudit fields remain without old raw bytes and await native S6-Q.
+
+The existing set-case predicates match after normalizing only acquisition,
+the read-only portable file reopen, and deployed key lookup. The old Python
+connection-state denial is replaced by the packaged read-only gateway policy
+case, preserving refusal and unchanged sequence. Model loads retain their
+existing refusal; the adapter's live restoration is a separate owner route.
+
+The press passes both v38 builds/read-backs/defaults/access and measures
+1,703,672 used / 1,442,056 available / 3,145,728 Blocks (54%), 149,244 more
+used than C5b1. The frozen C5b1 code, with only host services enabled, has 65
+identical other routines; the fixture's exact 35 fact copies are its sole
+code delta. Genealogy remains byte-identical, with prior hash-bound 60%
+qualification. No controller operation or native scan measurement ran.
+
+The first access audit expected HostRingRevision for every host-enabled image.
+The press advertises no HostEvents, so that tag is correctly absent. The
+corrected audit requires it only when the service is advertised; all actual
+top-level/member access checks remain. The initial token helper compared a
+list to a tuple; its fresh corrected run passes. Failed runs are retained.
+
+Prepared runtime inputs are `FRAKTAL_HARNESS_HOST_ADAPTER` and its `_SHA256`,
+`FRAKTAL_HARNESS_HOST_SEED` and its `_SHA256`, plus the existing gateway pins
+and optional `FRAKTAL_HARNESS_OUTPUT`. Source seed files are never archived.
+This fixture copy makes no production persistence-medium decision.
+
+Remaining C5 work: account/migrate the other HX readers and launchers, then
+remove Frame/staged endpoints and publish V6.12 in C5c. C6/C7 and native S6-Q
+follow. Native set receipts, original-document restoration, scan/retention and
+the complete HX walk remain unproven on the collapsed image until that gate.
