@@ -17,19 +17,21 @@ _RECORDS = previous.application().records
 
 FIXTURE = (
     ('Unit', ('Aborted', 'Complete', 'CycleCount', 'DecisionId', 'Error', 'ErrorID', 'ErrorSource',
-              'ModeSwitches', 'OrderFail', 'Par_TaskPeriodMs', 'ReportedCount', 'ReportedReason',
-              'ReportedSource', 'Running', 'SchemaVersion', 'StartLatched')),
+              'HoldRun', 'Issued', 'ModeSwitches', 'OrderFail', 'Par_TaskPeriodMs', 'ReportedCount',
+              'ReportedReason', 'ReportedSource', 'Running', 'SchemaVersion', 'StartLatched', 'StepPending')),
     ('Chart', ('LastMs', 'StallReason', 'StepCursor', 'Visited')),
-    ('Door', ('DoneCount', 'Error', 'Execute', 'ManualCmd', 'OutImm_Pos')),
-    ('PartSlide', ('ErrorID', 'Execute')),
+    ('Door', ('Busy', 'DoneCount', 'Error', 'Execute', 'ManualCmd', 'OutImm_Pos', 'RunCount')),
+    ('PartSlide', ('Busy', 'DoneCount', 'ErrorID', 'Execute', 'OutImm_Extended', 'OutImm_Held', 'RunCount')),
     ('TwoHand', ('OutImm_Armed',)),
-    ('PressRam', ('OutImm_Held',)),
+    ('PartPresentSensor', ('OutImm_Value',)),
+    ('PressRam', ('DoneCount', 'OutImm_Held', 'RunCount')),
     ('Mailbox', ('DiagnosticKey',)),
     # Phase 6 capture: exact unmasked value and native audit, not a client cache.
     ('Cfg0', ('SchemaVersion', 'BaselineWorkMs') + tuple(
         m.name for m in _RECORDS[0].members if m.name not in ('SchemaVersion', 'BaselineWorkMs'))),
     ('ConfigAudit', ('Head', 'Sequence', 'Kind', 'Value', 'SourceKey', 'Revision')),
-    ('Profiler', ('LastWork',)),
+    ('Profiler', ('LastWork', 'CycleOpen', 'DegradedCount', 'DegradedWorkMs',
+                  'HistoryHead', 'LastCycleNo', 'LastCycleTime', 'Open', 'StatCount')),
     ('AirPressureMonitor', ('OutImm_PressureOk',)),
     # Set rejection compares every record unchanged, not only the edited value.
     *((f'Cfg{i}', tuple(m.name for m in r.members)) for i, r in enumerate(_RECORDS) if i),
@@ -40,9 +42,12 @@ FIXTURE = (
                      'SessionTimeout', 'Required', 'UserBytes', 'LoginTimeoutMs', 'LoginResultSequence')),
     ('AccessAudit', ('Count', 'Sequence', 'Kind', 'Accepted', 'Key', 'DataCapability',
                      'DataRequiredLevel', 'UserLength')),
-    ('AlarmActive', ('SchemaVersion', 'ActReasonCode', 'ActState', 'ActShelved', 'Blocking', 'FaultEvt')),
-    ('AlarmRing', ('SchemaVersion',)),
+    ('AlarmActive', ('SchemaVersion', 'ActReasonCode', 'ActState', 'ActShelved', 'Blocking', 'FaultEvt',
+                     'ActResetClass', 'ActSeverity', 'ActSourceModuleId', 'RingHead')),
+    ('AlarmRing', ('SchemaVersion', 'RingReasonCode', 'RingResetClass', 'RingSeverity', 'RingSourceModuleId')),
     ('ReleaseStart', ('Count', 'Key')),
+    ('Oee', ('Epoch', 'Head', 'SmpDownMs', 'SmpDownS', 'SmpEpoch', 'SmpGood',
+             'SmpIdealMs', 'SmpNok', 'SmpRunMs', 'SmpRunS')),
 )
 
 

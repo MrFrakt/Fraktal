@@ -361,3 +361,40 @@ reason 21. Those migrations, inherited reads and the canonical launcher are
 next, followed by C5c/V6.12, C6/C7 and native S6-Q. O5 already chose FileMedium;
 O2 defers hardware-only S7 without a date as a declared exclusion. Revisit
 software CIP Security only after S4b-S6 exit.
+
+
+## C5b3 Phase 5 metrics and reports - offline qualification
+
+The [Phase 5 migration record](Evidence/AB_S6_COLLAPSE_C5B3_PHASE5_OFFLINE_2026-11-06.md) passes offline:
+2,696 AB tests, 85 root tests, 62 focused checks and 27 native-capture
+replay/storage checks pass. `fraktal_ab_phase5_execute.py` has zero direct
+legacy projection or layout calls; all 21 row predicates and 16 wait predicates
+are preserved. O10 grows from 102 to 141 facts (+39) in `FRK_T_PressFixtureV2_2A276D94`,
+shared across the normal press and the shelving acceptance profile. Cylinder
+`TimCount`/`TimLast` are read as canonical public aliases from `Timing/Rows[1..2]`
+because C1/R3 removed duplicate timing arrays from collapsed module contexts.
+All 39 added private facts and all canonical metric/report readers (`oee_card`,
+`machine_summary`, `run_style_offer`, `profiler_summary`, `timing_row`,
+`alarm_ring_entry`, `state_flags` and `system_health`) match across all 86
+accepted native press captures.
+
+Promoting the five asserted cylinder fields to AOI `Output` parameters under
+C4c updates the derived C4 AOI hashes and V5 field/localization numbering;
+refusal keys in Phase 5 resolve from the deployed PLC command table via
+`views.numeric_key`. After removing the 39 appended O10 copy statements (+552
+ST tokens) and normalizing C4c AOI names, V5 numeric keys and four equivalent
+text-pool slices, all 66 routines match the prior C5b3 sources token-for-token
+(`125,551 -> 126,103` ST tokens on the normal press; `125,560 -> 126,112` on
+the shelving profile). Both v38 profiles build/read back on both targets, pass
+SDK/access/default audits, and fit at 54% Studio Capacity (1,726,208 Blocks on
+normal press, +13,004; 1,726,244 Blocks on shelving profile, +13,004).
+Genealogy remains byte-identical to C5a (60% Capacity), and shipping HMI/Dart
+sources and runtime executables remain hash-bound to C5b2 (44 Dart tests).
+
+Phase 5's `health_rows` requires standing reason 21 (`CONTROLLER_METRICS_UNAVAILABLE`),
+which `fraktal_ab_press_s6_shelving_echo38` supplies after its second health
+sample while `fraktal_ab_press_s6_collapse_echo38` keeps `require_controller_metrics=False`.
+Next in C5b3: migrate `fraktal_ab_part_execute.py` (3 direct legacy calls),
+`fraktal_ab_genealogy_execute.py`, inherited runners and
+`fraktal_ab_press_canonical_execute.py`, then retire Frame/staged endpoints and
+publish V6.12 in C5c before C6/C7 and native S6-Q.

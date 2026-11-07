@@ -1,0 +1,299 @@
+{
+  "schema": "fraktal.ab.next-hx-source-inventory",
+  "schemaVersion": 1,
+  "analysisOnly": true,
+  "controllerAccess": false,
+  "acceptanceClaim": false,
+  "files": [
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase5_execute.py",
+      "sha256": "624AFA7AC984E6577164B3CC6307A6D4B53DA8F868B0EC052639E7C03DF7EDBB",
+      "legacyCalls": [
+        {
+          "function": "timed_oee_card",
+          "line": 244,
+          "call": "projection.oee_status(APP, raw, px.read_unit(comm), projection.read_records(comm))"
+        },
+        {
+          "function": "timed_oee_card",
+          "line": 244,
+          "call": "projection.read_records(comm)"
+        }
+      ],
+      "rowSites": [
+        {
+          "function": "down_time_row",
+          "line": 260,
+          "arguments": [
+            "'down_time_is_the_time_it_is_faulted'",
+            "'the slide sticks: DownMs matches the measured native sample interval within 250 ms; run and idle do not grow; A = run / (run + down)'",
+            "{'grew': grew, 'sampleIntervalMs': [round(n, 3) for n in bounds], 'availability': second.get('Oee/Availability'), 'faulted': None if faulted is None else faulted['Error']}",
+            "(bounds[0] + bounds[1]) / 2",
+            "faulted is not None and faulted['Error'] == 1 and (bounds[0] - 250 <= grew['Oee/DownMs'] <= bounds[1] + 250) and (grew['Oee/RunMs'] == 0) and (grew['Oee/IdleMs'] == 0) and (run + down > 0) and (abs(second.get('Oee/Availability', -1) - run / (run + down)) < 1e-06)"
+          ]
+        },
+        {
+          "function": "oee_rows",
+          "line": 292,
+          "arguments": [
+            "'reset_oee_clears_the_accounting'",
+            "'RESET_OEE is accepted: run and down zero, the ring empty, the epoch moved, and nothing valid yet (no run, no parts since)'",
+            "{'answer': reset, 'card': {k: card.get(k) for k in ('Oee/RunMs', 'Oee/DownMs', 'OeeTrendHead', 'Oee/AvailValid', 'Oee/PerfValid', 'Oee/QualValid', 'Oee/OeeValid')}, 'epoch': None if None in (before, after) else (before['Epoch'], after['Epoch'])}",
+            "0.0",
+            "reset['accepted'] and card.get('Oee/RunMs') == 0 and (card.get('Oee/DownMs') == 0) and (card.get('OeeTrendHead') == 0) and (card.get('Oee/OeeValid') is False) and (before is not None) and (after is not None) and (after['Epoch'] == before['Epoch'] + 1)"
+          ]
+        },
+        {
+          "function": "oee_rows",
+          "line": 327,
+          "arguments": [
+            "'run_time_is_the_time_the_press_runs'",
+            "'one cycle and a wait at the start step: RunMs within 250 ms of the wall time from START acknowledgement to STOP acknowledgement, no down time, A and Q 1.0, and P = ideal x parts / run'",
+            "{'wallMs': round(wall_ms, 1), 'parts': parts, 'card': {k: card.get(k) for k in ('Oee/RunMs', 'Oee/DownMs', 'Oee/Availability', 'Oee/Performance', 'Oee/Quality', 'Oee/Oee', 'Oee/PerfValid')}}",
+            "wall_ms",
+            "bool(closed) and run_ms > 0 and (abs(run_ms - wall_ms) <= 250) and (card.get('Oee/DownMs') == 0) and (card.get('Oee/Availability') == 1.0) and (card.get('Oee/Quality') == 1.0) and (parts == 1) and (card.get('Oee/PerfValid') is True) and (abs(card.get('Oee/Performance', 0) - min(1.0, 950 * parts / run_ms)) < 1e-06)"
+          ]
+        },
+        {
+          "function": "oee_rows",
+          "line": 368,
+          "arguments": [
+            "'a_sample_a_minute_after_the_reset'",
+            "\"the first sample lands 60 s after the reset (within a second), in the current epoch, holding the part made since and the model's ideal cycle, and the card shows it\"",
+            "{'afterS': round(sampled_after, 3), 'slot': slot, 'head': card.get('OeeTrendHead'), 'valid': card.get('OeeTrend[1]/OeeValid'), 'oee': card.get('OeeTrend[1]/Oee')}",
+            "sampled_after * 1000.0",
+            "raw is not None and raw['Head'] == 1 and (abs(sampled_after - gen.OEE_SAMPLE_MS / 1000.0) <= 1.0) and (slot.get('Epoch') == raw['Epoch']) and (slot.get('RunS', 0) * 1000 + slot.get('RunMs', 0) == run2) and (slot.get('Good') == parts) and (slot.get('IdealMs') == 950) and (card.get('OeeTrendHead') == 1) and (card.get('OeeTrend[1]/OeeValid') is True)"
+          ]
+        },
+        {
+          "function": "oee_rows",
+          "line": 390,
+          "arguments": [
+            "'a_reset_retires_the_trend_and_keeps_the_counts'",
+            "'RESET_OEE again: the ring is empty and its sample no longer valid; GoodCount is untouched, since counts reset only on their own logged action (Core \u00a78.11.2)'",
+            "{'answer': again, 'head': card.get('OeeTrendHead'), 'valid': card.get('OeeTrend[1]/OeeValid'), 'good': (good_before, None if unit is None else unit['GoodCount'])}",
+            "0.0",
+            "again['accepted'] and card.get('OeeTrendHead') == 0 and (card.get('OeeTrend[1]/OeeValid') is False) and (unit is not None) and (unit['GoodCount'] == good_before)"
+          ]
+        },
+        {
+          "function": "machine_rows",
+          "line": 445,
+          "arguments": [
+            "'machine_state_follows_the_unit'",
+            "\"TC3's classification, read where the HMI reads it: IDLE, CHANGEOVER selected, PRODUCING while running, STOPPED after STOP, IDLE after the reset, DOWN while faulted, IDLE once recovered\"",
+            "named",
+            "0.0",
+            "[state for _, state in named] == expected"
+          ]
+        },
+        {
+          "function": "machine_rows",
+          "line": 454,
+          "arguments": [
+            "'rework_count_is_the_controllers'",
+            "\"ReworkCount is published from the Unit's own counter; the press declares no rework verdict, so both read 0\"",
+            "{'published': rework, 'controller': None if unit is None else unit['ReworkCount']}",
+            "0.0",
+            "unit is not None and rework == unit['ReworkCount'] == 0"
+          ]
+        },
+        {
+          "function": "profiler_rows",
+          "line": 513,
+          "arguments": [
+            "'a_cycle_is_profiled_step_by_step'",
+            "\"one cycle after a START, read where the HMI reads it: the init step, the operator's start and the happy path in order; the total is its steps and the trend's; the two delays expected their recipe values and took one scan more; N100 is the only wait; N110 counted once more\"",
+            "{'numbers': numbers, 'total': total, 'work': values.get(f'{base}/WorkTime'), 'wait': values.get(f'{base}/WaitTime'), 'delays': {n: by_no.get(n) for n in (170, 220)}, 'trend': trend, 'split': split, 'cycleNo': (None if before is None else before['LastCycleNo'], values.get(f'{base}/CycleNo')), 'n110': (None if before is None else before['StatCount'][row110], None if raw is None else raw['StatCount'][row110])}",
+            "0.0",
+            "before is not None and raw is not None and (cfg is not None) and (tuple(numbers) == PROFILED) and (values.get(f'{base}/CycleNo') == before['LastCycleNo'] + 1) and all((s['Duration'] > 0 and s['Duration'] % APP.task_period_ms == 0 for s in steps)) and (sum((s['Duration'] for s in steps)) == total) and (values.get(f'{ROOT}/Profiler/LastCycleTime') == total) and (by_no[170]['Expected'] == cfg['TransferSettleMs']) and (by_no[220]['Expected'] == cfg['PressDwellMs']) and (by_no[170]['Duration'] == cfg['TransferSettleMs'] + APP.task_period_ms) and (by_no[220]['Duration'] == cfg['PressDwellMs'] + APP.task_period_ms) and (by_no[100]['StepName'] == 'project.step.awaitTwoHandStart') and (values.get(f'{base}/WaitTime') == by_no[100]['Duration']) and (trend['CycleNo'] == values.get(f'{base}/CycleNo')) and (trend['Total'] == total) and (sum(split) == total) and (split[decl.TIME_CLASSES.index('WAIT_OPERATOR')] == by_no[100]['Duration']) and (raw['StatCount'][row110] == before['StatCount'][row110] + 1)"
+          ]
+        },
+        {
+          "function": "profiler_rows",
+          "line": 556,
+          "arguments": [
+            "'a_cycle_stopped_part_way_is_not_published'",
+            "\"STOP inside a cycle: the last cycle, its time and the trend are as they were (TC3's CycleAbandon), and the cycle is closed, not left open\"",
+            "None if None in (before, after) else {k: (before[k], after[k]) for k in ('LastCycleNo', 'LastCycleTime', 'HistoryHead', 'CycleOpen', 'Open')}",
+            "0.0",
+            "before is not None and after is not None and all((after[k] == before[k] for k in ('LastCycleNo', 'LastCycleTime', 'HistoryHead'))) and (after['CycleOpen'] == 0) and (after['Open'] == 0)"
+          ]
+        },
+        {
+          "function": "timing_rows",
+          "line": 624,
+          "arguments": [
+            "'every_command_is_timed'",
+            "\"manual commands in MANUAL: the slide's extend and retract each counted once at 40 ms (four 25-unit scans), and the door sent open while open counted once at one scan - the command TC3 never times; the slide's row published as the HMI reads it\"",
+            "{'answers': answers, 'seen': seen, 'published': published}",
+            "0.0",
+            "all((a['accepted'] for a in answers)) and seen['slideExtend'] == (1, 4 * period) and (seen['slideRetract'] == (1, 4 * period)) and (seen['doorRetractAlreadyOpen'] == (1, period)) and (published['Id'] == 1) and (published['Label'] == 'std.command.extend') and (slide1 is not None) and (published['Count'] == slide1['TimCount'][0]) and (published['Last'] == 4 * period) and (published['Minimum'] <= published['Avg'] <= published['Maximum'])"
+          ]
+        },
+        {
+          "function": "timing_rows",
+          "line": 681,
+          "arguments": [
+            "'a_degraded_cycle_is_one_maintenance_event'",
+            "\"the running model's baseline written to 300 ms: the first cycle's ~970 ms of WORK passes 360 and raises ONE CYCLE_TIME_DEGRADED (2007) occurrence, LOW, AUTO_RESET, from the Unit; the second, still degraded, raises none; the baseline is written back\"",
+            "observed",
+            "0.0",
+            "holds and observed.get('restored') == original"
+          ]
+        },
+        {
+          "function": "flag_rows",
+          "line": 713,
+          "arguments": [
+            "'at_load_position_follows_the_cylinders'",
+            "\"TC3's pressAtLoadPosition: true at home, false the moment the slide goes in under a MANUAL command - no sequence runs to clear it - and true again when it comes out, each change stamped later than the last\"",
+            "seen",
+            "0.0",
+            "seen[0][1]['Key'] == 'project.state.pressAtLoadPosition' and values == [True, False, True] and all((isinstance(s, str) and s for s in since)) and (since[0] < since[1] < since[2]) and all((f['Stale'] is False for _, f in seen))"
+          ]
+        },
+        {
+          "function": "flag_rows",
+          "line": 736,
+          "arguments": [
+            "'two_hand_ready_follows_its_conditions'",
+            "\"TC3's pressTwoHandStartReady: armed, air and a part make it true; the part withdrawn makes it false at once, and back makes it true\"",
+            "{'key': flags(comm)[1]['Key'], 'readiness': readiness}",
+            "0.0",
+            "readiness == [(1, True), (0, False), (1, True)]"
+          ]
+        },
+        {
+          "function": "health_rows",
+          "line": 753,
+          "arguments": [
+            "'system_health_is_published'",
+            "\"TC3's SystemHealth over S3's subset: evaluated, the task measured near its 10 ms period with low jitter; CPU and memory unavailable, so not healthy; no fieldbus or distributed clock; the clock available and unsynchronized\"",
+            "facet",
+            "0.0",
+            "facet.get('Present') is True and facet.get('TaskAvailable') is True and (abs((facet.get('TaskCycleUs') or 0) - period) <= period // 10) and ((facet.get('TaskJitterUs') or 0) < APP.system_health.max_task_jitter_us) and (facet.get('Healthy') is False) and (facet.get('ControllerAvailable') is False) and (facet.get('FieldbusAvailable') is False) and (facet.get('DcAvailable') is False) and (facet.get('TimeQuality/Available') is True) and (facet.get('TimeQuality/Synchronized') is False)"
+          ]
+        },
+        {
+          "function": "health_rows",
+          "line": 773,
+          "arguments": [
+            "'unreadable_metrics_are_one_standing_event'",
+            "'CONTROLLER_METRICS_UNAVAILABLE (21) is open once - LOW, AUTO_RESET, from the Unit - and nothing blocks a start; no overrun or jitter event is open'",
+            "{'held': held, 'blocking': None if log is None else log['Blocking']}",
+            "0.0",
+            "held == [{'ReasonCode': 21, 'Severity': 0, 'ResetClass': gen.RESET_AUTO, 'SourceModuleId': 1}] and log is not None and (log['Blocking'] == 0)"
+          ]
+        },
+        {
+          "function": "run",
+          "line": 794,
+          "arguments": [
+            "'the_unit_publishes_its_run_styles'",
+            "\"TC3's SupportedRunStylesPublished: all three offered, CONTINUOUS running\"",
+            "{'offered': offered, 'runStyle': run_style}",
+            "0.0",
+            "offered == [True, True, True] and run_style == 0"
+          ]
+        },
+        {
+          "function": "run",
+          "line": 808,
+          "arguments": [
+            "'outside_its_style_each_request_is_refused_by_name'",
+            "'a style outside E_RunStyle: std.error.unsupportedRunStyleRequest, the style kept; a Step while stopped and a hold outside HOLD_TO_RUN refused by name; a release always taken'",
+            "{'outside': outside, 'stepWhileStopped': stopped_step, 'holdInSingleStep': hold_wrong, 'release': release, 'runStyle': None if unit is None else unit['RunStyle']}",
+            "0.0",
+            "not outside['accepted'] and outside['diagnosticKey'] == key(comm, mailbox.RUN_STYLE_REFUSED_KEY) and (not stopped_step['accepted']) and (stopped_step['diagnosticKey'] == key(comm, mailbox.STEP_REFUSED_KEY)) and (not hold_wrong['accepted']) and (hold_wrong['diagnosticKey'] == key(comm, mailbox.HOLD_RUN_REFUSED_KEY)) and release['accepted'] and (unit is not None) and (unit['RunStyle'] == decl.RUN_SINGLE_STEP)"
+          ]
+        },
+        {
+          "function": "run",
+          "line": 874,
+          "arguments": [
+            "'a_stop_ends_the_hold'",
+            "'held, then stopped: HoldRun is 0, and the next START in HOLD_TO_RUN issues nothing until held again'",
+            "{'held': held, 'holding': None if holding is None else holding['HoldRun'], 'afterStop': None if after_stop is None else after_stop['HoldRun'], 'restarted': None if restarted is None else {k: restarted[k] for k in ('Running', 'Step', 'Issued')}, 'issuedAfterRestart': None if None in (unheld, count) else unheld - count}",
+            "0.0",
+            "held['accepted'] and holding is not None and (holding['HoldRun'] == 1) and (after_stop is not None) and (after_stop['HoldRun'] == 0) and (restarted is not None) and (restarted['Running'] == 1) and (restarted['Step'] == PATH[0]) and (restarted['Issued'] == 0) and (unheld is not None) and (count is not None) and (unheld == count)"
+          ]
+        },
+        {
+          "function": "run",
+          "line": 911,
+          "arguments": [
+            "'the_press_is_left_continuous'",
+            "'the harness leaves the press as it found it: CONTINUOUS, stopped'",
+            "None if back is None else {k: back[k] for k in ('RunStyle', 'Running')}",
+            "0.0",
+            "back is not None and back['RunStyle'] == decl.RUN_CONTINUOUS and (back['Running'] == 0)"
+          ]
+        },
+        {
+          "function": "run",
+          "line": 830,
+          "arguments": [
+            "f'single_step_issues_one_command_per_request_{rendition.lower()}'",
+            "f'{rendition}: nothing before the first Step, then exactly one command per Step - {DECLARED} for the cycle - and the cycle closes'",
+            "cycle",
+            "cycle['elapsed_ms']",
+            "cycle['perRequest'] == [0] + [1] * DECLARED and (not cycle['refusals']) and cycle['cycleClosed'] and cycle['opened']['style']['accepted']"
+          ]
+        },
+        {
+          "function": "run",
+          "line": 844,
+          "arguments": [
+            "f'hold_to_run_issues_only_while_held_{rendition.lower()}'",
+            "f\"{rendition}: nothing unheld; released during the slide's motion the slide arrives and the door close waits un-issued; held again the cycle completes with its {DECLARED} commands\"",
+            "cycle",
+            "0.0",
+            "cycle['issuedUnheld'] == 0 and cycle['unheld'] == {'Step': PATH[0], 'Issued': 0} and all((a['accepted'] for a in cycle['answers'].values())) and (cycle['motionAtRelease'] == {'Busy': 1, 'OutImm_Held': 1}) and cycle['reachedDoorClose'] and (cycle['releasedAt'] == {'Step': DOOR_CLOSE, 'Issued': 0, 'HoldRun': 0}) and (cycle['slideArrived'] == 1) and (cycle['issuedBeforeRelease'] == PATH.index(DOOR_CLOSE)) and (cycle['issuedInCycle'] == DECLARED) and cycle['cycleClosed']"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_part_execute.py",
+      "sha256": "95A0729D4D9563998AF5C30DAF2B793F5B80F1F937538E9CCBEA23DB21E540A6",
+      "legacyCalls": [
+        {
+          "function": "main",
+          "line": 348,
+          "call": "projection.read_document(comm)"
+        },
+        {
+          "function": "main",
+          "line": 353,
+          "call": "projection.read_access(comm)"
+        },
+        {
+          "function": "main",
+          "line": 385,
+          "call": "projection.read_access(comm)"
+        }
+      ],
+      "rowSites": []
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_genealogy_execute.py",
+      "sha256": "B8EEA6012659DAB84612D34144453231E5AFA2313BB52F960BB7FAD799DCF42C",
+      "legacyCalls": [],
+      "rowSites": []
+    },
+    {
+      "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_press_canonical_execute.py",
+      "sha256": "D943D4C02AB77BA35DEEB300CD7AA68D53B9CE1C704B91C6E1D95B8D8787F06E",
+      "legacyCalls": [
+        {
+          "function": "seed_medium",
+          "line": 124,
+          "call": "projection.read_document(run.comm)"
+        }
+      ],
+      "rowSites": []
+    }
+  ],
+  "remaining": "Phase 5 has 0 direct legacy calls across 21 row sites; Part (3 direct legacy calls) and genealogy/canonical launcher wrappers follow next."
+}

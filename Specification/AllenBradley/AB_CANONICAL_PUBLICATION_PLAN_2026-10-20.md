@@ -1578,6 +1578,22 @@ Positive native shelving remains S6-Q after C7; this profile is not a native
 acceptance result. Its exact image must be regenerated and qualified after
 the remaining collapse increments.
 
+**C5b3 Phase 5 metrics and reports done offline, 2026-11-06** ([evidence](Evidence/AB_S6_COLLAPSE_C5B3_PHASE5_OFFLINE_2026-11-06.md)).
+`fraktal_ab_phase5_execute.py` reads OEE, machine state, run styles, profiler,
+command timing, state flags and system health from canonical CIP rows and O10
+observations (141 facts total, +39 in `FRK_T_PressFixtureV2_2A276D94`), with zero
+direct legacy projection or layout calls and all 21 row predicates and 16 wait
+predicates preserved. Cylinder `TimCount`/`TimLast` read from canonical
+`Timing/Rows[1..2]` aliases; all 39 added private facts and all Phase 5
+canonical metric/report views replay identically across all 86 accepted press
+captures. Both v38 press profiles (`fraktal_ab_press_s6_collapse_echo38` and
+`fraktal_ab_press_s6_shelving_echo38`) build/read back on both targets, pass
+SDK/access/default/schema/token proofs, and fit at 54% Studio Capacity
+(1,726,208 and 1,726,244 Blocks, +13,004). Phase 5's `health_rows` reason-21
+precondition is proven offline on the shelving profile while the normal press
+retains its metrics exclusion. Part, genealogy/inherited runners and the
+canonical press launcher remain in C5b3 before C5c/V6.12, C6/C7 and native S6-Q.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The

@@ -67,6 +67,7 @@ def _surfaces(app):
                       mailbox.response_tag_name(app))
     import fraktal_ab_config as config
     out['ConfigAudit'] = (config.audit_members(), config.audit_tag(app))
+    out['Oee'] = (gen.oee_members(), gen.oee_tag(app))
     out['Profiler'] = (gen.profiler_members(app), gen.profiler_tag(app))
     import fraktal_ab_sets as sets
     out['SetState'] = (sets.state_members(app), sets.state_tag(app))

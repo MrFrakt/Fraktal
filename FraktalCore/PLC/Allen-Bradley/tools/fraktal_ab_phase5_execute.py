@@ -60,9 +60,10 @@ from typing import Any
 
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 import fraktal_ab_declaration as decl
+import fraktal_ab_fixture_reads as views
 import fraktal_ab_generate as gen
+import fraktal_ab_machine_state as machine
 import fraktal_ab_mailbox as mailbox
-import fraktal_ab_manifest as manifest
 import fraktal_ab_press_demo as demo
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
@@ -83,8 +84,8 @@ SLIDE_IN = 150                       # a real motion: the slide starts outside
 DOOR_CLOSE = 180                     # the next stop point after it
 
 
-def key(portable: str) -> int:
-    return manifest.numeric_key(APP, portable)
+def key(comm: Any, portable: str) -> int:
+    return views.numeric_key(comm, portable, app=APP)
 
 
 def issued(comm: Any) -> int | None:
@@ -224,19 +225,20 @@ def held_cycle(comm: Any, rendition: str, ack: float, settle: float) -> dict[str
 
 def oee_card(comm: Any) -> dict[str, Any]:
     """The OEE card as the gateway publishes it, Unit-relative."""
-    values = projection.read_document(comm)["values"]
-    prefix = f"{ROOT}/"
-    return {k[len(prefix):]: v for k, v in values.items()
-            if k.startswith(f"{prefix}Oee")}
+    return views.oee_card(comm, app=APP)
 
 
 def oee_raw(comm: Any) -> dict[str, Any] | None:
-    return px.read_layout(comm, gen.oee_tag(APP), gen.oee_members())
+    return views.read_oee(comm, app=APP)
 
 
 def timed_oee_card(comm: Any) -> tuple[dict[str, Any], tuple[float, float]]:
     """Bracket acquisition, then use the owning projection for the card."""
     started = time.monotonic()
+    if APP.canonical_collapse:
+        card = oee_card(comm)
+        finished = time.monotonic()
+        return card, (started, finished)
     raw = oee_raw(comm)
     finished = time.monotonic()
     return (projection.oee_status(APP, raw, px.read_unit(comm), projection.read_records(comm)),
@@ -402,11 +404,10 @@ def oee_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
 
 
 def machine_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
-    states = {v: k for k, v in projection.MACHINE_STATES.items()}
+    states = {v: k for k, v in machine.STATES.items()}
 
     def published() -> tuple[Any, Any]:
-        values = projection.read_document(comm)["values"]
-        return values.get(f"{ROOT}/MachineState"), values.get(f"{ROOT}/ReworkCount")
+        return views.machine_summary(comm, app=APP)
 
     seen: list[tuple[str, Any]] = []
     px.home(comm, settle)
@@ -467,7 +468,12 @@ PROFILED = (0, 100, 110, 130, 150, 170, 180, 200, 220, 230, 240, 242, 244, 999)
 
 
 def profile_raw(comm: Any) -> dict[str, Any] | None:
-    return px.read_layout(comm, gen.profiler_tag(APP), gen.profiler_members(APP))
+    return views.read_profiler(comm, app=APP)
+
+
+def read_cfg(comm: Any) -> dict[str, int] | None:
+    return (views.surface(comm, 'Cfg0', app=APP) if APP.canonical_collapse else
+            px.read_flat(comm, px.CFG, tuple(m.name for m in APP.records[0].members)))
 
 
 def profiler_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
@@ -479,7 +485,7 @@ def profiler_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=px.MODE_AUTO)
     parity.select(comm, decl.ST)
     before = profile_raw(comm)
-    cfg = px.read_flat(comm, px.CFG, tuple(m.name for m in APP.records[0].members))
+    cfg = read_cfg(comm)
     px.start_cycle(comm, settle)
     px.await_unit(comm, lambda u: u["Step"] == parity.AFTER_PARK, settle)
     px.write(comm, px.PART_PRESENT, 0)
@@ -489,7 +495,7 @@ def profiler_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     time.sleep(0.2)
     px.command(comm, mailbox.STOP, settle=ack)
     raw = profile_raw(comm)
-    values = projection.read_document(comm)["values"]
+    values = views.profiler_summary(comm, app=APP)
     base = f"{ROOT}/Profiler/LastCycle"
     count = values.get(f"{base}/NSteps") or 0
     steps = [{leaf: values.get(f"{base}/Steps[{i}]/{leaf}") for leaf in (
@@ -563,17 +569,15 @@ def profiler_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
 
 
 def module_ctx(comm: Any, name: str) -> dict[str, Any] | None:
-    module = next(m for m in APP.modules if m.name == name)
-    return px.read_layout(comm, gen.ctx_tag_for(APP, name), gen.module_members(module))
+    return px.read_module(comm, name)
 
 
 def write_config(comm: Any, key: str, value: int, ack: float) -> dict[str, Any]:
     """WRITE_CONFIG for the running record (model 0), resolved as the gateway
     resolves a client's write key."""
     if APP.canonical_collapse:
-        from fraktal_ab_fixture_reads import revision
         return px.command(comm, mailbox.WRITE_CONFIG, settle=ack, TargetPath=APP.name,
-                          NameValue=key, TextValue=str(value), IntValue=revision(comm, app=APP), DurationMs=0)
+                          NameValue=key, TextValue=str(value), IntValue=views.revision(comm, app=APP), DurationMs=0)
     return px.command(comm, mailbox.WRITE_CONFIG, settle=ack,
                       IntValue=mailbox.config_ordinal(APP, key), BoolValue=value,
                       **{mailbox.CONFIG_MODEL_MEMBER: 0})
@@ -607,7 +611,6 @@ def timing_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
         answers.append(px.manual(comm, name, command, settle=ack))
         px.await_module(comm, name, lambda c: c["Busy"] == 0 and c["Execute"] == 0, settle)
     slide1, door1 = module_ctx(comm, "PartSlide"), module_ctx(comm, "Door")
-    values = projection.read_document(comm)["values"]
     period = APP.task_period_ms
 
     def delta(before, after, ordinal):
@@ -617,8 +620,7 @@ def timing_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
 
     seen = {"slideExtend": delta(slide0, slide1, 1), "slideRetract": delta(slide0, slide1, 2),
             "doorRetractAlreadyOpen": delta(door0, door1, 2)}
-    published = {leaf: values.get(f"{ROOT}/PartSlide/Timing/Rows[1]/{leaf}")
-                 for leaf in ("Id", "Label", "Count", "Last", "Minimum", "Maximum", "Avg")}
+    published = views.timing_row(comm, "PartSlide", 1, app=APP)
     rows.append(px.row(
         "every_command_is_timed",
         "manual commands in MANUAL: the slide's extend and retract each counted "
@@ -637,7 +639,7 @@ def timing_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
 
     # --- degradation: one maintenance event per excursion ---------------------------
     key = "press.recipe.baselineWorkMs"
-    cfg = px.read_flat(comm, px.CFG, tuple(m.name for m in APP.records[0].members))
+    cfg = read_cfg(comm)
     original = None if cfg is None else cfg["BaselineWorkMs"]
     observed: dict[str, Any] = {"original": original}
     holds = False
@@ -645,14 +647,12 @@ def timing_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
         px._idle(comm, ack)
         observed["write"] = write_config(comm, key, 300, ack)
         prof0 = profile_raw(comm)
-        log0 = px.read_layout(comm, gen.alarm_active_tag(APP), gen.alarm_active_members())
+        log0, _ = views.read_alarm_log(comm, app=APP)
         observed["first"] = auto_cycle(comm, ack, settle)
         prof1 = profile_raw(comm)
         observed["second"] = auto_cycle(comm, ack, settle)
         prof2 = profile_raw(comm)
-        log2 = px.read_layout(comm, gen.alarm_active_tag(APP), gen.alarm_active_members())
-        ring = px.read_layout(comm, gen.alarm_ring_tag(APP), gen.alarm_ring_members())
-        values = projection.read_document(comm)["values"]
+        log2, ring = views.read_alarm_log(comm, app=APP)
         head = None if log2 is None else log2["RingHead"]
         entry = {} if ring is None or not head else {
             c: ring[f"Ring{c}"][head - 1] for c in (
@@ -663,8 +663,7 @@ def timing_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
             "work": None if prof1 is None else prof1["DegradedWorkMs"],
             "ringHead": None if None in (log0, log2) else (log0["RingHead"], log2["RingHead"]),
             "entry": entry,
-            "published": {k: values.get(f"{ROOT}/AlarmLog/Ring[{head}]/{k}")
-                          for k in ("ReasonCode", "SourcePath")} if head else {}})
+            "published": views.alarm_ring_entry(comm, head, app=APP) if head else {}})
         holds = (observed["write"]["accepted"] and observed["first"] and observed["second"]
                  and observed["count"] is not None
                  and observed["count"][1] == observed["count"][0] + 1
@@ -677,7 +676,7 @@ def timing_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
         px._idle(comm, ack)
         if original is not None:
             observed["restore"] = write_config(comm, key, original, ack)
-        restored = px.read_flat(comm, px.CFG, tuple(m.name for m in APP.records[0].members))
+        restored = read_cfg(comm)
         observed["restored"] = None if restored is None else restored["BaselineWorkMs"]
     rows.append(px.row(
         "a_degraded_cycle_is_one_maintenance_event",
@@ -693,10 +692,7 @@ def timing_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
 
 def flags(comm: Any) -> list[dict[str, Any]]:
     """The Unit's StateFlags as the gateway publishes them."""
-    values = projection.read_document(comm)["values"]
-    count = values.get(f"{ROOT}/StateFlagCount") or 0
-    return [{leaf: values.get(f"{ROOT}/StateFlags[{i}]/{leaf}")
-             for leaf in ("Key", "Value", "Since", "Stale")} for i in range(1, count + 1)]
+    return views.state_flags(comm, app=APP)
 
 
 def flag_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
@@ -752,9 +748,7 @@ def health_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     px._idle(comm, ack)
     time.sleep(1.2)                            # a full probe window
-    values = projection.read_document(comm)["values"]
-    facet = {k[len(f"{ROOT}/SystemHealth/"):]: v for k, v in values.items()
-             if k.startswith(f"{ROOT}/SystemHealth/")}
+    facet = views.system_health(comm, app=APP)
     period = APP.task_period_ms * 1000
     rows.append(px.row(
         "system_health_is_published",
@@ -770,7 +764,7 @@ def health_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
         and facet.get("TimeQuality/Available") is True
         and facet.get("TimeQuality/Synchronized") is False,
     ))
-    log = px.read_layout(comm, gen.alarm_active_tag(APP), gen.alarm_active_members())
+    log, _ = views.read_alarm_log(comm, app=APP)
     open_events = [] if log is None else [
         {c: log[f"Act{c}"][s] for c in ("ReasonCode", "Severity", "ResetClass", "SourceModuleId")}
         for s in range(len(log["ActState"])) if log["ActState"][s] != 0]
@@ -796,14 +790,12 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px._idle(comm, ack)
 
     # --- 1. what the step toggle reads ----------------------------------------------
-    values = projection.read_document(comm)["values"]
-    offered = [values.get(f"{ROOT}/SupportedRunStylesPublished[{s + 1}]")
-               for s in decl.RUN_STYLES]
+    offered, run_style = views.run_style_offer(comm, app=APP)
     rows.append(px.row(
         "the_unit_publishes_its_run_styles",
         "TC3's SupportedRunStylesPublished: all three offered, CONTINUOUS running",
-        {"offered": offered, "runStyle": values.get(f"{ROOT}/RunStyle")}, 0.0,
-        offered == [True, True, True] and values.get(f"{ROOT}/RunStyle") == 0,
+        {"offered": offered, "runStyle": run_style}, 0.0,
+        offered == [True, True, True] and run_style == 0,
     ))
 
     # --- 2. refusals by name ---------------------------------------------------------
@@ -822,11 +814,11 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
          "release": release, "runStyle": None if unit is None else unit["RunStyle"]},
         0.0,
         not outside["accepted"]
-        and outside["diagnosticKey"] == key(mailbox.RUN_STYLE_REFUSED_KEY)
+        and outside["diagnosticKey"] == key(comm, mailbox.RUN_STYLE_REFUSED_KEY)
         and not stopped_step["accepted"]
-        and stopped_step["diagnosticKey"] == key(mailbox.STEP_REFUSED_KEY)
+        and stopped_step["diagnosticKey"] == key(comm, mailbox.STEP_REFUSED_KEY)
         and not hold_wrong["accepted"]
-        and hold_wrong["diagnosticKey"] == key(mailbox.HOLD_RUN_REFUSED_KEY)
+        and hold_wrong["diagnosticKey"] == key(comm, mailbox.HOLD_RUN_REFUSED_KEY)
         and release["accepted"]
         and unit is not None and unit["RunStyle"] == decl.RUN_SINGLE_STEP,
     ))
@@ -964,7 +956,7 @@ def main(argv: list[str] | None = None) -> int:
             evidence["error"] = "controller serial does not match --expect-serial"
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
-        ready = px.fingerprint(comm)
+        ready = px.fingerprint(comm, expect_serial=serial)
         evidence["fingerprint"] = ready
         if not ready.get("passed"):
             evidence["error"] = "press-demo fingerprint failed; nothing was written"

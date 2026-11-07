@@ -1,0 +1,141 @@
+{
+  "schema": "fraktal.ab.c5b3-phase5-predicate-proof",
+  "schemaVersion": 1,
+  "passed": true,
+  "parentCommit": "7b793c516bc48bb50ae5b2337e99b8ab63e001bd",
+  "path": "FraktalCore/PLC/Allen-Bradley/tools/fraktal_ab_phase5_execute.py",
+  "rowCount": 21,
+  "waitCount": 29,
+  "directLegacyCallsBefore": 16,
+  "unconditionalLegacyCallsAfter": 0,
+  "normalization": "Only deployed key lookup key(comm, ...) and the run_style variable alias for values.get(f\"{ROOT}/RunStyle\"); all 21 row expectations, logical operators, value comparisons, tolerances and all 16 wait predicates are identical.",
+  "rows": [
+    {
+      "label": "'down_time_is_the_time_it_is_faulted'",
+      "function": "down_time_row",
+      "before": "faulted is not None and faulted['Error'] == 1 and (bounds[0] - 250 <= grew['Oee/DownMs'] <= bounds[1] + 250) and (grew['Oee/RunMs'] == 0) and (grew['Oee/IdleMs'] == 0) and (run + down > 0) and (abs(second.get('Oee/Availability', -1) - run / (run + down)) < 1e-06)",
+      "after": "faulted is not None and faulted['Error'] == 1 and (bounds[0] - 250 <= grew['Oee/DownMs'] <= bounds[1] + 250) and (grew['Oee/RunMs'] == 0) and (grew['Oee/IdleMs'] == 0) and (run + down > 0) and (abs(second.get('Oee/Availability', -1) - run / (run + down)) < 1e-06)"
+    },
+    {
+      "label": "'reset_oee_clears_the_accounting'",
+      "function": "oee_rows",
+      "before": "reset['accepted'] and card.get('Oee/RunMs') == 0 and (card.get('Oee/DownMs') == 0) and (card.get('OeeTrendHead') == 0) and (card.get('Oee/OeeValid') is False) and (before is not None) and (after is not None) and (after['Epoch'] == before['Epoch'] + 1)",
+      "after": "reset['accepted'] and card.get('Oee/RunMs') == 0 and (card.get('Oee/DownMs') == 0) and (card.get('OeeTrendHead') == 0) and (card.get('Oee/OeeValid') is False) and (before is not None) and (after is not None) and (after['Epoch'] == before['Epoch'] + 1)"
+    },
+    {
+      "label": "'run_time_is_the_time_the_press_runs'",
+      "function": "oee_rows",
+      "before": "bool(closed) and run_ms > 0 and (abs(run_ms - wall_ms) <= 250) and (card.get('Oee/DownMs') == 0) and (card.get('Oee/Availability') == 1.0) and (card.get('Oee/Quality') == 1.0) and (parts == 1) and (card.get('Oee/PerfValid') is True) and (abs(card.get('Oee/Performance', 0) - min(1.0, 950 * parts / run_ms)) < 1e-06)",
+      "after": "bool(closed) and run_ms > 0 and (abs(run_ms - wall_ms) <= 250) and (card.get('Oee/DownMs') == 0) and (card.get('Oee/Availability') == 1.0) and (card.get('Oee/Quality') == 1.0) and (parts == 1) and (card.get('Oee/PerfValid') is True) and (abs(card.get('Oee/Performance', 0) - min(1.0, 950 * parts / run_ms)) < 1e-06)"
+    },
+    {
+      "label": "'a_sample_a_minute_after_the_reset'",
+      "function": "oee_rows",
+      "before": "raw is not None and raw['Head'] == 1 and (abs(sampled_after - gen.OEE_SAMPLE_MS / 1000.0) <= 1.0) and (slot.get('Epoch') == raw['Epoch']) and (slot.get('RunS', 0) * 1000 + slot.get('RunMs', 0) == run2) and (slot.get('Good') == parts) and (slot.get('IdealMs') == 950) and (card.get('OeeTrendHead') == 1) and (card.get('OeeTrend[1]/OeeValid') is True)",
+      "after": "raw is not None and raw['Head'] == 1 and (abs(sampled_after - gen.OEE_SAMPLE_MS / 1000.0) <= 1.0) and (slot.get('Epoch') == raw['Epoch']) and (slot.get('RunS', 0) * 1000 + slot.get('RunMs', 0) == run2) and (slot.get('Good') == parts) and (slot.get('IdealMs') == 950) and (card.get('OeeTrendHead') == 1) and (card.get('OeeTrend[1]/OeeValid') is True)"
+    },
+    {
+      "label": "'a_reset_retires_the_trend_and_keeps_the_counts'",
+      "function": "oee_rows",
+      "before": "again['accepted'] and card.get('OeeTrendHead') == 0 and (card.get('OeeTrend[1]/OeeValid') is False) and (unit is not None) and (unit['GoodCount'] == good_before)",
+      "after": "again['accepted'] and card.get('OeeTrendHead') == 0 and (card.get('OeeTrend[1]/OeeValid') is False) and (unit is not None) and (unit['GoodCount'] == good_before)"
+    },
+    {
+      "label": "'machine_state_follows_the_unit'",
+      "function": "machine_rows",
+      "before": "[state for _, state in named] == expected",
+      "after": "[state for _, state in named] == expected"
+    },
+    {
+      "label": "'rework_count_is_the_controllers'",
+      "function": "machine_rows",
+      "before": "unit is not None and rework == unit['ReworkCount'] == 0",
+      "after": "unit is not None and rework == unit['ReworkCount'] == 0"
+    },
+    {
+      "label": "'a_cycle_is_profiled_step_by_step'",
+      "function": "profiler_rows",
+      "before": "before is not None and raw is not None and (cfg is not None) and (tuple(numbers) == PROFILED) and (values.get(f'{base}/CycleNo') == before['LastCycleNo'] + 1) and all((s['Duration'] > 0 and s['Duration'] % APP.task_period_ms == 0 for s in steps)) and (sum((s['Duration'] for s in steps)) == total) and (values.get(f'{ROOT}/Profiler/LastCycleTime') == total) and (by_no[170]['Expected'] == cfg['TransferSettleMs']) and (by_no[220]['Expected'] == cfg['PressDwellMs']) and (by_no[170]['Duration'] == cfg['TransferSettleMs'] + APP.task_period_ms) and (by_no[220]['Duration'] == cfg['PressDwellMs'] + APP.task_period_ms) and (by_no[100]['StepName'] == 'project.step.awaitTwoHandStart') and (values.get(f'{base}/WaitTime') == by_no[100]['Duration']) and (trend['CycleNo'] == values.get(f'{base}/CycleNo')) and (trend['Total'] == total) and (sum(split) == total) and (split[decl.TIME_CLASSES.index('WAIT_OPERATOR')] == by_no[100]['Duration']) and (raw['StatCount'][row110] == before['StatCount'][row110] + 1)",
+      "after": "before is not None and raw is not None and (cfg is not None) and (tuple(numbers) == PROFILED) and (values.get(f'{base}/CycleNo') == before['LastCycleNo'] + 1) and all((s['Duration'] > 0 and s['Duration'] % APP.task_period_ms == 0 for s in steps)) and (sum((s['Duration'] for s in steps)) == total) and (values.get(f'{ROOT}/Profiler/LastCycleTime') == total) and (by_no[170]['Expected'] == cfg['TransferSettleMs']) and (by_no[220]['Expected'] == cfg['PressDwellMs']) and (by_no[170]['Duration'] == cfg['TransferSettleMs'] + APP.task_period_ms) and (by_no[220]['Duration'] == cfg['PressDwellMs'] + APP.task_period_ms) and (by_no[100]['StepName'] == 'project.step.awaitTwoHandStart') and (values.get(f'{base}/WaitTime') == by_no[100]['Duration']) and (trend['CycleNo'] == values.get(f'{base}/CycleNo')) and (trend['Total'] == total) and (sum(split) == total) and (split[decl.TIME_CLASSES.index('WAIT_OPERATOR')] == by_no[100]['Duration']) and (raw['StatCount'][row110] == before['StatCount'][row110] + 1)"
+    },
+    {
+      "label": "'a_cycle_stopped_part_way_is_not_published'",
+      "function": "profiler_rows",
+      "before": "before is not None and after is not None and all((after[k] == before[k] for k in ('LastCycleNo', 'LastCycleTime', 'HistoryHead'))) and (after['CycleOpen'] == 0) and (after['Open'] == 0)",
+      "after": "before is not None and after is not None and all((after[k] == before[k] for k in ('LastCycleNo', 'LastCycleTime', 'HistoryHead'))) and (after['CycleOpen'] == 0) and (after['Open'] == 0)"
+    },
+    {
+      "label": "'every_command_is_timed'",
+      "function": "timing_rows",
+      "before": "all((a['accepted'] for a in answers)) and seen['slideExtend'] == (1, 4 * period) and (seen['slideRetract'] == (1, 4 * period)) and (seen['doorRetractAlreadyOpen'] == (1, period)) and (published['Id'] == 1) and (published['Label'] == 'std.command.extend') and (slide1 is not None) and (published['Count'] == slide1['TimCount'][0]) and (published['Last'] == 4 * period) and (published['Minimum'] <= published['Avg'] <= published['Maximum'])",
+      "after": "all((a['accepted'] for a in answers)) and seen['slideExtend'] == (1, 4 * period) and (seen['slideRetract'] == (1, 4 * period)) and (seen['doorRetractAlreadyOpen'] == (1, period)) and (published['Id'] == 1) and (published['Label'] == 'std.command.extend') and (slide1 is not None) and (published['Count'] == slide1['TimCount'][0]) and (published['Last'] == 4 * period) and (published['Minimum'] <= published['Avg'] <= published['Maximum'])"
+    },
+    {
+      "label": "'a_degraded_cycle_is_one_maintenance_event'",
+      "function": "timing_rows",
+      "before": "holds and observed.get('restored') == original",
+      "after": "holds and observed.get('restored') == original"
+    },
+    {
+      "label": "'at_load_position_follows_the_cylinders'",
+      "function": "flag_rows",
+      "before": "seen[0][1]['Key'] == 'project.state.pressAtLoadPosition' and values == [True, False, True] and all((isinstance(s, str) and s for s in since)) and (since[0] < since[1] < since[2]) and all((f['Stale'] is False for _, f in seen))",
+      "after": "seen[0][1]['Key'] == 'project.state.pressAtLoadPosition' and values == [True, False, True] and all((isinstance(s, str) and s for s in since)) and (since[0] < since[1] < since[2]) and all((f['Stale'] is False for _, f in seen))"
+    },
+    {
+      "label": "'two_hand_ready_follows_its_conditions'",
+      "function": "flag_rows",
+      "before": "readiness == [(1, True), (0, False), (1, True)]",
+      "after": "readiness == [(1, True), (0, False), (1, True)]"
+    },
+    {
+      "label": "'system_health_is_published'",
+      "function": "health_rows",
+      "before": "facet.get('Present') is True and facet.get('TaskAvailable') is True and (abs((facet.get('TaskCycleUs') or 0) - period) <= period // 10) and ((facet.get('TaskJitterUs') or 0) < APP.system_health.max_task_jitter_us) and (facet.get('Healthy') is False) and (facet.get('ControllerAvailable') is False) and (facet.get('FieldbusAvailable') is False) and (facet.get('DcAvailable') is False) and (facet.get('TimeQuality/Available') is True) and (facet.get('TimeQuality/Synchronized') is False)",
+      "after": "facet.get('Present') is True and facet.get('TaskAvailable') is True and (abs((facet.get('TaskCycleUs') or 0) - period) <= period // 10) and ((facet.get('TaskJitterUs') or 0) < APP.system_health.max_task_jitter_us) and (facet.get('Healthy') is False) and (facet.get('ControllerAvailable') is False) and (facet.get('FieldbusAvailable') is False) and (facet.get('DcAvailable') is False) and (facet.get('TimeQuality/Available') is True) and (facet.get('TimeQuality/Synchronized') is False)"
+    },
+    {
+      "label": "'unreadable_metrics_are_one_standing_event'",
+      "function": "health_rows",
+      "before": "held == [{'ReasonCode': 21, 'Severity': 0, 'ResetClass': gen.RESET_AUTO, 'SourceModuleId': 1}] and log is not None and (log['Blocking'] == 0)",
+      "after": "held == [{'ReasonCode': 21, 'Severity': 0, 'ResetClass': gen.RESET_AUTO, 'SourceModuleId': 1}] and log is not None and (log['Blocking'] == 0)"
+    },
+    {
+      "label": "'the_unit_publishes_its_run_styles'",
+      "function": "run",
+      "before": "offered == [True, True, True] and values.get(f'{ROOT}/RunStyle') == 0",
+      "after": "offered == [True, True, True] and run_style == 0"
+    },
+    {
+      "label": "'outside_its_style_each_request_is_refused_by_name'",
+      "function": "run",
+      "before": "not outside['accepted'] and outside['diagnosticKey'] == key(mailbox.RUN_STYLE_REFUSED_KEY) and (not stopped_step['accepted']) and (stopped_step['diagnosticKey'] == key(mailbox.STEP_REFUSED_KEY)) and (not hold_wrong['accepted']) and (hold_wrong['diagnosticKey'] == key(mailbox.HOLD_RUN_REFUSED_KEY)) and release['accepted'] and (unit is not None) and (unit['RunStyle'] == decl.RUN_SINGLE_STEP)",
+      "after": "not outside['accepted'] and outside['diagnosticKey'] == key(comm, mailbox.RUN_STYLE_REFUSED_KEY) and (not stopped_step['accepted']) and (stopped_step['diagnosticKey'] == key(comm, mailbox.STEP_REFUSED_KEY)) and (not hold_wrong['accepted']) and (hold_wrong['diagnosticKey'] == key(comm, mailbox.HOLD_RUN_REFUSED_KEY)) and release['accepted'] and (unit is not None) and (unit['RunStyle'] == decl.RUN_SINGLE_STEP)"
+    },
+    {
+      "label": "'a_stop_ends_the_hold'",
+      "function": "run",
+      "before": "held['accepted'] and holding is not None and (holding['HoldRun'] == 1) and (after_stop is not None) and (after_stop['HoldRun'] == 0) and (restarted is not None) and (restarted['Running'] == 1) and (restarted['Step'] == PATH[0]) and (restarted['Issued'] == 0) and (unheld is not None) and (count is not None) and (unheld == count)",
+      "after": "held['accepted'] and holding is not None and (holding['HoldRun'] == 1) and (after_stop is not None) and (after_stop['HoldRun'] == 0) and (restarted is not None) and (restarted['Running'] == 1) and (restarted['Step'] == PATH[0]) and (restarted['Issued'] == 0) and (unheld is not None) and (count is not None) and (unheld == count)"
+    },
+    {
+      "label": "'the_press_is_left_continuous'",
+      "function": "run",
+      "before": "back is not None and back['RunStyle'] == decl.RUN_CONTINUOUS and (back['Running'] == 0)",
+      "after": "back is not None and back['RunStyle'] == decl.RUN_CONTINUOUS and (back['Running'] == 0)"
+    },
+    {
+      "label": "f'single_step_issues_one_command_per_request_{rendition.lower()}'",
+      "function": "run",
+      "before": "cycle['perRequest'] == [0] + [1] * DECLARED and (not cycle['refusals']) and cycle['cycleClosed'] and cycle['opened']['style']['accepted']",
+      "after": "cycle['perRequest'] == [0] + [1] * DECLARED and (not cycle['refusals']) and cycle['cycleClosed'] and cycle['opened']['style']['accepted']"
+    },
+    {
+      "label": "f'hold_to_run_issues_only_while_held_{rendition.lower()}'",
+      "function": "run",
+      "before": "cycle['issuedUnheld'] == 0 and cycle['unheld'] == {'Step': PATH[0], 'Issued': 0} and all((a['accepted'] for a in cycle['answers'].values())) and (cycle['motionAtRelease'] == {'Busy': 1, 'OutImm_Held': 1}) and cycle['reachedDoorClose'] and (cycle['releasedAt'] == {'Step': DOOR_CLOSE, 'Issued': 0, 'HoldRun': 0}) and (cycle['slideArrived'] == 1) and (cycle['issuedBeforeRelease'] == PATH.index(DOOR_CLOSE)) and (cycle['issuedInCycle'] == DECLARED) and cycle['cycleClosed']",
+      "after": "cycle['issuedUnheld'] == 0 and cycle['unheld'] == {'Step': PATH[0], 'Issued': 0} and all((a['accepted'] for a in cycle['answers'].values())) and (cycle['motionAtRelease'] == {'Busy': 1, 'OutImm_Held': 1}) and cycle['reachedDoorClose'] and (cycle['releasedAt'] == {'Step': DOOR_CLOSE, 'Issued': 0, 'HoldRun': 0}) and (cycle['slideArrived'] == 1) and (cycle['issuedBeforeRelease'] == PATH.index(DOOR_CLOSE)) and (cycle['issuedInCycle'] == DECLARED) and cycle['cycleClosed']"
+    }
+  ],
+  "controllerAccess": false
+}

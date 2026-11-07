@@ -1,0 +1,385 @@
+{
+  "schema": "fraktal.ab.c5b3-phase5-fact-accounting",
+  "schemaVersion": 1,
+  "passed": true,
+  "priorFactCount": 102,
+  "newFactCount": 39,
+  "totalFactCount": 141,
+  "sharedAcrossProfiles": [
+    "fraktal_ab_press_s6_collapse_echo38",
+    "fraktal_ab_press_s6_shelving_echo38"
+  ],
+  "publicCanonicalAliases": {
+    "Door": [
+      "OutImm_ExecState",
+      "TimCount[1..2]",
+      "TimLast[1..2]"
+    ],
+    "PartSlide": [
+      "OutImm_ExecState",
+      "TimCount[1..2]",
+      "TimLast[1..2]"
+    ],
+    "PressRam": [
+      "OutImm_ExecState",
+      "TimCount[1..2]",
+      "TimLast[1..2]"
+    ]
+  },
+  "facts": [
+    {
+      "surface": "Unit",
+      "member": "HoldRun",
+      "observedName": "Unit_HoldRun",
+      "dimension": 0,
+      "source": "FRK_Press_Unit",
+      "nativeType": "DINT",
+      "purpose": "Run-style and HOLD_TO_RUN state (HoldRun, Issued, StepPending) asserted by Phase 5a"
+    },
+    {
+      "surface": "Unit",
+      "member": "Issued",
+      "observedName": "Unit_Issued",
+      "dimension": 0,
+      "source": "FRK_Press_Unit",
+      "nativeType": "DINT",
+      "purpose": "Run-style and HOLD_TO_RUN state (HoldRun, Issued, StepPending) asserted by Phase 5a"
+    },
+    {
+      "surface": "Unit",
+      "member": "StepPending",
+      "observedName": "Unit_StepPending",
+      "dimension": 0,
+      "source": "FRK_Press_Unit",
+      "nativeType": "DINT",
+      "purpose": "Run-style and HOLD_TO_RUN state (HoldRun, Issued, StepPending) asserted by Phase 5a"
+    },
+    {
+      "surface": "Door",
+      "member": "Busy",
+      "observedName": "Door_Busy",
+      "dimension": 0,
+      "source": "FRK_Press_InstDoor",
+      "nativeType": "DINT",
+      "purpose": "Cylinder Busy state and RunCount asserted by Phase 5a/5f"
+    },
+    {
+      "surface": "Door",
+      "member": "RunCount",
+      "observedName": "Door_RunCount",
+      "dimension": 0,
+      "source": "FRK_Press_InstDoor",
+      "nativeType": "DINT",
+      "purpose": "Cylinder Busy state and RunCount asserted by Phase 5a/5f"
+    },
+    {
+      "surface": "PartSlide",
+      "member": "Busy",
+      "observedName": "PartSlide_Busy",
+      "dimension": 0,
+      "source": "FRK_Press_InstPartSlide",
+      "nativeType": "DINT",
+      "purpose": "Cylinder Busy, Extended, Held and RunCount asserted by Phase 5a/5f"
+    },
+    {
+      "surface": "PartSlide",
+      "member": "DoneCount",
+      "observedName": "PartSlide_DoneCount",
+      "dimension": 0,
+      "source": "FRK_Press_InstPartSlide",
+      "nativeType": "DINT",
+      "purpose": "Cylinder Busy, Extended, Held and RunCount asserted by Phase 5a/5f"
+    },
+    {
+      "surface": "PartSlide",
+      "member": "OutImm_Extended",
+      "observedName": "PartSlide_OutImm_Extended",
+      "dimension": 0,
+      "source": "FRK_Press_InstPartSlide",
+      "nativeType": "DINT",
+      "purpose": "Cylinder Busy, Extended, Held and RunCount asserted by Phase 5a/5f"
+    },
+    {
+      "surface": "PartSlide",
+      "member": "OutImm_Held",
+      "observedName": "PartSlide_OutImm_Held",
+      "dimension": 0,
+      "source": "FRK_Press_InstPartSlide",
+      "nativeType": "DINT",
+      "purpose": "Cylinder Busy, Extended, Held and RunCount asserted by Phase 5a/5f"
+    },
+    {
+      "surface": "PartSlide",
+      "member": "RunCount",
+      "observedName": "PartSlide_RunCount",
+      "dimension": 0,
+      "source": "FRK_Press_InstPartSlide",
+      "nativeType": "DINT",
+      "purpose": "Cylinder Busy, Extended, Held and RunCount asserted by Phase 5a/5f"
+    },
+    {
+      "surface": "PartPresentSensor",
+      "member": "OutImm_Value",
+      "observedName": "PartPresentSensor_OutImm_Value",
+      "dimension": 0,
+      "source": "FRK_Press_InstPartPresentSensor",
+      "nativeType": "DINT",
+      "purpose": "Sensor OutImm_Value wait predicate asserted by Phase 5g two-hand readiness"
+    },
+    {
+      "surface": "PressRam",
+      "member": "DoneCount",
+      "observedName": "PressRam_DoneCount",
+      "dimension": 0,
+      "source": "FRK_Press_InstPressRam",
+      "nativeType": "DINT",
+      "purpose": "Cylinder RunCount asserted by Phase 5a parity module_counters"
+    },
+    {
+      "surface": "PressRam",
+      "member": "RunCount",
+      "observedName": "PressRam_RunCount",
+      "dimension": 0,
+      "source": "FRK_Press_InstPressRam",
+      "nativeType": "DINT",
+      "purpose": "Cylinder RunCount asserted by Phase 5a parity module_counters"
+    },
+    {
+      "surface": "Profiler",
+      "member": "CycleOpen",
+      "observedName": "Profiler_CycleOpen",
+      "dimension": 0,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "Profiler",
+      "member": "DegradedCount",
+      "observedName": "Profiler_DegradedCount",
+      "dimension": 0,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "Profiler",
+      "member": "DegradedWorkMs",
+      "observedName": "Profiler_DegradedWorkMs",
+      "dimension": 0,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "Profiler",
+      "member": "HistoryHead",
+      "observedName": "Profiler_HistoryHead",
+      "dimension": 0,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "Profiler",
+      "member": "LastCycleNo",
+      "observedName": "Profiler_LastCycleNo",
+      "dimension": 0,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "Profiler",
+      "member": "LastCycleTime",
+      "observedName": "Profiler_LastCycleTime",
+      "dimension": 0,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "Profiler",
+      "member": "Open",
+      "observedName": "Profiler_Open",
+      "dimension": 0,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "Profiler",
+      "member": "StatCount",
+      "observedName": "Profiler_StatCount",
+      "dimension": 32,
+      "source": "FRK_Press_Profiler",
+      "nativeType": "DINT",
+      "purpose": "CycleOpen, Open, LastCycleNo, LastCycleTime, HistoryHead, StatCount, DegradedCount and DegradedWorkMs asserted by Phase 5e/5f"
+    },
+    {
+      "surface": "AlarmActive",
+      "member": "ActResetClass",
+      "observedName": "AlarmActive_ActResetClass",
+      "dimension": 16,
+      "source": "FRK_Press_AlarmActive",
+      "nativeType": "DINT",
+      "purpose": "ActSeverity, ActResetClass, ActSourceModuleId and RingHead asserted by Phase 5f/5h"
+    },
+    {
+      "surface": "AlarmActive",
+      "member": "ActSeverity",
+      "observedName": "AlarmActive_ActSeverity",
+      "dimension": 16,
+      "source": "FRK_Press_AlarmActive",
+      "nativeType": "DINT",
+      "purpose": "ActSeverity, ActResetClass, ActSourceModuleId and RingHead asserted by Phase 5f/5h"
+    },
+    {
+      "surface": "AlarmActive",
+      "member": "ActSourceModuleId",
+      "observedName": "AlarmActive_ActSourceModuleId",
+      "dimension": 16,
+      "source": "FRK_Press_AlarmActive",
+      "nativeType": "DINT",
+      "purpose": "ActSeverity, ActResetClass, ActSourceModuleId and RingHead asserted by Phase 5f/5h"
+    },
+    {
+      "surface": "AlarmActive",
+      "member": "RingHead",
+      "observedName": "AlarmActive_RingHead",
+      "dimension": 0,
+      "source": "FRK_Press_AlarmActive",
+      "nativeType": "DINT",
+      "purpose": "ActSeverity, ActResetClass, ActSourceModuleId and RingHead asserted by Phase 5f/5h"
+    },
+    {
+      "surface": "AlarmRing",
+      "member": "RingReasonCode",
+      "observedName": "AlarmRing_RingReasonCode",
+      "dimension": 64,
+      "source": "FRK_Press_AlarmRing",
+      "nativeType": "DINT",
+      "purpose": "RingReasonCode, RingSeverity, RingResetClass and RingSourceModuleId asserted by Phase 5f degradation watch"
+    },
+    {
+      "surface": "AlarmRing",
+      "member": "RingResetClass",
+      "observedName": "AlarmRing_RingResetClass",
+      "dimension": 64,
+      "source": "FRK_Press_AlarmRing",
+      "nativeType": "DINT",
+      "purpose": "RingReasonCode, RingSeverity, RingResetClass and RingSourceModuleId asserted by Phase 5f degradation watch"
+    },
+    {
+      "surface": "AlarmRing",
+      "member": "RingSeverity",
+      "observedName": "AlarmRing_RingSeverity",
+      "dimension": 64,
+      "source": "FRK_Press_AlarmRing",
+      "nativeType": "DINT",
+      "purpose": "RingReasonCode, RingSeverity, RingResetClass and RingSourceModuleId asserted by Phase 5f degradation watch"
+    },
+    {
+      "surface": "AlarmRing",
+      "member": "RingSourceModuleId",
+      "observedName": "AlarmRing_RingSourceModuleId",
+      "dimension": 64,
+      "source": "FRK_Press_AlarmRing",
+      "nativeType": "DINT",
+      "purpose": "RingReasonCode, RingSeverity, RingResetClass and RingSourceModuleId asserted by Phase 5f degradation watch"
+    },
+    {
+      "surface": "Oee",
+      "member": "Epoch",
+      "observedName": "Oee_Epoch",
+      "dimension": 0,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "Head",
+      "observedName": "Oee_Head",
+      "dimension": 0,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpDownMs",
+      "observedName": "Oee_SmpDownMs",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpDownS",
+      "observedName": "Oee_SmpDownS",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpEpoch",
+      "observedName": "Oee_SmpEpoch",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpGood",
+      "observedName": "Oee_SmpGood",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpIdealMs",
+      "observedName": "Oee_SmpIdealMs",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpNok",
+      "observedName": "Oee_SmpNok",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpRunMs",
+      "observedName": "Oee_SmpRunMs",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    },
+    {
+      "surface": "Oee",
+      "member": "SmpRunS",
+      "observedName": "Oee_SmpRunS",
+      "dimension": 60,
+      "source": "FRK_Press_Oee",
+      "nativeType": "DINT",
+      "purpose": "Epoch, Head and Smp* sample columns asserted by Phase 5c OEE reset and one-minute sample rows"
+    }
+  ],
+  "captures": 86,
+  "problems": [],
+  "controllerAccess": false
+}

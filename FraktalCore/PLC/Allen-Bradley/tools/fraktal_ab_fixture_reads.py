@@ -22,8 +22,12 @@ MAILBOX_PUBLIC = {}
 DEFAULT_GATEWAY = 'ws://127.0.0.1:8080/fraktal'
 
 def public_aliases(name):
-    if name in ('ConfigAudit', 'Profiler', 'SetState', 'Persist', 'AccessState', 'AccessAudit', 'AlarmActive', 'AlarmRing', 'ReleaseStart') or name.startswith('Cfg') and name[3:].isdigit():
+    if name in ('ConfigAudit', 'Oee', 'Profiler', 'SetState', 'Persist', 'AccessState', 'AccessAudit', 'AlarmActive', 'AlarmRing', 'ReleaseStart') or name.startswith('Cfg') and name[3:].isdigit():
         return {}
+    if name in ('Door', 'PartSlide', 'PressRam'):
+        return {'OutImm_ExecState': name + '/Status/State',
+                'TimCount': tuple(f'{name}/Timing/Rows[{i}]/Count' for i in range(1, 3)),
+                'TimLast': tuple(f'{name}/Timing/Rows[{i}]/Last' for i in range(1, 3))}
     return UNIT_PUBLIC if name == 'Unit' else CHART_PUBLIC if name == 'Chart' else MAILBOX_PUBLIC if name == 'Mailbox' else {
         'OutImm_ExecState': name + '/Status/State'}
 
@@ -43,13 +47,16 @@ class FixtureReads:
             raise ValueError('unknown fixture surface: ' + name)
         public = public_aliases(name) if name in ('Unit', 'Chart', 'Mailbox') or name in self.modules else {}
         # A canonical anchor makes even a private-only surface a scan-domain row.
+        flat_public = tuple(p for path in public.values() for p in (path if isinstance(path, tuple) else (path,)))
         paths = tuple(dict.fromkeys([self.root + '/CurrentStep/StepNo',
-                                     *(self.root + '/' + path for path in public.values())]))
+                                     *(self.root + '/' + path for path in flat_public)]))
         members = tuple(name + '_' + member for member in self.fields.get(name, ()))
         row = self.reader.read_row(paths, private={self.symbol: members} if members else ())
         native = row['private'].get(self.symbol, {})
         result = {member: native[name + '_' + member] for member in self.fields.get(name, ())}
-        result.update({member: row['values'][self.root + '/' + path] for member, path in public.items()})
+        result.update({member: ([row['values'][self.root + '/' + p] for p in path]
+                                if isinstance(path, tuple) else row['values'][self.root + '/' + path])
+                       for member, path in public.items()})
         if name == 'Door':
             # The press's report-only key is explicitly unavailable until a
             # harness that asserts it accounts it in O10. Never invent zero.
@@ -144,6 +151,146 @@ def read_alarm_log(comm, *, app):
         return surface(comm, 'AlarmActive', app=app), surface(comm, 'AlarmRing', app=app)
     import fraktal_ab_projection as legacy
     return legacy.read_alarm_log(comm)
+
+
+def read_oee(comm, *, app):
+    if app.canonical_collapse:
+        return surface(comm, 'Oee', app=app)
+    import fraktal_ab_generate as gen
+    return read_layout(comm, gen.oee_tag(app), gen.oee_members())
+
+
+def read_profiler(comm, *, app):
+    if app.canonical_collapse:
+        return surface(comm, 'Profiler', app=app)
+    import fraktal_ab_generate as gen
+    return read_layout(comm, gen.profiler_tag(app), gen.profiler_members(app))
+
+
+OEE_LEAVES = ('RunMs', 'DownMs', 'IdleMs', 'Availability', 'AvailValid', 'Performance',
+              'PerfValid', 'Quality', 'QualValid', 'Oee', 'OeeValid')
+HEALTH_LEAVES = ('Present', 'Healthy', 'TaskAvailable', 'TaskCycleUs', 'TaskJitterUs',
+                 'TaskOverrun', 'ControllerAvailable', 'CpuLoadPct', 'MemoryAvailableMb',
+                 'IpcAvailable', 'IpcTemperatureC', 'FanHealthy', 'StorageHealthPct',
+                 'FieldbusAvailable', 'FieldbusMasterHealthy', 'LostFrameCount',
+                 'SlaveErrorCount', 'DcAvailable', 'DcSynchronized',
+                 'TimeQuality/Available', 'TimeQuality/Synchronized',
+                 'TimeQuality/Source', 'TimeQuality/OffsetUs')
+
+
+def oee_card(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        prefix = f'{app.name}/'
+        return {k[len(prefix):]: v for k, v in held.items() if k.startswith(f'{prefix}Oee')}
+    import fraktal_ab_generate as gen
+    root = session.root
+    paths = (*(f'{root}/Oee/{n}' for n in OEE_LEAVES), f'{root}/OeeTrendHead',
+             *(f'{root}/OeeTrend[{i}]/{n}' for i in range(1, gen.OEE_SAMPLES + 1) for n in ('Oee', 'OeeValid')))
+    held = values(comm, paths, app=app)
+    prefix = root + '/'
+    return {k[len(prefix):]: v for k, v in held.items()}
+
+
+def machine_summary(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return held.get(f'{app.name}/MachineState'), held.get(f'{app.name}/ReworkCount')
+    paths = (f'{session.root}/MachineState', f'{session.root}/ReworkCount')
+    held = values(comm, paths, app=app)
+    return held[paths[0]], held[paths[1]]
+
+
+def run_style_offer(comm, *, app):
+    import fraktal_ab_declaration as decl
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return [held.get(f'{app.name}/SupportedRunStylesPublished[{s + 1}]') for s in decl.RUN_STYLES], held.get(f'{app.name}/RunStyle')
+    paths = (*(f'{session.root}/SupportedRunStylesPublished[{s}]' for s in decl.RUN_STYLES), f'{session.root}/RunStyle')
+    held = values(comm, paths, app=app)
+    return [held[f'{session.root}/SupportedRunStylesPublished[{s}]'] for s in decl.RUN_STYLES], held[f'{session.root}/RunStyle']
+
+
+def profiler_summary(comm, *, app):
+    import fraktal_ab_declaration as decl
+    import fraktal_ab_generate as gen
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        return legacy.read_document(comm)['values']
+    root = session.root
+    base = f'{root}/Profiler/LastCycle'
+    step_leaves = ('StepNo', 'StepName', 'TimeClass', 'Duration', 'Expected')
+    hist_leaves = ('CycleNo', 'Total', 'WorkTime', 'WaitTime', *(f'ByClass[{k}]' for k in range(len(decl.TIME_CLASSES))))
+    paths = (*(f'{base}/{n}' for n in ('CycleNo', 'NSteps', 'Total', 'WorkTime', 'WaitTime')),
+             f'{root}/Profiler/LastCycleTime', f'{root}/Profiler/HistoryHead',
+             *(f'{base}/Steps[{i}]/{n}' for i in range(1, gen.PROFILE_STEPS + 1) for n in step_leaves),
+             *(f'{root}/Profiler/History[{i}]/{n}' for i in range(1, gen.CYCLE_HISTORY + 1) for n in hist_leaves))
+    return values(comm, paths, app=app)
+
+
+def timing_row(comm, module, index=1, *, app):
+    leaves = ('Id', 'Label', 'Count', 'Last', 'Minimum', 'Maximum', 'Avg')
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return {n: held.get(f'{app.name}/{module}/Timing/Rows[{index}]/{n}') for n in leaves}
+    paths = tuple(f'{session.root}/{module}/Timing/Rows[{index}]/{n}' for n in leaves)
+    held = values(comm, paths, app=app)
+    return {n: held[f'{session.root}/{module}/Timing/Rows[{index}]/{n}'] for n in leaves}
+
+
+def alarm_ring_entry(comm, slot, *, app):
+    if not slot:
+        return {}
+    leaves = ('ReasonCode', 'SourcePath')
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return {n: held.get(f'{app.name}/AlarmLog/Ring[{slot}]/{n}') for n in leaves}
+    paths = tuple(f'{session.root}/AlarmLog/Ring[{slot}]/{n}' for n in leaves)
+    held = values(comm, paths, app=app)
+    return {n: held[f'{session.root}/AlarmLog/Ring[{slot}]/{n}'] for n in leaves}
+
+
+def state_flags(comm, *, app):
+    leaves = ('Key', 'Value', 'Since', 'Stale')
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        count = held.get(f'{app.name}/StateFlagCount') or 0
+        return [{n: held.get(f'{app.name}/StateFlags[{i}]/{n}') for n in leaves} for i in range(1, count + 1)]
+    count_path = f'{session.root}/StateFlagCount'
+    count = values(comm, (count_path,), app=app)[count_path]
+    if type(count) is not int or not 0 <= count <= len(app.state_flags):
+        raise ValueError('invalid published state flag count')
+    paths = (count_path, *(f'{session.root}/StateFlags[{i}]/{n}' for i in range(1, count + 1) for n in leaves))
+    held = values(comm, paths, app=app)
+    if held[count_path] != count:
+        raise ValueError('state flag count changed')
+    return [{n: held[f'{session.root}/StateFlags[{i}]/{n}'] for n in leaves} for i in range(1, count + 1)]
+
+
+def system_health(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        prefix = f'{app.name}/SystemHealth/'
+        return {k[len(prefix):]: v for k, v in held.items() if k.startswith(prefix)}
+    paths = tuple(f'{session.root}/SystemHealth/{n}' for n in HEALTH_LEAVES)
+    held = values(comm, paths, app=app)
+    prefix = f'{session.root}/SystemHealth/'
+    return {k[len(prefix):]: v for k, v in held.items()}
 
 
 def config_capability(comm, key, *, app):

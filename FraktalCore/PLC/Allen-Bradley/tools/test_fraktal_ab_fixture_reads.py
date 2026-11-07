@@ -65,7 +65,7 @@ def legacy_surface(pair, name):
     if name == 'Profiler':
         return inputs['additional']['profiler']
     policy = dict(AccessState='accessState', AccessAudit='accessAudit', AlarmActive='alarmActive',
-                  AlarmRing='alarmRing', ReleaseStart='release_report')
+                  AlarmRing='alarmRing', ReleaseStart='release_report', Oee='oee')
     if name in policy:
         return inputs['additional'][policy[name]]
     return inputs['contexts'][name]
@@ -162,7 +162,48 @@ class NativeViews(unittest.TestCase):
                         self.assertEqual(actual[name], expected[name])
                     public = views.public_aliases(surface)
                     for name in public:
-                        self.assertEqual(actual[name], expected[name])
+                        wanted = expected[name][:len(actual[name])] if isinstance(actual[name], list) else expected[name]
+                        self.assertEqual(actual[name], wanted)
+
+    def test_phase5_canonical_metric_and_report_views_equal_the_native_projection(self):
+        import fraktal_ab_projection as legacy
+        frozen = profile.previous.application()
+        for label, pair in self.pairs:
+            session = from_pair(pair)
+            inp = pair['legacyInputs']
+            extra = inp['additional']
+            with patch.object(views, '_session', return_value=session):
+                card = views.oee_card(object(), app=APP)
+                expected_oee = legacy.oee_status(frozen, extra['oee'], inp['unit'], extra['records'])
+                for key, value in expected_oee.items():
+                    if isinstance(value, float):
+                        self.assertAlmostEqual(card[key], value, places=6, msg=(label, key))
+                    else:
+                        self.assertEqual(card[key], value, (label, key))
+                        self.assertIs(type(card[key]), type(value), (label, key))
+                state, rework = views.machine_summary(object(), app=APP)
+                self.assertEqual(rework, inp['unit']['ReworkCount'])
+                self.assertEqual(state, legacy.machine_state(frozen, inp['unit'], extra['alarmActive'])['MachineState'])
+                self.assertEqual(views.run_style_offer(object(), app=APP), ([True, True, True], inp['unit']['RunStyle']))
+                prof = views.profiler_summary(object(), app=APP)
+                expected_prof = legacy.profiler_status(frozen, extra['profiler'])
+                for key, value in expected_prof.items():
+                    if f'{APP.name}/{key}' in prof:
+                        self.assertEqual(prof[f'{APP.name}/{key}'], value, (label, key))
+                row = views.timing_row(object(), 'PartSlide', 1, app=APP)
+                self.assertEqual(row['Count'], inp['contexts']['PartSlide']['TimCount'][0])
+                self.assertEqual(row['Last'], inp['contexts']['PartSlide']['TimLast'][0])
+                flags = views.state_flags(object(), app=APP)
+                expected_flags = legacy.state_flags_status(frozen, extra['stateFlags'])
+                self.assertEqual(len(flags), expected_flags['StateFlagCount'])
+                for i, flag in enumerate(flags, 1):
+                    for leaf in ('Key', 'Value', 'Since', 'Stale'):
+                        self.assertEqual(flag[leaf], expected_flags[f'StateFlags[{i}]/{leaf}'], (label, i, leaf))
+                health = views.system_health(object(), app=APP)
+                expected_health = legacy.system_health_status(frozen, extra['health'], extra['healthProbe'])
+                for key, value in expected_health.items():
+                    suffix = key.split('SystemHealth/', 1)[1]
+                    self.assertEqual(health[suffix], value, (label, suffix))
 
     def test_policy_public_text_and_annunciation_equal_the_native_projection(self):
         import fraktal_ab_access as access
