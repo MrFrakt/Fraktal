@@ -24,16 +24,21 @@ class GenealogyRun(text.TextResourceRun):
         return row
 
 
+ACCEPTED_DECLARATIONS = ('fraktal_ab_genealogy_demo', 'fraktal_ab_genealogy_s6_collapse_demo')
+
+
 def main(argv=None, *, run_type_factory=None, schema='fraktal.ab.genealogy-live-fixture',
-         expected_declaration='fraktal_ab_genealogy_demo', exercise_rows=None):
+         expected_declaration=None, exercise_rows=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--execute-fixture',action='store_true')
     parser.add_argument('--expect-serial',required=True)
     parser.add_argument('--credential-file',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     args = parser.parse_args(argv)
+    allowed = ACCEPTED_DECLARATIONS if expected_declaration is None else (
+        (expected_declaration,) if isinstance(expected_declaration, str) else tuple(expected_declaration))
     if (not args.execute_fixture or args.expect_serial.upper() != '601FC87B'
-            or station.module_name() != expected_declaration):
+            or station.module_name() not in allowed):
         parser.error('explicit arm, exact genealogy declaration and local serial 601FC87B required')
     if args.output.exists():
         parser.error('refusing existing evidence output')

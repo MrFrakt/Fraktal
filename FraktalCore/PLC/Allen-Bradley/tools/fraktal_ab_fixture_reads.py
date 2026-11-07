@@ -82,6 +82,8 @@ def bind(comm, app, expect_serial):
 
 
 def _session(comm, app):
+    if getattr(comm, '_phase_closed', False) is True:
+        raise ValueError('fixture connection phase is closed')
     if not app.canonical_collapse:
         return None
     session = getattr(connection_state(comm), '_fraktal_fixture_reads', None)
@@ -93,6 +95,31 @@ def _session(comm, app):
         else:
             raise ValueError('bind the guarded fixture reader before reading its state')
     return session
+
+
+def manifest_hash(app):
+    if app.canonical_collapse:
+        import fraktal_ab_canonical_publication as publication
+        return publication.manifest_values(app)['ContentHash']
+    import fraktal_ab_manifest as legacy
+    return legacy.content_hash(app)
+
+
+def signal_tower(comm, *, app):
+    import fraktal_ab_machine_state as machine
+    import fraktal_ab_signal_tower as legacy
+    session = _session(comm, app)
+    if session is None:
+        return legacy.project(read_layout(comm, legacy.tag(app), legacy.members()))
+    root = session.root
+    paths = (f'{root}/MachineState', *(f'{root}/SignalTower/{n}' for n in legacy.OUTPUTS))
+    held = values(comm, paths, app=app)
+    state = held[f'{root}/MachineState']
+    if (type(state) is not int or state not in machine.STATES.values()
+            or any(type(held[f'{root}/SignalTower/{n}']) is not bool for n in legacy.OUTPUTS)):
+        raise ValueError('invalid or unavailable signal tower snapshot')
+    return {'MachineState': state,
+            **{f'SignalTower/{n}': held[f'{root}/SignalTower/{n}'] for n in legacy.OUTPUTS}}
 
 
 def read_unit(comm, *, app):

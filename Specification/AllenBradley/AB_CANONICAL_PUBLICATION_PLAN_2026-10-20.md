@@ -1608,6 +1608,25 @@ canonical press launcher. Native acceptance stays S6-Q after C7. The new
 record also corrects the earlier Phase 5 narrative genealogy source hash from
 the sealed artifact pin; it does not rewrite historical evidence.
 
+**C5b3 shared runner and disconnect lifecycle done offline, 2026-11-07** ([evidence](Evidence/AB_S6_COLLAPSE_C5B3_RUNNER_OFFLINE_2026-11-07.md)).
+`fraktal_ab_tower_execute.py`, `fraktal_ab_part_execute.py` and
+`fraktal_ab_genealogy_execute.py` (with inherited `resource`/`text_resource`
+runners) route bootstrap, canonical `SignalTower` snapshots, seed-manifest
+configuration preservation across image revisions, O11 write guards and
+portable `HostEvents` verification through `fraktal_ab_fixture_reads` and
+`fraktal_ab_harness_documents`, with zero unguarded collapsed-reachable legacy
+calls. Explicit phase boundaries (`close_phase`, `open_new_phase`, pre-warmed
+read-only `open_observer`) close owned gateway/host leases during disconnect
+while retaining the complete `disconnected = 3.2` s quiet interval, the
+`elapsed < 4.0` s expiry deadline, phase-2 cleanup restoration and latched
+`ProcessLease` failure non-restart. All 2,716 AB, 85 root and 71 focused tests
+pass; zero PLC or shipping Dart sources changed, so the three collapsed L5X
+profiles (`57FDB0BC...`, `0E3E19A8...`, `D7FB6960...`) regenerate
+byte-identically and reuse their 60%/54% Capacity and 44-test Dart
+qualifications. Next in C5b3 are `fraktal_ab_press_canonical_execute.py` and
+the remaining station-reading HX harnesses (`press_parity`, `phase1..4_execute`,
+`s3_execute`) before C5c/V6.12, C6/C7 and native S6-Q.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The

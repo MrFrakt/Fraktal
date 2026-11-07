@@ -1,0 +1,5 @@
+{
+  "forwardOpen": "    def _forward_open(self):\n        \"\"\"\n        ForwardOpen connection.\n        \"\"\"\n        self.Socket.send(self._build_forward_open_packet())\n        try:\n            ret_data = self.receive_data()\n        except socket.timeout as e:\n            return [False, e]\n        \n        if not ret_data:\n            self.SoocketConnected = False\n            return [False, \"Forward open failed\"]\n            \n        sts = unpack_from('<b', ret_data, 42)[0]\n        if not sts:\n            self._ot_connection_id = unpack_from('<I', ret_data, 44)[0]\n            self._connected = True\n        else:\n            self.SocketConnected = False\n            return [False, 'Forward open failed']\n\n        self.SocketConnected = True\n        return [self.SocketConnected, 'Success']\n",
+  "buildForwardOpen": "    def _build_forward_open_packet(self):\n        \"\"\"\n        Assemble the forward open packet\n        \"\"\"\n        forward_open = self._build_cip_forward_open()\n        header = self._build_rr_data_header(len(forward_open))\n        return header + forward_open\n",
+  "controllerAccess": false
+}

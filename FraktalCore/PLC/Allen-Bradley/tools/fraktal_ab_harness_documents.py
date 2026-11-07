@@ -119,6 +119,63 @@ def medium_matches(store, expected):
     return True
 
 
+def seed_documents(serial, root, *, manifest=None, digest=None):
+    """Read confirmed live documents strictly from the hash-pinned seed manifest."""
+    import hashlib
+    import json
+    import os
+    from fraktal_ab_harness_host import read_seed_files
+    from fraktal_ab_live_medium import DocumentLost, INDEX_SCHEMA, INDEX_VERSION
+    import fraktal_ab_set_documents as sets
+    manifest = os.environ.get('FRAKTAL_HARNESS_HOST_SEED') if manifest is None else manifest
+    digest = os.environ.get('FRAKTAL_HARNESS_HOST_SEED_SHA256') if digest is None else digest
+    payloads, _ = read_seed_files(manifest, digest, serial, root)
+    raw_index = payloads.get('live/index.json')
+    if raw_index is None:
+        raise ValueError('store seed has no confirmed live document index')
+    held = json.loads(raw_index.decode('ascii'))
+    if (held.get('schema'), held.get('schemaVersion')) != (INDEX_SCHEMA, INDEX_VERSION):
+        raise ValueError('store seed live document index schema differs')
+    confirmed = held.get('documents')
+    if not isinstance(confirmed, dict) or not confirmed or any(
+            not isinstance(v, dict) or type(v.get('generation')) is not int for v in confirmed.values()):
+        raise ValueError('store seed live document index is invalid')
+    documents = {}
+    for key in confirmed:
+        sets._text(key, sets.NAME_MAX, nonempty=True)
+        rel = 'live/' + hashlib.sha256(key.encode('ascii')).hexdigest() + '.jsonl'
+        raw_doc = payloads.get(rel)
+        if raw_doc is None:
+            raise DocumentLost(f'{key}: confirmed document is missing from seed manifest')
+        doc = sets.checked_document([sets.parse_line(line) for line in raw_doc.decode('ascii').splitlines()])
+        if doc[0]['root'] != root:
+            raise ValueError('store seed document belongs to another root')
+        documents[key] = doc
+    return documents
+
+
+def compare_seed_documents(seed_docs, expected):
+    """Compare portable seed values against current expected documents across revisions."""
+    invariant_header = ('set', 'root', 'kind', 'model', 'records')
+    def strip_rev(records_by_key):
+        return {rk: {k: v for k, v in row.items() if k != 'rev'} for rk, row in records_by_key.items()}
+    preserved, previous_revisions = {}, {}
+    for key, wanted in expected.items():
+        doc = seed_docs.get(key)
+        if doc is None:
+            preserved[key] = False
+            previous_revisions[key] = None
+            continue
+        header = doc[0]
+        previous_revisions[key] = header['configRev']
+        rows = {r['key']: r for r in doc[1:]}
+        header_ok = all(header.get(n) == wanted['header'][n] for n in invariant_header)
+        preserved[key] = (header_ok and len(rows) == len(doc) - 1
+                          and strip_rev(rows) == strip_rev(wanted['records']))
+    current_revision = next(iter(expected.values()))['header']['configRev']
+    return preserved, previous_revisions, current_revision
+
+
 def ready(comm, app, lease, *, timeout=60, clock=time.monotonic, sleep=time.sleep):
     """Wait for owner restore, then verify every current document on the medium."""
     session = fixture._session(comm, app)

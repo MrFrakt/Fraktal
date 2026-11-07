@@ -49,24 +49,26 @@ class ReadOnlyStore:
         return FileStore(self.directory).list()
 
 
-def seed_store(destination, manifest, digest, serial, root):
-    """Copy a prepared byte-bound medium; never open the owner's original in Dart."""
+def read_seed_files(manifest, digest, serial, root):
+    """Validate and read a prepared byte-bound medium without mutating it."""
+    if not manifest or not digest:
+        raise ValueError('prepared original-medium seed manifest and SHA-256 are required')
     manifest = Path(manifest).resolve()
     raw = manifest.read_bytes()
     if hashlib.sha256(raw).hexdigest().upper() != digest.upper():
         raise ValueError('store seed manifest hash differs')
     held = json.loads(raw)
     if held.get('schema') != 'fraktal.harness.store-seed' or held.get('schemaVersion') != 1 \
-            or held.get('serial') != serial or held.get('root') != root:
+            or held.get('serial') != serial.upper() or held.get('root') != root:
         raise ValueError('store seed target/schema differs')
     source = Path(held['directory']).resolve()
     rows = held.get('files')
     if not isinstance(rows, list) or not 1 <= len(rows) <= 256:
         raise ValueError('store seed requires a bounded file manifest')
-    copied, total, originals = set(), 0, []
+    payloads, total, originals = {}, 0, []
     for row in rows:
         name = row['path']
-        if not isinstance(name, str) or not STORE_FILE.fullmatch(name) or name in copied:
+        if not isinstance(name, str) or not STORE_FILE.fullmatch(name) or name in payloads:
             raise ValueError('unsafe or duplicate store seed path')
         path = source / name
         if path.is_symlink() or not path.resolve().is_relative_to(source):
@@ -75,12 +77,19 @@ def seed_store(destination, manifest, digest, serial, root):
         total += len(data)
         if total > 16_777_216 or hashlib.sha256(data).hexdigest().upper() != row['sha256'].upper():
             raise ValueError('store seed bytes differ or exceed budget')
+        payloads[name] = data
+        originals.append(dict(path=str(path), sha256=row['sha256'].upper()))
+    return payloads, originals
+
+
+def seed_store(destination, manifest, digest, serial, root):
+    """Copy a prepared byte-bound medium; never open the owner's original in Dart."""
+    payloads, originals = read_seed_files(manifest, digest, serial, root)
+    for name, data in payloads.items():
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open('xb') as out:
             out.write(data)
-        copied.add(name)
-        originals.append(dict(path=str(path), sha256=row['sha256'].upper()))
     return originals
 
 

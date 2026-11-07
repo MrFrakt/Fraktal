@@ -1,0 +1,29 @@
+{
+  "plcSlots": [
+    "IPAddress",
+    "Port",
+    "ProcessorSlot",
+    "SocketTimeout",
+    "Micro800",
+    "Route",
+    "conn",
+    "Offset",
+    "UDT",
+    "UDTByName",
+    "KnownTags",
+    "TagList",
+    "ProgramNames",
+    "StringID",
+    "StringEncoding",
+    "CIPTypes",
+    "callback",
+    "element_count",
+    "msg_values",
+    "msg_bytes"
+  ],
+  "connInit": "    def __init__(self, parent):\n        self.parent = parent\n\n        self.ConnectionSize = None  # Default to try Large, then Small Fwd Open.\n        self.Socket = socket.socket()\n        self.SocketConnected = False\n\n        self.msg_socket = socket.socket()\n        self.tcpconn = None\n        self.listen_ip = \"\"\n        self.callback = None\n\n        self._connected = False\n        self._context = 0x00\n        self._context_index = 0\n        self._originator_serial = 42\n        self._ot_connection_id = 0\n        self._to_connection_id = 0\n        self._registered = False\n        self._serial_number = 0\n        self._session_handle = 0x0000\n        self._sequence_counter = 1\n        self._vendor_id = 0x1337\n",
+  "connPrivateConnect": "    def _connect(self, connected):\n        \"\"\"\n        Open a connection to the PLC.\n        \"\"\"\n        if self.SocketConnected:\n            if connected and not self._connected:\n                # connection type changed, need to close, so we can reconnect\n                self._close_connection()\n            elif not connected and self._connected:\n                # connection type changed, need to close, so we can reconnect\n                self._close_connection()\n            else:\n                return [True, 'Success']\n\n        try:\n            try:\n                self.Socket.close()\n            except (Exception,):\n                pass\n            self.Socket = socket.socket()\n            self.Socket.settimeout(self.parent.SocketTimeout)\n            addr = socket.getaddrinfo(self.parent.IPAddress, self.parent.Port)[0][-1]\n            self.Socket.connect(addr)\n        # Changed to a more generic exception class as mpy does not have socket.error\n        # Explanation in the docs: https://docs.micropython.org/en/latest/library/socket.html#functions\n        except OSError as e:\n            self.SocketConnected = False\n            self._sequence_counter = 1\n            self.Socket.close()\n            # Handle errors just as before for python\n            if not is_micropython():\n                return [False, e]\n            else:\n                # mpy: For now all exceptions go to 1 Connection failure\n                # there might be a better way to handle this in the future\n                # If the plc IP is wrong, the socket conn error goes to err 115 EINPROGRESS\n                # this only happens when the socket is non block which is the default\n                # If the socket is blocking socket conn error goes to err 103 ECONNABORTED\n                # https://docs.python.org/3/library/exceptions.html\n                # https://docs.python.org/3/library/errno.html this list is far greater than\n                # available mpy errors\n                return [False, 1]\n\n        # register the session\n        self.Socket.send(self._build_register_session())\n        ret_data = self.receive_data()\n        if ret_data:\n            self._session_handle = unpack_from('<I', ret_data, 4)[0]\n            self._registered = True\n        else:\n            self.SocketConnected = False\n            return [False, 'Register session failed']\n\n        if connected:\n            if self.ConnectionSize is not None:\n                ret = self._forward_open()\n            else:\n                # try a large forward open by default\n                self.ConnectionSize = 4002\n                ret = self._forward_open()\n\n                # if large forward open fails, try a normal forward open\n                if not ret[0]:\n                    self.ConnectionSize = 504\n                    ret = self._forward_open()\n\n            return ret\n\n        self.SocketConnected = True\n        return [self.SocketConnected, 'Success']\n",
+  "connPrivateClose": "    def _close_connection(self):\n        \"\"\"\n        Close the connection to the PLC (forward close, unregister session)\n        \"\"\"\n        self.SocketConnected = False\n        try:\n            if self._connected:\n                close_packet = self._build_forward_close_packet()\n                self.Socket.send(close_packet)\n                self.receive_data()\n                self._connected = False\n            if self._registered:\n                unregister_packet = self._build_unregister_session()\n                self.Socket.send(unregister_packet)\n            self.Socket.close()\n        except (Exception,):\n            self.Socket.close()\n        finally:\n            pass\n",
+  "connGetBytes": "    def _get_bytes(self, data, connected):\n        \"\"\"\n        Sends data and gets the return data, optionally asserting data size limit\n        \"\"\"\n        try:\n            self.Socket.send(data)\n            ret_data = self.receive_data()\n            if ret_data:\n                if connected:\n                    status = unpack_from('<B', ret_data, 48)[0]\n                else:\n                    status = unpack_from('<B', ret_data, 42)[0]\n                return status, ret_data\n            else:\n                self.SocketConnected = False\n                return 1, None\n        # Generalized exception error to catch both python and mpy\n        except OSError:\n            self.SocketConnected = False\n            return 1, None\n        except IOError:\n            self.SocketConnected = False\n            return 7, None\n",
+  "controllerAccess": false
+}

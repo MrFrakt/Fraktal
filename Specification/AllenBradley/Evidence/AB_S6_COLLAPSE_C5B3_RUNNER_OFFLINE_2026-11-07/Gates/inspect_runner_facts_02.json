@@ -1,0 +1,288 @@
+{
+  "towerCanonicalPaths": {
+    "Press/SignalTower/Red": false,
+    "Press/SignalTower/Amber": false,
+    "Press/SignalTower/Green": false,
+    "Press/SignalTower/Blue": false,
+    "Press/SignalTower/White": false,
+    "Press/SignalTower/Horn": false,
+    "Press/SignalTower/TestActive": false,
+    "Press/MachineState": 1
+  },
+  "legacyKeys": [
+    "codes",
+    "first",
+    "second"
+  ],
+  "genealogyFixtureObservation": [
+    [
+      "Mailbox",
+      [
+        "DiagnosticKey"
+      ]
+    ],
+    [
+      "Unit",
+      [
+        "Aborted",
+        "Complete",
+        "CycleCount",
+        "DecisionId",
+        "Error",
+        "ErrorID",
+        "Running"
+      ]
+    ],
+    [
+      "TwoHand",
+      [
+        "OutImm_Armed"
+      ]
+    ],
+    [
+      "PressRam",
+      [
+        "OutImm_Held"
+      ]
+    ],
+    [
+      "AccessState",
+      [
+        "CurrentLevel",
+        "LoginBusy",
+        "Required"
+      ]
+    ]
+  ],
+  "genealogyRecords": [
+    {
+      "name": "FRK_T_PressParCfg",
+      "stationCfg": false,
+      "members": [
+        "SchemaVersion",
+        "TransferSettleMs",
+        "PressDwellMs",
+        "GoodPartTarget",
+        "IdealCycleMs",
+        "BaselineWorkMs"
+      ]
+    },
+    {
+      "name": "FRK_T_PressStationCfg",
+      "stationCfg": true,
+      "members": [
+        "SchemaVersion",
+        "StationNumber",
+        "RamExtendLimitMs",
+        "AirPressureMinKpa",
+        "AirConflictTimeMs",
+        "RequireTwoHandStart"
+      ]
+    },
+    {
+      "name": "FRK_T_LineCfgV3",
+      "stationCfg": false,
+      "members": [
+        "SchemaVersion",
+        "UtcOffsetMin",
+        "StartMin1",
+        "DurationMin1",
+        "ActiveDays1",
+        "StartMin2",
+        "DurationMin2",
+        "ActiveDays2",
+        "StartMin3",
+        "DurationMin3",
+        "ActiveDays3",
+        "StartMin4",
+        "DurationMin4",
+        "ActiveDays4",
+        "StartMin5",
+        "DurationMin5",
+        "ActiveDays5",
+        "ProductionTarget1",
+        "ProductionTarget2",
+        "ProductionTarget3",
+        "ProductionTarget4",
+        "ProductionTarget5"
+      ]
+    }
+  ],
+  "pressRecords": [
+    {
+      "name": "FRK_T_PressParCfg",
+      "stationCfg": false,
+      "members": [
+        "SchemaVersion",
+        "TransferSettleMs",
+        "PressDwellMs",
+        "GoodPartTarget",
+        "IdealCycleMs",
+        "BaselineWorkMs"
+      ]
+    },
+    {
+      "name": "FRK_T_PressStationCfg",
+      "stationCfg": true,
+      "members": [
+        "SchemaVersion",
+        "StationNumber",
+        "RamExtendLimitMs",
+        "AirPressureMinKpa",
+        "AirConflictTimeMs",
+        "RequireTwoHandStart"
+      ]
+    },
+    {
+      "name": "FRK_T_LineCfgV3",
+      "stationCfg": false,
+      "members": [
+        "SchemaVersion",
+        "UtcOffsetMin",
+        "StartMin1",
+        "DurationMin1",
+        "ActiveDays1",
+        "StartMin2",
+        "DurationMin2",
+        "ActiveDays2",
+        "StartMin3",
+        "DurationMin3",
+        "ActiveDays3",
+        "StartMin4",
+        "DurationMin4",
+        "ActiveDays4",
+        "StartMin5",
+        "DurationMin5",
+        "ActiveDays5",
+        "ProductionTarget1",
+        "ProductionTarget2",
+        "ProductionTarget3",
+        "ProductionTarget4",
+        "ProductionTarget5"
+      ]
+    }
+  ],
+  "consumers": [
+    {
+      "module": "fraktal_ab_genealogy_execute",
+      "classification": "HX",
+      "effective": "HX",
+      "stage": "WP6.2",
+      "action": "migrate-canonical-reads",
+      "importedBy": [
+        "fraktal_ab_press_canonical_execute",
+        "fraktal_ab_s3a_fixture_execute",
+        "fraktal_ab_s3b_fixture_execute",
+        "fraktal_ab_s3c_fixture_execute",
+        "fraktal_ab_s3d_fixture_execute",
+        "fraktal_ab_s3e_fixture_execute",
+        "fraktal_ab_s3f_fixture_execute",
+        "fraktal_ab_s3f_revision_execute",
+        "fraktal_ab_s3g_fixture_execute",
+        "fraktal_ab_s3h_fixture_execute",
+        "fraktal_ab_s3i_fixture_execute",
+        "fraktal_ab_s3j_fixture_execute",
+        "fraktal_ab_s3k_fixture_execute",
+        "test_fraktal_ab_genealogy"
+      ]
+    },
+    {
+      "module": "fraktal_ab_part_execute",
+      "classification": "HX",
+      "effective": "HX",
+      "stage": "WP6.2",
+      "action": "migrate-canonical-reads",
+      "importedBy": [
+        "fraktal_ab_alarm_observe",
+        "fraktal_ab_native_observe",
+        "fraktal_ab_press_canonical_execute",
+        "fraktal_ab_resource_execute",
+        "fraktal_ab_s3f_revision_execute",
+        "fraktal_ab_s3i_lifetime_execute",
+        "fraktal_ab_s3j_io_execute",
+        "fraktal_ab_s3k_fixture_execute",
+        "fraktal_ab_tower_execute",
+        "test_fraktal_ab_part_execute",
+        "test_fraktal_ab_press_canonical_execute",
+        "test_fraktal_ab_s3k_fixture"
+      ]
+    },
+    {
+      "module": "fraktal_ab_press_canonical_execute",
+      "classification": "HX",
+      "effective": "HX",
+      "stage": "WP6.2",
+      "action": "migrate-canonical-reads",
+      "importedBy": [
+        "test_fraktal_ab_press_canonical_execute"
+      ]
+    },
+    {
+      "module": "fraktal_ab_resource_execute",
+      "classification": "HX",
+      "effective": "HX",
+      "stage": "WP6.2",
+      "action": "migrate-canonical-reads",
+      "importedBy": [
+        "fraktal_ab_text_resource_execute",
+        "test_fraktal_ab_resources"
+      ]
+    },
+    {
+      "module": "fraktal_ab_s3f_fixture_execute",
+      "classification": "MO",
+      "effective": "MO",
+      "stage": "WP6.3/WP6.7",
+      "action": "final-replay-then-retire",
+      "importedBy": [
+        "fraktal_ab_s3f_revision_execute",
+        "fraktal_ab_s3g_fixture_execute",
+        "fraktal_ab_s3g_native_checks",
+        "fraktal_ab_s3h_fixture_execute",
+        "fraktal_ab_s3i_fixture_execute",
+        "fraktal_ab_s3i_lifetime_execute",
+        "fraktal_ab_s3i_native_checks",
+        "fraktal_ab_s3j_fixture_execute",
+        "fraktal_ab_s3k_fixture_execute",
+        "test_fraktal_ab_s3f_fixture"
+      ]
+    },
+    {
+      "module": "fraktal_ab_s3k_fixture_execute",
+      "classification": "MO",
+      "effective": "MO",
+      "stage": "WP6.3/WP6.7",
+      "action": "final-replay-then-retire",
+      "importedBy": [
+        "fraktal_ab_press_canonical_execute",
+        "test_fraktal_ab_s3k_fixture"
+      ]
+    },
+    {
+      "module": "fraktal_ab_text_resource_execute",
+      "classification": "HX",
+      "effective": "HX",
+      "stage": "WP6.2",
+      "action": "migrate-canonical-reads",
+      "importedBy": [
+        "fraktal_ab_genealogy_execute",
+        "test_fraktal_ab_text_resources"
+      ]
+    },
+    {
+      "module": "fraktal_ab_tower_execute",
+      "classification": "HX",
+      "effective": "HX",
+      "stage": "WP6.2",
+      "action": "migrate-canonical-reads",
+      "importedBy": [
+        "fraktal_ab_genealogy_execute",
+        "fraktal_ab_press_canonical_execute",
+        "fraktal_ab_resource_execute",
+        "fraktal_ab_text_resource_execute",
+        "test_fraktal_ab_tower_execute"
+      ]
+    }
+  ],
+  "controllerAccess": false
+}

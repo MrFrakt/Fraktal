@@ -1,0 +1,8 @@
+{
+  "version": "1.1.5",
+  "plcCloseSource": "    def Close(self):\n        \"\"\"\n        Close the connection to the PLC\n        \"\"\"\n        return self.conn.close()\n",
+  "connCloseSource": "    def close(self):\n        \"\"\"\n        Close the connection\n        \"\"\"\n        self._close_connection()\n",
+  "connConnectSource": "    def connect(self, connected=True):\n        \"\"\"\n        Connect to the PLC\n        \"\"\"\n        return self._connect(connected)\n",
+  "connSendSource": "    def send(self, request, connected=True, slot=None):\n        \"\"\"\n        Send the request to the PLC\n        Return the status and data\n        \"\"\"\n        if connected:\n            eip_header = self._build_eip_header(request)\n        else:\n            if self.parent.Route or slot is not None:\n                path = self._unconnected_path(slot)\n                if len(request) %2:\n                    frame = self._build_unconnected_send(len(request)) + request + b'\\x00' + path\n                else:\n                    frame = self._build_unconnected_send(len(request)) + request + path\n            else:\n                frame = request\n            eip_header = self._build_rr_data_header(len(frame)) + frame\n        \n        return self._get_bytes(eip_header, connected)\n",
+  "controllerAccess": false
+}

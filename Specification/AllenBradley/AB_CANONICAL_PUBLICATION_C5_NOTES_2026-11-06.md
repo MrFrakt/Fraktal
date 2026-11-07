@@ -422,3 +422,48 @@ the artifact-bound source is `5557604A...273A95A`, not `07C771DF...36DB417`.
 The old evidence stays immutable. No controller operation ran. C5c/V6.12,
 C6/C7, native S6-Q and final retirement/spec activation remain open; O2/O5
 remain decided as recorded in the plan.
+
+
+## C5b3 shared runner and disconnect lifecycle - 2026-11-07
+
+The [shared runner record](Evidence/AB_S6_COLLAPSE_C5B3_RUNNER_OFFLINE_2026-11-07.md) passes offline:
+2,716 AB tests, 85 root tests and 71 focused checks pass, with zero controller
+operations. All 5 migrated shared/inherited runners (`fraktal_ab_tower_execute`,
+`fraktal_ab_part_execute`, `fraktal_ab_genealogy_execute`,
+`fraktal_ab_resource_execute`, `fraktal_ab_text_resource_execute`) have zero
+unguarded collapsed-reachable legacy calls while retaining 20 legacy-branch
+calls strictly behind `not app.canonical_collapse` until WP6.7.
+
+- `views.signal_tower` reads canonical `MachineState` and the seven
+  `SignalTower/*` leaves under one scan-counter row proof and replays
+  identically over the sealed S6 native capture.
+- `read_seed_files` in `fraktal_ab_harness_host` is the single validation owner
+  shared by `seed_store` and `seed_documents`; `compare_seed_documents` in
+  `fraktal_ab_harness_documents` checks invariant headers and record payloads
+  across image revisions while recording `previousRevisions` and
+  `currentRevision`.
+- Collapsed `Guarded` restricts `allowed` to `externally_writable(app)` (O11)
+  and `frozenset()` on read-only observers, and owns explicit connection phases
+  (`close_phase`, `open_new_phase`, `open_observer`, `check_owned_leases`,
+  `originals_unchanged`). Before `LAMP_TEST`, `exercise` pre-opens and warms a
+  read-only `observer`; `close_phase()` closes the primary session and its owned
+  gateway/host leases, preserves the complete `disconnected = 3.2` s quiet
+  interval with zero traffic, and reads the expired tower row on `observer`
+  within `elapsed < 4.0` s without restarting or clearing any latched
+  `ProcessLease` failure. `execute_fixture`'s `finally` opens phase 2 if
+  `_phase_closed is True` so cleanup and restoration still run after a
+  mid-disconnect failure.
+- Zero PLC/L5X or shipping HMI/Dart sources changed; all three collapsed L5X
+  profiles (`57FDB0BC...`, `0E3E19A8...`, `D7FB6960...`) regenerate
+  byte-identically, reusing their 60% and 54% Capacity qualifications and C5b2's
+  hash-bound 44-test Dart/runtime qualification (84 shipping sources). Failed
+  preparation runs and `ab_full_suite_01` (`Mock` truthiness on `_phase_closed`,
+  fixed with `is True`) remain sealed.
+
+Next in C5b3: migrate the standalone canonical press launcher
+(`fraktal_ab_press_canonical_execute.py`), then account/migrate the remaining
+station-reading HX harnesses (`fraktal_ab_press_parity.py`,
+`fraktal_ab_phase1_execute.py`..`fraktal_ab_phase4_execute.py`, and
+`fraktal_ab_s3_execute.py`; `fraktal_ab_s9_{mutations,read_execute,write_execute}.py`
+retire with RT/MO, and `fraktal_ab_mailbox_execute.py` uses the gateway
+WebSocket protocol directly) before C5c/V6.12, C6/C7 and native S6-Q.

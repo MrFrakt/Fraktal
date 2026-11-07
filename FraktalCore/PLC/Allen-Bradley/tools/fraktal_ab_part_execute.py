@@ -16,12 +16,11 @@ import time
 
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
-import fraktal_ab_host_events as host
+from fraktal_ab_host_cursor import Cursor
 import fraktal_ab_live as live
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as manifest
 import fraktal_ab_manifest_read as reader
-import fraktal_ab_part as part
 import fraktal_ab_part_demo as fixture
 import fraktal_ab_press_execute as px
 import fraktal_ab_projection as projection
@@ -36,14 +35,20 @@ class FixtureRefused(RuntimeError):
 
 
 class Guarded:
-    def __init__(self, comm, serial, app):
+    def __init__(self, comm, serial, app, *, writable=True, plc_factory=None):
         self.comm, self.serial, self.app = comm, serial, app
-        self.allowed = frozenset(gen.externally_writable(app)) | frozenset(
-            tag for tag, _ in mb.command_writes(app, mb.STOP, 1)) | frozenset(
-            mb.request_tag_name(app) + '.ConfigSet.' + member.name for member in sets.request_members())
+        self._writable, self._plc_factory = bool(writable), plc_factory
+        self._retired_phases, self._phase_closed, self._had_host_lease = [], False, False
+        if not writable:
+            self.allowed = frozenset()
+        elif app.canonical_collapse:
+            self.allowed = frozenset(gen.externally_writable(app))
+        else:
+            self.allowed = frozenset(gen.externally_writable(app)) | frozenset(
+                tag for tag, _ in mb.command_writes(app, mb.STOP, 1)) | frozenset(
+                mb.request_tag_name(app) + '.ConfigSet.' + member.name for member in sets.request_members())
         if app.canonical_collapse:
-            import fraktal_ab_canonical_publication as publication
-            self._canonical_hash = publication.manifest_values(app)['ContentHash']
+            self._canonical_hash = views.manifest_hash(app)
 
     def __getattr__(self, name):
         return getattr(self.comm, name)
@@ -56,7 +61,122 @@ class Guarded:
     def ConnectionSize(self, value):
         self.comm.ConnectionSize = value
 
+    def _new_plc(self):
+        if self._plc_factory is not None:
+            fresh = self._plc_factory()
+        else:
+            from pylogix import PLC
+            fresh = PLC('127.0.0.1')
+        fresh.ProcessorSlot = 0
+        fresh.ConnectionSize = 4000
+        fresh.SocketTimeout = 5
+        return fresh
+
+    @staticmethod
+    def _phase_state(plc):
+        return getattr(plc, 'conn', plc)
+
+    @classmethod
+    def _phase_children(cls, plc):
+        children = getattr(cls._phase_state(plc), '_fraktal_child_leases', None)
+        return children if isinstance(children, dict) else {}
+
+    def check_owned_leases(self):
+        for retired in self._retired_phases:
+            for name, lease in self._phase_children(retired).items():
+                if getattr(lease, 'failure', ''):
+                    raise FixtureRefused(f'retired {name} lease latched failure: {lease.failure}')
+                if not lease._closed:
+                    raise FixtureRefused(f'retired {name} lease was not closed')
+                if hasattr(lease, 'originals_unchanged') and not lease.originals_unchanged():
+                    raise FixtureRefused('original host seed files changed')
+        if not self._phase_closed:
+            for name, lease in self._phase_children(self.comm).items():
+                if getattr(lease, 'failure', ''):
+                    raise FixtureRefused(f'owned {name} lease latched failure: {lease.failure}')
+                if lease._closed or not lease.alive():
+                    raise FixtureRefused(f'owned {name} lease exited unexpectedly; no restart')
+                if hasattr(lease, 'originals_unchanged') and not lease.originals_unchanged():
+                    raise FixtureRefused('original host seed files changed')
+
+    def originals_unchanged(self):
+        phases = [*self._retired_phases, *([] if self._phase_closed else [self.comm])]
+        for phase in phases:
+            for lease in self._phase_children(phase).values():
+                if hasattr(lease, 'originals_unchanged') and not lease.originals_unchanged():
+                    return False
+        return True
+
+    def close_phase(self):
+        if not self.app.canonical_collapse:
+            return self.comm.Close()
+        if self._phase_closed:
+            return None
+        self.check_owned_leases()
+        had_host = 'host' in self._phase_children(self.comm)
+        try:
+            return self.comm.Close()
+        finally:
+            self._retired_phases.append(self.comm)
+            self._had_host_lease = self._had_host_lease or had_host
+            self._phase_closed = True
+            self.check_owned_leases()
+
+    def open_new_phase(self):
+        if not self.app.canonical_collapse:
+            return None
+        if not self._phase_closed:
+            raise FixtureRefused('cannot open a new connection phase while the active phase is open')
+        self.check_owned_leases()
+        previous_state = self._phase_state(self._retired_phases[-1]) if self._retired_phases else None
+        fresh = self._new_plc()
+        if previous_state is not None:
+            fresh_state = self._phase_state(fresh)
+            for attr in ('_fraktal_gateway_executable', '_fraktal_gateway_sha256', '_fraktal_gateway_directory'):
+                val = getattr(previous_state, attr, None)
+                if isinstance(val, (str, Path)):
+                    setattr(fresh_state, attr, val)
+        self.comm = fresh
+        self._phase_closed = False
+        try:
+            self.guard()
+            if self._had_host_lease:
+                from fraktal_ab_harness_documents import restore_configuration
+                restore_configuration(self, self.app)
+        except BaseException:
+            try:
+                fresh.Close()
+            finally:
+                self._retired_phases.append(fresh)
+                self._phase_closed = True
+            raise
+
+    def open_observer(self):
+        if not self.app.canonical_collapse:
+            return None
+        self.check_owned_leases()
+        obs_plc = self._new_plc()
+        observer = Guarded(obs_plc, self.serial, self.app, writable=False, plc_factory=self._plc_factory)
+        try:
+            observer.guard()
+        except BaseException:
+            obs_plc.Close()
+            raise
+        return observer
+
+    def Close(self):
+        return self.comm.Close()
+
+    def Read(self, *args, **kwargs):
+        if self._phase_closed:
+            raise FixtureRefused('fixture connection phase is closed')
+        return self.comm.Read(*args, **kwargs)
+
     def guard(self):
+        if self._phase_closed:
+            raise FixtureRefused('fixture connection phase is closed')
+        if self.app.canonical_collapse:
+            self.check_owned_leases()
         answer = self.comm.GetDeviceProperties()
         value = answer.Value
         if (answer.Status != 'Success' or value is None
@@ -95,16 +215,21 @@ class Run:
         self.codes = tuple(m.code for m in app.models)
 
     def command(self, kind, **arguments):
-        answer = px.command(self.comm, kind, settle=4, **arguments)
+        answer = (views.command(self.comm, kind, app=self.app, settle=4, **arguments)
+                  if self.app.canonical_collapse else px.command(self.comm, kind, settle=4, **arguments))
         if not answer['accepted']:
             raise FixtureRefused(f'mailbox refused command {kind}, diagnostic key {answer["diagnosticKey"]}')
         return answer
 
     def unit(self):
-        value = px.read_unit(self.comm)
+        value = views.read_unit(self.comm, app=self.app) if self.app.canonical_collapse else px.read_unit(self.comm)
         if value is None:
             raise FixtureRefused('Unit read failed')
         return value
+
+    def module(self, name):
+        return (views.read_module(self.comm, name, app=self.app)
+                if self.app.canonical_collapse else px.read_module(self.comm, name))
 
     def wait(self, test, label, timeout=8):
         deadline = time.monotonic() + timeout
@@ -156,6 +281,12 @@ class Run:
             medium=str(directory), written=written, health=keeper.health())
 
     def set(self, tag, value):
+        if self.app.canonical_collapse:
+            if tag not in gen.externally_writable(self.app):
+                raise AssertionError(f'tag outside the declared write surface: {tag}')
+            if not px._success(self.comm.Write(tag, value)):
+                raise FixtureRefused('stimulus write failed')
+            return
         if not px.write(self.comm, tag, value):
             raise FixtureRefused('stimulus write failed')
 
@@ -192,10 +323,24 @@ class Run:
         self.wait(settled, 'ready mode '+str(mode))
 
     def begin(self):
-        # The real helper owns two-hand arming and START ordering.
-        answer = px.start_cycle(self.comm, 4)
+        if not self.app.canonical_collapse:
+            # The real helper owns two-hand arming and START ordering.
+            answer = px.start_cycle(self.comm, 4)
+            if not answer['accepted']:
+                raise FixtureRefused('START refused')
+            return
+        self.set(px.TWO_HAND, 0)
+        answer = views.command(self.comm, mb.START, app=self.app, settle=1.0)
         if not answer['accepted']:
             raise FixtureRefused('START refused')
+        self.set(px.TWO_HAND, 0)
+        deadline = time.monotonic() + 4.0
+        while time.monotonic() < deadline:
+            observed = views.read_module(self.comm, 'TwoHand', app=self.app)
+            if observed is None or observed.get('OutImm_Armed') != 0:
+                break
+            time.sleep(0.005)
+        self.set(px.TWO_HAND, 1)
 
     def batch(self):
         return views.host_events(self.comm, app=self.app)
@@ -205,8 +350,8 @@ class Run:
         cursor_path, sink_path = output.with_suffix('.cursor.json'), output.with_suffix('.sink.jsonl')
         self.check(not cursor_path.exists() and not sink_path.exists(), 'sink fixture files already exist')
         batch = self.batch()
-        source = self.evidence['serial'] + ':' + manifest.content_hash(self.app)
-        cursor = host.Cursor(self.app.name, cursor_path, source=source)
+        source = self.evidence['serial'] + ':' + views.manifest_hash(self.app)
+        cursor = Cursor(self.app.name, cursor_path, source=source)
         rejected = []
         def refuse(record):
             rejected.append(record)
@@ -221,7 +366,7 @@ class Run:
                 delivered.append(record)
                 return True
             self.check(cursor.deliver(batch, accept), 'durable sink refused batch')
-        restarted = host.Cursor(self.app.name, cursor_path, source=source)
+        restarted = Cursor(self.app.name, cursor_path, source=source)
         replay = []
         self.check(restarted.deliver(batch, lambda record: replay.append(record) or True)
                    and not replay, 'sink restart repeated acknowledged interval')
@@ -286,7 +431,7 @@ class Run:
         before, baseline = self.boundary()
         self.set(px.HOLD['PressRam'], 1)
         self.begin()
-        self.wait(lambda: (px.read_module(self.comm,'PressRam') or {}).get('OutImm_Held'), 'recoverable hold')
+        self.wait(lambda: (self.module('PressRam') or {}).get('OutImm_Held'), 'recoverable hold')
         present = views.part_identity(self.comm, app=self.app)
         self.check(present['Present'] != 0,'part must be present during hold')
         identity = present['Uid']
@@ -349,20 +494,21 @@ def main(argv=None):
         parser.error('credential file does not identify a declared fixture account')
     from pylogix import PLC
     evidence = dict(schema='fraktal.ab.part-live-fixture',schemaVersion=1,serial=args.expect_serial,
-                    manifestHash=manifest.content_hash(app),rows=[],restored=False)
+                    manifestHash=views.manifest_hash(app),rows=[],restored=False)
     with PLC('127.0.0.1') as native:
         native.ProcessorSlot=0
         native.ConnectionSize=4000
         native.SocketTimeout=5
         comm=Guarded(native,int(args.expect_serial,16),app)
         comm.guard()
-        # Validate all static rows and native type layouts before the first write.
-        projection.read_document(comm)
+        if not app.canonical_collapse:
+            # Validate all static rows and native type layouts before the first write.
+            projection.read_document(comm)
         original={tag:px.read_scalar(comm,tag) for tag in gen.externally_writable(app)}
         if any(v is None for v in original.values()):
             raise FixtureRefused('fixture input snapshot incomplete')
-        original_mode=px.read_unit(comm)['Mode']
-        initial_access=projection.read_access(comm)
+        original_mode=views.read_unit(comm, app=app)['Mode']
+        initial_access=views.read_access(comm, app=app)
         if initial_access['CurrentLevel'] != 0:
             raise FixtureRefused('another controller session is active')
         run=Run(comm,app,account,evidence)
@@ -394,9 +540,12 @@ def main(argv=None):
                 u=run.unit()
                 evidence['restored']=(u['Running']==u['Error']==u['Aborted']==0 and
                     all(px.read_scalar(comm,k)==v for k,v in original.items()) and
-                    projection.read_access(comm)['CurrentLevel']==0)
+                    views.read_access(comm, app=app)['CurrentLevel']==0)
             finally:
-                args.output.write_text(json.dumps(evidence,indent=2)+'\n')
+                try:
+                    comm.Close()
+                finally:
+                    args.output.write_text(json.dumps(evidence,indent=2)+'\n')
     return 0 if evidence['restored'] else 1
 
 

@@ -11,7 +11,9 @@ import time
 
 import fraktal_ab_access as access
 import fraktal_ab_declaration as decl
+import fraktal_ab_fixture_reads as views
 import fraktal_ab_generate as gen
+import fraktal_ab_harness_documents as host_docs
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as manifest
 import fraktal_ab_live as live
@@ -24,8 +26,7 @@ import fraktal_ab_station as station
 
 
 def snapshot(comm, app):
-    raw = px.read_layout(comm,tower.tag(app),tower.members())
-    return tower.project(raw)
+    return views.signal_tower(comm, app=app)
 
 
 def exercise_common(run):
@@ -39,23 +40,41 @@ def exercise_common(run):
     def record(case, **values):
         evidence['rows'].append(dict(case=case,passed=True,**values))
     def refused(case, key):
-        response = px.command(comm,mb.LAMP_TEST,settle=4)
-        run.check(not response['accepted'] and response['diagnosticKey']==manifest.numeric_key(app,key),case)
+        response = (views.command(comm,mb.LAMP_TEST,app=app,settle=4)
+                    if app.canonical_collapse else px.command(comm,mb.LAMP_TEST,settle=4))
+        expected_key = views.numeric_key(comm, key, app=app)
+        run.check(not response['accepted'] and response['diagnosticKey']==expected_key,case)
         record(case,diagnosticKey=response['diagnosticKey'])
-    before = projection.read_document(comm)['liveConfig']
-    medium = live.FileMedium(live.live_directory(app,evidence['serial']))
-    documents = {k:medium.read(k) for k in live.documents(app,before,0)}
-    run.login()
-    run.restore_configuration()
-    after = projection.read_document(comm)['liveConfig']
-    wanted = live.documents(app,after,0)
-    def values(document):
-        return [{key:value for key,value in row.items() if key!='rev'} for row in document[1:]]
-    preserved = {k:documents[k] is not None and values(documents[k])==values(v) for k,v in wanted.items()}
-    run.check(all(preserved.values()),'configuration values were not preserved')
-    record('configuration_preserved',documents=preserved,
-           previousRevisions={k:v[0]['configRev'] for k,v in documents.items()},
-           currentRevision=manifest.config_revision(app))
+    if app.canonical_collapse:
+        seed_docs = host_docs.seed_documents(evidence['serial'], app.name)
+        run.login()
+        run.restore_configuration()
+        session = views._session(comm, app)
+        lease = views.connection_state(comm)._fraktal_host_lease
+        expected, epoch = host_docs.expected_documents(session.reader, session.root)
+        run.check(views.revision(comm, app=app) == epoch
+                  and host_docs.medium_matches(lease.store, expected)
+                  and lease.originals_unchanged(),
+                  'isolated host medium or original seed verification failed')
+        preserved, previous_revs, current_rev = host_docs.compare_seed_documents(seed_docs, expected)
+        run.check(all(preserved.values()), 'configuration values were not preserved')
+        record('configuration_preserved', documents=preserved,
+               previousRevisions=previous_revs, currentRevision=current_rev)
+    else:
+        before = projection.read_document(comm)['liveConfig']
+        medium = live.FileMedium(live.live_directory(app,evidence['serial']))
+        documents = {k:medium.read(k) for k in live.documents(app,before,0)}
+        run.login()
+        run.restore_configuration()
+        after = projection.read_document(comm)['liveConfig']
+        wanted = live.documents(app,after,0)
+        def values(document):
+            return [{key:value for key,value in row.items() if key!='rev'} for row in document[1:]]
+        preserved = {k:documents[k] is not None and values(documents[k])==values(v) for k,v in wanted.items()}
+        run.check(all(preserved.values()),'configuration values were not preserved')
+        record('configuration_preserved',documents=preserved,
+               previousRevisions={k:v[0]['configRev'] for k,v in documents.items()},
+               currentRevision=manifest.config_revision(app))
     run.idle()
     run.command(mb.SET_ACCESS_LEVEL,IntValue=2,TextValue='1')
     run.command(mb.LOGOUT)
@@ -68,30 +87,39 @@ def exercise_common(run):
 def exercise(run):
     comm,app = run.comm,run.app
     record, refused = exercise_common(run)
-    run.command(mb.SET_ACCESS_LEVEL,IntValue=10,TextValue='4')
-    run.command(mb.LOGOUT)
-    # Request arguments cannot replace the configured bounded native timer.
-    run.command(mb.LAMP_TEST,DurationMs=2147483647)
-    record('manual_independent_of_power',currentLevel=0,manualRequired=0,powerRequired=4)
-    active = run.wait(lambda:snapshot(comm,app) if snapshot(comm,app)['SignalTower/TestActive'] else None,'lamp test')
-    run.check(all(active['SignalTower/'+n] for n in tower.OUTPUTS),'test must drive every semantic output')
-    record('all_outputs_active',snapshot=active)
-    refused('active_test_refusal',gen.UNIT_NOT_READY_KEY)
-    run.command(mb.LOGOUT)
-    started = time.monotonic()
-    comm.Close()  # terminate the client connection while native TONR runs
-    disconnected = 3.2  # no controller reads or writes during the complete configured interval
-    time.sleep(disconnected)
-    expired = snapshot(comm,app)
-    elapsed = time.monotonic()-started
-    run.check(not expired['SignalTower/TestActive'] and elapsed < 4.0,
-              'test did not expire within configured duration and acquisition allowance')
-    record('logout_disconnect_timeout',disconnectedSeconds=disconnected,observedSeconds=elapsed,snapshot=expired)
+    observer = comm.open_observer() if app.canonical_collapse else None
+    try:
+        if observer is not None:
+            snapshot(observer, app)
+        run.command(mb.SET_ACCESS_LEVEL,IntValue=10,TextValue='4')
+        run.command(mb.LOGOUT)
+        # Request arguments cannot replace the configured bounded native timer.
+        run.command(mb.LAMP_TEST,DurationMs=2147483647)
+        record('manual_independent_of_power',currentLevel=0,manualRequired=0,powerRequired=4)
+        active = run.wait(lambda:snapshot(comm,app) if snapshot(comm,app)['SignalTower/TestActive'] else None,'lamp test')
+        run.check(all(active['SignalTower/'+n] for n in tower.OUTPUTS),'test must drive every semantic output')
+        record('all_outputs_active',snapshot=active)
+        refused('active_test_refusal',gen.UNIT_NOT_READY_KEY)
+        run.command(mb.LOGOUT)
+        started = time.monotonic()
+        comm.close_phase()  # terminate the client connection while native TONR runs
+        disconnected = 3.2  # no controller reads or writes during the complete configured interval
+        time.sleep(disconnected)
+        expired = snapshot(observer if observer is not None else comm,app)
+        elapsed = time.monotonic()-started
+        run.check(not expired['SignalTower/TestActive'] and elapsed < 4.0,
+                  'test did not expire within configured duration and acquisition allowance')
+        record('logout_disconnect_timeout',disconnectedSeconds=disconnected,observedSeconds=elapsed,snapshot=expired)
+    finally:
+        if observer is not None:
+            observer.Close()
+    if app.canonical_collapse:
+        comm.open_new_phase()
     run.login()
     run.home()
     run.set(px.HOLD['PressRam'],1)
     run.begin()
-    run.wait(lambda:(px.read_module(comm,'PressRam') or {}).get('OutImm_Held'),'hold')
+    run.wait(lambda:(run.module('PressRam') or {}).get('OutImm_Held'),'hold')
     producing = run.wait(lambda:snapshot(comm,app) if snapshot(comm,app)['SignalTower/Green'] else None,'producing indication')
     record('producing',snapshot=producing)
     refused('busy_test_refusal',gen.UNIT_NOT_READY_KEY)
@@ -138,26 +166,31 @@ def main(argv=None):
 
 
 def execute_fixture(args, app, account, *, run_type=fixture.Run,
-                    schema='fraktal.ab.tower-live-fixture', exercise_rows=exercise):
+                    schema='fraktal.ab.tower-live-fixture', exercise_rows=exercise, plc_factory=None):
     """Shared exact-target deployment regressions and restoration owner."""
     if not args.execute_fixture or args.output.exists():
         raise fixture.FixtureRefused('explicit arm and new evidence output required')
-    from pylogix import PLC
+    if plc_factory is None:
+        from pylogix import PLC
+        plc_factory = lambda: PLC('127.0.0.1')
     evidence=dict(schema=schema,schemaVersion=1,
-                  serial=args.expect_serial,manifestHash=manifest.content_hash(app),rows=[],restored=False)
-    with PLC('127.0.0.1') as native:
+                  serial=args.expect_serial,manifestHash=views.manifest_hash(app),rows=[],restored=False)
+    native = plc_factory()
+    comm = None
+    try:
         native.ProcessorSlot=0
         native.ConnectionSize=4000
         native.SocketTimeout=5
-        comm=fixture.Guarded(native,int(args.expect_serial,16),app)
+        comm=fixture.Guarded(native,int(args.expect_serial,16),app,plc_factory=plc_factory)
         comm.guard()
-        projection.read_document(comm)
+        if not app.canonical_collapse:
+            projection.read_document(comm)
         original={tag:px.read_scalar(comm,tag) for tag in gen.externally_writable(app)}
         if any(v is None for v in original.values()):
             raise fixture.FixtureRefused('fixture input snapshot incomplete')
-        mode=px.read_unit(comm)['Mode']
-        initial_access=projection.read_access(comm)
-        original_policy=initial_access['Required'][:]
+        mode=views.read_unit(comm, app=app)['Mode']
+        initial_access=views.read_access(comm, app=app)
+        original_policy=list(initial_access['Required'])
         if initial_access['CurrentLevel']!=0:
             raise fixture.FixtureRefused('another controller session is active')
         run=run_type(comm,app,account,evidence)
@@ -179,11 +212,16 @@ def execute_fixture(args, app, account, *, run_type=fixture.Run,
             raise
         finally:
             try:
+                if app.canonical_collapse:
+                    if getattr(comm, '_phase_closed', False) is True:
+                        comm.open_new_phase()
+                    else:
+                        comm.check_owned_leases()
                 run.idle()
                 run.command(mb.SET_MODE,IntValue=mode)
                 for tag,value in original.items():
                     run.set(tag,value)
-                if projection.read_access(comm)['CurrentLevel']!=account['level']:
+                if views.read_access(comm, app=app)['CurrentLevel']!=account['level']:
                     run.login()
                 for gate in (2,10):
                     run.command(mb.SET_ACCESS_LEVEL,IntValue=gate,TextValue=str(original_policy[gate]))
@@ -193,15 +231,35 @@ def execute_fixture(args, app, account, *, run_type=fixture.Run,
                     run.wait(lambda:not snapshot(comm,app)['SignalTower/TestActive'],'test expiry during cleanup',timeout=35)
                     final=snapshot(comm,app)
                 u=run.unit()
-                evidence['final']=dict(tower=final,unit={k:u[k] for k in ('Mode','Running','Error','ErrorID','Aborted')})
-                evidence['restored']=(u['Running']==u['Error']==u['Aborted']==0
+                after_access=views.read_access(comm, app=app)
+                final_record=dict(tower=final,unit={k:u[k] for k in ('Mode','Running','Error','ErrorID','Aborted')})
+                restored_ok=(u['Running']==u['Error']==u['Aborted']==0
                     and (final is None or not final['SignalTower/TestActive'])
                     and all(px.read_scalar(comm,k)==v for k,v in original.items())
-                    and projection.read_access(comm)['CurrentLevel']==0
-                    and projection.read_access(comm)['Required']==original_policy)
-                evidence['policyRestored']=projection.read_access(comm)['Required']==original_policy
+                    and after_access['CurrentLevel']==0
+                    and list(after_access['Required'])==original_policy)
+                if app.canonical_collapse:
+                    comm.check_owned_leases()
+                    originals_ok = comm.originals_unchanged()
+                    active_host = getattr(views.connection_state(comm), '_fraktal_host_lease', None)
+                    docs_ok = True
+                    if active_host is not None:
+                        host_docs.ready(comm, app, active_host)
+                        docs_ok = active_host.originals_unchanged()
+                    final_record['originalMediumUnchanged'] = originals_ok and docs_ok
+                    final_record['liveDocumentsVerified'] = active_host is not None and docs_ok
+                    restored_ok = restored_ok and originals_ok and docs_ok
+                evidence['final']=final_record
+                evidence['restored']=restored_ok
+                evidence['policyRestored']=list(after_access['Required'])==original_policy
             finally:
                 args.output.write_text(json.dumps(evidence,indent=2)+'\n',encoding='utf-8')
+    finally:
+        try:
+            if comm is not None:
+                comm.Close()
+        finally:
+            native.Close()
     return 0 if evidence['restored'] else 1
 
 
