@@ -1666,7 +1666,17 @@ Uncollapsed baseline profiles remain 100% byte-identical. Pre-collapse schema id
 passes with zero uncovered or unused declarations across all five gated declarations.
 All 2,744 AB tests, 36 root tests, Dart manifest tests, and strict consistency gate (0 errors,
 0 warnings) pass. C6 is complete.
-Next: Increment C7 (R5: a production declaration selects one AUTO rendition), then native S6-Q on Echo.
+
+**C7 R5 production single-rendition selection done offline, 2026-11-08** ([evidence](Evidence/AB_S6_COLLAPSE_C7_RENDITION_OFFLINE_2026-11-08.md)).
+Requirement R5 is fulfilled without wire layout or logic disruption: production declarations
+(`press_demo`, `press_echo38`, `station_template`) select exactly one rendition for AUTO and each
+chain (`not auto.multi_rendition`), emitting no `FRK_{app.name}_RenditionSelect` tag and saving 4
+routines (66 -> 62), 96,719 bytes L5X code size, and 3,313 ST tokens (46,868 -> 43,555). Acceptance
+declarations retain all three renditions (`ST`, `SFC`, `LD`) for the parity gate. Pre-collapse schema
+identity passes with zero uncovered or unused declarations across all five gated declarations.
+All 2,748 AB tests, 36 root tests, Dart manifest tests, and strict consistency gate (0 errors, 0 warnings) pass.
+WP6.6 context collapse (C0-C7) is complete offline.
+Next: Native S6-Q live controller qualification on Echo under standing O3.
 
 **WP6.7 — Delete and update the gates.**
 
