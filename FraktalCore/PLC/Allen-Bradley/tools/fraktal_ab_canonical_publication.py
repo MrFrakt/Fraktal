@@ -115,6 +115,7 @@ def root_type(app):
 
 
 def header_type(app):
+    if app.canonical_collapse:return f"FRK_T_{app.name}CanonicalManifestV612"
     if app.canonical_host_services:return f"FRK_T_{app.name}CanonicalManifestV611"
     if app.canonical_owner_revisions:return f"FRK_T_{app.name}CanonicalManifestV610"
     if app.canonical_config_read_view:return f"FRK_T_{app.name}CanonicalManifestV68"
@@ -249,10 +250,12 @@ def schema(app):
         result[header_type(app)] += (Member('ServicesCount','DINT'),Member('ServicesCapacity','DINT'))
     if app.canonical_publication_stage>=8:
         import fraktal_ab_config_provider as provider
-        result[PREFIX+'ServiceV63']=(Member('Kind','DINT'),Member('Version','DINT'),Member('BuildRevision','DINT'),
-            Member('RequestSymbol',string_type(80)),Member('RequestMember',string_type(80)),Member('ResponseSymbol',string_type(80)))
-        result[header_type(app)]+=(Member('ServicesCount','DINT'),Member('ServicesCapacity','DINT'),
-            Member('Services',PREFIX+'ServiceV63',count=len(provider.services(app))))
+        service_rows=provider.services(app)
+        result[header_type(app)]+=(Member('ServicesCount','DINT'),Member('ServicesCapacity','DINT'))
+        if service_rows:
+            result[PREFIX+'ServiceV63']=(Member('Kind','DINT'),Member('Version','DINT'),Member('BuildRevision','DINT'),
+                Member('RequestSymbol',string_type(80)),Member('RequestMember',string_type(80)),Member('ResponseSymbol',string_type(80)))
+            result[header_type(app)]+=(Member('Services',PREFIX+'ServiceV63',count=len(service_rows)),)
     if app.canonical_publication_stage>=12:
         product_rows=products(app)
         result[header_type(app)]+=(Member('DataProductsCount','DINT'),Member('DataProductsCapacity','DINT'))
@@ -433,6 +436,7 @@ def manifest_values(app, definitions=None):
     if app.canonical_config_read_view:minor=__import__('fraktal_ab_config_read_view').MINOR
     if app.canonical_owner_revisions:minor=__import__('fraktal_ab_owner_read_bindings').MINOR
     if app.canonical_host_services:minor=__import__('fraktal_ab_host_services').MINOR
+    if app.canonical_collapse:minor=wire.COLLAPSE_MINOR
     host_rows=__import__('fraktal_ab_host_services').rows(app) if app.canonical_host_services else []
     binding_rows=[]
     if app.canonical_publication_stage>=5:
@@ -474,7 +478,7 @@ def manifest_values(app, definitions=None):
                       FragmentRevision=0,BindingsCount=0,BindingsCapacity=0,ServicesCount=0,ServicesCapacity=0)
     if app.canonical_publication_stage>=5:
         header.update(FragmentRevision=0,BindingsCount=len(binding_rows),BindingsCapacity=len(binding_rows),Bindings=binding_rows)
-    if app.canonical_publication_stage>=8:header.update(ServicesCount=len(provider.services(app)),ServicesCapacity=len(provider.services(app)),Services=provider.services(app))
+    if app.canonical_publication_stage>=8:header.update(ServicesCount=len(service_rows),ServicesCapacity=len(service_rows),**({'Services':service_rows} if service_rows else {}))
     if minor>=wire.PRODUCT_MINOR:header.update(DataProductsCount=len(product_rows),DataProductsCapacity=len(product_rows),DataProducts=product_rows)
     if minor>=wire.COMMAND_MINOR:header.update(CommandBindingsCount=len(command_rows),CommandBindingsCapacity=len(command_rows),CommandBindings=command_rows,CommandOperationsCount=len(command_operations),CommandOperationsCapacity=len(command_operations),CommandOperations=command_operations)
     if app.canonical_read_coherence:header.update(ReadCoherenceBindingsCount=len(coherence_rows),ReadCoherenceBindingsCapacity=len(coherence_rows),ReadCoherenceBindings=coherence_rows)

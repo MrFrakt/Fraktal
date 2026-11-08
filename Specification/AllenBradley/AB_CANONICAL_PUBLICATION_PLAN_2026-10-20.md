@@ -1644,14 +1644,16 @@ imports reported by census (`harness_census_01`). All check and wait predicates
 are preserved verbatim. Zero PLC/L5X/Dart changes; all three collapsed profiles
 regenerate byte-identically. C5b3 is complete.
 
-C5 continues in two dependent increments without changing its exit gate:
-remaining HX fact/read/command migrations and the public host-adapter/set
-lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The
-press's capture client now has the read-view and owner-revision publications;
-its Phase 6 set client and shared restore branch now use the host-service publication
-and Dart adapter lifecycle. Other HX consumers still need migration. A shared
-command facade alone does not qualify a whole legacy harness. C6/C7 and
-integrated native S6-Q remain after C5.
+**C5c Frame/staged endpoint retirement and V6.12 done offline, 2026-11-07** ([evidence](Evidence/AB_S6_COLLAPSE_C5C_V612_OFFLINE_2026-11-07.md)).
+Legacy Frame ingress and staged endpoints (`ConfigSet`, `Frame`, `ConfigProvider`)
+are retired from collapsed profiles (`app.canonical_collapse=True`). `FRK_{app.name}_HmiRequest`
+is set to private working buffer (`ExternalAccess="None"`). Manifest wire schema minor
+increments to V6.12 (`COLLAPSE_MINOR = 12`) with `ServicesCount = 0`, `ServicesCapacity = 0`,
+and empty `Services` table; `HostServiceBindings` from V6.11 is retained in full. Generic
+Python and Dart readers enforce empty services for minor >= 12. Schema identity passes with
+zero uncovered or unused declarations across all five gated declarations. All 2,742 AB tests,
+36 root tests, and strict consistency gate (0 errors, 0 warnings) pass. C5 is complete.
+Next: C6/C7 canonical integration and baseline switch, then native S6-Q on Echo.
 
 **WP6.7 — Delete and update the gates.**
 

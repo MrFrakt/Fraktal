@@ -505,3 +505,31 @@ regenerate byte-identically and reuse their 60%/54% Capacity and C5b2 44-test
 Dart qualifications. Next in C5b3: `fraktal_ab_press_parity.py`,
 `fraktal_ab_phase1_execute.py`..`fraktal_ab_phase4_execute.py` and
 `fraktal_ab_s3_execute.py`, then C5c/V6.12, C6/C7 and native S6-Q.
+
+## C5c Frame/staged endpoint retirement and V6.12 publication - 2026-11-07
+
+Increment C5c completes the retirement of legacy staged endpoints and publishes manifest wire schema minor 12 (V6.12) offline, qualifying the changes across all gates and schema identity declarations with zero controller operations (see [C5c evidence](Evidence/AB_S6_COLLAPSE_C5C_V612_OFFLINE_2026-11-07.md)).
+
+- **V6.12 Wire Protocol**:
+  - `COLLAPSE_MINOR = 12`, `COLLAPSE_HEADER = HOST_HEADER`.
+  - Manifest header sets `ServicesCount = 0`, `ServicesCapacity = 0`, and the `Services` member table is empty (`Services = []`).
+  - `HostServiceBindings` from V6.11 is retained in full.
+  - Generic Python reader (`fraktal_ab_canonical_reader.py`) and Flutter/Dart client (`cip_manifest.dart`) decode minor 12 and enforce that `Services` is empty.
+- **Retirement of Frame and Legacy Staged Endpoints** on collapsed profiles (`app.canonical_collapse=True`):
+  - In `fraktal_ab_mailbox.py`: `ConfigSet`, `Frame`, and `ConfigProvider` UDT members are omitted from `FRK_T_{app.name}HmiRequestV4`. Frame data types and frame tags are omitted.
+  - `request_tag_name(app)` (`FRK_{app.name}_HmiRequest`) is retired from the public read/write surface and set to private working buffer (`ExternalAccess="None"`).
+  - In `fraktal_ab_config_provider.py`: `services(app)` returns `[]`.
+  - In `fraktal_ab_canonical_commands.py`: `wipe_transport(app)` omits Frame words wipe. `ingress(app)` streamlines to direct `{commit_tag(app)}` handling without legacy Frame decoding or collision logic.
+- **Schema Identity**:
+  - Uncollapsed baseline profiles (`fraktal_ab_genealogy_s6_host_demo`, `fraktal_ab_press_canonical_echo38`) remain byte-identical with zero diffs.
+  - Collapsed profiles pass schema identity with zero uncovered and zero unused differences:
+    - `fraktal_ab_genealogy_s6_collapse_demo`: SHA-256 `7DBF0F40112F6B12409398FFA85B6EE47326A8EF5DEA3BE80305E2F7E49231BC`, 5,939,681 bytes, 72 routines, 53,970 ST tokens.
+    - `fraktal_ab_press_s6_collapse_echo38`: SHA-256 `5D0C329D6A1CA51DE519B4B4DE161A6C1996EB53BB76AE94FB7500305601C726`, 5,448,424 bytes, 66 routines, 46,868 ST tokens.
+    - `fraktal_ab_press_s6_shelving_echo38`: SHA-256 `36D9572B2E198A97B7A34AD9B89B7797F7024A4BD682A8A46952CA57DBB50C18`, 5,448,644 bytes, 66 routines, 46,890 ST tokens.
+- **Gates & Capacity**:
+  - 2,742 AB tests (`ab_full_suite_02`), 36 root tests (`root_tests_01`), 8 dedicated collapse tests (`test_v612_03`), 2 Dart manifest tests (`flutter_test_01`, `flutter_test_v612`), 10 schema identity tests across 5 declarations (`schema_identity_01`), and all root spec/contract/consistency gates passed (0 errors, 0 warnings).
+  - Both v38 press profiles build and read back on both targets and fit within Studio Capacity.
+  - Excluded owner edits in `.vscode/settings.json`, Siemens Manifest README, and root `analysis_options.yaml` remain unmodified and excluded.
+
+C5 is complete with C5c. Next: C6 / C7 (Canonical integration and baseline switch), followed by native S6-Q on Echo under O3.
+

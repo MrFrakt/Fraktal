@@ -684,7 +684,7 @@ def _record_xml(app, type_name: str, members, access: str, comment: str) -> str:
 def data_types(app) -> list[str]:
     """The mailbox's string types and its two contract records."""
     import fraktal_ab_mailbox_frame as frame
-    blocks = frame.data_types(app)
+    blocks = [] if app.canonical_collapse else frame.data_types(app)
     for length in string_lengths():
         name = string_type_name(app, length)
         blocks.append(
@@ -698,16 +698,17 @@ def data_types(app) -> list[str]:
     blocks.append(_record_xml(
         app, request_type_name(app), REQUEST_MEMBERS, "Read/Write",
         "Core 3.10/14 command mailbox: arguments first, Sequence last"))
-    if app.config_sets:
-        import fraktal_ab_sets as sets
+    if not app.canonical_collapse:
+        if app.config_sets:
+            import fraktal_ab_sets as sets
+            blocks[-1] = blocks[-1].replace('</Members>',
+                _member_xml('ConfigSet', sets.request_name(), 'Core 3.8b staged transaction; Sequence commits last', 'Read/Write') + '\n</Members>')
         blocks[-1] = blocks[-1].replace('</Members>',
-            _member_xml('ConfigSet', sets.request_name(), 'Core 3.8b staged transaction; Sequence commits last', 'Read/Write') + '\n</Members>')
-    blocks[-1] = blocks[-1].replace('</Members>',
-        _member_xml('Frame', frame.type_name(app), 'S9 bounded operation and arguments', 'Read/Write') + '\n</Members>')
-    if app.canonical_publication_stage>=8:
-        import fraktal_ab_config_provider as provider
-        blocks[-1]=blocks[-1].replace('</Members>',
-            _member_xml('ConfigProvider',provider.INPUT,'Versioned validated store response','Read/Write')+'\n</Members>')
+            _member_xml('Frame', frame.type_name(app), 'S9 bounded operation and arguments', 'Read/Write') + '\n</Members>')
+        if app.canonical_publication_stage>=8:
+            import fraktal_ab_config_provider as provider
+            blocks[-1]=blocks[-1].replace('</Members>',
+                _member_xml('ConfigProvider',provider.INPUT,'Versioned validated store response','Read/Write')+'\n</Members>')
     blocks.append(_record_xml(
         app, response_type_name(app), RESPONSE_MEMBERS, "Read Only",
         "Core 3.10/14 command answer: AckSequence set last"))
@@ -731,29 +732,30 @@ def _structure_tag(app, tag_name: str, type_name: str, members,
         else:
             parts.append(f'<DataValueMember Name="{name}" DataType="DINT" '
                          f'Radix="Decimal" Value="0"/>')
-    if app.config_sets and type_name == request_type_name(app):
-        import fraktal_ab_sets as sets
-        import fraktal_ab_generate as gen
-        # Reuse the all-DINT decorated serializer, including array dimensions.
-        nested = gen._structure_tag('unused', sets.request_name(), sets.request_members())
-        start = nested.index('<Structure DataType=')
-        end = nested.index('</Structure>', start) + len('</Structure>')
-        payload = nested[start:end].replace('<Structure ', '<StructureMember Name="ConfigSet" ', 1)
-        parts.append(payload.replace('</Structure>', '</StructureMember>'))
-    if type_name == request_type_name(app):
-        import fraktal_ab_mailbox_frame as frame
-        import fraktal_ab_generate as gen
-        nested = gen._structure_tag('unused', frame.type_name(app), frame.members(app))
-        start = nested.index('<Structure DataType=')
-        end = nested.index('</Structure>', start) + len('</Structure>')
-        payload = nested[start:end].replace('<Structure ', '<StructureMember Name="Frame" ', 1)
-        parts.append(payload.replace('</Structure>', '</StructureMember>'))
-    if app.canonical_publication_stage>=8 and type_name==request_type_name(app):
-        import fraktal_ab_config_provider as provider
-        import fraktal_ab_generate as gen
-        nested=gen._structure_tag('unused',provider.INPUT,provider.native_members())
-        start=nested.index('<Structure DataType=');end=nested.index('</Structure>',start)+len('</Structure>')
-        parts.append(nested[start:end].replace('<Structure ','<StructureMember Name="ConfigProvider" ',1).replace('</Structure>','</StructureMember>'))
+    if not app.canonical_collapse:
+        if app.config_sets and type_name == request_type_name(app):
+            import fraktal_ab_sets as sets
+            import fraktal_ab_generate as gen
+            # Reuse the all-DINT decorated serializer, including array dimensions.
+            nested = gen._structure_tag('unused', sets.request_name(), sets.request_members())
+            start = nested.index('<Structure DataType=')
+            end = nested.index('</Structure>', start) + len('</Structure>')
+            payload = nested[start:end].replace('<Structure ', '<StructureMember Name="ConfigSet" ', 1)
+            parts.append(payload.replace('</Structure>', '</StructureMember>'))
+        if type_name == request_type_name(app):
+            import fraktal_ab_mailbox_frame as frame
+            import fraktal_ab_generate as gen
+            nested = gen._structure_tag('unused', frame.type_name(app), frame.members(app))
+            start = nested.index('<Structure DataType=')
+            end = nested.index('</Structure>', start) + len('</Structure>')
+            payload = nested[start:end].replace('<Structure ', '<StructureMember Name="Frame" ', 1)
+            parts.append(payload.replace('</Structure>', '</StructureMember>'))
+        if app.canonical_publication_stage>=8 and type_name==request_type_name(app):
+            import fraktal_ab_config_provider as provider
+            import fraktal_ab_generate as gen
+            nested=gen._structure_tag('unused',provider.INPUT,provider.native_members())
+            start=nested.index('<Structure DataType=');end=nested.index('</Structure>',start)+len('</Structure>')
+            parts.append(nested[start:end].replace('<Structure ','<StructureMember Name="ConfigProvider" ',1).replace('</Structure>','</StructureMember>'))
     return (f'<Tag Name="{tag_name}" TagType="Base" DataType="{type_name}" '
             f'Constant="false" ExternalAccess="{access}">\n'
             f'<Data Format="Decorated">\n'
@@ -771,9 +773,11 @@ def tags(app) -> list[str]:
     not somewhere a client puts anything.
     """
     import fraktal_ab_mailbox_frame as frame
-    return frame.tags(app) + [
+    frame_tags = [] if app.canonical_collapse else frame.tags(app)
+    req_access = "None" if app.canonical_collapse else "Read/Write"
+    return frame_tags + [
         _structure_tag(app, request_tag_name(app), request_type_name(app),
-                       REQUEST_MEMBERS, "Read/Write"),
+                       REQUEST_MEMBERS, req_access),
         _structure_tag(app, response_tag_name(app), response_type_name(app),
                        RESPONSE_MEMBERS, "Read Only"),
         # The handler's retained memory of the last Sequence it answered. Not a

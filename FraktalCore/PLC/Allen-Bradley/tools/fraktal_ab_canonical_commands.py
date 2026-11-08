@@ -154,8 +154,10 @@ def wipe_string(app,value,width):
 def wipe_transport(app):
     import fraktal_ab_mailbox_frame as frame
     w=work_tag(app);q=mb.request_tag_name(app);p=payload_tag(app)+'.Arguments';s=sample_tag(app)+'.Arguments'
-    lines=[f'FOR {w}.Index := 0 TO {frame.word_count(app)-1} DO',f'{q}.Frame.Words[{w}.Index] := 0;',
-           f'{frame.sample_tag(app)}.Words[{w}.Index] := 0;','END_FOR;']
+    lines=[]
+    if not app.canonical_collapse:
+        lines=[f'FOR {w}.Index := 0 TO {frame.word_count(app)-1} DO',f'{q}.Frame.Words[{w}.Index] := 0;',
+               f'{frame.sample_tag(app)}.Words[{w}.Index] := 0;','END_FOR;']
     for base in (p,s):
         for n in ('Secret','TextValue'):lines+=wipe_string(app,base+'.'+n,binding.WIDTHS[n])
     return lines
@@ -171,6 +173,38 @@ def ingress(app):
     import fraktal_ab_mailbox_frame as frame
     import fraktal_ab_host_services as host
     w=work_tag(app);q=mb.request_tag_name(app);s=sample_tag(app);a=s+'.Arguments'
+    if app.canonical_collapse:
+        lines=[*host.before_command_ingress(app),f'{w}.Pending := 0;',f'{w}.NewCore := 0;',f'{w}.NewLegacy := 0;',f'{w}.Error := 0;',
+            f'{w}.CoreSeen := {commit_tag(app)};',
+            f'IF S:FS OR ({w}.Armed = 0) THEN',f'IF {w}.Armed = 0 THEN {w}.CoreSerial := {w}.CoreSeen; END_IF;',
+            f'{w}.LastCoreSeen := {w}.CoreSeen;',f'{w}.Armed := 1;',
+            *wipe_transport(app),*wipe_string(app,q+'.Secret',32),*wipe_string(app,q+'.TextValue',255),'ELSE',
+            f'IF {w}.CoreSeen <> {w}.LastCoreSeen THEN',f'{w}.NewCore := 1;',f'{w}.LastCoreSeen := {w}.CoreSeen;',
+            f'{w}.Upper := ({w}.CoreSeen AND 2147418112) / 65536;',
+            f'IF {w}.CoreSeen < 0 THEN {w}.Upper := {w}.Upper + 32768; END_IF;',
+            f'{w}.PriorUpper := ({w}.CoreSerial AND 2147418112) / 65536;',
+            f'IF {w}.CoreSerial < 0 THEN {w}.PriorUpper := {w}.PriorUpper + 32768; END_IF;',
+            f'{w}.Lower := ({w}.CoreSeen AND 65535) - ({w}.CoreSerial AND 65535);',
+            f'{w}.Upper := {w}.Upper - {w}.PriorUpper;',
+            f'IF {w}.Lower < 0 THEN {w}.Upper := {w}.Upper - 1; END_IF;',
+            f'IF {w}.Upper < 0 THEN {w}.Upper := {w}.Upper + 65536; END_IF;',
+            f'IF ({w}.Upper >= 32768) OR (({w}.Upper = 0) AND ({w}.Lower = 0)) THEN {w}.Error := {STALE_SERIAL};',
+            f'ELSE {w}.CoreSerial := {w}.CoreSeen; END_IF;','END_IF;',
+            f'IF {w}.NewCore <> 0 THEN',f'{w}.Pending := 1;',
+            f'{w}.LegacyAck := {mb.response_tag_name(app)}.AckSequence;',
+            f'{w}.OwnerSequence := {w}.CoreSeen;',
+            f'IF {w}.Error = 0 THEN',f'CPS({payload_tag(app)},{s},1);',
+            f'IF ({s}.SchemaVersion <> {binding.VERSION}) OR ({s}.ManifestRevision <> {pub.header_tag(app)}.ConfigRevision) OR',
+            f'({s}.StagedSequence <> {w}.CoreSeen) OR ({commit_tag(app)} <> {w}.CoreSeen) THEN {w}.Error := 1; END_IF;']
+        for n,width in binding.WIDTHS.items():
+            lines += [f'IF ({a}.{n}.LEN < 0) OR ({a}.{n}.LEN > {width}) THEN {w}.Error := 1; END_IF;']
+        lines += [f'IF {w}.Error = 0 THEN']
+        for n in binding.ARGUMENTS:
+            if n in binding.WIDTHS:lines+=copy_string(app,q+'.'+n,a+'.'+n)
+            elif n=='BoolValue':lines += [f'IF {a}.BoolValue THEN {q}.BoolValue := 1; ELSE {q}.BoolValue := 0; END_IF;']
+            else:lines.append(f'{q}.{n} := {a}.{n};')
+        lines += [f'JSR({routine(app,"Resolve")},0);','END_IF;','END_IF;',*wipe_transport(app),'END_IF;','END_IF;']
+        return lines+host.after_command_ingress(app)
     lines=[*host.before_command_ingress(app),f'{w}.Pending := 0;',f'{w}.NewCore := 0;',f'{w}.NewLegacy := 0;',f'{w}.Error := 0;',
         f'{w}.LegacySeen := {q}.Sequence;',f'{w}.CoreSeen := {commit_tag(app)};',
         f'IF S:FS OR ({w}.Armed = 0) THEN',f'IF {w}.Armed = 0 THEN {w}.CoreSerial := {w}.CoreSeen; END_IF;',

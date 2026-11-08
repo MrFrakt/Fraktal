@@ -171,7 +171,7 @@ final class CipManifest {
   factory CipManifest.fromPhysical(Map<String, Object?> record) {
     final minor = record['SchemaMinor'];
     _require(
-        (const {4, 5, 6, 7, 8, 10, 11}.contains(minor) && minor is int) &&
+        (const {4, 5, 6, 7, 8, 10, 11, 12}.contains(minor) && minor is int) &&
             record['Magic'] == 0x46524b36,
         'Unsupported canonical manifest.');
     final version = minor as int;
@@ -256,13 +256,15 @@ final class CipManifest {
     _require(
         d['schemaMajor'] == 6 &&
             minor is int &&
-            const {4, 5, 6, 7, 8, 10, 11}.contains(minor) &&
+            const {4, 5, 6, 7, 8, 10, 11, 12}.contains(minor) &&
             d['valid'] == true &&
             d['truncated'] == false &&
             _int(d['publicationStage'], 2, 0x7fffffff) &&
             _int(d['fragmentRevision'], 0, 0x7fffffff),
         'Invalid manifest version/state.');
     final version = minor as int;
+    if (version >= 12)
+      _require((d['services'] as List).isEmpty, 'V6.12 requires empty services.');
     final keys = <String>{
       'schemaMajor',
       'schemaMinor',

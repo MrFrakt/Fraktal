@@ -24,6 +24,8 @@ def routine_name(app):return f'FRK_{app.name}_ConfigProviderResponse'
 
 
 def services(app):
+    if app.canonical_collapse:
+        return []
     import fraktal_ab_mailbox as mailbox
     import fraktal_ab_canonical_config as config
     import fraktal_ab_manifest as manifest

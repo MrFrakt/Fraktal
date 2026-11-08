@@ -161,7 +161,7 @@ def snapshot(capture):
             or manifest.get("truncated") is not False:
         raise ValueError("unsupported, invalid or truncated canonical manifest")
     minor = manifest.get('schemaMinor', 0)
-    if type(minor) is not int or minor not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11):
+    if type(minor) is not int or minor not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12):
         raise ValueError('unsupported canonical manifest minor version')
     if minor<2 and any(key in manifest for key in ('bindings','fragmentRevision')):
         raise ValueError('record bindings require manifest V6.2')
@@ -170,6 +170,7 @@ def snapshot(capture):
     if minor<7 and 'readCoherenceBindings' in manifest:raise ValueError('read-coherence bindings require V6.7')
     if minor<10 and 'ownerReadBindings' in manifest:raise ValueError('owner-read bindings require V6.10')
     if minor<11 and 'hostServiceBindings' in manifest:raise ValueError('host-service bindings require V6.11')
+    if minor>=12 and manifest.get('services'):raise ValueError('V6.12 requires empty services')
     token = tuple(coherence_token(manifest))
     if not isinstance(token[0], str) or not token[0] or type(token[1]) is not int:
         raise ValueError("invalid manifest coherence token")

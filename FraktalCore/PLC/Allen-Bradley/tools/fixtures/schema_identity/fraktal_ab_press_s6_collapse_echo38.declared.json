@@ -205,9 +205,24 @@
   "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
  },
  {
-  "pattern": "FRK_Press_CanonicalManifest.Data.Services*.BuildRevision",
+  "pattern": "FRK_Press_CanonicalManifest.Data.Services",
+  "change": "removed",
+  "reason": "C5c (V6.12): staged services table retired from collapsed profiles"
+ },
+ {
+  "pattern": "FRK_Press_CanonicalManifest.Data.ServicesCapacity",
   "change": "changed",
-  "reason": "C1 (R3): the V6.3 staged Services rows carry the V5 build revision (C5 removes them)"
+  "reason": "C5c (V6.12): staged services capacity set to 0"
+ },
+ {
+  "pattern": "FRK_Press_CanonicalManifest.Data.ServicesCount",
+  "change": "changed",
+  "reason": "C5c (V6.12): staged services count set to 0"
+ },
+ {
+  "pattern": "FRK_T_CanonicalServiceV63",
+  "change": "removed",
+  "reason": "C5c (V6.12): staged services table retired from collapsed profiles"
  },
  {
   "pattern": "FRK_Press_CanonicalManifest.Data.DataProducts[[]1]",
@@ -505,13 +520,53 @@
   "reason": "C5b2: enable the approved V6.11 host jobs; operator set commands no longer require the legacy client staging path"
  },
  {
-  "pattern": "FRK_T_PressCanonicalManifestV611",
+  "pattern": "FRK_T_PressCanonicalManifestV612",
   "change": "added",
-  "reason": "C5b2: enable the approved V6.11 host jobs; operator set commands no longer require the legacy client staging path"
+  "reason": "C5c (V6.12): manifest header UDT V6.12 reflects empty services table and retains host services"
  },
  {
   "pattern": "FRK_T_PressFixtureV2_2A276D94",
   "change": "added",
   "reason": "C5b3 (O10): append the 27 policy and 39 Phase 5 metrics/report/run-style fields; exact native extents and original case predicates retained"
+ },
+ {
+  "pattern": "FRK_Press_HmiRequest",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy staged request tag retired to private working buffer (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_T_PressHmiRequestV4",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy staged request type unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_ConfigSetRequestV1",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy staged endpoints retired from collapsed profiles"
+ },
+ {
+  "pattern": "FRK_T_ConfigProviderRequestV1",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy staged endpoints retired from collapsed profiles"
+ },
+ {
+  "pattern": "FRK_T_PressHmiFrameV1",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy Frame ingress retired from collapsed profiles"
+ },
+ {
+  "pattern": "FRK_T_PressStr160",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy request string types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressStr255",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy request string types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressStr32",
+  "change": "removed",
+  "reason": "C5c (V6.12): legacy request string types unreachable from public surface"
  }
 ]

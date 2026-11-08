@@ -53,6 +53,8 @@ OWNER_MINOR = owner_read.MINOR
 OWNER_HEADER = READ_SERVICE_HEADER | owner_read.HEADER_FIELDS
 HOST_MINOR = host_binding.MINOR
 HOST_HEADER = OWNER_HEADER | host_binding.HEADER_FIELDS
+COLLAPSE_MINOR = 12
+COLLAPSE_HEADER = HOST_HEADER
 
 
 def data_products(rows):
@@ -164,13 +166,13 @@ def normalize(record):
     """Validate every row and its hash before exposing any annotation."""
     minor=record.get('SchemaMinor')
     expected = SERVICE_HEADER if minor==SERVICE_MINOR else FRAGMENT_HEADER if minor==FRAGMENT_MINOR else HEADER
-    if minor in (TYPE_MINOR,PRODUCT_MINOR,COMMAND_MINOR,READ_MINOR,READ_SERVICE_MINOR,OWNER_MINOR,HOST_MINOR):
-        expected = (HOST_HEADER if minor==HOST_MINOR else OWNER_HEADER if minor==OWNER_MINOR else READ_SERVICE_HEADER if minor==READ_SERVICE_MINOR else READ_HEADER if minor==READ_MINOR else COMMAND_HEADER if minor==COMMAND_MINOR else PRODUCT_HEADER if minor==PRODUCT_MINOR else TYPE_HEADER) | {name for name in ('Bindings', 'Services', 'PathExceptions', 'DataProducts', 'CommandBindings', 'CommandOperations')
+    if minor in (TYPE_MINOR,PRODUCT_MINOR,COMMAND_MINOR,READ_MINOR,READ_SERVICE_MINOR,OWNER_MINOR,HOST_MINOR,COLLAPSE_MINOR):
+        expected = (COLLAPSE_HEADER if minor>=HOST_MINOR else OWNER_HEADER if minor==OWNER_MINOR else READ_SERVICE_HEADER if minor==READ_SERVICE_MINOR else READ_HEADER if minor==READ_MINOR else COMMAND_HEADER if minor==COMMAND_MINOR else PRODUCT_HEADER if minor==PRODUCT_MINOR else TYPE_HEADER) | {name for name in ('Bindings', 'Services', 'PathExceptions', 'DataProducts', 'CommandBindings', 'CommandOperations')
                                   if record.get(name+'Count', 0)}
     if set(record) != expected or record["Magic"] != MAGIC:
         raise ValueError("unrecognized canonical manifest header")
     if any(type(record[k]) is not int for k in ("Magic", "SchemaMajor", "SchemaMinor", "PublicationStage")) \
-            or record["SchemaMajor"] != MAJOR or record["SchemaMinor"] not in (MINOR, VIEW_MINOR, FRAGMENT_MINOR, SERVICE_MINOR, TYPE_MINOR, PRODUCT_MINOR, COMMAND_MINOR, READ_MINOR, READ_SERVICE_MINOR, OWNER_MINOR, HOST_MINOR) \
+            or record["SchemaMajor"] != MAJOR or record["SchemaMinor"] not in (MINOR, VIEW_MINOR, FRAGMENT_MINOR, SERVICE_MINOR, TYPE_MINOR, PRODUCT_MINOR, COMMAND_MINOR, READ_MINOR, READ_SERVICE_MINOR, OWNER_MINOR, HOST_MINOR, COLLAPSE_MINOR) \
             or not STAGE <= record["PublicationStage"] < (1 << 31):
         raise ValueError("unsupported canonical manifest version/stage")
     if record["Valid"] is not True or record["Truncated"] is not False:
@@ -257,6 +259,8 @@ def normalize(record):
         if type(count) is not int or type(capacity) is not int or not (0 if minor>=TYPE_MINOR else 1)<=count==capacity<=16 \
                 or not isinstance(record.get('Services',[]),list) or len(record.get('Services',[]))!=capacity:
             raise ValueError('invalid canonical service count/capacity')
+        if minor>=COLLAPSE_MINOR and count!=0:
+            raise ValueError('V6.12 requires empty services')
         kinds=set()
         for item in record.get('Services',[]):
             if set(item)!={'Kind','Version','BuildRevision','RequestSymbol','RequestMember','ResponseSymbol'}:

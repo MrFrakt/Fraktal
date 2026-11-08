@@ -87,7 +87,7 @@ class Image(unittest.TestCase):
         from test_fraktal_ab_read_coherence import physical
         tag = self.tags(self.press)[pub.header_tag(APP)]
         record = schema._value(tag.find('./Data[@Format="Decorated"]/Structure'))
-        self.assertEqual(record['SchemaMinor'], '11')
+        self.assertEqual(record['SchemaMinor'], '12')
         # Decorated values are textual, not the S1 wire decoder's typed
         # StringFamily objects. These two identifier fields have no escapes.
         def identifier(value):
@@ -101,7 +101,7 @@ class Image(unittest.TestCase):
                     for row in record['ReadCoherenceBindings']]
         self.assertEqual(int(record['ReadCoherenceBindingsCount']), len(bindings))
         header = wire.normalize(physical(pub.manifest_values(APP)))
-        self.assertEqual(header['schemaMinor'], 11)
+        self.assertEqual(header['schemaMinor'], 12)
         prefixes = {APP.name, *(p['CanonicalRoot'] for p in header['dataProducts'])}
         self.assertEqual(bindings, header['readCoherenceBindings'])
         self.assertEqual({b['CanonicalPrefix'] for b in bindings}, prefixes)
