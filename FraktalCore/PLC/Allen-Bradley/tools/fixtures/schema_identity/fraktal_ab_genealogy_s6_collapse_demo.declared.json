@@ -30,99 +30,19 @@
   "reason": "C3 (R8): a module's context is its AOI instance, so the context tag goes"
  },
  {
-  "pattern": "FRK_Press_Unit.Data.Mode",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Unit.Data.Step",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Unit.Data.DecisionAnswer",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Unit.Data.GoodCount",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Unit.Data.ScrapCount",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Unit.Data.ReworkCount",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Unit.Data.RunStyle",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Chart.Data.CurrentStepMs",
-  "change": "removed",
-  "reason": "C2 (R8): the canonical root stores the member, so the Unit context or chart no longer carries it"
- },
- {
-  "pattern": "FRK_Press_Unit.DataType",
-  "change": "changed",
-  "reason": "C2 (R8): a Unit context or chart without those members is another layout, so another type name"
- },
- {
-  "pattern": "FRK_Press_Chart.DataType",
-  "change": "changed",
-  "reason": "C2 (R8): a Unit context or chart without those members is another layout, so another type name"
- },
- {
   "pattern": "FRK_T_PressUnitCtx",
   "change": "removed",
-  "reason": "C2 (R8): a Unit context or chart without those members is another layout, so another type name"
- },
- {
-  "pattern": "FRK_T_PressUnitCtxC2",
-  "change": "added",
-  "reason": "C2 (R8): a Unit context or chart without those members is another layout, so another type name"
+  "reason": "C6 (R8): legacy published Unit context type unreachable from public surface"
  },
  {
   "pattern": "FRK_T_PressChart",
   "change": "removed",
-  "reason": "C2 (R8): a Unit context or chart without those members is another layout, so another type name"
- },
- {
-  "pattern": "FRK_T_PressChartC2",
-  "change": "added",
-  "reason": "C2 (R8): a Unit context or chart without those members is another layout, so another type name"
+  "reason": "C6 (R8): legacy published Chart type unreachable from public surface"
  },
  {
   "pattern": "FRK_T_*Ctx",
   "change": "removed",
   "reason": "C1 (R3): a collapsed context is another layout, so another type name"
- },
- {
-  "pattern": "FRK_Press_MfFields.Data*",
-  "change": "removed",
-  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
- },
- {
-  "pattern": "FRK_Press_MfFields.Data*",
-  "change": "changed",
-  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
- },
- {
-  "pattern": "FRK_Press_MfFields.Dimensions",
-  "change": "changed",
-  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
- },
- {
-  "pattern": "FRK_Press_MfHeader.Data.*",
-  "change": "changed",
-  "reason": "C1 (R3): the V5 manifest lists every context member; its rows follow the smaller contexts (C6 removes it)"
  },
  {
   "pattern": "FRK_Press_MfLocalization.Data*",
@@ -136,21 +56,6 @@
  },
  {
   "pattern": "FRK_Press_MfLocalization.Dimensions",
-  "change": "changed",
-  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
- },
- {
-  "pattern": "FRK_Press_MfOperations.Data*.OperationId",
-  "change": "changed",
-  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
- },
- {
-  "pattern": "FRK_Press_MfOptionalProfiles.Data*.ProfileId",
-  "change": "changed",
-  "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
- },
- {
-  "pattern": "FRK_Press_MfRationalization.Data*Key",
   "change": "changed",
   "reason": "C1 (R3): V5 localization interns field-path keys in order, so later numeric keys renumber; consistent within the image, never persisted across one"
  },
@@ -253,5 +158,95 @@
   "pattern": "FRK_T_PressStr32",
   "change": "removed",
   "reason": "C5c (V6.12): legacy request string types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_Press_Unit",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_Chart",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfHeader",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfRoots",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfModules",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfNameplates",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfFields",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfOperations",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfRationalization",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_Press_MfOptionalProfiles",
+  "change": "removed",
+  "reason": "C6 (R8): legacy published tags retired to private working buffers (ExternalAccess=\"None\")"
+ },
+ {
+  "pattern": "FRK_T_PressMfHeader",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressMfRoot",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressMfModule",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressMfNameplate",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressMfField",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressMfOperation",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressMfReason",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
+ },
+ {
+  "pattern": "FRK_T_PressMfProfile",
+  "change": "removed",
+  "reason": "C6 (R8): eight V5 manifest row types unreachable from public surface"
  }
 ]

@@ -838,10 +838,11 @@ def tags(app: decl.Application, controller_identity: str) -> list[str]:
                        f'Radix="Decimal" Value="{len(rows[table.name])}"/>')
         members.append(f'<DataValueMember Name="{table.name}Capacity" '
                        f'DataType="DINT" Radix="Decimal" Value="{table.capacity}"/>')
+    header_access = "None" if getattr(app, 'canonical_collapse', False) else "Read Only"
     out.append(
         f'<Tag Name="{header_tag(app)}" TagType="Base" '
         f'DataType="{header_type(app)}" Constant="false" '
-        f'ExternalAccess="Read Only">\n<Data Format="Decorated">\n'
+        f'ExternalAccess="{header_access}">\n<Data Format="Decorated">\n'
         f'<Structure DataType="{header_type(app)}">\n'
         + "\n".join(members)
         + "\n</Structure>\n</Data>\n</Tag>")
@@ -854,10 +855,11 @@ def tags(app: decl.Application, controller_identity: str) -> list[str]:
             elements.append(f'<Element Index="[{index}]">\n'
                             + _row_structure(table, key, row, width)
                             + "\n</Element>")
+        table_access = "Read Only" if (not getattr(app, 'canonical_collapse', False) or table.name in ('Localization', 'WriteCapabilities')) else "None"
         out.append(
             f'<Tag Name="{manifest_tag(app, table)}" TagType="Base" '
             f'DataType="{table.row_type}" Dimensions="{table.capacity}" '
-            f'Constant="false" ExternalAccess="Read Only">\n'
+            f'Constant="false" ExternalAccess="{table_access}">\n'
             f'<Data Format="Decorated">\n'
             f'<Array DataType="{table.row_type}" Dimensions="{table.capacity}">\n'
             + "\n".join(elements)

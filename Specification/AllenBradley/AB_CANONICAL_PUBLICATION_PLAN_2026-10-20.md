@@ -1655,6 +1655,19 @@ zero uncovered or unused declarations across all five gated declarations. All 2,
 36 root tests, and strict consistency gate (0 errors, 0 warnings) pass. C5 is complete.
 Next: C6/C7 canonical integration and baseline switch, then native S6-Q on Echo.
 
+**C6 legacy published tags to None and eight V5 tables retired done offline, 2026-11-08** ([evidence](Evidence/AB_S6_COLLAPSE_C6_TABLES_OFFLINE_2026-11-08.md)).
+Legacy published tags (`FRK_{app.name}_Unit`, `FRK_{app.name}_Chart`) and eight V5 manifest
+tables (`FRK_{app.name}_MfHeader`, `Roots`, `Modules`, `Nameplates`, `Fields`, `Operations`,
+`Rationalization`, `OptionalProfiles`) are retired from the public external surface of
+collapsed profiles (`app.canonical_collapse=True`) by setting `ExternalAccess="None"`.
+`FRK_{app.name}_MfLocalization` and `FRK_{app.name}_MfWriteCapabilities` are retained with
+`ExternalAccess="Read Only"` to preserve canonical text localization and write capabilities.
+Uncollapsed baseline profiles remain 100% byte-identical. Pre-collapse schema identity
+passes with zero uncovered or unused declarations across all five gated declarations.
+All 2,744 AB tests, 36 root tests, Dart manifest tests, and strict consistency gate (0 errors,
+0 warnings) pass. C6 is complete.
+Next: Increment C7 (R5: a production declaration selects one AUTO rendition), then native S6-Q on Echo.
+
 **WP6.7 — Delete and update the gates.**
 
 - Delete RT and MO per the classification file. After the baseline switch,

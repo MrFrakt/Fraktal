@@ -3430,9 +3430,11 @@ def controller_tags(app: decl.Application) -> str:
                                    module_context_name(library.type_of(module), app.canonical_collapse),
                                    module_initial_members(app, module)))
     tags.append(_structure_tag(f"FRK_{app.name}_Unit", unit_context_name(app),
-                               unit_context_members(app)))
+                               unit_context_members(app),
+                               external_access="None" if collapse.enabled(app) else "Read Only"))
     tags.append(_structure_tag(f"FRK_{app.name}_Chart", chart_name(app),
-                               chart_members(app)))
+                               chart_members(app),
+                               external_access="None" if collapse.enabled(app) else "Read Only"))
     import fraktal_ab_fixture_observation as fixture
     if fixture.enabled(app):
         # O10: Read Only, acceptance-only, beside the canonical rows it is proved with.
