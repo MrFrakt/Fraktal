@@ -46,6 +46,7 @@ from typing import Any
 
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 import fraktal_ab_declaration as decl
+import fraktal_ab_fixture_reads as views
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
@@ -292,7 +293,8 @@ def walk_dwell(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     proves the second half is the delay's own clock after the step: the full
     dwell, not the dwell plus the pause.
     """
-    cfg = px.read_layout(comm, px.CFG, APP.records[0].members) or {}
+    cfg = (views.surface(comm, "Cfg0", app=APP) if APP.canonical_collapse
+           else px.read_layout(comm, px.CFG, APP.records[0].members) or {})
     dwell_ms = cfg.get(DWELL.duration_member)
     px.command(comm, mailbox.SET_MODE, settle=ack(settle), IntValue=px.MODE_AUTO)
     px.write(comm, px.PART_PRESENT, 1)
@@ -573,7 +575,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
 
-        ready = px.fingerprint(comm)
+        ready = px.fingerprint(comm, expect_serial=args.expect_serial)
         evidence["fingerprint"] = ready
         if not ready.get("passed"):
             evidence["error"] = "press-demo fingerprint failed; nothing was written"

@@ -25,7 +25,7 @@ import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
+import fraktal_ab_fixture_reads as views
 
 SCHEMA = "fraktal.ab.phase2-on-controller"
 SCHEMA_VERSION = 1
@@ -55,22 +55,12 @@ def chart_rows(chart: dict[str, Any]) -> list[int]:
     return [number for _, number in found]
 
 
-def published_rows(values: dict[str, Any]) -> list[int]:
-    count = values.get(f"{ROOT}/SequenceStepCount", 0)
-    return [values.get(f"{ROOT}/SequenceSteps[{i}]/StepNo")
-            for i in range(1, count + 1)]
+def published_rows(summary: dict[str, Any]) -> list[int]:
+    return summary["steps"]
 
 
-def row_field(values: dict[str, Any], step: int, field: str) -> Any:
-    count = values.get(f"{ROOT}/SequenceStepCount", 0)
-    for i in range(1, count + 1):
-        if values.get(f"{ROOT}/SequenceSteps[{i}]/StepNo") == step:
-            return values.get(f"{ROOT}/SequenceSteps[{i}]/{field}")
-    return None
-
-
-def document(comm: Any) -> dict[str, Any]:
-    return projection.read_document(comm)["values"]
+def row_field(summary: dict[str, Any], step: int, field: str) -> Any:
+    return summary["rows"].get(step, {}).get(field)
 
 
 def fresh_auto(comm: Any, ack: float) -> None:
@@ -110,9 +100,9 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     one_parked_cycle(comm, settle, ack)
     chart = px.read_chart(comm)
     unit = px.read_unit(comm)
-    values = document(comm)
+    summary = views.sequence_step_summary(comm, app=APP)
     on_chart = chart_rows(chart) if chart else []
-    published = published_rows(values)
+    published = published_rows(summary)
     rows.append(px.row(
         "rows_in_first_entry_order",
         "a fresh AUTO session's rows are the clean path's steps, in the order "
@@ -122,8 +112,8 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         (time.monotonic() - started) * 1000.0,
         on_chart == expected and published == expected,
     ))
-    last_settle = row_field(values, 170, "LastDuration")
-    cursor = values.get(f"{ROOT}/ActiveSteps[1]/RowIdx")
+    last_settle = row_field(summary, 170, "LastDuration")
+    cursor = views.active_step_cursor(comm, leg=1, app=APP)
     rows.append(px.row(
         "a_row_keeps_its_duration_and_the_cursor_its_step",
         "the settle row records at least its declared delay; parked at N100 "
@@ -156,17 +146,17 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.command(comm, mailbox.STOP, settle=ack)
     px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=px.MODE_MANUAL)
     chart, elapsed = px.await_chart(comm, lambda c: c["RowCount"] == 0, settle)
-    values = document(comm)
+    summary = views.sequence_step_summary(comm, app=APP)
     rows.append(px.row(
         "a_mode_change_starts_a_new_chart",
         "MANUAL starts a new session: no rows, the epoch moved, nothing published",
         {"epochBefore": epoch, "epochAfter": None if chart is None else chart["RowEpoch"],
          "rowCount": None if chart is None else chart["RowCount"],
-         "published": values.get(f"{ROOT}/SequenceStepCount")},
+         "published": summary["count"]},
         elapsed,
         chart is not None and chart["RowCount"] == 0
         and epoch is not None and chart["RowEpoch"] == epoch + 1
-        and values.get(f"{ROOT}/SequenceStepCount") == 0,
+        and summary["count"] == 0,
     ))
 
     # --- 4. a report marks its row, and the next visit starts clean ---------
@@ -181,26 +171,25 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     unit, elapsed = px.await_unit(comm, lambda u: u["Step"] == 210, settle)
     time.sleep(0.1)
     chart = px.read_chart(comm)
-    values = document(comm)
+    summary = views.sequence_step_summary(comm, app=APP)
     index = ORDER.index(200)
-    notes = values.get(f"{ROOT}/SequenceAnnotationCount", 0)
-    note = {k: values.get(f"{ROOT}/SequenceAnnotations[1]/{k}")
-            for k in ("RowIdx", "Key", "SourcePath", "IsError")}
-    row_200 = published_rows(values).index(200) + 1 if 200 in published_rows(values) else None
+    notes, note = views.sequence_annotations(comm, app=APP)
+    published = published_rows(summary)
+    row_200 = published.index(200) + 1 if 200 in published else None
     rows.append(px.row(
         "a_report_marks_its_row",
         "the ram failing at N200 marks N200's row as a warning, with a note "
         "naming the reason and the ram; no row is an error",
         {"warnReason": None if chart is None else chart["WarnReason"][index],
          "warnSource": None if chart is None else chart["WarnSource"][index],
-         "warningActive": row_field(values, 200, "WarningActive"),
-         "errorRows": [row_field(values, s, "ErrorActive") for s in published_rows(values)],
+         "warningActive": row_field(summary, 200, "WarningActive"),
+         "errorRows": [row_field(summary, s, "ErrorActive") for s in published],
          "annotations": notes, "note": note, "row200": row_200},
         elapsed,
         chart is not None and chart["WarnReason"][index] == DEVICE_FAULT
         and chart["WarnSource"][index] == gen.module_source(APP, "PressRam")
-        and row_field(values, 200, "WarningActive") is True
-        and not any(row_field(values, s, "ErrorActive") for s in published_rows(values))
+        and row_field(summary, 200, "WarningActive") is True
+        and not any(row_field(summary, s, "ErrorActive") for s in published)
         and notes == 1 and note["RowIdx"] == row_200
         and note["Key"] == f"std.reason.{DEVICE_FAULT}"
         and note["SourcePath"] == f"{ROOT}.PressRam" and note["IsError"] is False,
@@ -213,17 +202,18 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.two_hand_press(comm, settle)
     px.await_unit(comm, lambda u: u["Step"] == 220, settle * 2)
     chart = px.read_chart(comm)
-    values = document(comm)
+    summary = views.sequence_step_summary(comm, app=APP)
+    notes, _ = views.sequence_annotations(comm, app=APP)
     rows.append(px.row(
         "the_next_visit_starts_clean",
         "re-entering N200 without a fault clears its mark and its note",
         {"warnReason": None if chart is None else chart["WarnReason"][index],
-         "warningActive": row_field(values, 200, "WarningActive"),
-         "annotations": values.get(f"{ROOT}/SequenceAnnotationCount")},
+         "warningActive": row_field(summary, 200, "WarningActive"),
+         "annotations": notes},
         0.0,
         chart is not None and chart["WarnReason"][index] == 0
-        and row_field(values, 200, "WarningActive") is False
-        and values.get(f"{ROOT}/SequenceAnnotationCount") == 0,
+        and row_field(summary, 200, "WarningActive") is False
+        and notes == 0,
     ))
     px.write(comm, px.PART_PRESENT, 0)
     px.await_unit(comm, lambda u: u["Step"] == parity.PARK_STEP, settle * 2)
@@ -272,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
             evidence["error"] = "controller serial does not match --expect-serial"
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
-        ready = px.fingerprint(comm)
+        ready = px.fingerprint(comm, expect_serial=args.expect_serial)
         evidence["fingerprint"] = ready
         if not ready.get("passed"):
             evidence["error"] = "press-demo fingerprint failed; nothing was written"

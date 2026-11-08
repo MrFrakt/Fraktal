@@ -301,6 +301,233 @@ def read_profiler(comm, *, app):
     return read_layout(comm, gen.profiler_tag(app), gen.profiler_members(app))
 
 
+def read_release_report(comm, *, app):
+    if app.canonical_collapse:
+        return surface(comm, 'ReleaseStart', app=app)
+    import fraktal_ab_generate as gen
+    return read_layout(comm, gen.release_report_tag(app), gen.release_report_members(app=app))
+
+
+def read_health_probe(comm, *, app):
+    import fraktal_ab_generate as gen
+    if getattr(app, 'canonical_collapse', False):
+        import fraktal_ab_press_execute as px
+        return px.read_flat(comm, gen.health_probe_tag(app), tuple(m.name for m in gen.health_probe_members()))
+    import fraktal_ab_press_execute as px
+    return px.read_layout(comm, gen.health_probe_tag(app), gen.health_probe_members())
+
+
+DIAG_LEAVES = ('ReasonCode', 'Description', 'IoTag', 'IoAddress', 'Since')
+ACTIVE_EVENT_LEAVES = ('ReasonCode', 'Description', 'SourcePath', 'ResetClass', 'ComeAt', 'IoTag')
+MODULE_STATUS_LEAVES = ('TypeKey', 'DisplayNameKey', 'State', 'FaultActive')
+
+
+def step_conditions(comm, count=4, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return [(held.get(f'{app.name}/CurrentStep/Conds[{i}]/Label'),
+                 held.get(f'{app.name}/CurrentStep/Conds[{i}]/Ok'))
+                for i in range(1, count + 1)]
+    root = session.root
+    paths = tuple(f'{root}/CurrentStep/Conds[{i}]/{leaf}'
+                  for i in range(1, count + 1) for leaf in ('Label', 'Ok'))
+    held = values(comm, paths, app=app)
+    return [(held.get(f'{root}/CurrentStep/Conds[{i}]/Label'),
+             held.get(f'{root}/CurrentStep/Conds[{i}]/Ok'))
+            for i in range(1, count + 1)]
+
+
+def unit_diagnostic(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return {k: held.get(f'{app.name}/Status/Diagnostic/{k}') for k in DIAG_LEAVES}
+    root = session.root
+    paths = tuple(f'{root}/Status/Diagnostic/{k}' for k in DIAG_LEAVES)
+    held = values(comm, paths, app=app)
+    return {k: held.get(f'{root}/Status/Diagnostic/{k}') for k in DIAG_LEAVES}
+
+
+def module_diagnostic(comm, module, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return {k: held.get(f'{app.name}/{module}/Status/Diagnostic/{k}') for k in DIAG_LEAVES}
+    root = session.root
+    paths = tuple(f'{root}/{module}/Status/Diagnostic/{k}' for k in DIAG_LEAVES)
+    held = values(comm, paths, app=app)
+    return {k: held.get(f'{root}/{module}/Status/Diagnostic/{k}') for k in DIAG_LEAVES}
+
+
+def alarm_blocking(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        return legacy.read_document(comm)['values'].get(f'{app.name}/AlarmLog/Blocking')
+    path = f'{session.root}/AlarmLog/Blocking'
+    return values(comm, (path,), app=app).get(path)
+
+
+def alarm_active_event(comm, slot, *, app):
+    if not slot or slot < 1:
+        return {}
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return {k: held.get(f'{app.name}/AlarmLog/Active[{slot}]/{k}') for k in ACTIVE_EVENT_LEAVES}
+    root = session.root
+    paths = tuple(f'{root}/AlarmLog/Active[{slot}]/{k}' for k in ACTIVE_EVENT_LEAVES)
+    held = values(comm, paths, app=app)
+    return {k: held.get(f'{root}/AlarmLog/Active[{slot}]/{k}') for k in ACTIVE_EVENT_LEAVES}
+
+
+def sequence_step_summary(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        count = held.get(f'{app.name}/SequenceStepCount', 0)
+        steps = [held.get(f'{app.name}/SequenceSteps[{i}]/StepNo') for i in range(1, count + 1)]
+        rows = {
+            held.get(f'{app.name}/SequenceSteps[{i}]/StepNo'): {
+                leaf: held.get(f'{app.name}/SequenceSteps[{i}]/{leaf}')
+                for leaf in ('LastDuration', 'WarningActive', 'ErrorActive')
+            } for i in range(1, count + 1)
+        }
+        return {'count': count, 'steps': steps, 'rows': rows}
+    root = session.root
+    count_path = f'{root}/SequenceStepCount'
+    count = values(comm, (count_path,), app=app).get(count_path, 0)
+    if not count:
+        return {'count': 0, 'steps': [], 'rows': {}}
+    leaves = ('StepNo', 'LastDuration', 'WarningActive', 'ErrorActive')
+    paths = tuple(f'{root}/SequenceSteps[{i}]/{leaf}' for i in range(1, count + 1) for leaf in leaves)
+    held = values(comm, (count_path, *paths), app=app)
+    steps = [held.get(f'{root}/SequenceSteps[{i}]/StepNo') for i in range(1, count + 1)]
+    rows = {
+        held.get(f'{root}/SequenceSteps[{i}]/StepNo'): {
+            leaf: held.get(f'{root}/SequenceSteps[{i}]/{leaf}')
+            for leaf in ('LastDuration', 'WarningActive', 'ErrorActive')
+        } for i in range(1, count + 1)
+    }
+    return {'count': count, 'steps': steps, 'rows': rows}
+
+
+def active_step_cursor(comm, leg=1, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        return legacy.read_document(comm)['values'].get(f'{app.name}/ActiveSteps[{leg}]/RowIdx')
+    path = f'{session.root}/ActiveSteps[{leg}]/RowIdx'
+    return values(comm, (path,), app=app).get(path)
+
+
+def sequence_annotations(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        count = held.get(f'{app.name}/SequenceAnnotationCount', 0)
+        note = {k: held.get(f'{app.name}/SequenceAnnotations[1]/{k}')
+                for k in ('RowIdx', 'Key', 'SourcePath', 'IsError')} if count else {}
+        return count, note
+    root = session.root
+    count_path = f'{root}/SequenceAnnotationCount'
+    count = values(comm, (count_path,), app=app).get(count_path, 0)
+    if not count:
+        return 0, {}
+    leaves = ('RowIdx', 'Key', 'SourcePath', 'IsError')
+    paths = tuple(f'{root}/SequenceAnnotations[1]/{k}' for k in leaves)
+    held = values(comm, (count_path, *paths), app=app)
+    note = {k: held.get(f'{root}/SequenceAnnotations[1]/{k}') for k in leaves}
+    return count, note
+
+
+def current_step_timed_out(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        return legacy.read_document(comm)['values'].get(f'{app.name}/CurrentStepTimedOut')
+    path = f'{session.root}/CurrentStepTimedOut'
+    return values(comm, (path,), app=app).get(path)
+
+
+def module_status(comm, module, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        return {k: held.get(f'{app.name}/{module}/Status/{k}') for k in MODULE_STATUS_LEAVES}
+    root = session.root
+    paths = tuple(f'{root}/{module}/Status/{k}' for k in MODULE_STATUS_LEAVES)
+    held = values(comm, paths, app=app)
+    return {k: held.get(f'{root}/{module}/Status/{k}') for k in MODULE_STATUS_LEAVES}
+
+
+def module_catalog(comm, module, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        count = held.get(f'{app.name}/{module}/CatalogCount', 0)
+        items = [(held.get(f'{app.name}/{module}/Catalog[{i}]/Value'),
+                  held.get(f'{app.name}/{module}/Catalog[{i}]/Label')) for i in (1, 2)]
+        return count, items
+    root = session.root
+    count_path = f'{root}/{module}/CatalogCount'
+    count = values(comm, (count_path,), app=app).get(count_path, 0)
+    paths = tuple(f'{root}/{module}/Catalog[{i}]/{leaf}' for i in (1, 2) for leaf in ('Value', 'Label'))
+    held = values(comm, (count_path, *paths), app=app)
+    items = [(held.get(f'{root}/{module}/Catalog[{i}]/Value'),
+              held.get(f'{root}/{module}/Catalog[{i}]/Label')) for i in (1, 2)]
+    return count, items
+
+
+def release_report_hmi(comm, *, app):
+    """The HmiResponse/Report the HMI reads: (released, [(desc, reason, source, kind), ...])."""
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        held = legacy.read_document(comm)['values']
+        base = f'{app.name}/HmiResponse/Report'
+        count = held.get(f'{base}/Count') or 0
+        released = held.get(f'{base}/Released')
+        reasons = [tuple(held.get(f'{base}/Reasons/Reasons[{i}]/{leaf}')
+                         for leaf in ('Description', 'ReasonCode', 'SourcePath', 'Kind'))
+                   for i in range(1, count + 1)]
+        return released, reasons
+    root = session.root
+    base = f'{root}/HmiResponse/Report'
+    count_path = f'{base}/Count'
+    rel_path = f'{base}/Released'
+    held_hdr = values(comm, (count_path, rel_path), app=app)
+    count = held_hdr.get(count_path) or 0
+    released = held_hdr.get(rel_path)
+    if not count:
+        return released, []
+    leaves = ('Description', 'ReasonCode', 'SourcePath', 'Kind')
+    paths = tuple(f'{base}/Reasons/Reasons[{i}]/{leaf}' for i in range(1, count + 1) for leaf in leaves)
+    held = values(comm, (count_path, rel_path, *paths), app=app)
+    reasons = [tuple(held.get(f'{base}/Reasons/Reasons[{i}]/{leaf}') for leaf in leaves)
+               for i in range(1, count + 1)]
+    return released, reasons
+
+
+def header_valid(comm, *, app):
+    session = _session(comm, app)
+    if session is None:
+        import fraktal_ab_projection as legacy
+        return bool(legacy.read_document(comm)['values'])
+    path = f'{session.root}/Status/Name'
+    return bool(values(comm, (path,), app=app).get(path))
+
+
+
 OEE_LEAVES = ('RunMs', 'DownMs', 'IdleMs', 'Availability', 'AvailValid', 'Performance',
               'PerfValid', 'Quality', 'QualValid', 'Oee', 'OeeValid')
 HEALTH_LEAVES = ('Present', 'Healthy', 'TaskAvailable', 'TaskCycleUs', 'TaskJitterUs',

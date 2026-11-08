@@ -31,7 +31,7 @@ import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
+import fraktal_ab_fixture_reads as views
 
 SCHEMA = "fraktal.ab.phase3-reasons-on-controller"
 SCHEMA_VERSION = 1
@@ -42,12 +42,14 @@ R = demo.REASONS
 
 
 def document(comm: Any) -> dict[str, Any]:
-    return projection.read_document(comm)["values"]
+    return {f"{ROOT}/CurrentStepTimedOut": views.current_step_timed_out(comm, app=APP)}
 
 
-def diag(values: dict[str, Any], base: str = ROOT) -> dict[str, Any]:
-    return {k: values.get(f"{base}/Status/Diagnostic/{k}")
-            for k in ("ReasonCode", "Description", "IoTag", "IoAddress", "Since")}
+def diag(comm: Any, base: str = ROOT) -> dict[str, Any]:
+    if base == ROOT:
+        return views.unit_diagnostic(comm, app=APP)
+    module = base.split("/")[-1]
+    return views.module_diagnostic(comm, module, app=APP)
 
 
 def observe_stall(comm: Any, settle: float):
@@ -76,10 +78,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
             lambda c, p=part: c["OutImm_Value"] == p and c["ModuleScan"] > 0, settle)
         observed[f"part={part}"] = None if sensor is None else {
             k: sensor[k] for k in ("OutImm_Value", "OutImm_Quality", "Error")}
-    values = document(comm)
-    base = f"{ROOT}/PartPresentSensor"
-    published = {k: values.get(f"{base}/Status/{k}")
-                  for k in ("TypeKey", "DisplayNameKey", "State", "FaultActive")}
+    published = views.module_status(comm, "PartPresentSensor", app=APP)
     rows.append(px.row(
         "the_part_present_sensor_follows_its_source",
         "TC3's FB_DigitalInputCM on the controller: Value follows the part "
@@ -103,15 +102,13 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     unit, _ = px.await_unit(comm, lambda u: u["Error"] != 0, settle)
     elapsed = (time.monotonic() - started) * 1000.0
     slide = px.read_module(comm, "PartSlide")
-    values = document(comm)
-    unit_diag, slide_diag = diag(values), diag(values, f"{ROOT}/PartSlide")
+    unit_diag, slide_diag = diag(comm), diag(comm, f"{ROOT}/PartSlide")
     # The fault's own slot, as the controller records it: since §8.12 the
     # active list can hold other events (a standing health event among them),
     # so "the first open slot" is no longer the fault.
-    log = px.read_layout(comm, gen.alarm_active_tag(APP), gen.alarm_active_members())
+    log, _ = views.read_alarm_log(comm, app=APP)
     slot = 0 if log is None else log["FaultEvt"]
-    event = {k: values.get(f"{ROOT}/AlarmLog/Active[{slot}]/{k}")
-             for k in ("ReasonCode", "IoTag", "SourcePath", "Description")}
+    event = views.alarm_active_event(comm, slot, app=APP)
     rows.append(px.row(
         "a_stuck_slide_times_out_and_names_its_sensor",
         "held still by the fault injection, the slide times out extending: "
@@ -140,20 +137,21 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.start_cycle(comm, settle)
     unit, elapsed = px.await_unit(
         comm, lambda u: u["DiagReason"] == R["INTERLOCK_DROPPED"], settle)
-    values = document(comm)
+    unit_diag = diag(comm)
+    timedOut = views.current_step_timed_out(comm, app=APP)
     rows.append(px.row(
         "a_held_child_rolls_up_into_the_unit",
         "the ram held at N110: the Unit's own diagnostic is the ram's "
         "INTERLOCK_DROPPED (TC3 _M_RollupHold), no error, not timed out",
         {"unit": None if unit is None else {k: unit[k] for k in (
             "Step", "Error", "DiagReason", "StallMs", "StepTimedOut")},
-         "unitDiagnostic": diag(values),
-         "timedOut": values.get(f"{ROOT}/CurrentStepTimedOut")},
+         "unitDiagnostic": unit_diag,
+         "timedOut": timedOut},
         elapsed,
         unit is not None and unit["Step"] == 110 and unit["Error"] == 0
         and unit["DiagReason"] == R["INTERLOCK_DROPPED"] and unit["StallMs"] == 0
-        and diag(values)["ReasonCode"] == R["INTERLOCK_DROPPED"]
-        and values.get(f"{ROOT}/CurrentStepTimedOut") is False,
+        and unit_diag["ReasonCode"] == R["INTERLOCK_DROPPED"]
+        and timedOut is False,
     ))
     px.write(comm, px.HOLD["PressRam"], 0)
     px._idle(comm, ack)
@@ -206,7 +204,8 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # paused from the first scan. This releases once some dwell has run - the
     # operator's case - which is the only one that shows the remainder.
     dwell = parity.DWELL
-    dwell_ms = (px.read_layout(comm, px.CFG, APP.records[0].members) or {}).get(
+    dwell_ms = (views.surface(comm, "Cfg0", app=APP) if APP.canonical_collapse
+                else px.read_layout(comm, px.CFG, APP.records[0].members) or {}).get(
         dwell.duration_member)
     px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=px.MODE_AUTO)
     for tag in (px.PART_PRESENT, px.AIR_OK):
@@ -219,13 +218,13 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         comm, lambda c: c["StallReason"] == R["WAIT_CONDITION"], settle)
     time.sleep(parity.DWELL_PAUSE_S)
     still = px.read_chart(comm)
-    values = document(comm)
+    cond = views.step_conditions(comm, 1, app=APP)[0]
+    record = {"Label": cond[0], "Ok": cond[1]}
     unit = px.read_unit(comm)
     px.write(comm, px.TWO_HAND, 1)
     resumed, _ = px.await_unit(comm, lambda u: u["Step"] != dwell.number, settle)
     after = px.read_chart(comm)
     ran = None if paused is None else paused["DelayMs"]
-    record = {k: values.get(f"{ROOT}/CurrentStep/Conds[1]/{k}") for k in ("Label", "Ok")}
     rows.append(px.row(
         "a_release_mid_dwell_finishes_only_what_remained",
         "TC3's N220: released part-way through the dwell, the dwell stands "
@@ -261,7 +260,8 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # N100 waits - on the part, and then on a fresh press.
     stall_s = APP.stall_time_ms / 1000.0
     unit, elapsed, early = observe_stall(comm, settle)
-    values = document(comm)
+    unit_diag = diag(comm)
+    timedOut = views.current_step_timed_out(comm, app=APP)
     rows.append(px.row(
         "a_step_that_waits_past_stall_time_is_stalled",
         "N100 waiting for a part: not timed out while it merely waits, then at "
@@ -269,15 +269,15 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         {"timedOutEarly": early,
          "unit": None if unit is None else {k: unit[k] for k in (
              "Step", "Error", "DiagReason", "StallMs", "StepTimedOut")},
-         "unitDiagnostic": diag(values),
-         "timedOut": values.get(f"{ROOT}/CurrentStepTimedOut"),
+         "unitDiagnostic": unit_diag,
+         "timedOut": timedOut,
          "secondsToStall": round(elapsed / 1000.0, 2)},
         elapsed,
         early is False and unit is not None and unit["StepTimedOut"] == 1
         and unit["StallMs"] >= APP.stall_time_ms
         and unit["Error"] == 0 and unit["DiagReason"] == R["STEP_STALLED"]
-        and values.get(f"{ROOT}/CurrentStepTimedOut") is True
-        and diag(values)["Description"] == f"std.reason.{R['STEP_STALLED']}"
+        and timedOut is True
+        and unit_diag["Description"] == f"std.reason.{R['STEP_STALLED']}"
         and elapsed / 1000.0 >= stall_s - 1.0,
     ))
     px.write(comm, px.PART_PRESENT, 1)
@@ -352,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
             evidence["error"] = "controller serial does not match --expect-serial"
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
-        ready = px.fingerprint(comm)
+        ready = px.fingerprint(comm, expect_serial=args.expect_serial)
         evidence["fingerprint"] = ready
         if not ready.get("passed"):
             evidence["error"] = "press-demo fingerprint failed; nothing was written"

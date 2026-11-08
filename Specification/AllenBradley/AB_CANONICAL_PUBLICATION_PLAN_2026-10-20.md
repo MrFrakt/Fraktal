@@ -1632,8 +1632,17 @@ the remaining station-reading HX harnesses (`press_parity`, `phase1..4_execute`,
 through the shared runner with a standalone exact-image authorization, an
 isolated seed-manifest medium commissioned from the image's V6.8 view, and
 `PressRun` unchanged from C3; no MO path is reachable. Zero PLC/L5X/Dart
-changes. Remaining C5b3 harnesses: `press_parity`, `phase1..4_execute`,
-`s3_execute`.
+changes.
+
+**C5b3 remaining station-reading harnesses done offline, 2026-11-07** ([evidence](Evidence/AB_S6_COLLAPSE_C5B3_HARNESSES_OFFLINE_2026-11-07.md)).
+All six remaining station-reading HX harnesses (`fraktal_ab_press_parity`,
+`fraktal_ab_phase1_execute`, `fraktal_ab_phase2_execute`,
+`fraktal_ab_phase3_execute`, `fraktal_ab_phase4_execute`, `fraktal_ab_s3_execute`)
+are migrated onto canonical CIP row and O10 surface reads via
+`fraktal_ab_fixture_reads.py`, with 0 direct legacy references and 0 legacy
+imports reported by census (`harness_census_01`). All check and wait predicates
+are preserved verbatim. Zero PLC/L5X/Dart changes; all three collapsed profiles
+regenerate byte-identically. C5b3 is complete.
 
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set

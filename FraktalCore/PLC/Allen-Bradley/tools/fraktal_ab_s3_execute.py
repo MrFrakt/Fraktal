@@ -27,6 +27,7 @@ from typing import Any
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 import fraktal_ab_generate as gen
 import fraktal_ab_press_execute as px
+import fraktal_ab_fixture_reads as views
 
 SCHEMA = "fraktal.ab.s3-health-and-timing"
 SCHEMA_VERSION = 1
@@ -37,7 +38,7 @@ def sample(comm: Any, seconds: float, every: float) -> list[dict[str, Any]]:
     out = []
     end = time.monotonic() + seconds
     while time.monotonic() < end:
-        probe = px.read_layout(comm, gen.health_probe_tag(APP), gen.health_probe_members())
+        probe = views.read_health_probe(comm, app=APP)
         if probe is not None:
             probe["at"] = time.monotonic()
             out.append(probe)

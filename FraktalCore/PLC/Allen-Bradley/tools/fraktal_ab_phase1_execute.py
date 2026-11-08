@@ -28,7 +28,7 @@ import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
+import fraktal_ab_fixture_reads as views
 
 SCHEMA = "fraktal.ab.phase1-on-controller"
 SCHEMA_VERSION = 1
@@ -43,12 +43,7 @@ ACTIVE, RING = gen.alarm_active_tag(APP), gen.alarm_ring_tag(APP)
 
 
 def read_log(comm: Any) -> tuple[dict | None, dict | None]:
-    return (px.read_layout(comm, ACTIVE, gen.alarm_active_members()),
-            px.read_layout(comm, RING, gen.alarm_ring_members()))
-
-
-def document(comm: Any) -> dict[str, Any]:
-    return projection.read_document(comm)["values"]
+    return views.read_alarm_log(comm, app=APP)
 
 
 def utc_today() -> int:
@@ -85,9 +80,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         comm, lambda c: c["ActiveStepNumber"] == 100, settle)
     time.sleep(0.1)
     chart = px.read_chart(comm)
-    values = document(comm)
-    conds = [(values.get(f"{ROOT}/CurrentStep/Conds[{i}]/Label"),
-              values.get(f"{ROOT}/CurrentStep/Conds[{i}]/Ok")) for i in (1, 2, 3, 4)]
+    conds = views.step_conditions(comm, 4, app=APP)
     rows.append(px.row(
         "conditions_at_n100",
         "waiting at N100 with part absent, air ok, two-hand released: the step "
@@ -124,10 +117,12 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.start_cycle(comm, settle)
     unit, elapsed = px.await_unit(comm, lambda u: u["Error"] != 0, settle)
     active, _ = read_log(comm)
-    values = document(comm)
     slot = (active or {}).get("FaultEvt", 0) - 1
     source = gen.module_source(APP, "PartSlide")
-    since = values.get(f"{ROOT}/Status/Diagnostic/Since")
+    unit_diag = views.unit_diagnostic(comm, app=APP)
+    blocking = views.alarm_blocking(comm, app=APP)
+    event_active = views.alarm_active_event(comm, slot + 1, app=APP)
+    since = unit_diag.get("Since")
     observed = {
         "unit": None if unit is None else {k: unit[k] for k in (
             "Error", "ErrorID", "ErrorSource", "DiagReason", "DiagIoRoles")},
@@ -135,12 +130,14 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         "event": None if active is None or slot < 0 else {
             c: active[f"Act{c}"][slot] for c, _ in gen.ALARM_COLUMNS},
         "blocking": None if active is None else active["Blocking"],
-        "published": {k: values.get(f"{ROOT}/{k}") for k in (
-            "Status/Diagnostic/ReasonCode", "Status/Diagnostic/Description",
-            "Status/Diagnostic/IoTag", "AlarmLog/Blocking")},
-        "publishedEvent": {k: values.get(f"{ROOT}/AlarmLog/Active[{slot + 1}]/{k}")
-                           for k in ("ReasonCode", "Description", "SourcePath",
-                                     "ResetClass", "ComeAt", "IoTag")},
+        "published": {
+            "Status/Diagnostic/ReasonCode": unit_diag.get("ReasonCode"),
+            "Status/Diagnostic/Description": unit_diag.get("Description"),
+            "Status/Diagnostic/IoTag": unit_diag.get("IoTag"),
+            "AlarmLog/Blocking": blocking,
+        },
+        "publishedEvent": {k: event_active.get(k) for k in (
+            "ReasonCode", "Description", "SourcePath", "ResetClass", "ComeAt", "IoTag")},
         "sinceMinusHostSeconds": since_delta_s(since),
     }
     event = observed["event"] or {}
@@ -170,7 +167,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # --- 3. START is refused while it waits for a reset ---------------------
     px.write(comm, px.FAULT["PartSlide"], 0)
     answer = px.command(comm, mailbox.START, settle=ack)
-    report = px.read_layout(comm, gen.release_report_tag(APP), gen.release_report_members())
+    report = views.read_release_report(comm, app=APP)
     listed = ([] if report is None else
               [(report["Key"][i], report["Kind"][i]) for i in range(report["Count"])])
     blocked = (mailbox._key(APP, gen.MANUAL_RESET_KEY), gen.RELEASE_KINDS["ALARM"])
@@ -232,8 +229,10 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     time.sleep(0.1)
     active, ring = read_log(comm)
     unit = px.read_unit(comm)
-    values = document(comm)
     head = (active or {}).get("RingHead", 0) - 1
+    unit_diag = views.unit_diagnostic(comm, app=APP)
+    publishedEntry = views.alarm_ring_entry(comm, head + 1, app=APP)
+    publishedReason = unit_diag.get("ReasonCode")
     entry = {} if ring is None or head < 0 else {
         c: ring[f"Ring{c}"][head] for c, _ in gen.ALARM_COLUMNS}
     source = gen.module_source(APP, "PressRam")
@@ -248,8 +247,8 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
          "blocking": None if active is None else active["Blocking"],
          "unit": None if unit is None else {k: unit[k] for k in (
              "Step", "Error", "DiagReason", "ReportedReason", "ReportedSource")},
-         "publishedReason": values.get(f"{ROOT}/Status/Diagnostic/ReasonCode"),
-         "publishedEntry": {k: values.get(f"{ROOT}/AlarmLog/Ring[{head + 1}]/{k}")
+         "publishedReason": publishedReason,
+         "publishedEntry": {k: publishedEntry.get(k)
                             for k in ("ReasonCode", "SourcePath", "ResetClass")}},
         elapsed,
         unit is not None and unit["Step"] == 210 and unit["Error"] == 0
@@ -261,7 +260,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         and entry.get("ReasonCode") == DEVICE_FAULT
         and entry.get("SourceModuleId") == source + 1
         and entry.get("ComeTime") == entry.get("GoneTime")
-        and values.get(f"{ROOT}/Status/Diagnostic/ReasonCode") == 0,
+        and publishedReason == 0,
     ))
     px.write(comm, px.FAULT["PressRam"], 0)
     px.command(comm, mailbox.DECISION_ANSWER, settle=ack, IntValue=1)
@@ -311,13 +310,13 @@ def main(argv: list[str] | None = None) -> int:
             evidence["error"] = "controller serial does not match --expect-serial"
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
-        ready = px.fingerprint(comm)
+        ready = px.fingerprint(comm, expect_serial=args.expect_serial)
         evidence["fingerprint"] = ready
         if not ready.get("passed"):
             evidence["error"] = "press-demo fingerprint failed; nothing was written"
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
-        header = projection.read_document(comm)["values"]
+        header = views.header_valid(comm, app=APP)
         evidence["wrote"] = True
         evidence["write_surface"] = list(px.WRITABLE) + ["mailbox"]
         evidence["sequence_seed"] = px.seed_sequence(comm)

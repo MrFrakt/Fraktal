@@ -30,11 +30,10 @@ from typing import Any
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
-import fraktal_ab_manifest as manifest
 import fraktal_ab_press_demo as demo
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
+import fraktal_ab_fixture_reads as views
 
 SCHEMA = "fraktal.ab.phase4-manual-on-controller"
 SCHEMA_VERSION = 1
@@ -45,12 +44,8 @@ R = demo.REASONS
 EXTEND, RETRACT = 1, 2
 
 
-def document(comm: Any) -> dict[str, Any]:
-    return projection.read_document(comm)["values"]
-
-
-def key(portable: str) -> int:
-    return manifest.numeric_key(APP, portable)
+def key(comm: Any, portable: str) -> int:
+    return views.numeric_key(comm, portable, app=APP)
 
 
 def entry_conditions(mode, app=APP):
@@ -59,22 +54,14 @@ def entry_conditions(mode, app=APP):
             for permit in app.start_permits if not permit.modes or mode in permit.modes]
 
 
-def described(values: dict[str, Any], module: str) -> dict[str, Any]:
-    base = f"{ROOT}/{module}/Status/Diagnostic"
-    return {k: values.get(f"{base}/{k}") for k in ("ReasonCode", "Description")}
+def described(comm: Any, module: str) -> dict[str, Any]:
+    diag_mod = views.module_diagnostic(comm, module, app=APP)
+    return {"ReasonCode": diag_mod.get("ReasonCode"), "Description": diag_mod.get("Description")}
 
 
-def report(values: dict[str, Any]) -> list[tuple]:
-    """The HmiResponse.Report the HMI reads: (text, reason, owner, kind)."""
-    base = f"{ROOT}/HmiResponse/Report"
-    count = values.get(f"{base}/Count") or 0
-    return [tuple(values.get(f"{base}/Reasons/Reasons[{i}]/{leaf}")
-                  for leaf in ("Description", "ReasonCode", "SourcePath", "Kind"))
-            for i in range(1, count + 1)]
-
-
-def report_released(values: dict[str, Any]) -> Any:
-    return values.get(f"{ROOT}/HmiResponse/Report/Released")
+def report_hmi(comm: Any) -> tuple[Any, list[tuple]]:
+    """The HmiResponse.Report the HMI reads: (released, [(desc, reason, source, kind), ...])."""
+    return views.release_report_hmi(comm, app=APP)
 
 
 def settle_module(comm: Any, module: str, settle: float) -> dict[str, int] | None:
@@ -103,25 +90,24 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         {"answer": start, "running": None if unit is None else unit["Running"]},
         0.0,
         not start["accepted"]
-        and start["diagnosticKey"] == key(mailbox.MANUAL_HAS_NO_SEQUENCE_KEY)
+        and start["diagnosticKey"] == key(comm, mailbox.MANUAL_HAS_NO_SEQUENCE_KEY)
         and unit is not None and unit["Running"] == 0,
     ))
 
     # --- 2. the catalogue is published ------------------------------------------
-    values = document(comm)
-    catalogue = {m: [(values.get(f"{ROOT}/{m}/Catalog[{i}]/Value"),
-                      values.get(f"{ROOT}/{m}/Catalog[{i}]/Label")) for i in (1, 2)]
+    catalogue = {m: views.module_catalog(comm, m, app=APP)[1]
                  for m in ("PressRam", "Door", "PartSlide")}
+    sensorCount = views.module_catalog(comm, "PartPresentSensor", app=APP)[0]
     rows.append(px.row(
         "each_cylinder_publishes_its_catalogue",
         "TC3's catalogue on every cylinder: EXTEND 1 and RETRACT 2, with "
         "std.command labels; a sensor publishes none",
         {"cylinders": catalogue,
-         "sensorCount": values.get(f"{ROOT}/PartPresentSensor/CatalogCount")},
+         "sensorCount": sensorCount},
         0.0,
         all(entries == [(EXTEND, "std.command.extend"), (RETRACT, "std.command.retract")]
             for entries in catalogue.values())
-        and values.get(f"{ROOT}/PartPresentSensor/CatalogCount") == 0,
+        and sensorCount == 0,
     ))
 
     # --- 3. the door does not close over a slide outside --------------------------
@@ -129,7 +115,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     door, elapsed = px.await_module(comm, "Door", lambda c: c["OutImm_Held"] != 0, settle)
     time.sleep(0.8)                            # past the door's 500 ms timeout
     door = px.read_module(comm, "Door")
-    held = described(document(comm), "Door")
+    held = described(comm, "Door")
     rows.append(px.row(
         "the_door_does_not_close_over_a_slide_outside",
         "a manual close with the slide outside is accepted and HELD on "
@@ -156,7 +142,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         {"busy": busy, "door": None if released is None else {k: released[k] for k in (
             "Busy", "Execute", "ManualCmd", "OutImm_Pos")}},
         0.0,
-        not busy["accepted"] and busy["diagnosticKey"] == key(mailbox.MANUAL_BUSY_KEY)
+        not busy["accepted"] and busy["diagnosticKey"] == key(comm, mailbox.MANUAL_BUSY_KEY)
         and released is not None and released["ManualCmd"] == 0
         and released["OutImm_Pos"] == 0,
     ))
@@ -169,7 +155,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.manual(comm, "PartSlide", RETRACT, settle=ack)
     slide, elapsed = px.await_module(comm, "PartSlide",
                                      lambda c: c["OutImm_Held"] != 0, settle)
-    held = described(document(comm), "PartSlide")
+    held = described(comm, "PartSlide")
     px.manual(comm, "Door", RETRACT, settle=ack)
     resumed, _ = px.await_module(comm, "PartSlide",
                                  lambda c: c["OutImm_Pos"] == 0 and c["Busy"] == 0, settle)
@@ -194,11 +180,11 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # --- 6. the ram names its first missing condition -----------------------------
     px.manual(comm, "PressRam", EXTEND, settle=ack)
     ram, elapsed = px.await_module(comm, "PressRam", lambda c: c["OutImm_Held"] != 0, settle)
-    first = described(document(comm), "PressRam")
+    first = described(comm, "PressRam")
     px.write(comm, px.AIR_OK, 0)
     px.await_module(comm, "AirPressureMonitor", lambda c: c["OutImm_PressureOk"] == 0, settle)
     time.sleep(0.1)
-    then = described(document(comm), "PressRam")
+    then = described(comm, "PressRam")
     px.write(comm, px.AIR_OK, 1)
     px.command(comm, mailbox.OPERATOR_RESET, settle=ack)
     settle_module(comm, "PressRam", settle)
@@ -225,11 +211,11 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         "any manual command outside MANUAL are each refused with its reason",
         {"sensor": sensor, "unknown": unknown, "auto": auto},
         0.0,
-        not sensor["accepted"] and sensor["diagnosticKey"] == key(mailbox.TARGET_KEY)
+        not sensor["accepted"] and sensor["diagnosticKey"] == key(comm, mailbox.TARGET_KEY)
         and not unknown["accepted"]
-        and unknown["diagnosticKey"] == key(mailbox.MANUAL_COMMAND_UNKNOWN_KEY)
+        and unknown["diagnosticKey"] == key(comm, mailbox.MANUAL_COMMAND_UNKNOWN_KEY)
         and not auto["accepted"]
-        and auto["diagnosticKey"] == key(mailbox.MANUAL_MODE_REQUIRED_KEY),
+        and auto["diagnosticKey"] == key(comm, mailbox.MANUAL_MODE_REQUIRED_KEY),
     ))
 
     # --- 8. (4b) a START refused names its reason and carries the report ---
@@ -239,13 +225,12 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.await_module(comm, "AirPressureMonitor", lambda c: c["OutImm_PressureOk"] == 0, settle)
     time.sleep(0.1)
     refused = px.command(comm, mailbox.START, settle=ack)
-    no_air = report(document(comm))
+    no_air = report_hmi(comm)[1]
     px.write(comm, px.AIR_OK, 1)
     px.await_module(comm, "AirPressureMonitor", lambda c: c["OutImm_PressureOk"] == 1, settle)
     time.sleep(0.1)
     query = px.command(comm, mailbox.RELEASE_START, settle=ack)
-    values = document(comm)
-    clear = (report_released(values), report(values))
+    clear = report_hmi(comm)
     started = px.command(comm, mailbox.START, settle=ack)
     air = ("project.condition.airPressureOk", R["PERMISSIVE_NOT_MET"], ROOT,
            gen.RELEASE_KINDS["INTERLOCK"])
@@ -258,7 +243,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         {"refused": refused, "report": no_air, "query": query, "clear": clear,
          "started": started},
         0.0,
-        not refused["accepted"] and refused["diagnosticKey"] == key(air[0])
+        not refused["accepted"] and refused["diagnosticKey"] == key(comm, air[0])
         and no_air == [air] and query["accepted"] and clear == (True, [])
         and started["accepted"],
     ))
@@ -271,7 +256,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.await_module(comm, "AirPressureMonitor", lambda c: c["OutImm_PressureOk"] == 0, settle)
     time.sleep(0.1)
     px.command(comm, mailbox.RELEASE_START, settle=ack)
-    every = report(document(comm))
+    every = report_hmi(comm)[1]
     px.write(comm, px.AIR_OK, 1)
     kind = gen.RELEASE_KINDS
     expected = [(mailbox.MANUAL_HAS_NO_SEQUENCE_KEY, kind["MODE"]),
@@ -293,7 +278,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     for mode in (px.MODE_MANUAL, demo.MODE_HOME, demo.MODE_AUTO, demo.MODE_CHANGEOVER):
         px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=mode)
         px.command(comm, mailbox.RELEASE_START, settle=ack)
-        mode_reports[mode] = report(document(comm))
+        mode_reports[mode] = report_hmi(comm)[1]
     air_key = "project.condition.airPressureOk"
     rows.append(px.row(
         "air_start_entry_is_scoped_by_mode",
@@ -309,14 +294,13 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # --- 10. (4b) a manual query names the blocked direction --------------------------
     px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=px.MODE_MANUAL)
     blocked = px.command(comm, mailbox.RELEASE_MANUAL, settle=ack, TargetPath=f"{ROOT}.Door",
-                         IntValue=EXTEND, **{mailbox.MANUAL_TARGET_MEMBER:
-                                             mailbox.manual_target(APP, f"{ROOT}.Door")})
-    door_close = report(document(comm))
+                          IntValue=EXTEND, **{mailbox.MANUAL_TARGET_MEMBER:
+                                              mailbox.manual_target(APP, f"{ROOT}.Door")})
+    door_close = report_hmi(comm)[1]
     px.command(comm, mailbox.RELEASE_MANUAL, settle=ack, TargetPath=f"{ROOT}.Door",
-               IntValue=RETRACT, **{mailbox.MANUAL_TARGET_MEMBER:
-                                    mailbox.manual_target(APP, f"{ROOT}.Door")})
-    values = document(comm)
-    door_open = (report_released(values), report(values))
+                IntValue=RETRACT, **{mailbox.MANUAL_TARGET_MEMBER:
+                                     mailbox.manual_target(APP, f"{ROOT}.Door")})
+    door_open = report_hmi(comm)
     rows.append(px.row(
         "a_manual_query_names_the_blocked_direction",
         "the door's close, asked about with the slide outside, is explained by "
@@ -326,13 +310,13 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
         0.0,
         blocked["accepted"]
         and door_close == [("project.interlock.doorCloseRequiresSlideInside",
-                            R["INTERLOCK_DROPPED"], f"{ROOT}.Door", kind["INTERLOCK"])]
+                             R["INTERLOCK_DROPPED"], f"{ROOT}.Door", kind["INTERLOCK"])]
         and door_open == (True, []),
     ))
 
     # --- 11. (4b) a reset with nothing to reset -----------------------------------------
     px.command(comm, mailbox.RELEASE_ACTION, settle=ack, IntValue=gen.GATED_ALARM_RESET)
-    nothing = report(document(comm))
+    nothing = report_hmi(comm)[1]
     rows.append(px.row(
         "a_reset_with_nothing_to_reset_says_so",
         "TC3's ReleaseReportAction for ALARM_RESET with no blocking alarm: "
@@ -384,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
             evidence["error"] = "controller serial does not match --expect-serial"
             print(json.dumps(evidence, indent=2, sort_keys=True))
             return 1
-        ready = px.fingerprint(comm)
+        ready = px.fingerprint(comm, expect_serial=args.expect_serial)
         evidence["fingerprint"] = ready
         if not ready.get("passed"):
             evidence["error"] = "press-demo fingerprint failed; nothing was written"
