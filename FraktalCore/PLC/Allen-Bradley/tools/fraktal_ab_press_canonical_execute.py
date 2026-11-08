@@ -7,22 +7,48 @@ and set-store vectors and the typed request vectors run unchanged on top. Every
 changed value is restored by the shared owner; credentials are never recorded.
 """
 import argparse
+import hashlib
+import json
 import os
 from pathlib import Path
+import re
 import time
 
+import fraktal_ab_fixture_reads as views
 import fraktal_ab_genealogy_execute as live
+import fraktal_ab_harness_documents as host_docs
+import fraktal_ab_harness_seed as harness_seed
+from fraktal_ab_live_medium import FileMedium
 import fraktal_ab_mailbox as mb
 import fraktal_ab_part_execute as fixture
 import fraktal_ab_press_canonical_echo38 as candidate
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_s3k_equivalence as equivalence
 import fraktal_ab_s3k_fixture_execute as typed
+import fraktal_ab_set_documents as set_docs
+import fraktal_ab_station as station
 import fraktal_ab_tower_execute as tower
 
+SERIAL = '601FC87B'
 DECLARATION = 'fraktal_ab_press_canonical_echo38'
+COLLAPSED_DECLARATIONS = ('fraktal_ab_press_s6_collapse_echo38', 'fraktal_ab_press_s6_shelving_echo38')
+ACCEPTED_DECLARATIONS = (DECLARATION, *COLLAPSED_DECLARATIONS)
+ISOLATED_SEED_ENV = 'FRAKTAL_AB_PRESS_SEED_DIR'
 COUNTERS = ('GoodCount', 'ScrapCount', 'ReworkCount', 'CycleCount')
 STATE = ('Mode', 'Running', 'Complete', 'Error', 'ErrorID', 'Aborted')
+
+
+def authorize(path, pin):
+    value = json.loads(Path(path).read_text(encoding='utf-8'))
+    if (not re.fullmatch(r'[A-F0-9]{64}', pin)
+            or value.get('CurrentOwnerApproved') is not True
+            or value.get('MailboxOrTagWritesAuthorized') is not True
+            or value.get('Serial') != SERIAL
+            or value.get('CanonicalSha256') != pin
+            or value.get('FaultClearAuthorized') is not False
+            or value.get('ClockSetAuthorized') is not False):
+        raise fixture.FixtureRefused('current exact-image press authorization required')
+    return value
 
 
 class PressRun(fixture.Run):
@@ -115,14 +141,50 @@ def seed_medium(run):
     refuses them. The walk therefore uses an isolated, initially empty medium
     seeded with what the downloaded press image holds, at the press revision.
     """
-    import fraktal_ab_live as live
+    if run.app.canonical_collapse:
+        selected = os.environ.get(ISOLATED_SEED_ENV)
+        run.check(bool(selected), 'isolated press medium not selected')
+        run.check(not os.environ.get('FRAKTAL_HARNESS_HOST_SEED')
+                  and not os.environ.get('FRAKTAL_HARNESS_HOST_SEED_SHA256'),
+                  'isolated press medium must start empty')
+        directory = Path(selected).resolve()
+        manifest_path = directory.with_name(directory.name + '_seed.json')
+        live_dir = directory / 'live'
+        store = FileMedium(live_dir)
+        run.check(not manifest_path.exists() and not store.index(), 'isolated press medium must start empty')
+        session = views._session(run.comm, run.app)
+        expected, epoch = host_docs.expected_documents(session.reader, session.root)
+        run.check(views.revision(run.comm, app=run.app) == epoch, 'configuration changed while seeding press medium')
+        run.check(all(store.read(key) is None for key in expected), 'isolated press medium must start empty')
+        live_dir.mkdir(parents=True, exist_ok=True)
+        for key, wanted in expected.items():
+            document = set_docs.checked_document([
+                {**wanted['header'], 'schema': 1, 'created': 0, 'clock': 0},
+                *wanted['records'].values(),
+            ])
+            store.write(key, document)
+        recorded = harness_seed.record(directory, manifest_path,
+                                       serial=run.evidence['serial'], root=run.app.name)
+        digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest().upper()
+        os.environ['FRAKTAL_HARNESS_HOST_SEED'] = str(manifest_path)
+        os.environ['FRAKTAL_HARNESS_HOST_SEED_SHA256'] = digest
+        run.evidence['pressMedium'] = dict(
+            directory=str(live_dir),
+            seedManifest=str(manifest_path),
+            seedManifestSha256=digest,
+            seeded=sorted(expected),
+            files=len(recorded['files']),
+            source='published configuration view of the downloaded press image',
+        )
+        return
+    import fraktal_ab_live as legacy_live
     import fraktal_ab_medium as medium
     import fraktal_ab_projection as projection
     run.check(bool(os.environ.get(medium.SET_DIR_ENV)), 'isolated press medium not selected')
-    directory = live.live_directory(run.app, run.evidence['serial'])
-    store = live.FileMedium(directory)
+    directory = legacy_live.live_directory(run.app, run.evidence['serial'])
+    store = legacy_live.FileMedium(directory)
     held = projection.read_document(run.comm)['liveConfig']
-    wanted = live.documents(run.app, held, 0)
+    wanted = legacy_live.documents(run.app, held, 0)
     run.check(all(store.read(key) is None for key in wanted), 'isolated press medium must start empty')
     for key, document in wanted.items():
         store.write(key, document)
@@ -136,9 +198,21 @@ def press_rows(run):
     tower.exercise_common(run)
 
 
-def isolate_medium(output):
-    import fraktal_ab_medium as medium
+def isolate_medium(output, *, canonical_collapse=None):
+    if canonical_collapse is None:
+        canonical_collapse = station.module_name() in COLLAPSED_DECLARATIONS
     directory = output.with_name(output.stem + '_press_medium')
+    if canonical_collapse:
+        manifest_path = directory.with_name(directory.name + '_seed.json')
+        if os.environ.get('FRAKTAL_HARNESS_HOST_SEED') or os.environ.get('FRAKTAL_HARNESS_HOST_SEED_SHA256'):
+            raise fixture.FixtureRefused('host seed environment already set')
+        if directory.exists() or manifest_path.exists():
+            raise fixture.FixtureRefused('isolated press medium already exists')
+        directory.mkdir()
+        (directory / 'live').mkdir()
+        os.environ[ISOLATED_SEED_ENV] = str(directory)
+        return directory
+    import fraktal_ab_medium as medium
     if directory.exists():
         raise fixture.FixtureRefused('isolated press medium already exists')
     directory.mkdir()
@@ -157,10 +231,25 @@ def main(argv=None):
     parser.add_argument('--expect-acd-sha256', required=True)
     parser.add_argument('--output', type=Path, required=True)
     known, rest = parser.parse_known_args(argv)
-    typed.authorize(known.authorization_file, known.expect_acd_sha256)
+    collapsed = station.module_name() in COLLAPSED_DECLARATIONS
+    if collapsed:
+        authorize(known.authorization_file, known.expect_acd_sha256)
+    else:
+        typed.authorize(known.authorization_file, known.expect_acd_sha256)
     if known.output.exists():
         raise fixture.FixtureRefused('refusing existing evidence output')
-    isolate_medium(known.output)
+    if collapsed:
+        isolate_medium(known.output, canonical_collapse=True)
+        try:
+            return live.main([*rest, '--output', str(known.output)],
+                             run_type_factory=lambda _out: PressRun,
+                             schema='fraktal.ab.press-collapse-fixture',
+                             expected_declaration=COLLAPSED_DECLARATIONS,
+                             exercise_rows=press_rows)
+        finally:
+            for key in (ISOLATED_SEED_ENV, 'FRAKTAL_HARNESS_HOST_SEED', 'FRAKTAL_HARNESS_HOST_SEED_SHA256'):
+                os.environ.pop(key, None)
+    isolate_medium(known.output, canonical_collapse=False)
     return live.main([*rest, '--output', str(known.output)], run_type_factory=paired_run, schema='fraktal.ab.press-s3k-fixture',
                      expected_declaration=DECLARATION, exercise_rows=press_rows)
 

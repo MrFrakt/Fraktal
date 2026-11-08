@@ -1,0 +1,129 @@
+{
+  "parentCommit": "0730d3feb4ee8877c0e63ad31710a73ad7c11644",
+  "file": "fraktal_ab_press_canonical_execute.py",
+  "beforeCheckCount": 10,
+  "afterCheckCount": 15,
+  "beforeCheckMessages": [
+    "'OK verdict count'",
+    "'NOK must not count good'",
+    "'held timeout must not accrue'",
+    "'HELD resumes and counts once'",
+    "'aborted cycle must not count'",
+    "'mode change must leave AUTO'",
+    "'adopted fault keeps its first-out'",
+    "'single-reset restart must process normally'",
+    "'isolated press medium not selected'",
+    "'isolated press medium must start empty'"
+  ],
+  "afterCheckMessages": [
+    "'OK verdict count'",
+    "'NOK must not count good'",
+    "'held timeout must not accrue'",
+    "'HELD resumes and counts once'",
+    "'aborted cycle must not count'",
+    "'mode change must leave AUTO'",
+    "'adopted fault keeps its first-out'",
+    "'single-reset restart must process normally'",
+    "'isolated press medium not selected'",
+    "'isolated press medium must start empty'",
+    "'isolated press medium must start empty'",
+    "'configuration changed while seeding press medium'",
+    "'isolated press medium must start empty'",
+    "'isolated press medium not selected'",
+    "'isolated press medium must start empty'"
+  ],
+  "missingCheckMessages": [],
+  "beforeWaitCount": 6,
+  "afterWaitCount": 6,
+  "beforeWaits": [
+    {
+      "pred": "lambda: self.unit()['DecisionId'] != 0",
+      "label": "'handled ram fault decision'",
+      "timeout": "default",
+      "line": 56
+    },
+    {
+      "pred": "lambda: (px.read_module(self.comm, 'PressRam') or {}).get('OutImm_Held')",
+      "label": "'recoverable hold'",
+      "timeout": "default",
+      "line": 68
+    },
+    {
+      "pred": "lambda: not self.unit()['Running']",
+      "label": "'held abort'",
+      "timeout": "default",
+      "line": 80
+    },
+    {
+      "pred": "lambda: self.unit()['Mode'] == self.app.manual_mode and self.unit()['Step'] == 0",
+      "label": "'held mode change'",
+      "timeout": "default",
+      "line": 84
+    },
+    {
+      "pred": "lambda: self.unit() if self.unit()['Error'] else None",
+      "label": "'adopted slide fault'",
+      "timeout": "default",
+      "line": 97
+    },
+    {
+      "pred": "lambda: self.unit()['Error'] == self.unit()['Aborted'] == self.unit()['Running'] == 0",
+      "label": "'one-reset readiness'",
+      "timeout": "default",
+      "line": 102
+    }
+  ],
+  "afterWaits": [
+    {
+      "pred": "lambda: self.unit()['DecisionId'] != 0",
+      "label": "'handled ram fault decision'",
+      "timeout": "default",
+      "line": 82
+    },
+    {
+      "pred": "lambda: (self.module('PressRam') or {}).get('OutImm_Held')",
+      "label": "'recoverable hold'",
+      "timeout": "default",
+      "line": 94
+    },
+    {
+      "pred": "lambda: not self.unit()['Running']",
+      "label": "'held abort'",
+      "timeout": "default",
+      "line": 106
+    },
+    {
+      "pred": "lambda: self.unit()['Mode'] == self.app.manual_mode and self.unit()['Step'] == 0",
+      "label": "'held mode change'",
+      "timeout": "default",
+      "line": 110
+    },
+    {
+      "pred": "lambda: self.unit() if self.unit()['Error'] else None",
+      "label": "'adopted slide fault'",
+      "timeout": "default",
+      "line": 123
+    },
+    {
+      "pred": "lambda: self.unit()['Error'] == self.unit()['Aborted'] == self.unit()['Running'] == 0",
+      "label": "'one-reset readiness'",
+      "timeout": "default",
+      "line": 128
+    }
+  ],
+  "waitsIdentical": true,
+  "sleepsIdentical": true,
+  "beforeSleeps": [
+    {
+      "arg": "0.75",
+      "line": 70
+    }
+  ],
+  "afterSleeps": [
+    {
+      "arg": "0.75",
+      "line": 96
+    }
+  ],
+  "passed": true
+}

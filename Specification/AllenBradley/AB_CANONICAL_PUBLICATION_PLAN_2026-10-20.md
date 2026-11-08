@@ -1627,6 +1627,14 @@ qualifications. Next in C5b3 are `fraktal_ab_press_canonical_execute.py` and
 the remaining station-reading HX harnesses (`press_parity`, `phase1..4_execute`,
 `s3_execute`) before C5c/V6.12, C6/C7 and native S6-Q.
 
+**C5b3 standalone canonical press launcher done offline, 2026-11-07** ([evidence](Evidence/AB_S6_COLLAPSE_C5B3_LAUNCHER_OFFLINE_2026-11-07.md)).
+`fraktal_ab_press_canonical_execute.py` runs both collapsed press profiles
+through the shared runner with a standalone exact-image authorization, an
+isolated seed-manifest medium commissioned from the image's V6.8 view, and
+`PressRun` unchanged from C3; no MO path is reachable. Zero PLC/L5X/Dart
+changes. Remaining C5b3 harnesses: `press_parity`, `phase1..4_execute`,
+`s3_execute`.
+
 C5 continues in two dependent increments without changing its exit gate:
 remaining HX fact/read/command migrations and the public host-adapter/set
 lifecycle first, then Frame/staged endpoint removal and V6.12 readers. The

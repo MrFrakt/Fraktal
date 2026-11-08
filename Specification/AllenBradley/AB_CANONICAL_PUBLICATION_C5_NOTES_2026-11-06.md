@@ -467,3 +467,41 @@ station-reading HX harnesses (`fraktal_ab_press_parity.py`,
 `fraktal_ab_s3_execute.py`; `fraktal_ab_s9_{mutations,read_execute,write_execute}.py`
 retire with RT/MO, and `fraktal_ab_mailbox_execute.py` uses the gateway
 WebSocket protocol directly) before C5c/V6.12, C6/C7 and native S6-Q.
+
+
+## C5b3 standalone canonical press launcher - 2026-11-07
+
+The [launcher record](Evidence/AB_S6_COLLAPSE_C5B3_LAUNCHER_OFFLINE_2026-11-07.md) passes offline with
+zero controller operations. `fraktal_ab_press_canonical_execute.py` accepts
+`fraktal_ab_press_s6_collapse_echo38` and `fraktal_ab_press_s6_shelving_echo38`
+and runs `PressRun` through the shared runner without any MO import path being
+taken: no `typed.authorize`, `paired_run`, S3k equivalence gate, projection or
+legacy keeper. A standalone `authorize` keeps all seven exact-image approval
+checks (serial, pin, owner and write approvals, fault-clear and clock-set
+explicitly false).
+
+- First commissioning reads the downloaded image's V6.8 configuration view via
+  `expected_documents`, brackets it with `Status/ConfigRev`, writes the five
+  live documents into an empty isolated medium beside the output, and records a
+  hash-pinned seed manifest via `fraktal_ab_harness_seed.record`. The shared
+  runner's preservation row then compares against that manifest. Over the
+  emitted press view, the seeded documents equal legacy `fraktal_ab_live.documents`
+  content for both profiles.
+- The medium must start empty: an existing seed variable, manifest, index or
+  document refuses, as does a revision change while seeding. The launcher
+  clears the isolation and seed variables in `finally`, including when the
+  inner runner refuses its arguments.
+- `PressRun` keeps its C3 AST byte-for-byte (the predicate gate in
+  `test_fraktal_ab_fixture_reads` caught a first attempt that rewrote its hold
+  wait; `px.read_module` already routes to the O10 view under C5a). All 10
+  original checks, 6 waits and the 0.75 s hold bound are preserved. Zero
+  unguarded collapsed-reachable legacy/MO calls remain across six runners.
+- An end-to-end simulated run on both profiles yields 23 passing rows (two
+  leading rows plus seven core cases in each of ST, SFC and LD), with full
+  restoration, policy restoration and original-medium checks.
+
+No PLC, L5X or shipping Dart source changed; all three collapsed profiles
+regenerate byte-identically and reuse their 60%/54% Capacity and C5b2 44-test
+Dart qualifications. Next in C5b3: `fraktal_ab_press_parity.py`,
+`fraktal_ab_phase1_execute.py`..`fraktal_ab_phase4_execute.py` and
+`fraktal_ab_s3_execute.py`, then C5c/V6.12, C6/C7 and native S6-Q.
