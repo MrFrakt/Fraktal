@@ -2674,6 +2674,12 @@ restart. Safety authority remains independent of every cybersecurity control.
   The read-surface gate records
   remaining absent capabilities with their reasons (`tools/check_consistency.py`
   `AB_ABSENT`). The Line read surface is now exercised by that gate.
+- **Hardware-only qualification and CIP Security are declared exclusions (Owner Decision O2, 2026-11-09).**
+  Physical controller hardware acceptance (physical I/O module verification, real hardware power-cycle
+  retention, physical firmware flashing, and CIP Object 0x3B SD card access) and CIP Security TLS termination
+  (`cips://`) are formally excluded from the Fraktal/AB binding claim. The production posture for Fraktal/AB
+  is the IEC 62443 Zone-and-Conduit model (AB §11.2.1) utilizing unencrypted EtherNet/IP (`cip://`) within the
+  protected automation cell and authenticated, role-based `wss://` via the Fraktal gateway.
 
 **Optional owner Line calendar V2.** A declaration may select one line owner
 beside its root, with printable identities up to 80 ASCII bytes. It is data,

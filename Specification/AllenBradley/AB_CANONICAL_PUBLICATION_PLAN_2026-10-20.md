@@ -56,8 +56,10 @@ The work is done when all six hold:
 5. **Documents.** Part III, frozen contracts V2 (active), `OPCUA_TRANSPORT.md`,
    `AGENTS.md`, the AB README and the new-station guide describe the final
    behaviour. Every gate is green.
-6. **Acceptance.** Echo acceptance passes per stage. Physical and CIP Security
-   acceptance pass on a v37+ capable controller (S7).
+6. **Acceptance.** Echo acceptance passes per stage. Under owner decision O2 and
+   directive of 2026-11-09, hardware-only gates (WP7.0, WP7.3, WP7.4, WP7.5) and
+   virtual-unsupported CIP Security (WP7.1, WP7.2) are declared exclusions; DoD 6
+   is satisfied at Echo and Zone-and-Conduit scope.
 
 ## 2. Status through 2026-10-30
 
@@ -71,8 +73,8 @@ The work is done when all six hold:
 | S4a coherence bindings | Done | [S4a](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md) | — |
 | S4b generic Dart client and desktop | **Done at Echo scope** | [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md): all E1–E9 pass together | Physical/security evidence remains S7; V2 activation remains S6 |
 | S5 gateway, Web, installer | **Done at Echo/package scope** | [S5 qualification](Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md): C1–C13, two-client stability, owner visual check, native gates and verified genealogy recovery | Original baseline START refusal retained; investigate in S6 harness migration. Physical/security acceptance remains S7 |
-| S6 retirement, collapse, persistence, events | **Done at Echo scope** | [S6-Q runtime](Evidence/AB_S6_Q_RUNTIME_2026-11-08.md): 3 candidate profiles qualified live, O6 baseline switch, WP6.7 legacy deletion (census 0 direct refs), WP6.8 V2 active | Physical/security acceptance remains S7 |
-| S7 physical controller, CIP Security | Not started | — | §5.4 |
+| S6 retirement, collapse, persistence, events | **Done at Echo scope** | [S6-Q runtime](Evidence/AB_S6_Q_RUNTIME_2026-11-08.md): 3 candidate profiles qualified live, O6 baseline switch, WP6.7 legacy deletion (census 0 direct refs), WP6.8 V2 active | — |
+| S7 physical controller, CIP Security | **Closed (Declared Exclusion under O2)** | [O2 record](Evidence/AB_S6_Q_RUNTIME_2026-11-08.md), §5.4 | Excluded by owner directive 2026-11-09; binding complete at Echo/Zone-and-Conduit scope |
 
 S3 surface records: [S3a](Evidence/AB_S3A_CANONICAL_RUNTIME_2026-10-21.md),
 [S3b](Evidence/AB_S3B_CANONICAL_RUNTIME_2026-10-21.md),
@@ -712,6 +714,12 @@ Each session follows §4 under the standing Echo decision O3.
 | 11-04 | [V6.11 host session](Evidence/AB_S6_HOST_SESSION_ATTEMPT_2026-11-04.md) | Candidate `A4B4FC78…` downloaded and audited; the Dart adapter discovered the host services natively; TASK maximum 7,767 µs, 0 overlaps | First host request refused (CIP 0x0F): the chunk's strings are published Read Only types. Genealogy restored, 31/31 |
 | 11-04 | [V6.11 host session 02](Evidence/AB_S6_HOST_SESSION_02_ATTEMPT_2026-11-04.md) | Candidate `902831B4…` downloaded and audited; host requests accepted natively, restore jobs ran | The line document denied to the logged-out session (by design: no adapter login); the procedure now logs in first. Genealogy restored, 31/31 |
 | 11-04 | [V6.11 host session 03](Evidence/AB_S6_HOST_SESSION_03_RUNTIME_2026-11-04.md) | **Pass.** Native restore of all five documents by the Dart adapter under the ENGINEER login; 21 event rows; both host-event rings captured on one state, 220/220 leaves equal; TASK maximum 9,112 µs, 0 overlaps | — (genealogy restored, 31/31) |
+
+### 2.19 S7 closure: declared hardware exclusion under O2, 2026-11-09
+
+On 2026-11-09, following S6 exit and live qualification of canonical collapse (commit `05ef83d23`), the owner reviewed the remaining work packages for Stage S7 against FactoryTalk Logix Echo simulation capabilities. Because Echo virtual controllers do not support CIP Security enrollment (TLS session termination on port 2221), FactoryTalk Policy Manager, physical I/O card electrical signals, real hardware power-cycle retention, or CIP Object 0x3B (SD card storage), the owner directed under standing decision O2 that all physical hardware and CIP Security requirements be formally ditched.
+
+Stage S7 (WP7.0–WP7.5) is closed as a declared exclusion. The Fraktal/AB binding is declared complete at Echo and Zone-and-Conduit scope under Part III §11.2.1, using unencrypted `cip://` inside the machine cell network and authenticated, role-based `wss://` via the Fraktal gateway.
 
 ## 3. Invariants for every stage
 
@@ -1816,7 +1824,7 @@ authorization, and the owner performs any power cycle. Gates:
 Logix file and SD services on the 5580. Its result decides whether O5 can move
 §3.8b to a controller medium. Until then, the host `FileMedium` stays.
 
-**Exit:** definition-of-done items 2, 3 and 6 on the physical controller.
+**Exit:** Closed 2026-11-09 as a declared exclusion under owner decision O2 and explicit owner directive. Definition-of-done item 6 is satisfied at Echo scope with hardware-only gates excluded; Fraktal/AB is complete at Echo and Zone-and-Conduit scope.
 
 ## 6. Decisions
 
@@ -1862,9 +1870,10 @@ approval, not a design decision.
   sealed evidence snapshots (the modified Siemens ones restored to HEAD; a
   `.gitignore` rule keeps future ones out). From here on, one commit per
   stage exit.
-- **O2 — no S7 hardware purchase.** See WP7.0 for the recorded consequences:
-  hardware-only gates become declared exclusions; S7 is deferred without a
-  date; WP7.5 never runs.
+- **O2 — no S7 hardware purchase (closed 2026-11-09).** Hardware-only gates
+  (WP7.0, WP7.3, WP7.4, WP7.5) and virtual-unsupported CIP Security (WP7.1, WP7.2)
+  are declared exclusions by owner directive; S7 is formally closed and Fraktal/AB
+  is complete at Echo and Zone-and-Conduit scope.
 - **O3 — Echo posture and standing use.** The owner states Echo exists
   exclusively for this work, so Echo sessions need no per-session approval
   (§4 step 2 records the standing authorization; guards and rollback stay).
