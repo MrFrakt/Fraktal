@@ -23,8 +23,6 @@ import fraktal_ab_mailbox as mb
 import fraktal_ab_part_execute as fixture
 import fraktal_ab_press_canonical_echo38 as candidate
 import fraktal_ab_press_execute as px
-import fraktal_ab_press_s3k_equivalence as equivalence
-import fraktal_ab_s3k_fixture_execute as typed
 import fraktal_ab_set_documents as set_docs
 import fraktal_ab_station as station
 import fraktal_ab_tower_execute as tower
@@ -91,7 +89,7 @@ class PressRun(fixture.Run):
         unused, baseline = self.boundary()
         self.set(px.HOLD['PressRam'], 1)
         self.begin()
-        self.wait(lambda: (px.read_module(self.comm, 'PressRam') or {}).get('OutImm_Held'), 'recoverable hold')
+        self.wait(lambda: (px.module_surface(self.comm, 'PressRam') or {}).get('OutImm_Held'), 'recoverable hold')
         if ending == 'resume':
             time.sleep(.75)  # exceeds the cylinder command's 500 ms timeout
             self.check(self.unit()['Error'] == 0 and self.unit()['Running'] == 1, 'held timeout must not accrue')
@@ -177,19 +175,7 @@ def seed_medium(run):
             source='published configuration view of the downloaded press image',
         )
         return
-    import fraktal_ab_live as legacy_live
-    import fraktal_ab_medium as medium
-    import fraktal_ab_projection as projection
-    run.check(bool(os.environ.get(medium.SET_DIR_ENV)), 'isolated press medium not selected')
-    directory = legacy_live.live_directory(run.app, run.evidence['serial'])
-    store = legacy_live.FileMedium(directory)
-    held = projection.read_document(run.comm)['liveConfig']
-    wanted = legacy_live.documents(run.app, held, 0)
-    run.check(all(store.read(key) is None for key in wanted), 'isolated press medium must start empty')
-    for key, document in wanted.items():
-        store.write(key, document)
-    run.evidence['pressMedium'] = dict(directory=str(directory), seeded=sorted(wanted),
-                                       source='live configuration of the downloaded press image')
+    raise ValueError('canonical collapsed profile required')
 
 
 def press_rows(run):
@@ -201,28 +187,18 @@ def press_rows(run):
 def isolate_medium(output, *, canonical_collapse=None):
     if canonical_collapse is None:
         canonical_collapse = station.module_name() in COLLAPSED_DECLARATIONS
+    if not canonical_collapse:
+        raise ValueError('canonical collapsed profile required')
     directory = output.with_name(output.stem + '_press_medium')
-    if canonical_collapse:
-        manifest_path = directory.with_name(directory.name + '_seed.json')
-        if os.environ.get('FRAKTAL_HARNESS_HOST_SEED') or os.environ.get('FRAKTAL_HARNESS_HOST_SEED_SHA256'):
-            raise fixture.FixtureRefused('host seed environment already set')
-        if directory.exists() or manifest_path.exists():
-            raise fixture.FixtureRefused('isolated press medium already exists')
-        directory.mkdir()
-        (directory / 'live').mkdir()
-        os.environ[ISOLATED_SEED_ENV] = str(directory)
-        return directory
-    import fraktal_ab_medium as medium
-    if directory.exists():
+    manifest_path = directory.with_name(directory.name + '_seed.json')
+    if os.environ.get('FRAKTAL_HARNESS_HOST_SEED') or os.environ.get('FRAKTAL_HARNESS_HOST_SEED_SHA256'):
+        raise fixture.FixtureRefused('host seed environment already set')
+    if directory.exists() or manifest_path.exists():
         raise fixture.FixtureRefused('isolated press medium already exists')
     directory.mkdir()
-    os.environ[medium.SET_DIR_ENV] = str(directory)
+    (directory / 'live').mkdir()
+    os.environ[ISOLATED_SEED_ENV] = str(directory)
     return directory
-
-
-def paired_run(destination):
-    return typed.paired_run(destination, candidate_factory=candidate.application,
-                            equivalence_gate=equivalence.run, base=PressRun)
 
 
 def main(argv=None):
@@ -232,26 +208,21 @@ def main(argv=None):
     parser.add_argument('--output', type=Path, required=True)
     known, rest = parser.parse_known_args(argv)
     collapsed = station.module_name() in COLLAPSED_DECLARATIONS
-    if collapsed:
-        authorize(known.authorization_file, known.expect_acd_sha256)
-    else:
-        typed.authorize(known.authorization_file, known.expect_acd_sha256)
+    if not collapsed:
+        raise fixture.FixtureRefused('canonical collapsed declaration required')
+    authorize(known.authorization_file, known.expect_acd_sha256)
     if known.output.exists():
         raise fixture.FixtureRefused('refusing existing evidence output')
-    if collapsed:
-        isolate_medium(known.output, canonical_collapse=True)
-        try:
-            return live.main([*rest, '--output', str(known.output)],
-                             run_type_factory=lambda _out: PressRun,
-                             schema='fraktal.ab.press-collapse-fixture',
-                             expected_declaration=COLLAPSED_DECLARATIONS,
-                             exercise_rows=press_rows)
-        finally:
-            for key in (ISOLATED_SEED_ENV, 'FRAKTAL_HARNESS_HOST_SEED', 'FRAKTAL_HARNESS_HOST_SEED_SHA256'):
-                os.environ.pop(key, None)
-    isolate_medium(known.output, canonical_collapse=False)
-    return live.main([*rest, '--output', str(known.output)], run_type_factory=paired_run, schema='fraktal.ab.press-s3k-fixture',
-                     expected_declaration=DECLARATION, exercise_rows=press_rows)
+    isolate_medium(known.output, canonical_collapse=True)
+    try:
+        return live.main([*rest, '--output', str(known.output)],
+                         run_type_factory=lambda _out: PressRun,
+                         schema='fraktal.ab.press-collapse-fixture',
+                         expected_declaration=COLLAPSED_DECLARATIONS,
+                         exercise_rows=press_rows)
+    finally:
+        for key in (ISOLATED_SEED_ENV, 'FRAKTAL_HARNESS_HOST_SEED', 'FRAKTAL_HARNESS_HOST_SEED_SHA256'):
+            os.environ.pop(key, None)
 
 
 if __name__ == '__main__': raise SystemExit(main())

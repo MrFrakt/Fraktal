@@ -10,7 +10,7 @@ import fraktal_ab_generate as gen
 import fraktal_ab_generated_size as size
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
-import fraktal_ab_projection as projection
+from test_fraktal_ab_canonical_alarms import alarm_log_status, reason_description
 import fraktal_ab_reasons as reasons
 import fraktal_ab_shelving as shelf
 import fraktal_ab_st_model as st
@@ -40,7 +40,7 @@ class Bench:
         self.active['NActive'] += 1
 
     def request(self, kind=mb.SHELVE_ALARM, **args):
-        supplied = dict(TargetPath=SOURCE, TextValue=projection.reason_description(self.app, SHELVABLE), DurationMs=10000)
+        supplied = dict(TargetPath=SOURCE, TextValue=reason_description(self.app, SHELVABLE), DurationMs=10000)
         supplied.update(args)
         return dict(users.request(self.c, kind, self.app, **supplied))
 
@@ -62,7 +62,7 @@ class Shelving(unittest.TestCase):
         self.assertEqual(answer['Accepted'], 1)
         self.assertEqual((b.active['ActShelved'][0], b.active['Blocking']), (1, 1))
         self.assertEqual(b.active['ActState'][0], gen.ALARM_OPEN)
-        out = projection.alarm_log_status(APP, b.active, b.ring)
+        out = alarm_log_status(APP, b.active, b.ring)
         self.assertTrue(out['AlarmLog/Active[1]/Shelved'])
         audit = access.audit_status(APP, mf.content(APP), b.c.tags[access.tag(APP, 'Audit')], b.ring)
         slot = b.events(shelf.SHELVED)[0]

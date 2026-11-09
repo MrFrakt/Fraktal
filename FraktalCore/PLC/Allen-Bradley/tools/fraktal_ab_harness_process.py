@@ -67,7 +67,7 @@ class ProcessLease:
             raise ValueError('prepared executable hash differs')
         self.directory = Path(directory).resolve()
         self.directory.mkdir(parents=True, exist_ok=True)
-        self.instance = prefix + '-' + uuid.uuid4().hex
+        self.instance = (prefix + '-' + uuid.uuid4().hex)[:32]
         self.log_path = self.directory / (self.instance + '.log')
         self.process, self._log, self._closed = None, None, False
         self._spawn = spawn

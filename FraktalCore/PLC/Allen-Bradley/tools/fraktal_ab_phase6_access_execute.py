@@ -16,7 +16,6 @@ import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
 import fraktal_ab_phase6_sets_execute as sets_fixture
 import fraktal_ab_press_execute as px
-import fraktal_ab_projection as projection
 
 import fraktal_ab_fixture_reads as views
 
@@ -29,10 +28,7 @@ def read_access(comm, audit=False):
 
 
 def audit_messages(comm, audit, slots=None):
-    if APP.canonical_collapse:
-        return views.alarm_descriptions(comm, (i for i, key in enumerate(audit['Key']) if key) if slots is None else slots, app=APP)
-    _active, ring = projection.read_alarm_log(comm)
-    return access.audit_status(APP, mf.content(APP), audit, ring)
+    return views.alarm_descriptions(comm, (i for i, key in enumerate(audit['Key']) if key) if slots is None else slots, app=APP)
 
 
 def read_rows(comm):
@@ -104,18 +100,7 @@ class Client(sets_fixture.Client):
                            BoolValue=value, DurationMs=0, **arguments)
 
     def native(self, kind, **arguments):
-        if APP.canonical_collapse:
-            # One typed request and independent CIP ACK; no legacy writer/reinitialization.
-            return px.command(self.comm, kind, settle=4, **arguments)
-        # Prove the PLC predicate independent of the gateway. Recreate the
-        # local apparatus afterwards so one mailbox sequence owner remains.
-        actual, matches = projection.verify_serial(self.comm, self.serial)
-        if not matches:
-            raise ValueError('serial changed before native fixture request')
-        px.seed_sequence(self.comm)
-        answer = px.command(self.comm, kind, settle=4, **arguments)
-        self.__init__(self.comm, self.serial, self.directory)
-        return answer
+        return px.command(self.comm, kind, settle=4, **arguments)
 
 
 async def restore(client, original, admin, evidence, *, set_names=()):
@@ -231,7 +216,7 @@ async def _exercise(client, serial, rows, evidence):
         await client.login(admin)
         await client.command(mb.SET_SESSION_TIMEOUT, DurationMs=6000)
         await asyncio.sleep(3)
-        accepted = await client.command(mb.SET_MODE, IntValue=px.read_unit(comm)['Mode'])
+        accepted = await client.command(mb.SET_MODE, IntValue=px.unit_surface(comm)['Mode'])
         await asyncio.sleep(3)
         s = read_access(comm)
         check('accepted_action_rearms_idle_timeout', 'the session survives past its original login deadline',

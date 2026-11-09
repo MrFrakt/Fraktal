@@ -15,7 +15,7 @@ import unittest
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+from test_fraktal_ab_canonical_sequence import step_status
 import fraktal_ab_st_model as st
 from test_fraktal_ab_digital_input import run_passive_modules
 
@@ -34,7 +34,7 @@ def step(number, chain=AUTO):
 
 def controller():
     tags = {
-        UNIT: st.structure(gen.unit_context_members(APP)),
+        UNIT: st.structure(gen.unit_storage_members(APP)),
         CHART: st.structure(gen.chart_members(APP)),
         **{f"{r.name}Tag": st.structure(r.members) for r in APP.records},
         f"FRK_{N}_ScanCount": 1,
@@ -156,7 +156,7 @@ class ThePublishedRecords(unittest.TestCase):
                 "Step": step_no, "Running": running, "Error": error}
         chart = {"ActiveStepNumber": active,
                  "CondOk": cond_ok + [0] * (decl.MAX_STEP_CONDS - len(cond_ok))}
-        return projection.step_status(APP, unit, chart)
+        return step_status(APP, unit, chart)
 
     def test_labels_are_the_declarations_and_ok_is_the_controllers(self):
         out = self.publish(100, 100, [1, 0, 1])
@@ -201,11 +201,11 @@ class ThePublishedRecords(unittest.TestCase):
         app = dataclasses.replace(APP, chains=tuple(
             chain if c.name == "AUTO" else c for c in APP.chains))
         unit = {"Mode": AUTO.mode_ordinal, "Step": 100, "Running": 1, "Error": 0}
-        out = projection.step_status(app, unit, None)
+        out = step_status(app, unit, None)
         self.assertTrue(out["Starved"])
         self.assertFalse(out["Blocked"])
-        self.assertFalse(projection.step_status(app, dict(unit, Error=1), None)["Starved"])
-        self.assertFalse(projection.step_status(app, dict(unit, Running=0), None)["Starved"])
+        self.assertFalse(step_status(app, dict(unit, Error=1), None)["Starved"])
+        self.assertFalse(step_status(app, dict(unit, Running=0), None)["Starved"])
         self.assertFalse(self.publish(100, 100, [])["Starved"])
 
 

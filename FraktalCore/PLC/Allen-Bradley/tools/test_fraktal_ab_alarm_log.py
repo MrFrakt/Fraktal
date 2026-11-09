@@ -26,7 +26,6 @@ import unittest
 
 import fraktal_ab_generate as gen
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 
 
@@ -45,7 +44,7 @@ class Bench:
     def __init__(self, logic: list[str] | None = None):
         self.now = datetime.datetime(2026, 9, 29, 23, 59, 59, 999600)
         tags = {
-            f"FRK_{N}_Unit": st.structure(gen.unit_context_members(APP)),
+            f"FRK_{N}_Unit": st.structure(gen.unit_storage_members(APP)),
             gen.alarm_active_tag(APP): st.structure(gen.alarm_active_members()),
             gen.alarm_ring_tag(APP): st.structure(gen.alarm_ring_members()),
             # The degradation watch's count, which the log turns into events.
@@ -278,28 +277,6 @@ class Capacity(unittest.TestCase):
         self.assertEqual(ring["RingReasonCode"][1], 7001)
         self.assertEqual(ring["RingReasonCode"][gen.ALARM_RING - 1],
                          7000 + gen.ALARM_RING - 1)
-
-
-class Published(unittest.TestCase):
-    def test_what_the_controller_holds_is_what_the_client_reads(self):
-        """The same tag values, through the projection, in the client's field
-        set: the source path is named, the times are UTC ISO."""
-        bench = Bench()
-        bench.scan(error=True, reason=NOT_EXTENDED, source=1)
-        bench.scan(reset=True)
-        bench.scan(error=True, reason=NOT_RETRACTED, source=2)
-        out = projection.alarm_log_status(APP, bench.log, bench.ring)
-        self.assertEqual(out["AlarmLog/Active[1]/ReasonCode"], NOT_RETRACTED)
-        self.assertEqual(out["AlarmLog/Active[1]/SourcePath"],
-                         f"{N}.{APP.modules[1].name}")
-        self.assertEqual(out["AlarmLog/Active[1]/Description"],
-                         f"std.reason.{NOT_RETRACTED}")
-        self.assertTrue(out["AlarmLog/Blocking"])
-        self.assertEqual(out["AlarmLog/Ring[1]/ReasonCode"], NOT_EXTENDED)
-        self.assertEqual(out["AlarmLog/Ring[1]/SourcePath"],
-                         f"{N}.{APP.modules[0].name}")
-        self.assertEqual(out["AlarmLog/Ring[1]/ComeAt"], "2026-09-29T23:59:59.999Z")
-        self.assertEqual(out["AlarmLog/Ring[1]/GoneAt"], "2026-09-30T00:00:00.009Z")
 
 
 class Reports(unittest.TestCase):

@@ -8,13 +8,16 @@ clauses before editing. One committed declaration is the source; the L5X is
 output, never hand-edited. This guide replaces superseded build-by-build advice;
 historical evidence remains unchanged.
 
-**Canonical migration status, 2026-10-31:** S4b desktop and S5 packaged Dart
-gateway/Web qualification pass on local Echo. Discovery is declaration-free;
-direct unsecured desktop CIP is read-only, and gateway writes require the
-station's explicit write posture. See the [S5 record](../AllenBradley/Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md)
-and section 4.4. Legacy retirement, host services and V2 activation remain S6;
-physical/CIP Security acceptance remains deferred S7. Dated deployment details
-below retain their legacy-image scope until that migration.
+**Canonical migration & collapse status:** S6 apparatus collapse and WP6.8
+specification activation are complete. Discovery is declaration-free through
+CIP Symbol (0x6B) and Template (0x6C) objects plus manifest major 6; direct
+unsecured desktop CIP is read-only, and gateway writes require the station's
+explicit write posture. Frozen contracts V2 is active (`AB_FROZEN_CONTRACTS_V2.json`).
+The Python gateway and legacy projection are deleted. The reference profile is a
+CIP Security-capable CompactLogix 5380 or ControlLogix 5580 at firmware v37 or
+above (development bench: FactoryTalk Logix Echo 1756-L81E v38); the legacy
+1769-L24ER-QB1B/v33 bench is retired. Physical/CIP Security acceptance remains
+deferred S7.
 
 **The port is not complete apart from power.** Main press operation and Phase
 0-6 features are verified on the named press68 deployment. Signal tower remains

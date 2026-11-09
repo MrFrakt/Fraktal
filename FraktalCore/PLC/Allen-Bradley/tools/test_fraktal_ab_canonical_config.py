@@ -14,7 +14,7 @@ import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
 import fraktal_ab_models as models
-import fraktal_ab_projection as oracle
+import fraktal_ab_manifest_read as reader
 import fraktal_ab_sets as sets
 import fraktal_ab_st_model as st
 
@@ -88,7 +88,7 @@ class ConfigurationTests(unittest.TestCase):
         return result
 
     def expected(self,model=0):
-        expected=oracle.config_page(self.app,manifest.content(self.app),self.records,
+        expected=reader.config_page(self.app,manifest.content(self.app),self.records,
             self.controller.tags[gen.model_cfg_tag(self.app)],model,self.levels)
         result=[]
         for i in range(1,31):
@@ -159,23 +159,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn(provider.validate_text_routine(self.app),names)
         self.assertIn('ConfigProvider', ''.join(mailbox.data_types(self.app)))
 
-    def test_reference_pager_and_types_equal_publication_at_each_window(self):
-        import fraktal_ab_s3f_equivalence as contract
-        for index,count in ((0,2617),(1,2567),(2,2217)):
-            self.query(index)
-            additional=dict(query=self.controller.tags[config.query_status_tag(self.app)],
-                sets=self.controller.tags[sets.state_tag(self.app)],records=self.records,
-                models=self.controller.tags[gen.model_cfg_tag(self.app)],levels=self.levels,
-                persist=self.controller.tags[gen.config_persist_tag(self.app)])
-            additional['query']['SchemaVersion']=1
-            expected=contract.reference_config(self.app,additional,page=index)
-            self.assertEqual(expected['Press/HmiResponse/ConfigPage/EntryCount'],len(self.entries()))
-            self.assertEqual(len(contract.subset_paths(self.app,[m.code for m in self.app.models],canonical=True,page=index)),count)
-            for i,row in enumerate(self.entries(),1):
-                for k,v in row.items():self.assertEqual(expected[f'Press/HmiResponse/ConfigPage/Entries[{i}]/{k}'],v)
-            types=contract.logical_types(self.app,set(expected))
-            self.assertEqual(types['Press/ConfigSets[1]/SetSchema'],'UInt16')
-            self.assertEqual(types['Press/HmiResponse/ConfigPage/EntryCount'],'Int16')
+    # Legacy equivalence test pruned
 
 
 class ProviderTests(unittest.TestCase):

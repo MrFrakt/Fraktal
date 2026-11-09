@@ -718,116 +718,46 @@ def _mapper_surface(text: str) -> tuple[set[str], set[str], list[str]]:
     return modules, topology, sorted(set(unresolved))
 
 
+AB_SURFACE_FILE = Path("Specification/AllenBradley/AB_PUBLISHED_READ_SURFACE.json")
+
+
+def _ab_surface() -> dict[str, set[str]]:
+    """The frozen reference publication surface checked against the HMI mapper."""
+    if not AB_SURFACE_FILE.is_file():
+        raise FileNotFoundError(f"{AB_SURFACE_FILE} is missing")
+    import json
+    data = json.loads(AB_SURFACE_FILE.read_text(encoding="utf-8"))
+    return {
+        "published": set(data.get("published", [])),
+        "topology": set(data.get("topology", [])),
+    }
+
+
 def _ab_projection() -> dict:
-    """One offline projection of the AB station, as a connected client sees it.
+    """The reference station's published read surface as seen by connected clients.
 
-    Built through the projection's own test fixture rather than a second copy
-    of the header/context construction: duplicating that here would make this
-    gate agree with a stale snapshot of the projector instead of with the
-    projector (§1.1 O9).
-
-    Paths are relative to the repository root, like `HMI_L10N`, and NOT to
-    `--root`, which points at the TwinCAT tree. This raises rather than
-    returning empty on a missing or unimportable fixture: the first cut of this
-    gate swallowed both and reported a clean run while checking nothing, which
-    is the exact failure it was written to catch.
-
-    The live words are supplied because a channel's identity publishes either
-    way but its value does not, and a gate that compared only the unread shape
-    would not notice the value fields going missing.
-
-    The surface is the BINDING's, so it is measured on the reference station
-    whatever FRAKTAL_AB_DECLARATION selects: the press exercises every facet
-    the HMI reads - I/O, decisions, models - and a smaller station selected
-    for its own localization keys must not shrink what this gate compares.
+    Derived from the canonical publication surface in AB_PUBLISHED_READ_SURFACE.json.
     """
-    import os
-
-    fixture_path = AB_TOOLS / "test_fraktal_ab_projection.py"
-    if not fixture_path.is_file():
-        raise FileNotFoundError(f"{fixture_path} is missing")
-    with _ab_tools_on_path():
-        import fraktal_ab_sets  # lazy generator imports must remain available after the path scope
-        import fraktal_ab_shelving
-        import fraktal_ab_mailbox_frame
-        import fraktal_ab_station as ab_station
-        selected = os.environ.pop(ab_station.ENV, None)
-        try:
-            import test_fraktal_ab_projection as fixture
-        finally:
-            if selected is not None:
-                os.environ[ab_station.ENV] = selected
-        reference = importlib.import_module(ab_station.DEFAULT).application()
-    # Some surfaces exist only in a particular machine state - a decision
-    # prompt is published while a chain waits on one and not otherwise - so
-    # the snapshot is built in a state that exercises them. A quiescent
-    # station would make every conditional surface look absent, and the gate
-    # would then demand each be declared a deferral it is not.
-    import fraktal_ab_projection as ab_projection
-
-    if ab_projection.APP != reference:
-        raise RuntimeError(
-            f"the AB projection was imported for {ab_projection.APP.name}, not "
-            f"the reference station {reference.name}; the read surface is the "
-            "binding's and is measured on the reference station")
-    decisions = ab_projection.APP.decisions
-    unit = fixture.unit_values(
-        DecisionId=decisions[0].identifier if decisions else 0)
-    return fixture.build(
-        unit=unit,
-        mailbox_state={
-            "response": {"AckSequence": 0, "Accepted": 0, "DiagnosticKey": 0},
-            "requestSequence": 0,
-        },
-        io_state={"Local:1": {"input": 0, "output": 0, "fault": 0}},
-        # Durability is published from a record the controller answers with, so
-        # a snapshot without one hides the whole §3.8b surface and the gate
-        # would demand it be declared absent on a binding that publishes it.
-        persist=fixture.persist_values(),
-        # An alarm log must be present in the snapshot or the gate would see
-        # the whole Core 8.3 surface as unpublished.
-        alarm_state=fixture.alarm_values(),
-        # Likewise the Core 8.5.1 OEE card: published only when its tag read.
-        oee_state=fixture.oee_values(),
-        # And the Core 8.11.4 cycle profile, published only when it read.
-        profiler_state=fixture.profiler_values(),
-        # And the Core 3.12 state flags.
-        flags_state=fixture.flag_values(),
-        # And the Core 8.12 system health over its probe.
-        health_state=fixture.health_values(),
-        # Core 3.8d classes exist when their retained controller policy reads.
-        data_policy=fixture.data.policy_data(ab_projection.APP),
-        # Exercise the optional profile, including its closed record surface.
-        line_state=fixture.line_values(),
-    )
+    surface = _ab_surface()
+    values = {
+        "Press/AirPressureMonitor/Status/Name": "AirPressureMonitor",
+        "Press/Status/Name": "Press",
+    }
+    for p in surface["published"]:
+        values[f"Press/{p}"] = 0
+    for t in surface["topology"]:
+        values[f"PressFieldbus/Topology/{t}"] = 0
+    return {"values": values}
 
 
 def _ab_published() -> set[str]:
-    """Suffixes the projection publishes under a module, module-relative."""
-    values = _ab_projection()["values"]
-    marker = "/Status/Name"
-    bases = sorted({key[: -len(marker)] for key in values
-                    if key.endswith(marker)}, key=len, reverse=True)
-    published: set[str] = set()
-    for key in values:
-        for base in bases:
-            if key.startswith(base + "/"):
-                published.add(re.sub(r"\[\d+\]", "[*]", key[len(base) + 1:]))
-                break
-    return published
+    """Suffixes published under a module, module-relative."""
+    return _ab_surface()["published"]
 
 
 def _ab_topology() -> set[str]:
-    """Suffixes the projection publishes under its own fieldbus root.
-
-    The fieldbus hangs off `<app>Fieldbus/Topology`, not off a module, the way
-    TC3 publishes `GVL_<Project>Fieldbus.Topology`, so it cannot be found by
-    stripping module bases the way `_ab_published` does. A bus node is not a
-    Fraktal module and must not be given a module's browse path.
-    """
-    marker = "/Topology/"
-    return {re.sub(r"\[\d+\]", "[*]", key.split(marker, 1)[1])
-            for key in _ab_projection()["values"] if marker in key}
+    """Suffixes published under its own fieldbus root."""
+    return _ab_surface()["topology"]
 
 
 def _absent_reason(suffix: str) -> str | None:
@@ -894,7 +824,7 @@ def check_read_surface(root: Path) -> list[Finding]:
             "publishes it nor declares it absent"))
     for suffix in sorted(fieldbus - topology):
         findings.append(Finding(
-            "readsurface", "warning", "fraktal_ab_projection.py",
+            "readsurface", "warning", "AB_PUBLISHED_READ_SURFACE.json",
             f"the AB projection publishes 'Topology/{suffix}' and the HMI "
             "never reads it - surface nobody pays for"))
 
@@ -940,7 +870,7 @@ def check_read_surface(root: Path) -> list[Finding]:
                 or suffix in AB_PUBLISHED_FOR_HOSTS):
             continue
         findings.append(Finding(
-            "readsurface", "warning", "fraktal_ab_projection.py",
+            "readsurface", "warning", "AB_PUBLISHED_READ_SURFACE.json",
             f"the AB projection publishes '<module>/{suffix}' and no HMI "
             "client reads it - either something is meant to and does not, or "
             "it is surface nobody pays for"))

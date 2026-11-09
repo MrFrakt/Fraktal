@@ -10,7 +10,7 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
-import fraktal_ab_projection as projection
+import fraktal_ab_manifest_read as reader
 import fraktal_ab_press_demo as demo
 import fraktal_ab_set_broker as broker
 import fraktal_ab_sets as sets
@@ -66,7 +66,7 @@ def request(c, kind, app=APP, **arguments):
 def entries(app, held, values=None):
     if values is None:
         values = {record.name: {m.name: m.initial for m in record.members} for record in app.records}
-    page = projection.config_page(app, mf.content(app), values, data_levels=held)
+    page = reader.config_page(app, mf.content(app), values, data_levels=held)
     out = {}
     for i in range(1, page['HmiResponse/ConfigPage/EntryCount'] + 1):
         prefix = f'HmiResponse/ConfigPage/Entries[{i}]/'
@@ -204,17 +204,6 @@ class EffectiveAuthority(unittest.TestCase):
 
 
 class PolicyAndProjection(unittest.TestCase):
-    def test_snapshot_publishes_controller_class_policy_and_hides_a_missing_table(self):
-        from test_fraktal_ab_projection import build
-        held = data.policy_data(APP)
-        held['ReadLevel'][0], held['WriteLevel'][0] = 2, 3
-        values = build(data_policy=held)['values']
-        self.assertEqual(values['Press/Access/ClassCount'], 2)
-        self.assertEqual(values['Press/Access/Classes[1]/ClassId'], 'public')
-        self.assertEqual(values['Press/Access/Classes[1]/ReadLevel'], 2)
-        self.assertEqual(values['Press/Access/Classes[1]/WriteLevel'], 3)
-        self.assertEqual(build()['values']['Press/Access/ClassCount'], 0)
-
     def test_edit_is_access_policy_gated_and_recomputes_levels_same_scan(self):
         c = controller(level=1)
         c.tags[access.tag(APP, 'State')]['Required'][8] = 3

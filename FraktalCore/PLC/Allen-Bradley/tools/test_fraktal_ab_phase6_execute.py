@@ -28,7 +28,7 @@ class HarnessGuards(unittest.TestCase):
             stack.enter_context(patch.object(fixture.px, 'fingerprint', return_value={'passed': fingerprint}))
             stack.enter_context(patch.object(fixture, 'read_rows', return_value=[{'passed': True}]))
             stack.enter_context(patch.object(fixture, 'configuration', return_value={'BaselineWorkMs': 950}))
-            stack.enter_context(patch.object(fixture.px, 'read_unit', return_value={'Mode': 5, 'RunStyle': 0}))
+            stack.enter_context(patch.object(fixture.px, 'unit_surface', return_value={'Mode': 5, 'RunStyle': 0}))
             run = stack.enter_context(patch.object(fixture, 'run', side_effect=RuntimeError('fixture failed') if failure else None,
                                                    return_value={'passed': True}))
             if sets:

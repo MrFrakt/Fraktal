@@ -17,7 +17,7 @@ import unittest
 import fraktal_ab_generate as gen
 import fraktal_ab_counting as counting
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+import test_fraktal_ab_canonical_sequence as projection
 import fraktal_ab_library as library
 import fraktal_ab_st_model as st
 from test_fraktal_ab_digital_input import run_passive_modules
@@ -37,7 +37,7 @@ class Press:
 
     def __init__(self, faults=()):
         tags = {
-            UNIT: st.structure(gen.unit_context_members(APP)),
+            UNIT: st.structure(gen.unit_storage_members(APP)),
             CHART: st.structure(gen.chart_members(APP)),
             **{f"{r.name}Tag": st.structure(r.members) for r in APP.records},
             f"FRK_{N}_ScanCount": 0,
@@ -286,7 +286,7 @@ class EveryRenditionRecords(unittest.TestCase):
 
 class ThePublishedChart(unittest.TestCase):
     def unit(self, **values):
-        unit = st.structure(gen.unit_context_members(APP))
+        unit = st.structure(gen.unit_storage_members(APP))
         unit.update(Mode=AUTO.mode_ordinal, **values)
         return unit
 

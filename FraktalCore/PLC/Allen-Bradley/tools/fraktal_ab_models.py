@@ -162,8 +162,27 @@ def decode(app, raw):
     return codes
 
 
+def _read_record(comm, tag_name, layout):
+    import struct
+    reply = comm.Read(tag_name)
+    if getattr(reply, 'Status', None) != 'Success':
+        return None
+    payload = reply.Value
+    total = sum(m.dimension or 1 for m in layout)
+    if not isinstance(payload, (bytes, bytearray)) or len(payload) < total * 4:
+        return None
+    values = struct.unpack_from(f'<{total}i', payload, 0)
+    out, index = {}, 0
+    for member in layout:
+        if member.dimension:
+            out[member.name] = list(values[index:index + member.dimension])
+            index += member.dimension
+        else:
+            out[member.name] = values[index]
+            index += 1
+    return out
+
 def read(comm, app):
     if not app.model_capacity:
         return [m.code for m in app.models]
-    import fraktal_ab_press_execute as execute
-    return decode(app, execute.read_layout(comm, tag(app), members(app)))
+    return decode(app, _read_record(comm, tag(app), members(app)))

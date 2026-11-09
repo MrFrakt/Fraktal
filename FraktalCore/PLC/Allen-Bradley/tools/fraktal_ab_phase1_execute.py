@@ -79,7 +79,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     chart, elapsed = px.await_chart(
         comm, lambda c: c["ActiveStepNumber"] == 100, settle)
     time.sleep(0.1)
-    chart = px.read_chart(comm)
+    chart = px.chart_surface(comm)
     conds = views.step_conditions(comm, 4, app=APP)
     rows.append(px.row(
         "conditions_at_n100",
@@ -97,7 +97,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     ))
     px.write(comm, px.PART_PRESENT, 1)
     chart, elapsed = px.await_chart(comm, lambda c: c["CondOk"][0] == 1, settle)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     rows.append(px.row(
         "a_condition_follows_its_input",
         "a part arriving turns record 1 on; two-hand still released holds N100",
@@ -185,7 +185,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     active, elapsed = px.await_unit(comm, lambda u: u["Error"] == 0, settle)
     time.sleep(0.1)
     active, ring = read_log(comm)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     head = (active or {}).get("RingHead", 0) - 1
     entry = {} if ring is None or head < 0 else {
         c: ring[f"Ring{c}"][head] for c, _ in gen.ALARM_COLUMNS}
@@ -219,7 +219,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # --- 5. A report is an occurrence, never a standing fault --------------
     px._idle(comm, settle)
     active0, ring0 = read_log(comm)
-    unit0 = px.read_unit(comm)
+    unit0 = px.unit_surface(comm)
     px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=px.MODE_AUTO)
     start_conditions(comm, part=1, air=1, two_hand=0)
     px.start_cycle(comm, settle)
@@ -228,7 +228,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     unit, elapsed = px.await_unit(comm, lambda u: u["Step"] == 210, settle)
     time.sleep(0.1)
     active, ring = read_log(comm)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     head = (active or {}).get("RingHead", 0) - 1
     unit_diag = views.unit_diagnostic(comm, app=APP)
     publishedEntry = views.alarm_ring_entry(comm, head + 1, app=APP)

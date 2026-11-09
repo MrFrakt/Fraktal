@@ -15,7 +15,6 @@ import fraktal_ab_manifest as mf
 import fraktal_ab_phase6_access_execute as users
 import fraktal_ab_phase6_sets_execute as sets_fixture
 import fraktal_ab_press_execute as px
-import fraktal_ab_projection as projection
 
 import fraktal_ab_fixture_reads as views
 
@@ -27,16 +26,7 @@ SET_NAME = 'phase6-data-classes'
 
 
 def page_entries(comm):
-    if APP.canonical_collapse:
-        return views.configuration_entries(comm, keys=(COUNTER, CALIBRATION, BUILTIN), app=APP)
-    values = projection.read_document(comm)['values']
-    base = APP.name + '/HmiResponse/ConfigPage/'
-    result = {}
-    for i in range(1, values[base + 'EntryCount'] + 1):
-        prefix = base + f'Entries[{i}]/'
-        row = {path[len(prefix):]: value for path, value in values.items() if path.startswith(prefix)}
-        result[row['WriteKey']] = row
-    return result
+    return views.configuration_entries(comm, keys=(COUNTER, CALIBRATION, BUILTIN), app=APP)
 
 
 def read_rows(comm):

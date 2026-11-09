@@ -28,11 +28,11 @@ class DispatchTests(unittest.TestCase):
         cls.apply=st.parse('\n'.join(s for m in cls.app.modules for s in routes.apply(cls.app,m)))
 
     def controller(self,app,mode,target,command,busy):
-        tags={gen.ctx_tag_for(app,m.name):st.structure(gen.module_context_members(library.type_of(m)))
+        tags={gen.ctx_tag_for(app,m.name):st.structure(gen.module_storage_members(library.type_of(m)))
               for m in app.modules}
         tags.update({f'{r.name}Tag':st.structure(r.members) for r in app.records})
         tags.update({name:0 for name in app.sim_inputs})
-        tags[f'FRK_{app.name}_Unit']=st.structure(gen.unit_context_members(app))
+        tags[f'FRK_{app.name}_Unit']=st.structure(gen.unit_storage_members(app))
         tags[f'FRK_{app.name}_Unit']['Mode']=mode
         tags[mailbox.request_tag_name(app)]={'DurationMs':target,'IntValue':command}
         tags[mailbox.response_tag_name(app)]={'Accepted':0,'DiagnosticKey':0}

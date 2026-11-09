@@ -5,7 +5,26 @@ from pathlib import Path
 import unittest
 import tempfile
 import fraktal_ab_generate as gen
-import fraktal_ab_projection as legacy
+def system_health_status(app, health, probe):
+    if app.system_health is None or health is None or probe is None:
+        return {}
+    sync = bool(probe["TimeIsSynchronized"])
+    values = {
+        "Present": bool(health["Present"]), "Healthy": bool(health["Healthy"]),
+        "TaskAvailable": bool(health["TaskAvailable"]),
+        "TaskCycleUs": probe["IntervalUs"], "TaskJitterUs": probe["JitterUs"],
+        "TaskOverrun": bool(health["TaskOverrun"]),
+        "ControllerAvailable": False, "CpuLoadPct": 0.0, "MemoryAvailableMb": 0,
+        "IpcAvailable": False, "IpcTemperatureC": 0.0, "FanHealthy": False,
+        "StorageHealthPct": 0.0,
+        "FieldbusAvailable": False, "FieldbusMasterHealthy": False,
+        "LostFrameCount": 0, "SlaveErrorCount": 0,
+        "DcAvailable": False, "DcSynchronized": False,
+        "TimeQuality/Available": True, "TimeQuality/Synchronized": sync,
+        "TimeQuality/Source": "PTP" if probe["TimePtpEnable"] else "",
+        "TimeQuality/OffsetUs": 0,
+    }
+    return {f"SystemHealth/{k}": v for k, v in values.items()}
 import fraktal_ab_st_model as st
 import fraktal_ab_canonical_metrics as metrics
 import fraktal_ab_canonical_publication as pub
@@ -83,7 +102,7 @@ class MetricsSchemaTests(unittest.TestCase):
                     elif m.kind.startswith(pub.PREFIX+'String'):actual[p]=bytes(v['DATA'][:v['LEN']]).decode()
                     else:actual[p]=v&0xffffffff if m.logical=='BITSTRING32' else v
             flat(metrics.HEALTH,root['SystemHealth'],'SystemHealth')
-            expected=legacy.system_health_status(app,health,probe)
+            expected=system_health_status(app,health,probe)
             for name in ('TaskCycleUs','TaskJitterUs'):expected['SystemHealth/'+name]&=0xffffffff
             self.assertEqual(actual,expected)
             self.assertIs(actual['SystemHealth/ControllerAvailable'],False)

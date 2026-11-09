@@ -80,18 +80,7 @@ class ReadViewTests(table_suite.TableDrivenConfigurationTests):
         self.assertFalse(self.controller.tags[pub.header_tag(self.app)]['Valid'])
         self.assertEqual(self.read['ValueCount'],0)
 
-    def test_independent_migration_reference_matches_all_new_paths(self):
-        import fraktal_ab_s4b_equivalence as oracle
-        self.scan()
-        additional=dict(records=self.records,models=self.controller.tags[gen.model_cfg_tag(self.app)],levels=self.levels,
-            query=dict(Revision=self.work['Revision']),read_view_codes=[m.code for m in self.app.models])
-        expected=oracle.reference(self.app,additional);root=view.canonical_root(self.app)+'/'
-        actual={root+m.name:self.text(self.read[m.name]) if m.name=='RootIdentity' else self.read[m.name]
-                for m in self.schema[view.VIEW] if not m.count}
-        for group,kind,count in (('Definitions',view.DEFINITION,self.read['DefinitionCount']),('Values',view.VALUE,self.read['ValueCount'])):
-            for i,row in enumerate(self.read[group][:count]):actual.update({root+f'{group}[{i}]/'+n:v for n,v in self.row(row,kind).items()})
-        self.assertEqual(set(expected),oracle.view_paths(self.app,additional['read_view_codes']))
-        self.assertEqual(actual,expected)
+    # Legacy s4b equivalence test pruned
 
     def test_access_drop_wipes_full_value_buffers_and_does_not_publish_a_private_cache(self):
         self.scan();self.assertTrue(any(self.text(row['ValueText']) for row in self.read['Values']))

@@ -180,3 +180,25 @@ def require_valid(app: decl.Application) -> None:
     findings = validate(app)
     if findings:
         raise decl.DeclarationError("; ".join(findings))
+
+
+def channel_address(io_module, channel) -> str:
+    """A channel's Logix address."""
+    outward = channel.direction == 'output'
+    return f"{io_module.address}:{'O' if outward else 'I'}.{channel.bit}"
+
+
+def io_join(app, module_name: str, roles: int) -> tuple[str, str]:
+    """The electrical tags and addresses a diagnostic implicates."""
+    module = next((m for m in app.modules if m.name == module_name), None)
+    if module is None or not roles:
+        return '', ''
+    type_roles = type_of(module).io_roles
+    wanted = {role for bit, role in enumerate(type_roles) if roles >> bit & 1}
+    tags, addresses = [], []
+    for io_module in app.io_modules:
+        for channel in io_module.channels:
+            if channel.module_path == module_name and channel.role in wanted:
+                tags.append(channel.name)
+                addresses.append(channel_address(io_module, channel))
+    return ' / '.join(tags), ' / '.join(addresses)

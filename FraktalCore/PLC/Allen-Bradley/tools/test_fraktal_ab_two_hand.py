@@ -36,7 +36,7 @@ class Buttons:
     """The type's AOI body against one context."""
 
     def __init__(self, **ctx):
-        self.ctx = st.structure(gen.module_context_members(library.TWO_HAND))
+        self.ctx = st.structure(gen.module_storage_members(library.TWO_HAND))
         self.ctx.update(RawHealthy=1, **ctx)
         self.plc = st.Controller({"Ctx": self.ctx, "Scan": 0})
         self.logic = st.parse("\n".join(gen.type_logic(library.TWO_HAND)))
@@ -100,7 +100,7 @@ def aoi_scope():
     import fraktal_ab_counting as counting
     tags = {
         'CycleVerdict': st.structure(counting.members()),
-        "Ctx": st.structure(gen.unit_context_members(APP)),
+        "Ctx": st.structure(gen.unit_storage_members(APP)),
         "Chart": st.structure(gen.chart_members(APP)),
         "Cfg": st.structure(APP.records[0].members),
         "Scan": 1,
@@ -170,7 +170,7 @@ class ThePhysicalStart(unittest.TestCase):
         return "\n".join(gen.start_release_logic(APP) + gen.physical_start_logic(APP))
 
     def start(self, pulse, mode=AUTO_MODE, running=0, blocking=0):
-        unit = st.structure(gen.unit_context_members(APP))
+        unit = st.structure(gen.unit_storage_members(APP))
         unit.update(Mode=mode, Running=running)
         tags = {
             f"FRK_{N}_CtxTwoHand": {"OutImm_StartPulse": pulse},

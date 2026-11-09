@@ -19,7 +19,7 @@ import unittest
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+import test_fraktal_ab_canonical_sequence as projection
 from test_fraktal_ab_dwell import APP, AUTO, ORDER, LANGUAGES, Rendition
 
 

@@ -12,7 +12,6 @@ import fraktal_ab_ld_model as ld
 import fraktal_ab_manifest as manifest
 import fraktal_ab_part as part
 import fraktal_ab_part_demo as fixture
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 
 APP = fixture.application()
@@ -40,7 +39,7 @@ def setup():
     ring.update(NowDate=20261018, NowTime=123456789, EpochLow=-1, EpochHigh=12345)
     values = {part.tag(APP): st.structure(part.members(APP)),
               part.carrier_tag(APP): st.structure(part.carrier_members(APP)),
-              host.tag(APP): ring, 'FRK_Press_Unit': st.structure(gen.unit_context_members(APP)),
+              host.tag(APP): ring, 'FRK_Press_Unit': st.structure(gen.unit_storage_members(APP)),
               'FRK_Press_Chart': st.structure(gen.chart_members(APP)),
               'FRK_Press_ParCfg': st.structure(APP.records[0].members), 'FRK_Press_ScanCount': 1}
     return st.Controller(values, calls={part.service_name(APP): service_callback,
@@ -292,24 +291,6 @@ class RenditionsAndTransport(unittest.TestCase):
                 self.assertEqual(bench.plc.tags[part.carrier_tag(APP)]['LastRecordValue'][1], 100)
                 self.assertEqual(bench.plc.tags[part.carrier_tag(APP)]['LastRecordCount'], 2)
 
-    def test_generic_projection_publishes_part_and_refuses_missing_snapshot(self):
-        import test_fraktal_ab_projection as helpers
-        plc = setup()
-        perform(plc, 'receive')
-        perform(plc, 'record', record=1, value=300)
-        perform(plc, 'processed', verdict=1)
-        with patch.object(projection, 'APP', APP), patch.object(helpers, 'APP', APP):
-            header = helpers.good_header(SchemaMajor=manifest.schema_major(APP))
-            args = (header, manifest.content(APP), helpers.unit_values(), helpers.contexts())
-            kwargs = dict(host_state=host.decode(APP, plc.tags[host.tag(APP)]),
-                          part_state=plc.tags[part.tag(APP)])
-            doc = projection.project(*args, **kwargs)
-            self.assertEqual(doc['values']['Press/Part/Result/Verdict'], 1)
-            self.assertEqual(doc['values']['Press/Part/Result/Records[1]/Value'], .3)
-            self.assertEqual(doc['values']['Press/Part/Uid'], events(plc)[0]['PartUid'])
-            with self.assertRaises(projection.ReadFailed):
-                projection.project(*args, **{**kwargs, 'part_state':None})
-
     def test_all_three_renditions_call_one_service_and_failure_does_not_advance(self):
         chain = next(c for c in APP.chains if c.name == 'AUTO')
         step = next(s for s in chain.steps if s.number == 105)
@@ -353,12 +334,12 @@ class RenditionsAndTransport(unittest.TestCase):
     def test_part_coherent_read_retries_and_rejects_failed_acquisition(self):
         raw = setup().tags[part.tag(APP)]
         meta = {k:raw[k] for k in ('SchemaVersion','DataRevision')}
-        with patch('fraktal_ab_press_execute.read_layout', side_effect=[meta, raw, {**meta,'DataRevision':2}, meta, raw, meta]) as reader:
+        with patch('fraktal_ab_part._read_record', side_effect=[meta, raw, {**meta,'DataRevision':2}, meta, raw, meta]) as reader:
             self.assertEqual(part.read(object(), APP), raw)
             self.assertEqual(reader.call_count, 6)
-        with patch('fraktal_ab_press_execute.read_layout', return_value=None), self.assertRaises(part.PartBad):
+        with patch('fraktal_ab_part._read_record', return_value=None), self.assertRaises(part.PartBad):
             part.read(object(), APP)
-        with patch('fraktal_ab_press_execute.read_layout', side_effect=[meta, raw, {**meta,'DataRevision':2}]*3), self.assertRaises(part.PartBad):
+        with patch('fraktal_ab_part._read_record', side_effect=[meta, raw, {**meta,'DataRevision':2}]*3), self.assertRaises(part.PartBad):
             part.read(object(), APP)
 
     def test_old_host_layout_is_versioned_and_hash_covers_provider_and_measurements(self):

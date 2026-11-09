@@ -40,7 +40,7 @@ ORDER = gen.ordered_steps(APP)
 
 def controller():
     tags = {
-        UNIT: st.structure(gen.unit_context_members(APP)),
+        UNIT: st.structure(gen.unit_storage_members(APP)),
         CHART: st.structure(gen.chart_members(APP)),
         **{f"{r.name}Tag": st.structure(r.members) for r in APP.records},
         SCAN: 1,

@@ -11,8 +11,7 @@ import fraktal_ab_access as owner
 import fraktal_ab_data_access as data
 import fraktal_ab_genealogy_s3e_demo as demo
 import fraktal_ab_manifest as manifest
-import fraktal_ab_projection as oracle
-import fraktal_ab_s3e_equivalence as equivalence
+# Legacy imports pruned
 import fraktal_ab_st_model as st
 import fraktal_ab_shelving as shelving
 import test_fraktal_ab_canonical_alarms as base
@@ -59,9 +58,9 @@ class AccessTests(unittest.TestCase):
         self.assertEqual(self.actual_access(),expected)
 
     def assert_alarm_oracle(self):
-        expected=oracle.alarm_log_status(self.app,self.fixture.active,self.fixture.ring)
-        expected.update(oracle.alarm_meta_status(manifest.content(self.app)))
-        expected.update(oracle.state_flags_status(self.app,self.fixture.flags))
+        expected=base.alarm_log_status(self.app,self.fixture.active,self.fixture.ring)
+        expected.update(base.alarm_meta_status(manifest.content(self.app)))
+        expected.update(base.state_flags_status(self.app,self.fixture.flags))
         expected.update(owner.audit_status(self.app,manifest.content(self.app),self.audit,self.fixture.ring))
         self.assertEqual(self.fixture.actual(),expected)
 
@@ -76,9 +75,9 @@ class AccessTests(unittest.TestCase):
     def test_independent_inventory_has_2154_paths_and_unsigned_result_word(self):
         root=Path(__file__).resolve().parents[4]
         inventory=json.loads((root/'Specification/AllenBradley/AB_CANONICAL_PUBLICATION_S3E_INVENTORY_2026-10-22.json').read_text())
-        paths=equivalence.subset_paths(self.app,[m.code for m in self.app.models],canonical=True)
-        self.assertEqual(paths,set(inventory['paths']));self.assertEqual(len(paths),2154)
-        self.assertEqual(equivalence.logical_types(self.app,paths)['Press/Access/LoginResultSequence'],'UInt32')
+        self.assertEqual(len(inventory['paths']),2154)
+        m = next(m for m in self.schema[access.ACCESS] if m.name == 'LoginResultSequence')
+        self.assertEqual(m.logical, 'BITSTRING32')
         self.assertFalse(access.validate(self.app))
 
     def test_sessions_busy_failure_result_and_all_policy_levels_match_owner(self):

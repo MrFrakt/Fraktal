@@ -47,7 +47,7 @@ def run_passive_modules(app, tags, scan=1):
 
 class Input:
     def __init__(self, **ctx):
-        self.ctx = st.structure(gen.module_context_members(library.DIGITAL_INPUT))
+        self.ctx = st.structure(gen.module_storage_members(library.DIGITAL_INPUT))
         self.ctx.update(ctx)
         self.plc = st.Controller({"Ctx": self.ctx, "Scan": 0})
         self.logic = st.parse("\n".join(gen.type_logic(library.DIGITAL_INPUT)))
@@ -86,8 +86,8 @@ class TheType(unittest.TestCase):
         self.assertEqual(di.ctx["ModuleScan"], 1)
 
     def test_its_context_is_the_common_base_plus_its_own(self):
-        names = [m.name for m in gen.module_context_members(library.DIGITAL_INPUT)]
-        common = [m.name for m in gen.common_context_members()]
+        names = [m.name for m in gen.module_storage_members(library.DIGITAL_INPUT)]
+        common = [m.name for m in gen.common_storage_members()]
         self.assertEqual(names[:len(common)], common)
         self.assertEqual(names[len(common):],
                          ["RawValue", "RawQuality", "OutImm_Value", "OutImm_Quality"])
@@ -138,7 +138,7 @@ class N100WaitsOnTheSensor(unittest.TestCase):
         """TC3's condition is Value AND Quality: a value the source does not
         vouch for does not start a cycle."""
         tags = {
-            f"FRK_{N}_Unit": st.structure(gen.unit_context_members(APP)),
+            f"FRK_{N}_Unit": st.structure(gen.unit_storage_members(APP)),
             f"FRK_{N}_Chart": st.structure(gen.chart_members(APP)),
             **{f"{r.name}Tag": st.structure(r.members) for r in APP.records},
             f"FRK_{N}_ScanCount": 1,

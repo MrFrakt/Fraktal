@@ -18,7 +18,6 @@ import fraktal_ab_generate as gen
 import fraktal_ab_library as library
 import fraktal_ab_manifest as manifest
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 
 
@@ -32,7 +31,7 @@ BOTH = 3
 
 class Monitor:
     def __init__(self, conflict_ms=500):
-        self.ctx = st.structure(gen.module_context_members(library.AIR_PRESSURE))
+        self.ctx = st.structure(gen.module_storage_members(library.AIR_PRESSURE))
         self.ctx.update(Par_TaskPeriodMs=10, Par_ConflictTimeMs=conflict_ms, RawQuality=1)
         self.plc = st.Controller({"Ctx": self.ctx, "Scan": 0})
         self.logic = st.parse("\n".join(gen.type_logic(library.AIR_PRESSURE)))
@@ -74,7 +73,7 @@ class TheConflict(unittest.TestCase):
                          (1, 1, CONFLICT))
         self.assertEqual(ctx["OutImm_IoRoles"], BOTH)
         self.assertEqual(ctx["OutImm_Severity"], 1)       # the registry: MED
-        self.assertEqual(projection.io_join(APP, MONITOR.name, BOTH),
+        self.assertEqual(library.io_join(APP, MONITOR.name, BOTH),
                          ("_000MB085A_2 / _000MB085A_4", "Local:1:I.9 / Local:1:I.10"))
 
     def test_it_latches_until_an_operator_reset(self):
@@ -131,7 +130,7 @@ class TheStationValue(unittest.TestCase):
 
 class AirIsEachCylindersInterlock(unittest.TestCase):
     def cylinder(self, **ctx):
-        state = st.structure(gen.module_context_members(library.CYLINDER))
+        state = st.structure(gen.module_storage_members(library.CYLINDER))
         state.update(Par_TaskPeriodMs=10, Par_Speed=1, Par_TimeoutMs=500, **ctx)
         return state, st.Controller({"Ctx": state, "Scan": 0}), st.parse(
             "\n".join(gen.type_logic(library.CYLINDER)))

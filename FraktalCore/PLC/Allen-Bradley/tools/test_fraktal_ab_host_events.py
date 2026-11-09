@@ -93,7 +93,7 @@ class Publisher(unittest.TestCase):
 
     def test_mode_change_and_accepted_start_emit_from_the_unit_owner_once(self):
         raw = ring()
-        tags = dict(Ctx=st.structure(gen.unit_context_members(APP)),
+        tags = dict(Ctx=st.structure(gen.unit_storage_members(APP)),
                     Chart=st.structure(gen.chart_members(APP)),
                     Cfg=st.structure(APP.records[0].members), HostEvents=raw, Scan=1)
         for module in APP.modules:

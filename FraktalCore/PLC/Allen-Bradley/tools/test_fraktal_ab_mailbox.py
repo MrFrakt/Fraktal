@@ -458,76 +458,19 @@ class ManifestPublicationTests(unittest.TestCase):
             self.assertIn(portable, published, portable)
 
 
-class CommandWriteTests(unittest.TestCase):
-    """What a command becomes on the wire, for any client that speaks CIP.
-
-    The gateway and the evidence harnesses both command the same mailbox, so
-    this mapping is the contract's, not a transport's. Two copies of the string
-    LEN/DATA rule would be two places to get it wrong.
-    """
-
-    def writes(self, kind, **arguments):
-        return mailbox.command_writes(APP, kind, 7, **arguments)
-
-    def test_the_commit_is_always_the_last_write(self):
-        # Not by arranging it here: REQUEST_MEMBERS declares Sequence last and
-        # this walks that order. A caller that stops on the first failure
-        # therefore cannot commit a half-written request.
-        for kind in (mailbox.START, mailbox.STOP, mailbox.SET_MODE):
-            self.assertTrue(self.writes(kind)[-1][0].endswith(".Sequence"), kind)
-
-    def test_every_declared_member_is_written(self):
-        import fraktal_ab_mailbox_frame as frame
-        written = frame.decode(APP, self.writes(mailbox.START)[0][1])
-        self.assertEqual(set(written), {name for name, _, _, _ in mailbox.REQUEST_MEMBERS})
-
-    def test_the_kind_and_arguments_arrive(self):
-        import fraktal_ab_mailbox_frame as frame
-        decoded = frame.decode(APP, self.writes(mailbox.SET_MODE, IntValue=2)[0][1])
-        self.assertEqual(decoded['Kind'], mailbox.SET_MODE)
-        self.assertEqual(decoded['IntValue'], 2)
-        self.assertEqual(decoded['Sequence'], 7)
-
-    def test_an_empty_string_costs_one_length_write(self):
-        writes = self.writes(mailbox.START)
-        import fraktal_ab_mailbox_frame as frame
-        self.assertEqual(len(writes), 2)
-        self.assertEqual(frame.decode(APP, writes[0][1])['TargetPath'], '')
-
-    def test_a_string_writes_its_length_then_its_characters(self):
-        import fraktal_ab_mailbox_frame as frame
-        self.assertEqual(frame.decode(APP, self.writes(mailbox.MANUAL_COMMAND, TargetPath='ab')[0][1])['TargetPath'], 'ab')
-
-    def test_a_string_too_long_is_refused_not_truncated(self):
-        with self.assertRaises(ValueError):
-            self.writes(mailbox.MANUAL_COMMAND,
-                        TargetPath="x" * (mailbox.TARGET_PATH_LENGTH + 1))
-
-    def test_a_boolean_becomes_zero_or_one(self):
-        import fraktal_ab_mailbox_frame as frame
-        for value in (False, True):
-            self.assertEqual(frame.decode(APP, self.writes(mailbox.START, BoolValue=value)[0][1])['BoolValue'], int(value))
-
-    def test_an_undeclared_argument_is_refused(self):
-        # Silently dropping it would send a command missing the thing that made
-        # it meaningful.
-        with self.assertRaises(ValueError):
-            self.writes(mailbox.START, Nonsense=1)
-
+class MemberWriteTests(unittest.TestCase):
     def test_an_undeclared_member_is_refused(self):
         with self.assertRaises(ValueError):
             mailbox.member_writes(APP, "Nonsense", 1)
 
-    def test_the_harness_and_the_gateway_agree(self):
-        """Both callers map a member the same way, because it is one function."""
-        import fraktal_ab_gateway as gw
+    def test_a_string_too_long_is_refused_not_truncated(self):
+        with self.assertRaises(ValueError):
+            mailbox.member_writes(APP, "TargetPath", "x" * (mailbox.TARGET_PATH_LENGTH + 1))
 
-        writer = gw.MailboxWriter("192.168.100.89", 0, "7036B510", APP)
-        self.assertEqual(
-            writer.writes_for(f"{mailbox.request_tag_name(APP)}.IntValue",
-                              "int32", 5),
-            mailbox.member_writes(APP, "IntValue", 5))
-        self.assertEqual(
-            writer.writes_for(f"{mailbox.request_tag_name(APP)}.User",
-                              "string", "ab"),
-            mailbox.member_writes(APP, "User", "ab"))
+    def test_a_boolean_becomes_zero_or_one(self):
+        self.assertEqual(mailbox.member_writes(APP, "BoolValue", False)[0][1], 0)
+        self.assertEqual(mailbox.member_writes(APP, "BoolValue", True)[0][1], 1)
+
+    def test_sequence_is_signed_32bit(self):
+        self.assertEqual(mailbox.member_writes(APP, "Sequence", 1)[0][1], 1)
+        self.assertEqual(mailbox.member_writes(APP, "Sequence", 0xFFFFFFFF)[0][1], -1)

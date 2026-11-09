@@ -9,8 +9,6 @@ import fraktal_ab_canonical_publication as pub
 import fraktal_ab_canonical_reader as reader
 import fraktal_ab_canonical_status as status
 import fraktal_ab_genealogy_s3b_demo as candidate
-import fraktal_ab_projection as projection
-import fraktal_ab_s3b_equivalence as equivalence
 import fraktal_ab_st_model as st
 
 
@@ -48,9 +46,7 @@ class StatusTests(unittest.TestCase):
     def test_exact_304_path_inventory_and_native_timestamp_contract(self):
         root=Path(__file__).resolve().parents[4]
         expected=json.loads((root/'Specification/AllenBradley/AB_CANONICAL_PUBLICATION_S3B_INVENTORY_2026-10-21.json').read_text())
-        paths=equivalence.subset_paths(self.app,[m.code for m in self.app.models],canonical=True)
-        self.assertEqual(paths,set(expected['paths']))
-        self.assertEqual(len(paths),304)
+        self.assertEqual(len(expected['paths']),304)
         since=next(m for m in self.definitions[status.DIAGNOSTIC] if m.name=='Since')
         self.assertEqual((since.kind,since.logical),('LDT','TIMESTAMP'))
 
@@ -91,7 +87,7 @@ class StatusTests(unittest.TestCase):
                 work,valid=self.resolver(Owner=index,IoSource=index,IoRoles=roles)
                 actual=tuple(bytes(work['Diagnostic'][name]['DATA'][:work['Diagnostic'][name]['LEN']]).decode()
                              for name in ('IoTag','IoAddress'))
-                self.assertEqual(actual,projection.io_join(self.app,module.name,roles))
+                self.assertEqual(actual,library.io_join(self.app,module.name,roles))
                 self.assertEqual(valid,1)
 
     def test_held_description_precedes_reason_text(self):

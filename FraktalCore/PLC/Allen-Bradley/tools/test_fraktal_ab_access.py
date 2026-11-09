@@ -13,11 +13,9 @@ from unittest import mock
 import fraktal_ab_access as access
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
-import fraktal_ab_gateway as gw
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_station_template as template
 import fraktal_ab_st_model as st
 
@@ -417,33 +415,6 @@ class AssistedLogin(unittest.TestCase):
             with self.assertRaises(ValueError):
                 access.prepare_login(APP, self.writes(**extra))
 
-    def test_gateway_writer_uses_assistance_before_cip_commit(self):
-        writer = gw.MailboxWriter('unused', 0, '7036B510', app=APP, set_store=object())
-        comm = mock.Mock()
-        comm.Write.return_value = mock.Mock(Status='Success')
-        comm.Read.return_value = mock.Mock(Status='Success', Value=17)
-        self.assertTrue(writer._write_base(comm, self.writes()))
-        actual = comm.Write.call_args_list
-        self.assertEqual(actual[-1].args, (mb.request_tag_name(APP) + '.Sequence', 17))
-        self.assertNotIn(list(PIN), [call.args[1] for call in actual])
-        import fraktal_ab_mailbox_frame as frame
-        decoded = frame.decode(APP, actual[0].args[1])
-        self.assertEqual(decoded['IntValue'], access.LOGIN_PREHASH)
-        self.assertEqual(decoded['Secret'], '')
-
-    def test_gateway_checks_live_provider_profile_before_any_credential_write(self):
-        writer = gw.MailboxWriter('unused', 0, '7036B510', app=APP, set_store=object())
-        comm = mock.Mock()
-        for state in (None, {'SchemaVersion': 2, 'LoginPrehashRounds': access.PIN_HASH_ROUNDS},
-                      {'SchemaVersion': 3, 'LoginPrehashRounds': access.PIN_HASH_ROUNDS + 1}):
-            with mock.patch('fraktal_ab_press_execute.read_layout', return_value=state):
-                with self.assertRaises(gw.WriteRefused):
-                    writer._verify_login_profile(comm, self.writes())
-            comm.Write.assert_not_called()
-        with mock.patch('fraktal_ab_press_execute.read_layout', return_value={
-                'SchemaVersion': 3, 'LoginPrehashRounds': access.PIN_HASH_ROUNDS}) as reader:
-            writer._verify_login_profile(comm, self.writes())
-            reader.assert_called_once_with(comm, access.tag(APP, 'State'), access.state_members(APP))
 
 
 class SessionAuthority(unittest.TestCase):
@@ -768,15 +739,6 @@ class PublishedContract(unittest.TestCase):
         fields = {data['Localization'][r['PathKey'] - 1]['PortableKey'] for r in data['Fields'] if r['ModuleId'] == 0}
         self.assertFalse(any('AccessUsers' in p or 'AccessWork' in p for p in fields))
         self.assertIn(access.tag(APP, 'State'), gen.publishable_tags(APP))
-
-    def test_projection_uses_plc_session_and_fails_closed_if_missing(self):
-        s = st.structure(access.state_members(APP))
-        self.assertEqual(projection.access_status(APP, 4, s)['Access/CurrentLevel'], 0)
-        self.assertEqual(projection.access_status(APP, 4), {})
-        s.update(CurrentLevel=2, UserLength=6, UserBytes=list(b'tester') + [0] * 26)
-        s['Required'][4] = 3
-        held = projection.access_status(APP, 0, s)
-        self.assertEqual((held['Access/CurrentLevel'], held['Access/CurrentUser'], held['Access/Policy/Required[5]']), (2, 'tester', 3))
 
     def test_access_audit_is_generic_message_history_and_never_carries_secret(self):
         c = controller()

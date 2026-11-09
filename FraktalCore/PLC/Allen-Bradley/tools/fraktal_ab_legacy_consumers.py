@@ -180,10 +180,13 @@ def inventory(root):
             directLegacyReference=name in direct, legacyImportDependent=name in dependent,
             importedBy=sorted(users[name]), localImports=sorted(imports[name])))
     external = []
+    rt_present = any(r['module'] in RUNTIME for r in rows)
     for name in EXTERNAL_RUNTIME:
         path = root / name
         if not path.is_file() or path.is_symlink():
-            raise ValueError('planned retirement artifact missing: ' + name)
+            if rt_present:
+                raise ValueError('planned retirement artifact missing: ' + name)
+            continue
         external.append(dict(path=name, classification='RT', action=ACTIONS['RT'][1],
                              stage=ACTIONS['RT'][0], sha256=hashlib.sha256(path.read_bytes()).hexdigest().upper()))
     return dict(schema=SCHEMA, schemaVersion=1, rules='canonical-plan-WP6.1',

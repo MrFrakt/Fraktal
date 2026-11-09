@@ -101,7 +101,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     started = time.monotonic()
     unit, _ = px.await_unit(comm, lambda u: u["Error"] != 0, settle)
     elapsed = (time.monotonic() - started) * 1000.0
-    slide = px.read_module(comm, "PartSlide")
+    slide = px.module_surface(comm, "PartSlide")
     unit_diag, slide_diag = diag(comm), diag(comm, f"{ROOT}/PartSlide")
     # The fault's own slot, as the controller records it: since §8.12 the
     # active list can hold other events (a standing health event among them),
@@ -168,9 +168,9 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     unit, elapsed = px.await_unit(
         comm, lambda u: u["DiagReason"] == R["INTERLOCK_DROPPED"], settle)
     time.sleep(0.8)                       # longer than the door's 500 ms timeout
-    door = px.read_module(comm, "Door")
-    monitor = px.read_module(comm, "AirPressureMonitor")
-    unit = px.read_unit(comm)
+    door = px.module_surface(comm, "Door")
+    monitor = px.module_surface(comm, "AirPressureMonitor")
+    unit = px.unit_surface(comm)
     held = {"unit": None if unit is None else {k: unit[k] for k in (
                 "Step", "Error", "DiagReason", "StepTimedOut")},
             "door": None if door is None else {k: door[k] for k in (
@@ -204,9 +204,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # paused from the first scan. This releases once some dwell has run - the
     # operator's case - which is the only one that shows the remainder.
     dwell = parity.DWELL
-    dwell_ms = (views.surface(comm, "Cfg0", app=APP) if APP.canonical_collapse
-                else px.read_layout(comm, px.CFG, APP.records[0].members) or {}).get(
-        dwell.duration_member)
+    dwell_ms = (views.surface(comm, "Cfg0", app=APP) or {}).get(dwell.duration_member)
     px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=px.MODE_AUTO)
     for tag in (px.PART_PRESENT, px.AIR_OK):
         px.write(comm, tag, 1)
@@ -217,13 +215,13 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     paused, elapsed = px.await_chart(
         comm, lambda c: c["StallReason"] == R["WAIT_CONDITION"], settle)
     time.sleep(parity.DWELL_PAUSE_S)
-    still = px.read_chart(comm)
+    still = px.chart_surface(comm)
     cond = views.step_conditions(comm, 1, app=APP)[0]
     record = {"Label": cond[0], "Ok": cond[1]}
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     px.write(comm, px.TWO_HAND, 1)
     resumed, _ = px.await_unit(comm, lambda u: u["Step"] != dwell.number, settle)
-    after = px.read_chart(comm)
+    after = px.chart_surface(comm)
     ran = None if paused is None else paused["DelayMs"]
     rows.append(px.row(
         "a_release_mid_dwell_finishes_only_what_remained",
@@ -282,7 +280,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     ))
     px.write(comm, px.PART_PRESENT, 1)
     time.sleep(0.5)
-    waiting = px.read_unit(comm)
+    waiting = px.unit_surface(comm)
     rows.append(px.row(
         "a_press_before_the_part_never_starts_the_stroke",
         "TC3's start latch: the part arriving after the two-hand press does "

@@ -7,7 +7,6 @@ their own facts before selecting the collapsed profile. Legacy declarations
 keep the legacy-baseline reader until its retirement.
 """
 from fraktal_ab_canonical_reader import open_row_reader
-from fraktal_ab_legacy_reads import read_layout
 from fraktal_ab_harness_gateway import connection_state
 from contextlib import contextmanager
 
@@ -98,53 +97,47 @@ def _session(comm, app):
 
 
 def manifest_hash(app):
-    if app.canonical_collapse:
-        import fraktal_ab_canonical_publication as publication
-        return publication.manifest_values(app)['ContentHash']
-    import fraktal_ab_manifest as legacy
-    return legacy.content_hash(app)
+    import fraktal_ab_canonical_publication as publication
+    import fraktal_ab_module_storage as storage
+    return publication.manifest_values(storage.application(app))['ContentHash']
 
 
 def signal_tower(comm, *, app):
     import fraktal_ab_machine_state as machine
-    import fraktal_ab_signal_tower as legacy
+    import fraktal_ab_signal_tower as tower
     session = _session(comm, app)
     if session is None:
-        return legacy.project(read_layout(comm, legacy.tag(app), legacy.members()))
+        raise ValueError('canonical session required')
     root = session.root
-    paths = (f'{root}/MachineState', *(f'{root}/SignalTower/{n}' for n in legacy.OUTPUTS))
+    paths = (f'{root}/MachineState', *(f'{root}/SignalTower/{n}' for n in tower.OUTPUTS))
     held = values(comm, paths, app=app)
     state = held[f'{root}/MachineState']
     if (type(state) is not int or state not in machine.STATES.values()
-            or any(type(held[f'{root}/SignalTower/{n}']) is not bool for n in legacy.OUTPUTS)):
+            or any(type(held[f'{root}/SignalTower/{n}']) is not bool for n in tower.OUTPUTS)):
         raise ValueError('invalid or unavailable signal tower snapshot')
     return {'MachineState': state,
-            **{f'SignalTower/{n}': held[f'{root}/SignalTower/{n}'] for n in legacy.OUTPUTS}}
+            **{f'SignalTower/{n}': held[f'{root}/SignalTower/{n}'] for n in tower.OUTPUTS}}
 
 
-def read_unit(comm, *, app):
+def unit_surface(comm, *, app):
     session = _session(comm, app)
     if session is not None:
         return session.surface('Unit')
-    import fraktal_ab_generate as gen
-    return read_layout(comm, f'FRK_{app.name}_Unit', gen.unit_context_members(app))
+    return surface(comm, 'Unit', app=app)
 
 
-def read_chart(comm, *, app):
+def chart_surface(comm, *, app):
     session = _session(comm, app)
     if session is not None:
         return session.surface('Chart')
-    import fraktal_ab_generate as gen
-    return read_layout(comm, f'FRK_{app.name}_Chart', gen.chart_members(app))
+    return surface(comm, 'Chart', app=app)
 
 
-def read_module(comm, name, *, app):
+def module_surface(comm, name, *, app):
     session = _session(comm, app)
     if session is not None:
         return session.surface(name)
-    import fraktal_ab_generate as gen
-    module = next(m for m in app.modules if m.name == name)
-    return read_layout(comm, gen.ctx_tag_for(app, name), gen.module_members(module, app))
+    return surface(comm, name, app=app)
 
 
 def numeric_key(comm, text, *, app):
@@ -155,8 +148,8 @@ def numeric_key(comm, text, *, app):
             return session.reader.command_keys(session.root)[text]
         except KeyError as error:
             raise ValueError('asserted key is absent from the published command metadata') from error
-    import fraktal_ab_manifest as legacy
-    return legacy.numeric_key(app, text)
+    import fraktal_ab_manifest as mf
+    return mf.numeric_key(app, text)
 
 
 def surface(comm, name, *, app):
@@ -167,18 +160,11 @@ def surface(comm, name, *, app):
 
 
 def read_access(comm, *, app, audit=False):
-    if app.canonical_collapse:
-        return surface(comm, 'AccessAudit' if audit else 'AccessState', app=app)
-    import fraktal_ab_projection as legacy
-    return legacy.read_access(comm, audit=audit)
+    return surface(comm, 'AccessAudit' if audit else 'AccessState', app=app)
 
 
 def part_identity(comm, *, app):
     """Only the two live leaves used by held/abort waits; UID is PLC text."""
-    if not app.canonical_collapse:
-        import fraktal_ab_part as legacy
-        raw = legacy.read(comm, app)
-        return dict(Present=raw['Present'], Uid=legacy.uid(raw['Uid']))
     paths = (app.name + '/Part/Present', app.name + '/Part/Uid')
     held = values(comm, paths, app=app)
     return dict(Present=held[paths[0]], Uid=held[paths[1]])
@@ -186,9 +172,6 @@ def part_identity(comm, *, app):
 
 def part_values(comm, *, app):
     """The Part result as published; no UID, tolerance or timestamp projection."""
-    if not app.canonical_collapse:
-        import fraktal_ab_part as legacy
-        return legacy.project(app, legacy.read(comm, app))
     if app.part_carrier is None:
         raise ValueError('Part fixture requires a declared carrier')
     names = ['Uid', 'Present', 'CarrierKind', 'Result/Verdict', 'Result/ReasonCode',
@@ -211,9 +194,6 @@ def host_events(comm, *, app, attempts=3):
     a changed planning header retries within the original three-read bound.
     Strings, times, resource values and parents come directly from the PLC.
     """
-    if not app.canonical_collapse:
-        import fraktal_ab_host_events as legacy
-        return legacy.read(comm, app, tuple(m.code for m in app.models), attempts=attempts)
     from fraktal_ab_host_cursor import META, validate_metadata
     from fraktal_ab_host_service_binding import SERVICES
     from datetime import datetime
@@ -281,40 +261,25 @@ def host_events(comm, *, app, attempts=3):
 
 
 def read_alarm_log(comm, *, app):
-    if app.canonical_collapse:
-        return surface(comm, 'AlarmActive', app=app), surface(comm, 'AlarmRing', app=app)
-    import fraktal_ab_projection as legacy
-    return legacy.read_alarm_log(comm)
+    return surface(comm, 'AlarmActive', app=app), surface(comm, 'AlarmRing', app=app)
 
 
 def read_oee(comm, *, app):
-    if app.canonical_collapse:
-        return surface(comm, 'Oee', app=app)
-    import fraktal_ab_generate as gen
-    return read_layout(comm, gen.oee_tag(app), gen.oee_members())
+    return surface(comm, 'Oee', app=app)
 
 
 def read_profiler(comm, *, app):
-    if app.canonical_collapse:
-        return surface(comm, 'Profiler', app=app)
-    import fraktal_ab_generate as gen
-    return read_layout(comm, gen.profiler_tag(app), gen.profiler_members(app))
+    return surface(comm, 'Profiler', app=app)
 
 
 def read_release_report(comm, *, app):
-    if app.canonical_collapse:
-        return surface(comm, 'ReleaseStart', app=app)
-    import fraktal_ab_generate as gen
-    return read_layout(comm, gen.release_report_tag(app), gen.release_report_members(app=app))
+    return surface(comm, 'ReleaseStart', app=app)
 
 
 def read_health_probe(comm, *, app):
     import fraktal_ab_generate as gen
-    if getattr(app, 'canonical_collapse', False):
-        import fraktal_ab_press_execute as px
-        return px.read_flat(comm, gen.health_probe_tag(app), tuple(m.name for m in gen.health_probe_members()))
     import fraktal_ab_press_execute as px
-    return px.read_layout(comm, gen.health_probe_tag(app), gen.health_probe_members())
+    return px.read_flat(comm, gen.health_probe_tag(app), tuple(m.name for m in gen.health_probe_members()))
 
 
 DIAG_LEAVES = ('ReasonCode', 'Description', 'IoTag', 'IoAddress', 'Since')
@@ -325,11 +290,7 @@ MODULE_STATUS_LEAVES = ('TypeKey', 'DisplayNameKey', 'State', 'FaultActive')
 def step_conditions(comm, count=4, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return [(held.get(f'{app.name}/CurrentStep/Conds[{i}]/Label'),
-                 held.get(f'{app.name}/CurrentStep/Conds[{i}]/Ok'))
-                for i in range(1, count + 1)]
+        raise ValueError('canonical session required')
     root = session.root
     paths = tuple(f'{root}/CurrentStep/Conds[{i}]/{leaf}'
                   for i in range(1, count + 1) for leaf in ('Label', 'Ok'))
@@ -342,9 +303,7 @@ def step_conditions(comm, count=4, *, app):
 def unit_diagnostic(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return {k: held.get(f'{app.name}/Status/Diagnostic/{k}') for k in DIAG_LEAVES}
+        raise ValueError('canonical session required')
     root = session.root
     paths = tuple(f'{root}/Status/Diagnostic/{k}' for k in DIAG_LEAVES)
     held = values(comm, paths, app=app)
@@ -354,9 +313,7 @@ def unit_diagnostic(comm, *, app):
 def module_diagnostic(comm, module, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return {k: held.get(f'{app.name}/{module}/Status/Diagnostic/{k}') for k in DIAG_LEAVES}
+        raise ValueError('canonical session required')
     root = session.root
     paths = tuple(f'{root}/{module}/Status/Diagnostic/{k}' for k in DIAG_LEAVES)
     held = values(comm, paths, app=app)
@@ -366,8 +323,7 @@ def module_diagnostic(comm, module, *, app):
 def alarm_blocking(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        return legacy.read_document(comm)['values'].get(f'{app.name}/AlarmLog/Blocking')
+        raise ValueError('canonical session required')
     path = f'{session.root}/AlarmLog/Blocking'
     return values(comm, (path,), app=app).get(path)
 
@@ -377,9 +333,7 @@ def alarm_active_event(comm, slot, *, app):
         return {}
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return {k: held.get(f'{app.name}/AlarmLog/Active[{slot}]/{k}') for k in ACTIVE_EVENT_LEAVES}
+        raise ValueError('canonical session required')
     root = session.root
     paths = tuple(f'{root}/AlarmLog/Active[{slot}]/{k}' for k in ACTIVE_EVENT_LEAVES)
     held = values(comm, paths, app=app)
@@ -389,17 +343,7 @@ def alarm_active_event(comm, slot, *, app):
 def sequence_step_summary(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        count = held.get(f'{app.name}/SequenceStepCount', 0)
-        steps = [held.get(f'{app.name}/SequenceSteps[{i}]/StepNo') for i in range(1, count + 1)]
-        rows = {
-            held.get(f'{app.name}/SequenceSteps[{i}]/StepNo'): {
-                leaf: held.get(f'{app.name}/SequenceSteps[{i}]/{leaf}')
-                for leaf in ('LastDuration', 'WarningActive', 'ErrorActive')
-            } for i in range(1, count + 1)
-        }
-        return {'count': count, 'steps': steps, 'rows': rows}
+        raise ValueError('canonical session required')
     root = session.root
     count_path = f'{root}/SequenceStepCount'
     count = values(comm, (count_path,), app=app).get(count_path, 0)
@@ -421,8 +365,7 @@ def sequence_step_summary(comm, *, app):
 def active_step_cursor(comm, leg=1, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        return legacy.read_document(comm)['values'].get(f'{app.name}/ActiveSteps[{leg}]/RowIdx')
+        raise ValueError('canonical session required')
     path = f'{session.root}/ActiveSteps[{leg}]/RowIdx'
     return values(comm, (path,), app=app).get(path)
 
@@ -430,12 +373,7 @@ def active_step_cursor(comm, leg=1, *, app):
 def sequence_annotations(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        count = held.get(f'{app.name}/SequenceAnnotationCount', 0)
-        note = {k: held.get(f'{app.name}/SequenceAnnotations[1]/{k}')
-                for k in ('RowIdx', 'Key', 'SourcePath', 'IsError')} if count else {}
-        return count, note
+        raise ValueError('canonical session required')
     root = session.root
     count_path = f'{root}/SequenceAnnotationCount'
     count = values(comm, (count_path,), app=app).get(count_path, 0)
@@ -451,8 +389,7 @@ def sequence_annotations(comm, *, app):
 def current_step_timed_out(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        return legacy.read_document(comm)['values'].get(f'{app.name}/CurrentStepTimedOut')
+        raise ValueError('canonical session required')
     path = f'{session.root}/CurrentStepTimedOut'
     return values(comm, (path,), app=app).get(path)
 
@@ -460,9 +397,7 @@ def current_step_timed_out(comm, *, app):
 def module_status(comm, module, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return {k: held.get(f'{app.name}/{module}/Status/{k}') for k in MODULE_STATUS_LEAVES}
+        raise ValueError('canonical session required')
     root = session.root
     paths = tuple(f'{root}/{module}/Status/{k}' for k in MODULE_STATUS_LEAVES)
     held = values(comm, paths, app=app)
@@ -472,12 +407,7 @@ def module_status(comm, module, *, app):
 def module_catalog(comm, module, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        count = held.get(f'{app.name}/{module}/CatalogCount', 0)
-        items = [(held.get(f'{app.name}/{module}/Catalog[{i}]/Value'),
-                  held.get(f'{app.name}/{module}/Catalog[{i}]/Label')) for i in (1, 2)]
-        return count, items
+        raise ValueError('canonical session required')
     root = session.root
     count_path = f'{root}/{module}/CatalogCount'
     count = values(comm, (count_path,), app=app).get(count_path, 0)
@@ -492,15 +422,7 @@ def release_report_hmi(comm, *, app):
     """The HmiResponse/Report the HMI reads: (released, [(desc, reason, source, kind), ...])."""
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        base = f'{app.name}/HmiResponse/Report'
-        count = held.get(f'{base}/Count') or 0
-        released = held.get(f'{base}/Released')
-        reasons = [tuple(held.get(f'{base}/Reasons/Reasons[{i}]/{leaf}')
-                         for leaf in ('Description', 'ReasonCode', 'SourcePath', 'Kind'))
-                   for i in range(1, count + 1)]
-        return released, reasons
+        raise ValueError('canonical session required')
     root = session.root
     base = f'{root}/HmiResponse/Report'
     count_path = f'{base}/Count'
@@ -521,8 +443,7 @@ def release_report_hmi(comm, *, app):
 def header_valid(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        return bool(legacy.read_document(comm)['values'])
+        raise ValueError('canonical session required')
     path = f'{session.root}/Status/Name'
     return bool(values(comm, (path,), app=app).get(path))
 
@@ -542,10 +463,7 @@ HEALTH_LEAVES = ('Present', 'Healthy', 'TaskAvailable', 'TaskCycleUs', 'TaskJitt
 def oee_card(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        prefix = f'{app.name}/'
-        return {k[len(prefix):]: v for k, v in held.items() if k.startswith(f'{prefix}Oee')}
+        raise ValueError('canonical session required')
     import fraktal_ab_generate as gen
     root = session.root
     paths = (*(f'{root}/Oee/{n}' for n in OEE_LEAVES), f'{root}/OeeTrendHead',
@@ -558,9 +476,7 @@ def oee_card(comm, *, app):
 def machine_summary(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return held.get(f'{app.name}/MachineState'), held.get(f'{app.name}/ReworkCount')
+        raise ValueError('canonical session required')
     paths = (f'{session.root}/MachineState', f'{session.root}/ReworkCount')
     held = values(comm, paths, app=app)
     return held[paths[0]], held[paths[1]]
@@ -570,9 +486,7 @@ def run_style_offer(comm, *, app):
     import fraktal_ab_declaration as decl
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return [held.get(f'{app.name}/SupportedRunStylesPublished[{s + 1}]') for s in decl.RUN_STYLES], held.get(f'{app.name}/RunStyle')
+        raise ValueError('canonical session required')
     paths = (*(f'{session.root}/SupportedRunStylesPublished[{s}]' for s in decl.RUN_STYLES), f'{session.root}/RunStyle')
     held = values(comm, paths, app=app)
     return [held[f'{session.root}/SupportedRunStylesPublished[{s}]'] for s in decl.RUN_STYLES], held[f'{session.root}/RunStyle']
@@ -583,8 +497,7 @@ def profiler_summary(comm, *, app):
     import fraktal_ab_generate as gen
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        return legacy.read_document(comm)['values']
+        raise ValueError('canonical session required')
     root = session.root
     base = f'{root}/Profiler/LastCycle'
     step_leaves = ('StepNo', 'StepName', 'TimeClass', 'Duration', 'Expected')
@@ -600,9 +513,7 @@ def timing_row(comm, module, index=1, *, app):
     leaves = ('Id', 'Label', 'Count', 'Last', 'Minimum', 'Maximum', 'Avg')
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return {n: held.get(f'{app.name}/{module}/Timing/Rows[{index}]/{n}') for n in leaves}
+        raise ValueError('canonical session required')
     paths = tuple(f'{session.root}/{module}/Timing/Rows[{index}]/{n}' for n in leaves)
     held = values(comm, paths, app=app)
     return {n: held[f'{session.root}/{module}/Timing/Rows[{index}]/{n}'] for n in leaves}
@@ -614,9 +525,7 @@ def alarm_ring_entry(comm, slot, *, app):
     leaves = ('ReasonCode', 'SourcePath')
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        return {n: held.get(f'{app.name}/AlarmLog/Ring[{slot}]/{n}') for n in leaves}
+        raise ValueError('canonical session required')
     paths = tuple(f'{session.root}/AlarmLog/Ring[{slot}]/{n}' for n in leaves)
     held = values(comm, paths, app=app)
     return {n: held[f'{session.root}/AlarmLog/Ring[{slot}]/{n}'] for n in leaves}
@@ -626,10 +535,7 @@ def state_flags(comm, *, app):
     leaves = ('Key', 'Value', 'Since', 'Stale')
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        count = held.get(f'{app.name}/StateFlagCount') or 0
-        return [{n: held.get(f'{app.name}/StateFlags[{i}]/{n}') for n in leaves} for i in range(1, count + 1)]
+        raise ValueError('canonical session required')
     count_path = f'{session.root}/StateFlagCount'
     count = values(comm, (count_path,), app=app)[count_path]
     if type(count) is not int or not 0 <= count <= len(app.state_flags):
@@ -644,10 +550,7 @@ def state_flags(comm, *, app):
 def system_health(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        held = legacy.read_document(comm)['values']
-        prefix = f'{app.name}/SystemHealth/'
-        return {k[len(prefix):]: v for k, v in held.items() if k.startswith(prefix)}
+        raise ValueError('canonical session required')
     paths = tuple(f'{session.root}/SystemHealth/{n}' for n in HEALTH_LEAVES)
     held = values(comm, paths, app=app)
     prefix = f'{session.root}/SystemHealth/'
@@ -657,8 +560,7 @@ def system_health(comm, *, app):
 def config_capability(comm, key, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_mailbox as legacy
-        return legacy.config_ordinal(app, key)
+        raise ValueError('canonical session required')
     try:
         return session.reader.command_capabilities(session.root)[key]
     except KeyError as error:
@@ -668,13 +570,7 @@ def config_capability(comm, key, *, app):
 def class_levels(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_projection as legacy
-        import fraktal_ab_data_access as data
-        import fraktal_ab_manifest as manifest
-        held = data.policy_status(app, manifest.content(app), legacy.read_data_access(comm, policy=True))
-        return {held[f'Access/Classes[{i}]/ClassId']: {
-            'read': held[f'Access/Classes[{i}]/ReadLevel'], 'write': held[f'Access/Classes[{i}]/WriteLevel']}
-            for i in range(1, held['Access/ClassCount'] + 1)}
+        raise ValueError('canonical session required')
     count_path = session.root + '/Access/ClassCount'
     count = values(comm, (count_path,), app=app)[count_path]
     if type(count) is not int or not 0 <= count <= 10000:
@@ -808,8 +704,7 @@ def values(comm, paths, *, app):
 def revision(comm, *, app):
     session = _session(comm, app)
     if session is None:
-        import fraktal_ab_manifest as legacy
-        return legacy.config_revision(app)
+        raise ValueError('canonical session required')
     path = session.root + '/Status/ConfigRev'
     return session.reader.read_row((path,))['values'][path]
 

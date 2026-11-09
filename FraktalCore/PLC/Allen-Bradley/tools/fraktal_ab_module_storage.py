@@ -103,7 +103,7 @@ def derive(app, text):
                 remainder = re.sub(pattern, remove, remainder, flags=re.I)
             if re.search(r'(?<![\w.])' + re.escape(prefix) + r'(?![\w.]|\s*\.)', remainder, re.I):
                 raise ValueError('unclassified whole module instance use: ' + prefix)
-        members = gen.module_context_members(mtype, True)
+        members = gen.module_storage_members(mtype, True)
         per_instance = [{m.name: m.initial for m in gen.module_initial_members(app, instance)}
                         for instance in instances]
         layout = []

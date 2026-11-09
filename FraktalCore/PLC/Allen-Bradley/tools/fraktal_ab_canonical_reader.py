@@ -564,6 +564,9 @@ def template_byte_size(comm, handle):
     pylogix returns its connected reply including the 46-byte transport prefix.
     Validate the service, count, attribute ID and per-attribute status before use.
     """
+    connect = getattr(comm.conn, 'connect', None)
+    if callable(connect):
+        connect(True)
     status, packet = comm.conn.send(comm._cip_message(0x03, 0x6C, handle, [5]))
     if status != 0 or packet is None or len(packet) != 60:
         raise ValueError("Template structure-size attribute read failed")
@@ -580,6 +583,9 @@ def template_structure_handle(comm,handle):
 
     Rockwell 1756-PM020I pp. 12, 52-53 defines this write-type parameter.
     """
+    connect = getattr(comm.conn, 'connect', None)
+    if callable(connect):
+        connect(True)
     status,packet=comm.conn.send(comm._cip_message(0x03,0x6C,handle,[1]))
     if status!=0 or packet is None or len(packet)!=58:
         raise ValueError('Template structure-handle attribute read failed')

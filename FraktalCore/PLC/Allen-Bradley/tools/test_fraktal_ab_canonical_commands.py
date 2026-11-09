@@ -6,7 +6,6 @@ import fraktal_ab_canonical_publication as pub
 import fraktal_ab_canonical_text as text
 import fraktal_ab_genealogy_s3k_demo as demo
 import fraktal_ab_mailbox as mailbox
-import fraktal_ab_mailbox_frame as frame
 import fraktal_ab_st_model as st
 
 
@@ -39,15 +38,13 @@ class IngressTests(unittest.TestCase):
         self.payload=self.value(command.PAYLOAD);self.sample=self.value(command.PAYLOAD)
         self.request={n:(dict(LEN=0,DATA=[0]*width) if kind==mailbox.STRING_MEMBER else 0)
                       for n,kind,width,note in mailbox.REQUEST_MEMBERS}
-        self.request['Frame']=dict(Words=[0]*frame.word_count(a))
         self.response=dict(AckSequence=0,Accepted=0,DiagnosticKey=0)
         self.tags={'S:FS':False,command.work_tag(a):self.work,command.payload_tag(a):self.payload,
             command.sample_tag(a):self.sample,command.commit_tag(a):0,
             command.route_tag(a):command.rows(a),mailbox.request_tag_name(a):self.request,
-            mailbox.response_tag_name(a):self.response,frame.sample_tag(a):dict(Words=[0]*frame.word_count(a)),
+            mailbox.response_tag_name(a):self.response,
             pub.header_tag(a):dict(ConfigRevision=7),a.name:dict(Status=dict(ConfigRev=123)),
             f'FRK_{a.name}_HmiLastSequence':0,f'FRK_{a.name}_HmiWipe':0,**deepcopy(self.pool)}
-        self.tags.update({f'FRK_{a.name}_HmiFrame{n}':0 for n in ('Cursor','Word','Byte','Valid','Field')})
         self.plc=st.Controller(self.tags,calls={'CPS':st.cps_structure},routines=self.routines)
 
     def stage(self,sequence,**arguments):
@@ -76,18 +73,6 @@ class IngressTests(unittest.TestCase):
         self.assertEqual((self.response['AckSequence'],self.work['OwnerAck']),(0,1))
         self.assertFalse(any(self.request['Secret']['DATA']))
         self.assertFalse(any(self.request['TextValue']['DATA']))
-
-    def test_simultaneous_ingresses_are_consumed_refused_and_not_queued(self):
-        self.request['Sequence']=8
-        self.request['Frame']['Words']=frame.encode(self.app,dict(Kind=mailbox.START,Sequence=8,Secret='legacy'))
-        self.stage(1,Kind=mailbox.STOP,Secret='typed')
-        self.plc.run(self.ingress)
-        self.assertEqual((self.work['Pending'],self.work['Error']),(1,2))
-        self.assertFalse(any(self.request['Frame']['Words']))
-        self.assertFalse(any(self.payload['Arguments']['Secret']['DATA']))
-        self.assertEqual(self.request['Kind'],0)
-        self.plc.run(self.ingress)
-        self.assertEqual(self.work['Pending'],0)
 
     def test_bad_envelope_and_lengths_consumed_before_late_payload_cannot_replay(self):
         for field,bad in [('SchemaVersion',2),('ManifestRevision',0),('StagedSequence',2),('Secret.LEN',999)]:

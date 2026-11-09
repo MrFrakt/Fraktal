@@ -12,7 +12,6 @@ import fraktal_ab_generate as gen
 import fraktal_ab_machine_state as machine
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as manifest
-import fraktal_ab_projection as projection
 import fraktal_ab_signal_tower as tower
 import fraktal_ab_sets as sets
 import fraktal_ab_st_model as st
@@ -34,7 +33,7 @@ class Tc3Controller(st.Controller):
 class Bench:
     def __init__(self, app=APP):
         self.app, self.now, self.started = app, 0, 0
-        self.plc = st.Controller({f'FRK_{app.name}_Unit':st.structure(gen.unit_context_members(app)),
+        self.plc = st.Controller({f'FRK_{app.name}_Unit':st.structure(gen.unit_storage_members(app)),
             gen.alarm_active_tag(app):st.structure(gen.alarm_active_members()),
             **{tower.tag(app,s):st.structure(r.members) for s,r in zip(('', 'Cfg', 'Book'),tower.records(app))},
             tower.tag(app,'Timer'):dict(PRE=0,Reset=0,TimerEnable=0,DN=0)}, calls={'TONR':self.timer})
@@ -107,7 +106,7 @@ class SignalTowerPolicy(unittest.TestCase):
                 alarm = bench.plc.tags[gen.alarm_active_tag(app)]
                 alarm['Blocking'] = blocking
                 bench.scan()
-                self.assertEqual(bench.status['MachineState'],projection.machine_state(app,bench.unit,alarm)['MachineState'])
+                self.assertEqual(bench.status['MachineState'], machine.classify(app, bench.unit, blocking))
 
     def test_native_timer_boundary_and_clamp_without_client_or_scan_counter(self):
         for requested,duration in ((3000,3000),(0,3000),(-1,3000),(30001,30000),(1,1)):
@@ -196,18 +195,6 @@ class SignalTowerContract(unittest.TestCase):
         for raw in (None,{},dict(SchemaVersion=99),{**st.structure(tower.members()),'Red':9}):
             with self.assertRaises(ValueError):
                 tower.project(raw)
-
-    def test_generic_projection_uses_the_native_machine_state_and_requires_the_facet(self):
-        import test_fraktal_ab_projection as helpers
-        with patch.object(projection,'APP',APP),patch.object(helpers,'APP',APP):
-            args = (helpers.good_header(),manifest.content(APP),helpers.unit_values(),helpers.contexts())
-            raw = st.structure(tower.members())
-            raw.update(MachineState=4,Red=1)
-            doc = projection.project(*args,tower_state=raw)
-            self.assertTrue(doc['values']['Press/SignalTower/Red'])
-            self.assertEqual(doc['values']['Press/MachineState'],4)
-            with self.assertRaises(projection.ReadFailed):
-                projection.project(*args)
 
 
 if __name__ == '__main__':

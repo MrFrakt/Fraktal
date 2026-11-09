@@ -653,6 +653,17 @@ def status(app, held):
     return out
 
 
+def _module_path(app, ordinal: int) -> str:
+    if ordinal <= 0:
+        return ""
+    if ordinal == 1:
+        return app.name
+    index = ordinal - 2
+    if 0 <= index < len(app.modules):
+        return f"{app.name}.{app.modules[index].name}"
+    return ""
+
+
 def audit_status(app, rows, held, ring):
     """Enrich MESSAGE slots of the existing 64-entry controller alarm ring."""
     import fraktal_ab_generate as gen
@@ -671,8 +682,7 @@ def audit_status(app, rows, held, ring):
                      ' [kind=' + str(held['Kind'][slot]) + ', gate=' + str(held['Gate'][slot]) + ']',
                      SourcePath=app.name + '.Access')
         if keys.get(held['Key'][slot]) in ('std.audit.alarmShelved', 'std.audit.alarmUnshelved'):
-            import fraktal_ab_projection as projection
-            event['SourcePath'] = projection._module_path(app, ring['RingSourceModuleId'][slot])
+            event['SourcePath'] = _module_path(app, ring['RingSourceModuleId'][slot])
             if held['Sequence'][slot] == 0:
                 event['Description'] += ' [automatic]'
         capability = held['DataCapability'][slot]

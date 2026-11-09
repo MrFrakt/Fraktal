@@ -395,6 +395,31 @@ def cyclic(app):
     return lines
 
 
+def _controller_time(date: int, time: int):
+    if date <= 0:
+        return 0
+    year, month, day = date // 10000, (date // 100) % 100, date % 100
+    hour, minute = time // 10_000_000, (time // 100_000) % 100
+    second, millis = (time // 1000) % 100, time % 1000
+    if not (1 <= month <= 12 and 1 <= day <= 31 and hour < 24 and minute < 60 and second < 60):
+        return 0
+    try:
+        dt = datetime(year, month, day, hour, minute, second, millis * 1000, tzinfo=timezone.utc)
+        return dt.isoformat()
+    except (ValueError, OverflowError):
+        return 0
+
+
+def oee_factors(run_ms: int, down_ms: int, good: int, nok: int, ideal_ms: int):
+    total_operating = run_ms + down_ms
+    availability = (run_ms / total_operating) if total_operating > 0 else 0.0
+    produced = good + nok
+    performance = min(1.0, (ideal_ms * produced / run_ms)) if (run_ms > 0 and ideal_ms > 0) else 0.0
+    quality = (good / produced) if produced > 0 else 0.0
+    oee = availability * performance * quality
+    return {"Oee": oee, "Availability": availability, "Performance": performance, "Quality": quality}
+
+
 def projection(app, state, shifts, *, rows=None):
     if not app.line or state is None or shifts is None or state.get('SchemaVersion') not in (1, 2) or shifts.get('SchemaVersion') != SHIFT_SCHEMA:
         return {}
@@ -404,12 +429,11 @@ def projection(app, state, shifts, *, rows=None):
     epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
     def stamp(value, millis=0):
         return (epoch + timedelta(minutes=value, milliseconds=millis)).isoformat() if type(value) is int and value > 0 else None
-    import fraktal_ab_projection as px
     keys = {r['NumericKey']: r['PortableKey'] for r in (rows or {}).get('Localization', [])}
     out = {'Line/Role': 0, 'Line/LineId': keys.get(state['LineIdKey'], ''),
            'Line/OwnerId': keys.get(state['OwnerIdKey'], ''),
            'Line/Revision': state['Revision'], 'Line/Stale': False,
-           'Line/LastUpdatedAt': px._controller_time(state['UpdatedDate'], state['UpdatedClock']),
+           'Line/LastUpdatedAt': _controller_time(state['UpdatedDate'], state['UpdatedClock']),
            'Line/AppliedRevision': shifts['AppliedRevision'],
            'ShiftCalendarPending': shifts['AppliedRevision'] != state['Revision'],
            'CurrentShift': shifts['Current'], 'ShiftStartedAt': stamp(shifts['StartedMinute'], shifts['StartedMs']),
@@ -426,5 +450,5 @@ def projection(app, state, shifts, *, rows=None):
             row+'NokCount': item['Nok'], row+'ReworkCount': item['Rework'], row+'ProductionTarget': item['ProductionTarget']})
         buckets = {n: item[n+'S'] * 1000 + item[n+'Ms'] for n in ('Run','Down','Idle')}
         out.update({row+n+'Ms': v for n, v in buckets.items()})
-        out.update({row+n: v for n, v in px.oee_factors(buckets['Run'], buckets['Down'], item['OeeGood'], item['OeeNok'], item['IdealMs']).items()})
+        out.update({row+n: v for n, v in oee_factors(buckets['Run'], buckets['Down'], item['OeeGood'], item['OeeNok'], item['IdealMs']).items()})
     return out

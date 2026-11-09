@@ -113,7 +113,7 @@ class ThePeriodIsPerInstance(unittest.TestCase):
         code for a cylinder that cannot time a move."""
         import fraktal_ab_st_model as st
 
-        ctx = st.structure(gen.module_context_members(library.CYLINDER))
+        ctx = st.structure(gen.module_storage_members(library.CYLINDER))
         ctx.update(Par_TaskPeriodMs=0, ParCmd_Target=100, Execute=1)
         plc = st.Controller({"Ctx": ctx, "Scan": 1})
         plc.run("\n".join(gen.type_logic(library.CYLINDER)))

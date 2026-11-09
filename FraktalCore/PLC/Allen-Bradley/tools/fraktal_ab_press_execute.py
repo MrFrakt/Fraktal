@@ -32,7 +32,6 @@ import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 import fraktal_ab_station as station
 import fraktal_ab_fixture_reads as fixture_reads
-from fraktal_ab_legacy_reads import read_layout
 
 
 SCHEMA = "fraktal.ab.press-execute"
@@ -76,7 +75,6 @@ WRITABLE = tuple(gen.externally_writable(APP))
 # one DINT, and the first array a type gained (Phase 5f's command timing)
 # shifted every member after it - the gateway refused the station rather than
 # publish the shifted values, which is the only reason it was not worse.
-UNIT_LAYOUT = gen.unit_context_members(APP)
 MODULE_LAYOUT = {m.name: gen.module_members(m) for m in APP.modules}
 CHART_LAYOUT = gen.chart_members(APP)
 
@@ -86,7 +84,7 @@ R = demo.REASONS
 
 def _unpack_flat(payload: bytes, names: tuple[str, ...]) -> dict[str, int] | None:
     """Scalar-only structures (the configuration records). Anything with an
-    array is read with `read_layout`; test_fraktal_ab_readers holds every
+    array is read with `_read_record`; test_fraktal_ab_readers holds every
     caller to that."""
     if not isinstance(payload, (bytes, bytearray)) or len(payload) < len(names) * 4:
         return None
@@ -101,9 +99,9 @@ def read_flat(comm: Any, tag: str, names: tuple[str, ...]) -> dict[str, int] | N
     return _unpack_flat(_value(reply), names)
 
 
-read_unit = partial(fixture_reads.read_unit, app=APP)
-read_chart = partial(fixture_reads.read_chart, app=APP)
-read_module = partial(fixture_reads.read_module, app=APP)
+unit_surface = partial(fixture_reads.unit_surface, app=APP)
+chart_surface = partial(fixture_reads.chart_surface, app=APP)
+module_surface = partial(fixture_reads.module_surface, app=APP)
 
 
 def read_scalar(comm: Any, tag: str) -> int | None:
@@ -141,62 +139,17 @@ def seed_sequence(comm: Any) -> int:
 
 def command(comm: Any, kind: int, settle: float = 2.0,
             **arguments: Any) -> dict[str, Any]:
-    """Issue one command and independently wait for its PLC acknowledgement.
-
-    A collapsed profile uses the same gateway writeBatch path as the operator.
-    The legacy baseline below writes its Frame in contract order, abandoning the first
-    failure, which is before the Sequence commit by construction - so a failed
-    argument can never be committed with the previous request's value.
-
-    It returns what the machine answered, and the caller still has to read the
-    machine. An acknowledgement is not a result: the latching defect of
-    2026-09-22 produced ten clean acks over a press that was latched aborted.
-    """
-    if APP.canonical_collapse:
-        return fixture_reads.command(comm, kind, app=APP, settle=settle, **arguments)
-    # Other fixture helpers use the gateway writer on this same mailbox. Read
-    # its current cursor for every command, rather than reusing a process-local
-    # counter which those helpers do not advance.
-    previous = seed_sequence(comm)
-    ack = read_scalar(comm, f"{mailbox.response_tag_name(APP)}.AckSequence")
-    if ack is None or (ack & 0xffffffff) != previous:
-        raise AssertionError("mailbox has no settled acknowledgment; nothing written")
-    _SEQUENCE["value"] = (previous + 1) & 0xffffffff
-    sequence = _SEQUENCE["value"]
-    from fraktal_ab_mailbox_frame import CONNECTION_SIZE
-    comm.ConnectionSize = CONNECTION_SIZE
-    for tag, payload in mailbox.command_writes(APP, kind, sequence, **arguments):
-        if tag == f"{mailbox.request_tag_name(APP)}.Sequence":
-            current = read_scalar(comm, tag)
-            if current is None or (current & 0xffffffff) != previous:
-                raise AssertionError("mailbox changed during staging; commit refused")
-        if not _success(comm.Write(tag, payload)):
-            raise AssertionError(
-                f"{tag} write failed; the attempt is not retried")
-
-    return await_response(comm, sequence, settle)
+    """Issue one command and independently wait for its PLC acknowledgement."""
+    return fixture_reads.command(comm, kind, app=APP, settle=settle, **arguments)
 
 
 def await_response(comm: Any, sequence: int, settle: float = 2.0) -> dict[str, Any]:
     """Read the complete response only after its final acknowledgement."""
-    if APP.canonical_collapse:
-        deadline = time.monotonic() + settle
-        while time.monotonic() < deadline:
-            row = fixture_reads.controls(comm, app=APP)
-            if row['ack'] == (sequence & 0xffffffff):
-                return dict(sequence=sequence, accepted=row['accepted'], diagnosticKey=row['diagnosticKey'])
-            time.sleep(0.02)
-        raise AssertionError(f"no acknowledgement of sequence {sequence}")
-    response = mailbox.response_tag_name(APP)
     deadline = time.monotonic() + settle
     while time.monotonic() < deadline:
-        ack = read_scalar(comm, f"{response}.AckSequence")
-        if ack is not None and (ack & 0xffffffff) == sequence:
-            return {
-                "sequence": sequence,
-                "accepted": bool(read_scalar(comm, f"{response}.Accepted")),
-                "diagnosticKey": read_scalar(comm, f"{response}.DiagnosticKey"),
-            }
+        row = fixture_reads.controls(comm, app=APP)
+        if row['ack'] == (sequence & 0xffffffff):
+            return dict(sequence=sequence, accepted=row['accepted'], diagnosticKey=row['diagnosticKey'])
         time.sleep(0.02)
     raise AssertionError(f"no acknowledgement of sequence {sequence}")
 
@@ -218,7 +171,7 @@ def await_unit(comm: Any, predicate: Any, settle: float):
     started = time.monotonic()
     last = None
     while time.monotonic() < deadline:
-        observed = read_unit(comm)
+        observed = unit_surface(comm)
         if observed is None:
             return None, (time.monotonic() - started) * 1000.0
         last = observed
@@ -236,7 +189,7 @@ def await_chart(comm: Any, predicate: Any, settle: float):
     started = time.monotonic()
     last = None
     while time.monotonic() < deadline:
-        observed = read_chart(comm)
+        observed = chart_surface(comm)
         if observed is None:
             return None, (time.monotonic() - started) * 1000.0
         last = observed
@@ -251,7 +204,7 @@ def await_module(comm: Any, name: str, predicate: Any, settle: float):
     started = time.monotonic()
     last = None
     while time.monotonic() < deadline:
-        observed = read_module(comm, name)
+        observed = module_surface(comm, name)
         if observed is None:
             return None, (time.monotonic() - started) * 1000.0
         last = observed
@@ -277,7 +230,7 @@ def fingerprint(comm: Any, *, expect_serial=None) -> dict[str, Any]:
     readings: dict[str, Any] = {}
     if APP.canonical_collapse:
         fixture_reads.bind(comm, APP, expect_serial)
-    unit = read_unit(comm)
+    unit = unit_surface(comm)
     if unit is None:
         return {"passed": False, "failed_tag": UNIT, "status": "unreadable"}
     cfg = (fixture_reads.surface(comm, 'Cfg0', app=APP) if APP.canonical_collapse else
@@ -396,11 +349,11 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 1 - a full AUTO cycle.
     command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
-    base = read_unit(comm)
+    base = unit_surface(comm)
     start_cycle(comm, settle)
     observed, elapsed = await_unit(
         comm, lambda o: base is not None and o["CycleCount"] > base["CycleCount"], settle)
-    chart = read_chart(comm)
+    chart = chart_surface(comm)
     rows.append(row(
         "auto_full_cycle",
         "the AUTO chain completes a cycle with no adopted fault",
@@ -415,7 +368,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # 2 - two-hand released at the door close: TC3's N180 abandons it.
     _idle(comm, settle)
     command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
-    base = read_unit(comm)
+    base = unit_surface(comm)
     start_cycle(comm, settle)
     # Released during the transfer settle (a declared 200 ms window) rather
     # than during the door close itself, which is four scans wide. Racing a
@@ -440,7 +393,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # 3 - the abandoned cycle recovers to the start and waits for a fresh press.
     back, elapsed = await_unit(comm, lambda o: o["Step"] == 100, settle)
     time.sleep(0.25)
-    resting = read_unit(comm)
+    resting = unit_surface(comm)
     rows.append(row(
         "the_abandoned_cycle_waits_for_a_fresh_start",
         "the door reopens, the part slides out, and the chain waits at N100 "
@@ -458,7 +411,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     faulted, elapsed = await_unit(comm, lambda o: o["Error"] != 0, settle)
     chart_fault, _ = await_chart(
         comm, lambda c: c["StallReason"] == R["CYL_NOT_EXTENDED"], settle)
-    slide = read_module(comm, "PartSlide")
+    slide = module_surface(comm, "PartSlide")
     slide_index = [m.name for m in APP.modules].index("PartSlide") + 1
     # The child's live ErrorID is deliberately NOT the place to check "verbatim":
     # adopting releases the child (Execute drops) so it resets to READY, which is
@@ -507,7 +460,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     await_unit(comm, lambda o: o["Step"] == 170, settle)
     write(comm, FAULT["PressRam"], 1)
     reported, elapsed = await_unit(comm, lambda o: o["Step"] == 210, settle)
-    chart_dec = read_chart(comm)
+    chart_dec = chart_surface(comm)
     rows.append(row(
         "child_condition_reported_not_adopted",
         "a ram failure is reported as a message and the chain reaches the decision "
@@ -544,7 +497,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 8 - answer 'scrap' (1): the part is dispositioned NOK.
     write(comm, FAULT["PressRam"], 0)
-    before_scrap = read_unit(comm)
+    before_scrap = unit_surface(comm)
     command(comm, mailbox.DECISION_ANSWER, IntValue=1)
     scrapped, elapsed = await_unit(
         comm, lambda o: before_scrap is not None and o["ScrapCount"] > before_scrap["ScrapCount"],
@@ -566,7 +519,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     write(comm, FAULT["PressRam"], 1)
     await_unit(comm, lambda o: o["Step"] == 210, settle)
     write(comm, FAULT["PressRam"], 0)
-    before_return = read_unit(comm)
+    before_return = unit_surface(comm)
     command(comm, mailbox.DECISION_ANSWER, IntValue=2)
     returned, elapsed = await_unit(
         comm, lambda o: o["Step"] not in (210,) and o["DecisionId"] == 0, settle)
@@ -582,7 +535,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # 10 - MANUAL: one module, one catalogue command (TC3's ManualCommandTo).
     _idle(comm, settle)
     command(comm, mailbox.SET_MODE, IntValue=MODE_MANUAL)
-    before_door = read_module(comm, "Door")
+    before_door = module_surface(comm, "Door")
     answer = manual(comm, "Door", 2)                  # RETRACT: opening is always permitted
     door, elapsed = await_module(
         comm, "Door",
@@ -620,7 +573,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     command(comm, mailbox.SET_MODE, IntValue=MODE_AUTO)
     start_cycle(comm, settle)
     await_unit(comm, lambda o: o["Step"] not in (0,), settle)
-    before_switch = read_unit(comm)
+    before_switch = unit_surface(comm)
     command(comm, mailbox.SET_MODE, IntValue=MODE_MANUAL)
     switched, elapsed = await_unit(comm, lambda o: o["Mode"] == MODE_MANUAL, settle)
     rows.append(row(
@@ -641,7 +594,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     command(comm, mailbox.STOP)
     aborted, elapsed = await_unit(comm, lambda o: o["Aborted"] != 0, settle)
     time.sleep(min(settle, 0.2))
-    after_abort = read_unit(comm)
+    after_abort = unit_surface(comm)
     rows.append(row(
         "auto_abort_does_not_self_resume",
         "an aborted AUTO stands down and stays down while the request is held",
@@ -658,7 +611,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     await_unit(comm, lambda o: o["Step"] == 100, settle)
     chart_block, elapsed = await_chart(
         comm, lambda c: c["StallReason"] == R["PART_NOT_PRESENT"], settle)
-    blocked = read_unit(comm)
+    blocked = unit_surface(comm)
     write(comm, PART_PRESENT, 1)
     rows.append(row(
         "blocked_condition_publishes_a_stall_reason",
@@ -673,7 +626,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # 15 - the §3.13 marks: a cursor, visited steps and last durations.
     _idle(comm, settle)
-    chart_final = read_chart(comm)
+    chart_final = chart_surface(comm)
     order_fail = read_scalar(comm, ORDER_FAIL)
     visited = 0 if chart_final is None else sum(1 for v in chart_final["Visited"] if v)
     durations = 0 if chart_final is None else sum(

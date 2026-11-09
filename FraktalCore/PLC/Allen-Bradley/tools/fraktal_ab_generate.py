@@ -69,7 +69,7 @@ SEVERITY_LOW, SEVERITY_HIGH = 0, 2
 
 # --- the per-module handshake context --------------------------------------
 
-def common_context_members() -> tuple[decl.Member, ...]:
+def common_storage_members() -> tuple[decl.Member, ...]:
     """What every module type carries: TC3's FB_ModuleBase, as DINTs (S12).
 
     The Core §6.1 handshake, the one published diagnostic and its onset, and
@@ -102,7 +102,7 @@ def common_context_members() -> tuple[decl.Member, ...]:
     )
 
 
-def type_context_members(mtype: decl.ModuleType) -> tuple[decl.Member, ...]:
+def type_storage_members(mtype: decl.ModuleType) -> tuple[decl.Member, ...]:
     """What one library type adds to the common context: its own plant,
     parameters and published facts. A type with none declared here cannot be
     emitted - the generator refuses rather than guessing a layout."""
@@ -117,15 +117,15 @@ def type_context_members(mtype: decl.ModuleType) -> tuple[decl.Member, ...]:
     raise decl.DeclarationError(f"no context layout for {mtype.type_key}")
 
 
-def module_context_members(mtype: decl.ModuleType, collapsed: bool = False) -> tuple[decl.Member, ...]:
+def module_storage_members(mtype: decl.ModuleType, collapsed: bool = False) -> tuple[decl.Member, ...]:
     """One type's full context: the common base, then the type's own. Collapsed
     (WP6.6), the facts its AOI publishes into the canonical leaf leave it."""
-    return collapse.context_members(common_context_members() + type_context_members(mtype), collapsed)
+    return collapse.context_members(common_storage_members() + type_storage_members(mtype), collapsed)
 
 
 def module_members(module: decl.Module, app: decl.Application | None = None) -> tuple[decl.Member, ...]:
     """An instance's context, which is its type's in that application."""
-    members = module_context_members(library.type_of(module), collapse.enabled(app))
+    members = module_storage_members(library.type_of(module), collapse.enabled(app))
     if not collapse.enabled(app):
         return members
     import fraktal_ab_module_storage as storage
@@ -435,13 +435,13 @@ CONFIG_RESTORE_DEFAULTS_AND_ANNUNCIATE = 0
 CONFIG_STORE_LOCAL_RETAIN = 0
 
 
-def unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
+def unit_storage_members(app: decl.Application) -> tuple[decl.Member, ...]:
     """The mode owner's context. Collapsed (WP6.6 C2), the members the
     canonical root stores are not in it."""
-    return collapse.without(_unit_context_members(app), collapse.unit_storage(app))
+    return collapse.without(_unit_storage_members(app), collapse.unit_storage(app))
 
 
-def _unit_context_members(app: decl.Application) -> tuple[decl.Member, ...]:
+def _unit_storage_members(app: decl.Application) -> tuple[decl.Member, ...]:
     return (
         decl.scalar("SchemaVersion", "", initial=SCHEMA_VERSION),
         decl.scalar("Par_TaskPeriodMs", "the declared period this project was emitted for",
@@ -605,9 +605,9 @@ def data_types(app: decl.Application) -> str:
     records += fixture.records(app)
     for mtype in () if collapse.enabled(app) else library.types_used(app):  # C3: no context UDT
         records.append(decl.Record(module_context_name(mtype, collapse.enabled(app)),
-                                   module_context_members(mtype, collapse.enabled(app)),
+                                   module_storage_members(mtype, collapse.enabled(app)),
                                    f"the Core §6.1 context of {mtype.type_key}"))
-    records.append(decl.Record(unit_context_name(app), unit_context_members(app),
+    records.append(decl.Record(unit_context_name(app), unit_storage_members(app),
                                "the mode owner's context"))
     records.append(decl.Record(chart_name(app), chart_members(app),
                                "Core §3.13 step marks"))
@@ -747,7 +747,7 @@ def editable_values(app: decl.Application) -> tuple[tuple[int, decl.Record, decl
 
 def root_field_records(app: decl.Application):
     """Root-owned published fields, shared by manifest and capture binding."""
-    out = [("Unit", unit_context_members(app)), ("Chart", chart_members(app)),
+    out = [("Unit", unit_storage_members(app)), ("Chart", chart_members(app)),
            ("AlarmActive", alarm_active_members()), ("AlarmRing", alarm_ring_members()),
            ("Oee", oee_members()), ("Profiler", profiler_members(app)),
            ("HealthProbe", health_probe_members())]
@@ -1242,7 +1242,7 @@ def type_aoi_logic(mtype: decl.ModuleType, app: decl.Application | None = None) 
     (WP6.6 R3) publishes its own canonical leaf."""
     if not collapse.enabled(app):
         return type_logic(mtype)
-    timed = any(m.name == "TimSlot" for m in type_context_members(mtype))
+    timed = any(m.name == "TimSlot" for m in type_storage_members(mtype))
     rows = collapse.catalogued_rows(app, mtype) if timed else None
     return collapse.type_logic(type_logic(mtype, rows), app)
 
@@ -1303,7 +1303,7 @@ def type_aoi(mtype: decl.ModuleType,
     leaf = collapse.leaf_type(app, mtype)
     import fraktal_ab_module_storage as storage
     roles = storage.roles(app, mtype)
-    members = module_context_members(mtype, True)
+    members = module_storage_members(mtype, True)
     return _aoi(
         collapse.aoi_name(type_aoi_name(mtype), app, mtype),
         f"Fraktal/AB library type {mtype.type_key}: {mtype.description}. "
@@ -1379,7 +1379,7 @@ class Names:
         """The operands a step condition needs non-zero: a simulated tag, or
         each named member of a module's context (decl.ModuleState)."""
         if isinstance(condition, decl.UnitState):
-            known = {m.name for m in unit_context_members(self.app)}
+            known = {m.name for m in unit_storage_members(self.app)}
             for member in condition.members:
                 if member not in known:
                     raise decl.DeclarationError(
@@ -3430,7 +3430,7 @@ def controller_tags(app: decl.Application) -> str:
                                    module_context_name(library.type_of(module), app.canonical_collapse),
                                    module_initial_members(app, module)))
     tags.append(_structure_tag(f"FRK_{app.name}_Unit", unit_context_name(app),
-                               unit_context_members(app),
+                               unit_storage_members(app),
                                external_access="None" if collapse.enabled(app) else "Read Only"))
     tags.append(_structure_tag(f"FRK_{app.name}_Chart", chart_name(app),
                                chart_members(app),
@@ -4754,7 +4754,6 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
     """
     n = app.name
     import fraktal_ab_access as access
-    import fraktal_ab_mailbox_frame as frame
     sections = []
 
     def add(suffix, body):
@@ -4772,7 +4771,7 @@ def scan_sections(app: decl.Application) -> list[tuple[str | None, tuple[str, ..
     add(None, [
         # The mailbox runs before anything else reads a request tag, so a
         # command lands in the scan it was committed in rather than the next.
-        f"JSR({frame.routine_name(app)},0);",
+        f"JSR(FRK_{n}HmiFrame,0);",
         f"JSR({mailbox.routine_name(app)},0);",
     ])
     add('ConfigRestore', [
@@ -4915,11 +4914,11 @@ def programs(app: decl.Application) -> str:
     import fraktal_ab_access as access
     import fraktal_ab_data_access as data
     import fraktal_ab_shelving as shelving
-    import fraktal_ab_mailbox_frame as frame
+    import fraktal_ab_canonical_commands as canonical_commands
     import fraktal_ab_sets as sets
     routines = "\n".join(
         [st_program_routine(app.routine, routine_logic(app, use_routines=True)),
-         st_program_routine(frame.routine_name(app), frame.logic(app)),
+         st_program_routine(f'FRK_{app.name}HmiFrame', canonical_commands.ingress(app)),
          st_program_routine(mailbox.routine_name(app), mailbox.handler_logic(app, use_routines=True)),
          st_program_routine(start_release_routine_name(app), start_release_logic(app))]
         + [st_program_routine(name, body) for name, body in scan_sections(app) if name]
@@ -5005,8 +5004,8 @@ def all_generated_logic(app: decl.Application) -> str:
         parts.extend(type_aoi_logic(mtype, app))
     parts.extend(unit_logic(app))
     parts.extend(routine_logic(app))
-    import fraktal_ab_mailbox_frame as frame
-    parts.extend(frame.logic(app))
+    import fraktal_ab_canonical_commands as canonical_commands
+    parts.extend(canonical_commands.ingress(app))
     return "\n".join(parts)
 
 

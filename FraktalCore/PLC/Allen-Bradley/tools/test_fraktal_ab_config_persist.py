@@ -14,7 +14,29 @@ import unittest
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+def _module_path(app, ordinal: int) -> str:
+    if ordinal <= 0:
+        return ""
+    if ordinal == 1:
+        return app.name
+    index = ordinal - 2
+    return f"{app.name}.{app.modules[index].name}" if 0 <= index < len(app.modules) else ""
+
+def config_persist_status(app, persist: dict | None) -> dict:
+    if persist is None:
+        return {}
+    return {
+        "ConfigPersist/Pending": bool(persist.get("Pending", 0)),
+        "ConfigPersist/Failed": bool(persist.get("Failed", 0)),
+        "ConfigPersist/WindowMs": persist.get("WindowMs", 0),
+        "ConfigPersist/PendingSince": persist.get("PendingSince", 0),
+        "ConfigPersist/StorePresent": bool(persist.get("StorePresent", 0)),
+        "ConfigPersist/StoreKind": persist.get("StoreKind", 0),
+        "ConfigPersist/RestoreLost": bool(persist.get("RestoreLost", 0)),
+        "ConfigPersist/RestoreAcknowledged": bool(persist.get("RestoreAcknowledged", 0)),
+        "ConfigPersist/LostPath": _module_path(app, persist.get("LostModuleId", 0)),
+        "ConfigPersist/RestorePolicy": persist.get("RestorePolicy", 0),
+    }
 import fraktal_ab_mailbox as mailbox
 from test_fraktal_ab_sets import controller
 
@@ -228,10 +250,10 @@ class PublishedSurface(unittest.TestCase):
         """Absent is not the same as healthy. A build emitted before §3.8b has
         no such tag, and inventing zeroes would report a station safe on no
         evidence at all."""
-        self.assertEqual(projection.config_persist_status(APP, None), {})
+        self.assertEqual(config_persist_status(APP, None), {})
 
     def test_a_healthy_station_publishes_every_field_anyway(self):
-        values = projection.config_persist_status(
+        values = config_persist_status(
             APP, {m.name: 0 for m in gen.config_persist_members()})
         self.assertEqual(values["ConfigPersist/RestoreLost"], False)
         self.assertEqual(values["ConfigPersist/LostPath"], "")
@@ -241,15 +263,15 @@ class PublishedSurface(unittest.TestCase):
 
     def test_the_lost_module_ordinal_resolves_to_a_canonical_path(self):
         first = APP.modules[0].name
-        self.assertEqual(projection._module_path(APP, 1), APP.name)
-        self.assertEqual(projection._module_path(APP, 2), f"{APP.name}.{first}")
-        self.assertEqual(projection._module_path(APP, 0), "")
-        self.assertEqual(projection._module_path(APP, 999), "")
+        self.assertEqual(_module_path(APP, 1), APP.name)
+        self.assertEqual(_module_path(APP, 2), f"{APP.name}.{first}")
+        self.assertEqual(_module_path(APP, 0), "")
+        self.assertEqual(_module_path(APP, 999), "")
 
     def test_the_store_is_absent_and_says_so(self):
         """SAVE/LOAD/LIST_CONFIG_SET are refused by name, so the HMI must not
         offer save/load/list at all."""
-        values = projection.config_persist_status(
+        values = config_persist_status(
             APP, {m.name: 0 for m in gen.config_persist_members()})
         self.assertFalse(values["ConfigPersist/StorePresent"])
         for kind in (mailbox.SAVE_CONFIG_SET, mailbox.LOAD_CONFIG_SET):

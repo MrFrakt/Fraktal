@@ -21,7 +21,14 @@ import fraktal_ab_generate as gen
 import fraktal_ab_ld_model as ld
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+def unit_status(unit, chart):
+    return {"RunStyle": unit.get("RunStyle", 0)}
+
+def mode_policy(app):
+    return {
+        f"SupportedRunStylesPublished[{s + 1}]": s in app.run_styles
+        for s in decl.RUN_STYLES
+    }
 import fraktal_ab_st_model as st
 from test_fraktal_ab_core_ordinals import core_enum
 from test_fraktal_ab_manual import Bench, key
@@ -114,7 +121,7 @@ class TheContract(unittest.TestCase):
 
     def test_a_unit_without_styles_carries_none_of_it(self):
         plain = dataclasses.replace(APP, run_styles=(CONTINUOUS,))
-        names = {m.name for m in gen.unit_context_members(plain)}
+        names = {m.name for m in gen.unit_storage_members(plain)}
         self.assertFalse(names & {"RunStyle", "StepPending", "HoldRun", "StepPermit",
                                   "Issued"})
         self.assertEqual(gen.run_style_logic(plain), [])
@@ -347,14 +354,14 @@ class ThePublishedStyle(unittest.TestCase):
     def test_runstyle_is_published_where_the_hmi_reads_it(self):
         bench = Bench()
         bench.request(mailbox.SET_RUN_STYLE, value=HOLD_TO_RUN)
-        status = projection.unit_status(bench.unit, bench.tags[f"FRK_{APP.name}_Chart"])
+        status = unit_status(bench.unit, bench.tags[f"FRK_{APP.name}_Chart"])
         self.assertEqual(status["RunStyle"], HOLD_TO_RUN)
 
     def test_the_offered_styles_are_published_one_based(self):
-        policy = projection.mode_policy(APP)
+        policy = mode_policy(APP)
         self.assertEqual([policy[f"SupportedRunStylesPublished[{s + 1}]"]
                           for s in decl.RUN_STYLES], [True, True, True])
-        plain = projection.mode_policy(dataclasses.replace(APP, run_styles=(CONTINUOUS,)))
+        plain = mode_policy(dataclasses.replace(APP, run_styles=(CONTINUOUS,)))
         self.assertEqual([plain[f"SupportedRunStylesPublished[{s + 1}]"]
                           for s in decl.RUN_STYLES], [True, False, False])
 

@@ -30,7 +30,7 @@ def _old_absolute_paths(app) -> set[str]:
     import fraktal_ab_mailbox as mailbox
 
     n = app.name
-    out = {f"{n}.Unit.{m.name}" for m in gen.unit_context_members(app)}
+    out = {f"{n}.Unit.{m.name}" for m in gen.unit_storage_members(app)}
     out |= {f"{n}.Chart.{m.name}" for m in gen.chart_members(app)}
     # Added after the rule changed (Core §8.3), and held to the same test: the
     # absolute form the old rule WOULD have produced is what the relative
@@ -128,7 +128,7 @@ class KeysAreShared(unittest.TestCase):
             for keyset in sets:
                 self.assertEqual(keyset, sets[0])
         common = {k for k, v in keys.items()
-                  if v in {m.name for m in gen.common_context_members()}}
+                  if v in {m.name for m in gen.common_storage_members()}}
         for sets in by_type.values():
             self.assertTrue(common <= sets[0])
 
@@ -156,14 +156,6 @@ class ReadersRefuseTheOldContract(unittest.TestCase):
         """A major-1 reader would compose wrong paths, so it must refuse."""
         self.assertGreaterEqual(manifest.MANIFEST_SCHEMA_MAJOR, 2)
 
-    def test_the_projection_refuses_a_major_1_manifest(self):
-        import fraktal_ab_projection as projection
-        import test_fraktal_ab_projection as fixture
-
-        header = dict(fixture.good_header(), SchemaMajor=1)
-        with self.assertRaises(projection.ProjectionRefused):
-            projection.validate(header)
-
 
 class WriteCapabilitiesAgree(unittest.TestCase):
     def test_a_capability_names_its_field_the_same_way(self):
@@ -178,11 +170,11 @@ class WriteCapabilitiesAgree(unittest.TestCase):
     def test_the_configuration_page_still_has_every_entry(self):
         """The failure this change nearly shipped: config_page required three
         dotted parts, relative keys have two, and every entry vanished."""
-        import fraktal_ab_projection as projection
+        import fraktal_ab_manifest_read as reader
 
         values = {r.name: {m.name: m.initial for m in r.members}
                   for r in APP.records}
-        page = projection.config_page(APP, CONTENT, values)
+        page = reader.config_page(APP, CONTENT, values)
         self.assertEqual(page["HmiResponse/ConfigPage/EntryCount"],
                          len(gen.editable_values(APP)))
 

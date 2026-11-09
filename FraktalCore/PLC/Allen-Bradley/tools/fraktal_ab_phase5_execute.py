@@ -67,7 +67,6 @@ import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
 
 SCHEMA = "fraktal.ab.phase5-run-styles-on-controller"
 SCHEMA_VERSION = 1
@@ -133,7 +132,7 @@ def stepped_cycle(comm: Any, rendition: str, ack: float, settle: float,
     nothing issued, then give one Step. Each request must issue exactly one
     command, and the cycle must close."""
     opened = begin(comm, rendition, decl.RUN_SINGLE_STEP, ack, settle)
-    before = px.read_unit(comm)
+    before = px.unit_surface(comm)
     first = issued(comm)
     per_request, refusals, started = [], [], time.monotonic()
     while len(per_request) <= DECLARED:
@@ -172,10 +171,10 @@ def held_cycle(comm: Any, rendition: str, ack: float, settle: float) -> dict[str
     there, the slide arrives and the door is not commanded; held again, the
     cycle completes."""
     opened = begin(comm, rendition, decl.RUN_HOLD_TO_RUN, ack, settle)
-    before = px.read_unit(comm)
+    before = px.unit_surface(comm)
     start_count = issued(comm)
     time.sleep(0.6)
-    unheld = px.read_unit(comm)
+    unheld = px.unit_surface(comm)
     unheld_issued = issued(comm)
     # Keep the declared simulated motion in progress while the guarded mailbox
     # stages its arguments. Otherwise a slow client can release after the slide
@@ -194,8 +193,8 @@ def held_cycle(comm: Any, rendition: str, ack: float, settle: float) -> dict[str
             raise AssertionError("could not restore the fixture slide hold")
     stopped, _ = px.await_unit(comm, lambda u: u["Step"] == DOOR_CLOSE, settle)
     time.sleep(0.6)
-    waiting = px.read_unit(comm)
-    slide = px.read_module(comm, "PartSlide")
+    waiting = px.unit_surface(comm)
+    slide = px.module_surface(comm, "PartSlide")
     at_release = issued(comm)
     again = px.command(comm, mailbox.SET_HOLD_RUN, settle=ack, BoolValue=1)
     closed, _ = px.await_unit(
@@ -233,16 +232,11 @@ def oee_raw(comm: Any) -> dict[str, Any] | None:
 
 
 def timed_oee_card(comm: Any) -> tuple[dict[str, Any], tuple[float, float]]:
-    """Bracket acquisition, then use the owning projection for the card."""
+    """Bracket acquisition, then return the card."""
     started = time.monotonic()
-    if APP.canonical_collapse:
-        card = oee_card(comm)
-        finished = time.monotonic()
-        return card, (started, finished)
-    raw = oee_raw(comm)
+    card = oee_card(comm)
     finished = time.monotonic()
-    return (projection.oee_status(APP, raw, px.read_unit(comm), projection.read_records(comm)),
-            (started, finished))
+    return card, (started, finished)
 
 
 def down_time_row(comm: Any, faulted: dict[str, Any] | None):
@@ -283,7 +277,7 @@ def oee_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     px.command(comm, mailbox.SET_MODE, settle=ack, IntValue=px.MODE_AUTO)
     parity.select(comm, decl.ST)
     before = oee_raw(comm)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     good_at_reset = None if unit is None else unit["GoodCount"]
     reset = px.command(comm, mailbox.RESET_OEE, settle=ack)
     reset_at = time.monotonic()
@@ -312,7 +306,7 @@ def oee_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     started = time.monotonic()
     px.await_unit(comm, lambda u: u["Step"] == parity.AFTER_PARK, settle)
     px.write(comm, px.PART_PRESENT, 0)
-    base = px.read_unit(comm)
+    base = px.unit_surface(comm)
     closed, _ = px.await_unit(comm, lambda u: base is not None
                               and u["CycleCount"] > base["CycleCount"], settle)
     time.sleep(0.5)
@@ -320,7 +314,7 @@ def oee_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     stopped = time.monotonic()
     px.await_unit(comm, lambda u: u["Running"] == 0, settle)
     card = oee_card(comm)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     wall_ms = (stopped - started) * 1000.0
     parts = None if None in (unit, good_at_reset) else unit["GoodCount"] - good_at_reset
     run_ms = card.get("Oee/RunMs") or 0
@@ -363,7 +357,7 @@ def oee_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
         raw = oee_raw(comm)
     sampled_after = time.monotonic() - reset_at
     card = oee_card(comm)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     slot = {c: raw[f"Smp{c}"][0] for c, _ in gen.OEE_SAMPLE_COLUMNS} if raw else {}
     rows.append(px.row(
         "a_sample_a_minute_after_the_reset",
@@ -386,7 +380,7 @@ def oee_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     good_before = None if unit is None else unit["GoodCount"]
     again = px.command(comm, mailbox.RESET_OEE, settle=ack)
     card = oee_card(comm)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     rows.append(px.row(
         "a_reset_retires_the_trend_and_keeps_the_counts",
         "RESET_OEE again: the ring is empty and its sample no longer valid; "
@@ -450,7 +444,7 @@ def machine_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
         named, 0.0,
         [state for _, state in named] == expected,
     )]
-    rework, unit = published()[1], px.read_unit(comm)
+    rework, unit = published()[1], px.unit_surface(comm)
     rows.append(px.row(
         "rework_count_is_the_controllers",
         "ReworkCount is published from the Unit's own counter; the press "
@@ -489,7 +483,7 @@ def profiler_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
     px.start_cycle(comm, settle)
     px.await_unit(comm, lambda u: u["Step"] == parity.AFTER_PARK, settle)
     px.write(comm, px.PART_PRESENT, 0)
-    unit0 = px.read_unit(comm)
+    unit0 = px.unit_surface(comm)
     px.await_unit(comm, lambda u: unit0 is not None
                   and u["CycleCount"] > unit0["CycleCount"], settle)
     time.sleep(0.2)
@@ -569,7 +563,7 @@ def profiler_rows(comm: Any, ack: float, settle: float) -> list[dict[str, Any]]:
 
 
 def module_ctx(comm: Any, name: str) -> dict[str, Any] | None:
-    return px.read_module(comm, name)
+    return px.module_surface(comm, name)
 
 
 def write_config(comm: Any, key: str, value: int, ack: float) -> dict[str, Any]:
@@ -592,7 +586,7 @@ def auto_cycle(comm: Any, ack: float, settle: float) -> bool:
     px.start_cycle(comm, settle)
     px.await_unit(comm, lambda u: u["Step"] == parity.AFTER_PARK, settle)
     px.write(comm, px.PART_PRESENT, 0)
-    base = px.read_unit(comm)
+    base = px.unit_surface(comm)
     closed, _ = px.await_unit(comm, lambda u: base is not None
                               and u["CycleCount"] > base["CycleCount"], settle)
     px.command(comm, mailbox.STOP, settle=ack)
@@ -804,7 +798,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     stopped_step = px.command(comm, mailbox.STEP_REQUEST, settle=ack)
     hold_wrong = px.command(comm, mailbox.SET_HOLD_RUN, settle=ack, BoolValue=1)
     release = px.command(comm, mailbox.SET_HOLD_RUN, settle=ack, BoolValue=0)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     rows.append(px.row(
         "outside_its_style_each_request_is_refused_by_name",
         "a style outside E_RunStyle: std.error.unsupportedRunStyleRequest, the "
@@ -863,13 +857,13 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     # STOP alone, read before any reset: the hold ends because the Unit stopped.
     begin(comm, decl.ST, decl.RUN_HOLD_TO_RUN, ack, settle)
     held = px.command(comm, mailbox.SET_HOLD_RUN, settle=ack, BoolValue=1)
-    holding = px.read_unit(comm)
+    holding = px.unit_surface(comm)
     px.command(comm, mailbox.STOP, settle=ack)
     after_stop, _ = px.await_unit(comm, lambda u: u["Running"] == 0, settle)
     begin(comm, decl.ST, decl.RUN_HOLD_TO_RUN, ack, settle)
     count = issued(comm)
     time.sleep(0.6)
-    restarted = px.read_unit(comm)
+    restarted = px.unit_surface(comm)
     unheld = issued(comm)
     rows.append(px.row(
         "a_stop_ends_the_hold",
@@ -907,7 +901,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     rows.extend(health_rows(comm, ack, settle))
 
     px._idle(comm, ack)
-    back = px.read_unit(comm)
+    back = px.unit_surface(comm)
     rows.append(px.row(
         "the_press_is_left_continuous",
         "the harness leaves the press as it found it: CONTINUOUS, stopped",

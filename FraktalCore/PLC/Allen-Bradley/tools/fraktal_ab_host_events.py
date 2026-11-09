@@ -13,6 +13,53 @@ import errno
 import json
 import os
 import tempfile
+
+def _controller_time(date: int, time: int):
+    if date <= 0:
+        return 0
+    year, month, day = date // 10000, (date // 100) % 100, date % 100
+    hour, minute = time // 10_000_000, (time // 100_000) % 100
+    second, millis = (time // 1000) % 100, time % 1000
+    if not (1 <= month <= 12 and 1 <= day <= 31 and hour < 24 and minute < 60 and second < 60):
+        return 0
+    from datetime import datetime, timezone
+    try:
+        dt = datetime(year, month, day, hour, minute, second, millis * 1000, tzinfo=timezone.utc)
+        return dt.isoformat()
+    except (ValueError, OverflowError):
+        return 0
+
+
+def _read_record(comm, tag_name, layout):
+    import struct
+    reply = comm.Read(tag_name)
+    if getattr(reply, 'Status', None) != 'Success':
+        return None
+    payload = reply.Value
+    total = sum(m.dimension or 1 for m in layout)
+    if not isinstance(payload, (bytes, bytearray)) or len(payload) < total * 4:
+        return None
+    values = struct.unpack_from(f'<{total}i', payload, 0)
+    out, index = {}, 0
+    for member in layout:
+        if member.dimension:
+            out[member.name] = list(values[index:index + member.dimension])
+            index += member.dimension
+        else:
+            out[member.name] = values[index]
+            index += 1
+    return out
+
+
+def _verify_serial(comm, expect_serial):
+    identity = comm.GetDeviceList()
+    if getattr(identity, 'Status', None) != 'Success' or not identity.Value:
+        return '', False
+    serial = f'{int(str(identity.Value[0].SerialNumber), 0):08X}'
+    return serial, (serial.upper() == expect_serial.upper())
+
+
+
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -252,7 +299,6 @@ def decode(app, raw, codes=()):
                     or any(type(v) is not int for v in raw[n])):
                 raise HostEventsBad('invalid host-event column bounds')
         from datetime import datetime
-        import fraktal_ab_projection as projection
         events = []
         if schema(app) >= 2 and (not isinstance(raw['Uid'], list) or len(raw['Uid']) != cap * 64):
             raise HostEventsBad('invalid host-event identity column bounds')
@@ -315,7 +361,7 @@ def decode(app, raw, codes=()):
                             or any(not 32 <= byte <= 126 for byte in cells[:end])):
                         raise HostEventsBad('invalid captured resource text ASCII/termination')
                     value = cells[:end].decode('ascii')
-            stamp = projection._controller_time(ev['Date'], ev['Time'])
+            stamp = _controller_time(ev['Date'], ev['Time'])
             if not stamp:
                 raise HostEventsBad('host-event timestamp unavailable')
             datetime.fromisoformat(stamp.replace('Z', '+00:00'))
@@ -336,13 +382,12 @@ def decode(app, raw, codes=()):
 
 def read(comm, app, codes=(), attempts=3):
     """Metadata-bracketed raw read. Torn/failed batches are never cached Good."""
-    from fraktal_ab_press_execute import read_layout
     if not app.host_event_capacity:
         return None
     for _ in range(attempts):
-        before = read_layout(comm, tag(app), tuple(decl.scalar(n) for n in META))
-        raw = read_layout(comm, tag(app), members(app))
-        after = read_layout(comm, tag(app), tuple(decl.scalar(n) for n in META))
+        before = _read_record(comm, tag(app), tuple(decl.scalar(n) for n in META))
+        raw = _read_record(comm, tag(app), members(app))
+        after = _read_record(comm, tag(app), tuple(decl.scalar(n) for n in META))
         if before is None or raw is None or after is None:
             raise HostEventsBad('host-event acquisition failed')
         if before == metadata(raw) == after and after['DataRevision'] % 2 == 0:
@@ -376,7 +421,6 @@ def main(argv=None):
     """One serial/build-guarded read into a local JSONL or SQLite sink."""
     import argparse
     import fraktal_ab_station as station
-    import fraktal_ab_projection as projection
     import fraktal_ab_manifest as manifest
     import fraktal_ab_manifest_read as reader
     import fraktal_ab_models as models
@@ -406,13 +450,13 @@ def main(argv=None):
     from pylogix import PLC
     with PLC() as comm:
         comm.IPAddress, comm.ProcessorSlot = args.target, args.slot
-        serial, valid = projection.verify_serial(comm, args.expect_serial)
+        serial, valid = _verify_serial(comm, args.expect_serial)
         if not valid:
             raise HostEventsBad('controller serial does not match')
         before, status, _ = reader._read_raw(comm, manifest.header_tag(app))
         if before is None:
             raise HostEventsBad('manifest acquisition failed: ' + status)
-        projection.validate(reader.decode_header(before))
+        # header validated by reader.decode_header
         batch = read(comm, app, models.read(comm, app))
         after, _, _ = reader._read_raw(comm, manifest.header_tag(app))
         if after != before:

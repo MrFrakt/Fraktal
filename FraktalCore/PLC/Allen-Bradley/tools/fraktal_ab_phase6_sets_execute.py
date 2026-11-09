@@ -18,13 +18,11 @@ import fraktal_ab_harness_host as host
 import fraktal_ab_harness_documents as documents
 from fraktal_ab_harness_gateway import connection_state
 
-import fraktal_ab_gateway as gateway
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
 import fraktal_ab_set_broker as broker
 import fraktal_ab_sets as sets
 
@@ -33,7 +31,7 @@ FIXTURE_NAMES = ('phase6-station', 'phase6-import', 'phase6-reject', 'phase6-mod
 
 
 def read_records(comm):
-    return views.read_records(comm, app=APP) if APP.canonical_collapse else projection.read_records(comm)
+    return views.read_records(comm, app=APP)
 
 
 def station_values(comm):
@@ -42,8 +40,8 @@ def station_values(comm):
 
 
 def read_rows(comm):
-    state = views.surface(comm, 'SetState', app=APP) if APP.canonical_collapse else broker.read_state(comm, APP)
-    persist = views.surface(comm, 'Persist', app=APP) if APP.canonical_collapse else projection.read_persist(comm)
+    state = views.surface(comm, 'SetState', app=APP)
+    persist = views.surface(comm, 'Persist', app=APP)
     expected = sets.state_version(APP)
     return [px.row('set_controller_contract_is_present', f'V{expected} bounded transaction and restore status read coherently',
                    {'schema': state['SchemaVersion'], 'auditCapacity': len(state['AuditSequence']),
@@ -56,25 +54,19 @@ class Client:
     def __init__(self, comm, serial, directory):
         self.comm = comm
         self._own_host = False
-        if APP.canonical_collapse:
-            prior = getattr(connection_state(comm), '_fraktal_host_lease', None)
-            self.host = host.bind(comm, APP, store=directory)
-            self._own_host = prior is None
-            try:
-                self.store = host.ReadOnlyStore(self.host.store)
-                if self.store.list():
-                    raise ValueError('set fixture requires an empty isolated named-set store')
-                documents.ready(comm, APP, self.host)
-            except BaseException:
-                self.close()
-                raise
-            return
-        self.store = sets.FileStore(directory)
-        self.writer = gateway.MailboxWriter(comm.IPAddress, comm.ProcessorSlot, serial, set_store=self.store)
-        self.gateway = gateway.Gateway(gateway.Station(lambda: projection.read_document(comm), cache_ttl=0),
-            write_fn=self.writer, write_token='phase6-local-fixture', write_roots=frozenset({APP.name}))
-        self.state = gateway._ConnState()
-        self.state.authenticated = True  # named harness, no real credential or listener
+        if not APP.canonical_collapse:
+            raise ValueError('canonical collapsed profile required')
+        prior = getattr(connection_state(comm), '_fraktal_host_lease', None)
+        self.host = host.bind(comm, APP, store=directory)
+        self._own_host = prior is None
+        try:
+            self.store = host.ReadOnlyStore(self.host.store)
+            if self.store.list():
+                raise ValueError('set fixture requires an empty isolated named-set store')
+            documents.ready(comm, APP, self.host)
+        except BaseException:
+            self.close()
+            raise
 
     def close(self):
         if self._own_host:
@@ -88,21 +80,13 @@ class Client:
 
     def values(self, *suffixes):
         paths = tuple(APP.name + '/' + name for name in suffixes)
-        if APP.canonical_collapse:
-            return views.values(self.comm, paths, app=APP)
-        return {path: self.state.sets.values[path] for path in paths}
+        return views.values(self.comm, paths, app=APP)
 
     async def viewer_refuses(self):
-        if APP.canonical_collapse:
-            with views.viewer(self.comm, app=APP) as viewer:
-                reply = viewer.write_batch(APP.name, (px.seed_sequence(self.comm) + 1) & 0xffffffff,
-                                           Kind=mb.LIST_CONFIG_SETS)
-                return not reply.ok
-        try:
-            await self.command(mb.LIST_CONFIG_SETS, state=gateway._ConnState())
-        except gateway.WriteRefused:
-            return True
-        return False
+        with views.viewer(self.comm, app=APP) as viewer:
+            reply = viewer.write_batch(APP.name, (px.seed_sequence(self.comm) + 1) & 0xffffffff,
+                                       Kind=mb.LIST_CONFIG_SETS)
+            return not reply.ok
 
     def wait_store(self):
         values = self.values('ConfigPersist/Pending', 'ConfigPersist/Failed', 'ConfigPersist/WindowMs')
@@ -123,30 +107,17 @@ class Client:
             values = self.values('ConfigPersist/Pending', 'ConfigPersist/Failed')
 
     async def command(self, kind, state=None, **arguments):
-        if APP.canonical_collapse:
-            if state is not None:
-                raise ValueError('Python gateway connection state is not a Core command argument')
-            if kind in sets.SET_KINDS and not self.host.guard(serial=self.host.serial, root=APP.name):
-                raise RuntimeError('owned host adapter is not ready; no command written')
-            payload = {'User': 'phase6-fixture', **arguments}
-            answer = px.command(self.comm, kind, settle=4, **payload)
-            stored = kind in (mb.SAVE_CONFIG_SET, mb.DELETE_CONFIG_SET) or (
-                kind == mb.IMPORT_CONFIG_SET and bool(arguments.get('BoolValue')))
-            if answer['accepted'] and stored:
-                self.wait_store()
-            return answer
-        sequence = px.seed_sequence(self.comm) + 1
-        root = APP.name + '/HmiRequest'
-        supplied = dict(Kind=kind, Sequence=sequence, User='phase6-fixture')
-        supplied.update(arguments)
-        writes = [{'path': root + '/' + n, 'valueType': 'string' if t == mb.STRING_MEMBER else
-                   'uint32' if n == 'Sequence' else 'int32',
-                   'value': supplied.get(n, '' if t == mb.STRING_MEMBER else 0)}
-                  for n, t, *_ in mb.REQUEST_MEMBERS]
-        transport = await self.gateway._write_batch(state or self.state, {'writes': writes})
-        if not transport:
-            raise RuntimeError('set fixture transport refused')
-        return px.await_response(self.comm, sequence, 4)
+        if state is not None:
+            raise ValueError('Python gateway connection state is not a Core command argument')
+        if kind in sets.SET_KINDS and not self.host.guard(serial=self.host.serial, root=APP.name):
+            raise RuntimeError('owned host adapter is not ready; no command written')
+        payload = {'User': 'phase6-fixture', **arguments}
+        answer = px.command(self.comm, kind, settle=4, **payload)
+        stored = kind in (mb.SAVE_CONFIG_SET, mb.DELETE_CONFIG_SET) or (
+            kind == mb.IMPORT_CONFIG_SET and bool(arguments.get('BoolValue')))
+        if answer['accepted'] and stored:
+            self.wait_store()
+        return answer
 
     async def import_document(self, document):
         answer = None

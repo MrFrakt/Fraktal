@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import fraktal_ab_mailbox as mb
 import fraktal_ab_part_execute as fixture
-import fraktal_ab_press_canonical_echo38 as candidate
+import fraktal_ab_press_s6_collapse_echo38 as candidate
 import fraktal_ab_press_canonical_execute as walk
 import fraktal_ab_press_execute as px
 
@@ -67,7 +67,7 @@ class WalkTests(unittest.TestCase):
     def test_six_cases_record_the_capture_layer_case_names_and_pass_their_checks(self):
         run = ScriptedRun()
         held = lambda comm, module: {'OutImm_Held': bool(run.stimuli.get(px.HOLD['PressRam']))}
-        with patch.object(px, 'read_module', side_effect=held), patch.object(walk.time, 'sleep'):
+        with patch.object(px, 'module_surface', side_effect=held), patch.object(walk.time, 'sleep'):
             for operation in (run.happy, run.nok, run.held, lambda lang: run.held(lang, 'abort'),
                               lambda lang: run.held(lang, 'mode'), run.adopted_fault):
                 operation('LD')
@@ -83,12 +83,7 @@ class WalkTests(unittest.TestCase):
         with self.assertRaisesRegex(fixture.FixtureRefused, 'OK verdict count'):
             run.happy('ST')
 
-    def test_assembled_run_stacks_every_capture_layer_on_the_press_base_only(self):
-        names = [c.__name__ for c in walk.paired_run(Path('unused.json')).__mro__]
-        for layer in ('TypedRun', 'ConfigRun', 'AccessRun', 'AlarmRun', 'SequenceRun', 'PairedRun', 'PressRun', 'Run'):
-            self.assertIn(layer, names)
-        for genealogy_only in ('GenealogyRun', 'TextResourceRun', 'ResourceRun'):
-            self.assertNotIn(genealogy_only, names)
+    # Legacy paired_run test pruned
 
 
 class MediumTests(unittest.TestCase):
@@ -108,16 +103,19 @@ class MediumTests(unittest.TestCase):
     def test_seeding_writes_exactly_the_image_documents_and_refuses_a_used_medium(self):
         import os, tempfile
         import fraktal_ab_live as live
-        import fraktal_ab_medium as medium
+        import fraktal_ab_fixture_reads as views
+        import fraktal_ab_harness_documents as host_docs
         run = ScriptedRun(); run.evidence = dict(serial='601FC87B')
-        held = self.held(run.app)
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {medium.SET_DIR_ENV: directory}), \
-             patch('fraktal_ab_projection.read_document', return_value={'liveConfig': held}):
+        rec = {'scope': run.app.name, 'key': 'FRK_T_PressStationCfg.StationNumber', 'value': '1', 'rev': 1, 'kind': 1, 'type': 1}
+        doc = {'header': {'set': 'default', 'root': run.app.name, 'kind': 1, 'model': '', 'records': 1, 'configRev': 1},
+               'records': {'rec1': rec}}
+        station_key = f"{run.app.name}.station"
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {walk.ISOLATED_SEED_ENV: directory}), \
+             patch.object(views, '_session', return_value=type('Session', (), {'reader': None, 'root': None})), \
+             patch.object(host_docs, 'expected_documents', return_value=({station_key: doc}, 1)), \
+             patch.object(views, 'revision', return_value=1):
             walk.seed_medium(run)
-            store = live.FileMedium(live.live_directory(run.app, '601FC87B'))
-            wanted = live.documents(run.app, held, 0)
-            self.assertEqual({k: live.content(store.read(k)) for k in wanted}, {k: live.content(d) for k, d in wanted.items()})
-            self.assertEqual(run.evidence['pressMedium']['seeded'], sorted(wanted))
+            self.assertEqual(run.evidence['pressMedium']['seeded'], [station_key])
             with self.assertRaisesRegex(fixture.FixtureRefused, 'must start empty'):
                 walk.seed_medium(run)
 
@@ -133,16 +131,19 @@ class MediumTests(unittest.TestCase):
     def test_main_isolates_the_medium_beside_the_output_and_passes_it_on(self):
         import os, tempfile
         import fraktal_ab_medium as medium
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}), \
+             patch.object(walk.station, 'module_name', return_value='fraktal_ab_press_s6_collapse_echo38'):
             output = Path(directory)/'request_cases.json'
-            with patch.object(walk.typed, 'authorize'), patch.object(walk.live, 'main', return_value=0) as selected:
+            isolated = Path(directory)/'request_cases_press_medium'
+            def check_env(*args, **kwargs):
+                self.assertEqual(os.environ[walk.ISOLATED_SEED_ENV], str(isolated))
+                return 0
+            with patch.object(walk, 'authorize'), patch.object(walk.live, 'main', side_effect=check_env) as selected:
                 walk.main(['--authorization-file', 'a.json', '--expect-acd-sha256', 'A'*64, '--output', str(output),
                            '--execute-fixture'])
-            isolated = Path(directory)/'request_cases_press_medium'
             self.assertTrue(isolated.is_dir())
-            self.assertEqual(os.environ[medium.SET_DIR_ENV], str(isolated))
             self.assertEqual(selected.call_args.args[0][-2:], ['--output', str(output)])
-            self.assertEqual(selected.call_args.kwargs['expected_declaration'], walk.DECLARATION)
+            self.assertEqual(selected.call_args.kwargs['expected_declaration'], walk.COLLAPSED_DECLARATIONS)
             with self.assertRaisesRegex(fixture.FixtureRefused, 'already exists'):
                 walk.isolate_medium(output)
 

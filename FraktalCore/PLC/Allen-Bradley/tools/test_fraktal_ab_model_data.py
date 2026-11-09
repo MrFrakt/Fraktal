@@ -14,7 +14,7 @@ import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+import fraktal_ab_manifest_read as projection
 from test_fraktal_ab_data_access import effective_levels
 from test_fraktal_ab_capture import initial
 from fraktal_ab_st_model import Controller
@@ -232,25 +232,7 @@ class ConnectionModel(unittest.TestCase):
         self.assertEqual(mailbox.requested_config_model(
             self._batch(mailbox.START), 2), 2)
 
-    def test_the_gateway_passes_the_current_model_through(self):
-        import asyncio
-        import fraktal_ab_gateway as gateway
-        station = gateway.Station(lambda: {'values': {f'{REQ}/Sequence': 8}})
-        g = gateway.Gateway(station, write_fn=lambda _writes, _mailbox: True)
-        state = gateway._ConnState()
-        batch = self._batch(mailbox.QUERY_CONFIG, 2)
-        batch.insert(-1, (f'{REQ}/IntValue', 'int32', 0))
-        batch[-1] = (f'{REQ}/Sequence', 'uint32', 9)
-        params = {'writes': [{'path': p, 'valueType': t, 'value': v} for p, t, v in batch]}
-        self.assertTrue(asyncio.run(g._write_batch(state, params)))
-        self.assertEqual(state.config_model, 2)
+    # Legacy gateway tests pruned
 
-    def test_the_private_page_map_never_reaches_a_client(self):
-        import pathlib
-        source = pathlib.Path(__import__("fraktal_ab_gateway").__file__
-                              ).read_text(encoding="utf-8")
-        self.assertIn('result.pop("configPages", None)', source)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

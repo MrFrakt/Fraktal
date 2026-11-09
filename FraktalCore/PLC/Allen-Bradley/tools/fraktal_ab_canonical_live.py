@@ -142,6 +142,11 @@ class PacketBody:
             '<%dH' % (1 + len(offsets)), len(services), *offsets) + b''.join(services))
 
     def send(self, packet):
+        connect = getattr(self._comm.conn, 'connect', None)
+        if callable(connect):
+            connected = connect(True)
+            if not connected[0]:
+                raise ValueError('canonical scalar read failed')
         status, frame = self._comm.conn.send(packet.request)
         if status != 0 or frame is None:
             raise ValueError('canonical scalar read failed')
@@ -358,7 +363,7 @@ class CanonicalRowReader:
             raise ValueError('host reply size differs from its Template')
         fields = {r['name']: r for r in member_table(self._objects[handle])}
         result = {name: struct.unpack_from('<i', values[0], fields[name]['offset'])[0] for name in host.REPLY}
-        if result['SchemaVersion'] != host.VERSION or any(result[n] not in (0, 1)
+        if result['SchemaVersion'] not in (0, host.VERSION) or any(result[n] not in (0, 1)
                 for n in ('Accepted', 'Restoring', 'SessionPermits')):
             raise ValueError('invalid host reply status')
         return result

@@ -116,7 +116,7 @@ def sampled_trace(comm: Any, settle: float, until: Any) -> list[int]:
     deadline = time.monotonic() + settle
     seen: list[int] = []
     while time.monotonic() < deadline:
-        unit = px.read_unit(comm)
+        unit = px.unit_surface(comm)
         if unit is None:
             break
         step = unit["Step"]
@@ -145,7 +145,7 @@ def declared_commands(counts: dict[int, int]) -> dict[str, int]:
 def module_counters(comm: Any) -> dict[str, tuple[int, int]]:
     out = {}
     for name in COMMANDED:
-        ctx = px.read_module(comm, name)
+        ctx = px.module_surface(comm, name)
         out[name] = (None, None) if ctx is None else (ctx["RunCount"], ctx["DoneCount"])
     return out
 
@@ -161,10 +161,10 @@ def walk_one_cycle(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     select(comm, rendition)
     reset_chart(comm, settle)
 
-    before = px.read_unit(comm)
+    before = px.unit_surface(comm)
     # The marks are cumulative and nothing clears them, so a rendition's trace
     # is the delta over its own window. So are the modules' command counters.
-    chart_before = px.read_chart(comm)
+    chart_before = px.chart_surface(comm)
     counters_before = module_counters(comm)
     # START, then a fresh two-hand press: N100 waits on TC3's latched start.
     # t0 is after the press, which is when the cycle can begin.
@@ -197,11 +197,11 @@ def walk_one_cycle(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     parked, _ = px.await_unit(
         comm, lambda u: u["Step"] == PARK_STEP, settle)
     time.sleep(min(settle, 0.2))
-    resting = px.read_unit(comm)
+    resting = px.unit_surface(comm)
     px.command(comm, mailbox.STOP, settle=ack(settle))
     px.write(comm, px.PART_PRESENT, 1)
 
-    chart = px.read_chart(comm)
+    chart = px.chart_surface(comm)
     order_fail = px.read_scalar(comm, px.ORDER_FAIL)
     after = entry_vector(chart) if chart else {}
     baseline = entry_vector(chart_before) if chart_before else {}
@@ -247,8 +247,8 @@ def walk_abandon(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     px.write(comm, px.TWO_HAND, 0)
     select(comm, rendition)
     reset_chart(comm, settle)
-    before = px.read_unit(comm)
-    chart_before = px.read_chart(comm)
+    before = px.unit_surface(comm)
+    chart_before = px.chart_surface(comm)
     px.start_cycle(comm, settle)
     # Released during the declared settle rather than racing the four-scan
     # close: the close then starts with the buttons already released.
@@ -258,8 +258,8 @@ def walk_abandon(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
         comm, lambda u: before is not None and u["Step"] == PARK_STEP
         and u["ReportedCount"] > before["ReportedCount"], settle)
     time.sleep(min(settle, 0.25))            # it must stay there by itself
-    unit = px.read_unit(comm)
-    chart = px.read_chart(comm)
+    unit = px.unit_surface(comm)
+    chart = px.chart_surface(comm)
     px.command(comm, mailbox.STOP, settle=ack(settle))
     entered = ({n: chart["EnterCount"][AUTO_INDEXES[n]]
                 - chart_before["EnterCount"][AUTO_INDEXES[n]] for n in RECOVERY}
@@ -293,8 +293,7 @@ def walk_dwell(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     proves the second half is the delay's own clock after the step: the full
     dwell, not the dwell plus the pause.
     """
-    cfg = (views.surface(comm, "Cfg0", app=APP) if APP.canonical_collapse
-           else px.read_layout(comm, px.CFG, APP.records[0].members) or {})
+    cfg = (views.surface(comm, "Cfg0", app=APP) or {})
     dwell_ms = cfg.get(DWELL.duration_member)
     px.command(comm, mailbox.SET_MODE, settle=ack(settle), IntValue=px.MODE_AUTO)
     px.write(comm, px.PART_PRESENT, 1)
@@ -312,11 +311,11 @@ def walk_dwell(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
         comm, lambda c: c["ActiveStepNumber"] == DWELL.number
         and c["StallReason"] == demo.REASONS["WAIT_CONDITION"], settle)
     time.sleep(DWELL_PAUSE_S)
-    still = px.read_chart(comm)
-    unit = px.read_unit(comm)
+    still = px.chart_surface(comm)
+    unit = px.unit_surface(comm)
     px.write(comm, px.TWO_HAND, 1)
     resumed, _ = px.await_unit(comm, lambda u: u["Step"] != DWELL.number, settle)
-    after = px.read_chart(comm)
+    after = px.chart_surface(comm)
     px.command(comm, mailbox.STOP, settle=ack(settle))
     index = AUTO_INDEXES[DWELL.number]
     ran = None if paused is None else paused["DelayMs"]
@@ -369,7 +368,7 @@ def walk_abort(comm: Any, rendition: str, settle: float) -> dict[str, Any]:
     px.command(comm, mailbox.STOP, settle=ack(settle))
     aborted, elapsed = px.await_unit(comm, lambda u: u["Aborted"] != 0, settle)
     time.sleep(min(settle, 0.25))
-    after = px.read_unit(comm)
+    after = px.unit_surface(comm)
     return {
         "rendition": rendition,
         "elapsed_ms": round(elapsed, 3),

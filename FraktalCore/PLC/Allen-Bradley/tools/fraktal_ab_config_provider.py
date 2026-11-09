@@ -72,6 +72,11 @@ def _copy_text(app,target,field,width):
 
 
 def logic(app):
+    if app.canonical_collapse:
+        return [
+            '(* V6.12 collapse: staged ConfigProvider endpoint retired *)',
+            f'{ack_tag(app)}.SchemaVersion := {VERSION};',
+        ]
     import fraktal_ab_access as access
     import fraktal_ab_mailbox as mailbox
     import fraktal_ab_sets as sets

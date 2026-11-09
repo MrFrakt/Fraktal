@@ -12,7 +12,6 @@ from unittest import mock
 import fraktal_ab_declaration as decl
 import fraktal_ab_document_revision as docrev
 import fraktal_ab_generate as gen
-import fraktal_ab_gateway as gw
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
 import fraktal_ab_set_broker as broker
@@ -352,8 +351,7 @@ class Emission(unittest.TestCase):
         root = ET.fromstring(gen.data_types(APP))
         record = root.find(f"DataType[@Name='{mb.request_type_name(APP)}']")
         members = list(record.find('Members'))
-        self.assertEqual([m.get('Name') for m in members[:-1]], [m[0] for m in mb.REQUEST_MEMBERS] + ['ConfigSet'])
-        self.assertEqual(members[-1].get('Name'), 'Frame')
+        self.assertEqual([m.get('Name') for m in members], [m[0] for m in mb.REQUEST_MEMBERS] + ['ConfigSet'])
         self.assertTrue(mb.request_type_name(APP).endswith('V3'))
         tags = ET.fromstring(gen.controller_tags(APP))
         private = tags.find(f"Tag[@Name='{sets.staged_tag(APP)}']")
@@ -361,10 +359,6 @@ class Emission(unittest.TestCase):
         disabled = dataclasses.replace(APP, config_sets=False)
         self.assertNotIn(sets.state_name(), gen.data_types(disabled))
         self.assertEqual(mb.refused_for(disabled)[mb.LOAD_CONFIG_SET], mb.REFUSED[mb.LOAD_CONFIG_SET])
-        writer = gw.MailboxWriter('unused', 0, '7036B510')
-        for path in ('Press/HmiRequest/ConfigSet/Value', 'Press/HmiRequest/ConfigSet', 'Press/ConfigSetState/Sequence'):
-            with self.assertRaises(gw.WriteRefused):
-                writer.tag_for(path)
 
     def test_fixed_catalog_paths_do_not_depend_on_stored_names(self):
         self.assertEqual(set(sets.empty_values('Press')), set(sets.list_values('Press', [document()[0]])))
@@ -374,13 +368,6 @@ class NativeComm:
     """CIP-shaped offline adapter; committed requests execute generated ST."""
     def __init__(self, app=APP):
         self.app, self.c = app, controller(app)
-        import fraktal_ab_mailbox_frame as frame
-        self.c.tags[mb.request_tag_name(app)]['Frame'] = {'Words': [0] * frame.word_count(app)}
-        self.c.tags[frame.sample_tag(app)] = {'Words': [0] * frame.word_count(app)}
-        for name in ('Cursor', 'Word', 'Byte', 'Valid', 'Field'):
-            self.c.tags[f'FRK_{app.name}_HmiFrame{name}'] = 0
-        self.c.calls['CPS'] = st.cps_structure
-        self.decode = '\n'.join(frame.logic(app))
         self.writes = []
         self.fail_tag = ''
 
@@ -407,7 +394,6 @@ class NativeComm:
         else:
             obj[leaf] = int(value)
         if target == mb.request_tag_name(self.app) + '.Sequence':
-            self.c.run(self.decode)
             self.c.tags[f'FRK_{self.app.name}_HmiLastSequence'] = value
             response = self.c.tags[mb.response_tag_name(self.app)]
             response.update(Accepted=0, DiagnosticKey=0)
@@ -448,14 +434,20 @@ class BrokerAndController(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.store = sets.FileStore(self.directory.name)
         self.comm = NativeComm()
-        self.writer = gw.MailboxWriter('unused', 0, '7036B510', set_store=self.store)
         self.session = sets.Session()
         self.sequence = 0
+
+    def _write_base(self, comm, writes):
+        for target, _type, value in writes:
+            member = target.rsplit('/', 1)[-1]
+            for tag, val in mb.member_writes(APP, member, value):
+                comm.Write(tag, val)
+        return True
 
     def command(self, kind, **arguments):
         self.sequence += 1
         self.assertTrue(broker.process(self.comm, APP, self.store, self.session,
-            batch(kind, self.sequence, **arguments), self.writer._write_base))
+            batch(kind, self.sequence, **arguments), self._write_base))
         return self.comm.c.tags[mb.response_tag_name(APP)]
 
     def test_save_change_load_list_export_and_delete_use_one_sequence_each(self):
@@ -570,77 +562,6 @@ class BrokerAndController(unittest.TestCase):
             with self.assertRaisesRegex(sets.SetRejected, 'another sequence'):
                 self.command(mb.SAVE_CONFIG_SET, TextValue='commissioning', IntValue=1)
         self.assertEqual(self.store.list(), [])
-
-    def test_serial_mismatch_stops_all_controller_and_store_writes(self):
-        self.comm.GetDeviceProperties = lambda: SimpleNamespace(Value=SimpleNamespace(SerialNumber='00000123'))
-        with mock.patch('pylogix.PLC', return_value=self.comm):
-            self.assertFalse(self.writer.set_command(batch(mb.SAVE_CONFIG_SET, 1, TextValue='commissioning', IntValue=1), 'Press/HmiRequest', self.session))
-        self.assertEqual(self.comm.writes, [])
-        self.assertEqual(self.store.list(), [])
-
-    def test_gateway_writer_executes_the_same_guarded_transaction(self):
-        with mock.patch('pylogix.PLC', return_value=self.comm):
-            self.assertTrue(self.writer.set_command(batch(mb.SAVE_CONFIG_SET, 1, TextValue='commissioning', IntValue=1), 'Press/HmiRequest', self.session))
-        self.assertEqual(self.store.read('commissioning')[0]['root'], 'Press')
-
-
-class GatewaySetProtocol(unittest.IsolatedAsyncioTestCase):
-    def fixture(self, *, write_token='fixture', authenticated=True, writer=None):
-        values = sets.empty_values('Press')
-        values.update({'Press/HmiRequest/Sequence': 4})
-        station = gw.Station(lambda: {'values': dict(values)}, cache_ttl=0)
-        g = gw.Gateway(station, write_token=write_token, write_roots=frozenset({'Press'}), write_fn=writer)
-        state = gw._ConnState()
-        state.authenticated = authenticated
-        return g, state
-
-    def params(self, kind, sequence=5):
-        return {'writes': [{'path': p, 'valueType': t, 'value': v} for p, t, v in batch(kind, sequence, TextValue='fixture', IntValue=1)]}
-
-    async def test_all_set_kinds_and_restore_ack_keep_the_write_gate(self):
-        for kind in (*sets.SET_KINDS, mb.ACK_CONFIG_RESTORE):
-            for options in ({'write_token': ''}, {'authenticated': False}):
-                writer = mock.Mock(return_value=True)
-                g, state = self.fixture(writer=writer, **options)
-                with self.assertRaises(gw.WriteRefused):
-                    await g._write_batch(state, self.params(kind))
-                writer.assert_not_called()
-
-    async def test_set_answers_are_connection_local_and_excluded_from_cyclic_snapshots(self):
-        g, state = self.fixture()
-        doc = await g.station.document()
-        state.sets.values = sets.list_values('Press', [document()[0]])
-        other = gw._ConnState()
-        self.assertEqual(g._values_for(state, doc)['Press/ConfigSetCount'], 1)
-        self.assertEqual(g._values_for(other, doc)['Press/ConfigSetCount'], 0)
-        paths = g.station.paths
-        excluded = [i for i, p in enumerate(paths) if '/ConfigSet' in p]
-        await g._set_read_tiers(state, {'revision': g.station.revision, 'excluded': excluded})
-        snapshot = await g._snapshot(state)
-        self.assertFalse(any('/ConfigSet' in p for p in snapshot['values']))
-        read = await g._read_values(state, {'revision': g.station.revision, 'indices': [paths.index('Press/ConfigSetCount')]})
-        self.assertEqual(read['Press/ConfigSetCount'], 1)
-
-    async def test_post_commit_read_failure_cannot_replay_a_load(self):
-        class Writer:
-            def set_command(self, writes, mailbox, session):
-                session.committed_sequence = 5
-                raise sets.SetRejected('acknowledgement connection lost')
-        g, state = self.fixture(writer=Writer())
-        with self.assertRaises(sets.SetRejected):
-            await g._write_batch(state, self.params(mb.LOAD_CONFIG_SET))
-        self.assertEqual(g._mailbox_sequences['Press/HmiRequest'], 5)
-        with self.assertRaises(gw.WriteRefused):
-            await g._write_batch(state, self.params(mb.LOAD_CONFIG_SET))
-
-    async def test_other_commands_discard_incomplete_import(self):
-        g, state = self.fixture(writer=lambda *_: True)
-        state.sets.piece(sets.render_line(document()[0]), False, False)
-        state.sets.piece('partial', True, False)
-        await g._write_batch(state, self.params(mb.STOP))
-        self.assertEqual(state.sets.partial, '')
-        self.assertIsNone(state.sets.document)
-
 
 if __name__ == '__main__':
     unittest.main()

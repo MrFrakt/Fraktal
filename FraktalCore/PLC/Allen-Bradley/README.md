@@ -4,25 +4,24 @@ This tree contains the Allen-Bradley Logix binding. The authoritative
 implementation specification is
 [`Specification/Fraktal_AB_Part_III.md`](../../../Specification/Fraktal_AB_Part_III.md).
 
-**Canonical HMI migration:** S4b desktop and S5 packaged gateway/Web
-qualifications are complete at local Echo scope.
-S5 implements the packaged Dart gateway with
-`--plc-endpoint "cip://<host>?slot=0&serial=<8 hex digits>"`, discovered through
-the PLC's Symbols, Templates and manifest. It loads no station declaration.
+**Canonical HMI migration & collapse:** S6 collapse and WP6.8 specification
+activation are complete. The Python gateway and legacy projection are deleted,
+and frozen contracts V2 is active (`AB_FROZEN_CONTRACTS_V2.json`). The reference
+profile is a CIP Security-capable CompactLogix 5380 or ControlLogix 5580 at
+firmware v37 or above (development bench: FactoryTalk Logix Echo 1756-L81E v38);
+the legacy 1769-L24ER-QB1B/v33 is retired.
+The packaged Dart gateway with
+`--plc-endpoint "cip://<host>?slot=0&serial=<8 hex digits>"` is the canonical
+gateway, discovered through the PLC's Symbols, Templates and manifest (manifest
+major 6). It loads no station declaration.
 Configuration browsing uses the read-only PLC view. The default instance has
 no write root; enabling `--write-root <published-root>` requires the owner's
 recorded write posture and the existing authenticated proxy. All C1–C13 cases
-pass, including the fresh owner Chrome checklist. Two-client detail reads and
+pass, including the owner Chrome checklist. Two-client detail reads and
 the narrow timing card also pass without disappearing rows or connection
-flicker. Echo is restored to genealogy; 31 baseline cases and final checks
-pass after one unchanged retry of a baseline START refusal. The original
-failure remains sealed and its cause is an S6 harness follow-up. See the
-[runtime record](../../../Specification/AllenBradley/Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md).
-Follow the
+flicker. Follow the
 [canonical plan](../../../Specification/AllenBradley/AB_CANONICAL_PUBLICATION_PLAN_2026-10-20.md)
 and [gateway deployment guide](../../../Specification/Guides/WEB_HMI_GATEWAY_DEPLOYMENT.md).
-The Python gateway and legacy projection remain migration tooling until S6;
-the dated legacy evidence below retains its original declaration-bound scope.
 
 **Gap closure (2026-10-18):** Echo now derives from the physical press
 declaration; that refactor preserved both baseline projects. Optional

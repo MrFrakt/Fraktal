@@ -574,11 +574,10 @@ class CollapsedPressLauncherLifecycle(unittest.TestCase):
                 def execute_with_sim(*args, **kwargs):
                     return orig_exec(*args, plc_factory=sim.new_plc, **kwargs)
 
-                self.assertIs(px.read_module.func, views.read_module)
+                self.assertIs(px.module_surface.func, views.module_surface)
                 with patch.dict(os.environ, {'FRAKTAL_AB_DECLARATION': decl_name}, clear=False), \
                         patch.object(px, 'APP', app), \
-                        patch.object(px, 'read_module', partial(views.read_module, app=app)), \
-                        patch.object(views, 'read_layout', side_effect=AssertionError('legacy read_layout called')), \
+                        patch.object(px, 'module_surface', partial(views.module_surface, app=app)), \
                         patch.object(views, 'bind', side_effect=sim.bind_session), \
                         patch.object(views, 'command', side_effect=sim.handle_command), \
                         patch.object(host_docs, 'restore_configuration', side_effect=sim.restore_configuration), \

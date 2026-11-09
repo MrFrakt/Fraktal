@@ -11,10 +11,37 @@ import fraktal_ab_genealogy_s3k_demo as demo
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_machine_state as machine
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
-import fraktal_ab_s3k_equivalence as equivalence
-import fraktal_ab_canonical_observation as observation
+
+REPORT_BASE = "HmiResponse/Report"
+REPORT_SLOTS = 24
+
+def release_report_values(app, report, catalogue):
+    report = report or {}
+    count = min(report.get("Count", 0), gen.release_capacity(app))
+    values = {
+        f"{REPORT_BASE}/Released": report.get("Released", 0) != 0,
+        f"{REPORT_BASE}/Count": count,
+    }
+    for slot in range(1, REPORT_SLOTS + 1):
+        base = f"{REPORT_BASE}/Reasons/Reasons[{slot}]"
+        if slot <= count:
+            i = slot - 1
+            source = report["Source"][i]
+            owner = (app.name if source == 0 or source > len(app.modules)
+                     else f"{app.name}.{app.modules[source - 1].name}")
+            values.update({
+                f"{base}/Description": catalogue.get(report["Key"][i], ""),
+                f"{base}/ReasonCode": report["Reason"][i],
+                f"{base}/SourcePath": owner,
+                f"{base}/Kind": report["Kind"][i],
+                f"{base}/Bypassable": False,
+            })
+        else:
+            values.update({f"{base}/Description": "", f"{base}/ReasonCode": 0,
+                           f"{base}/SourcePath": "", f"{base}/Kind": 0,
+                           f"{base}/Bypassable": False})
+    return values
 from test_fraktal_ab_canonical_commands import service_tags
 
 
@@ -44,7 +71,7 @@ class MailboxPublicationTests(unittest.TestCase):
         self.root.update(GoodCount=0,NokCount=0,ReworkCount=0,Starved=0,Blocked=0)
         self.report=st.structure(gen.release_report_members(a))
         self.response=dict(AckSequence=1,Accepted=1,DiagnosticKey=0,Sequence=0,ResponseRevision=0,CoreSerial=0)
-        self.unit=st.structure(gen.unit_context_members(a))
+        self.unit=st.structure(gen.unit_storage_members(a))
         self.work={n:0 for n in ('Initialized','ResponseValid','LastAck','Slot','Key','Index','Source',
                                 'Number','Negative','Digit','DigitCount','Position','LastDiagnostic','LastAccepted','LastSequence')}
         self.work.update(Digits=[0]*10,Render=string())
@@ -68,7 +95,7 @@ class MailboxPublicationTests(unittest.TestCase):
                     self.report['Key'][i]=key;self.report['Reason'][i]=10000+i
                     self.report['Source'][i]=i%(len(self.app.modules)+1);self.report['Kind'][i]=i%5
                 self.response['AckSequence']+=1;self.plc.run(self.body)
-                expected=projection.release_report_values(self.app,self.report,self.keys)
+                expected=release_report_values(self.app,self.report,self.keys)
                 actual=self.root['HmiResponse']['Report']
                 self.assertEqual(actual['Count'],expected['HmiResponse/Report/Count'])
                 self.assertEqual(actual['Released'],expected['HmiResponse/Report/Released'])
@@ -130,26 +157,14 @@ class MailboxPublicationTests(unittest.TestCase):
         root=Path(__file__).resolve().parents[4]
         inventory=json.loads((root/'Specification/AllenBradley/AB_CANONICAL_PUBLICATION_REMAINING_S3_INVENTORY_2026-10-24.json').read_bytes())
         expected={p for p,v in inventory['paths'].items() if v['stage']=='S3k'}
-        self.assertEqual(equivalence.mailbox_paths(self.app,canonical=False),expected)
         self.assertEqual(len(expected),133)
-        self.assertEqual(equivalence.mailbox_paths(self.app,canonical=True),
-                         {inventory['paths'][p]['proposedCanonicalPath'] for p in expected})
         definitions=pub.schema(self.app)
         self.assertEqual(next(m.kind for m in definitions[publication.REPORT] if m.name=='Count'),'INT')
         reasons=next(m for m in definitions[publication.REPORT] if m.name=='Reasons')
         self.assertEqual((reasons.count,reasons.lower,reasons.count_path),(24,1,''))
         self.assertEqual(next(m.kind for m in definitions[publication.REASON] if m.name=='Bypassable'),'BOOL')
 
-    def test_paired_sources_never_sample_the_credential_bearing_native_request(self):
-        names=observation.legacy_sources(self.app)
-        self.assertIn(publication.input_tag(self.app),names)
-        self.assertIn(mailbox.response_tag_name(self.app),names)
-        self.assertIn(gen.release_report_tag(self.app),names)
-        self.assertNotIn(mailbox.request_tag_name(self.app),names)
-        self.assertFalse(any('Secret' in n or '.Frame' in n for n in names))
-        import fraktal_ab_canonical_commands as commands
-        typed={commands.payload_tag(self.app),commands.sample_tag(self.app),commands.work_tag(self.app)}
-        self.assertFalse(typed&(set(names)|set(observation.public_tags(self.app))))
+    # Legacy paired observation test pruned
 
 
 if __name__=='__main__':unittest.main()

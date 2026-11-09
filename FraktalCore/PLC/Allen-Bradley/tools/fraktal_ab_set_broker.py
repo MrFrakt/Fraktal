@@ -70,8 +70,32 @@ def snapshot_document(app, name, kind, snapshot, codes=None):
     return document
 
 
+def _read_record(comm, tag_name, layout):
+    import struct
+    reply = comm.Read(tag_name)
+    if getattr(reply, 'Status', None) != 'Success':
+        return None
+    payload = reply.Value
+    total = sum(m.dimension or 1 for m in layout)
+    if not isinstance(payload, (bytes, bytearray)) or len(payload) < total * 4:
+        return None
+    values = struct.unpack_from(f'<{total}i', payload, 0)
+    out, index = {}, 0
+    for member in layout:
+        if member.dimension:
+            out[member.name] = list(values[index:index + member.dimension])
+            index += member.dimension
+        else:
+            out[member.name] = values[index]
+            index += 1
+    return out
+
+
+def _signed(value: int) -> int:
+    return value - 0x100000000 if value & 0x80000000 else value
+
 def read_state(comm, app):
-    state = execute.read_layout(comm, sets.state_tag(app), sets.state_members(app))
+    state = _read_record(comm, sets.state_tag(app), sets.state_members(app))
     if state is None:
         raise sets.SetRejected('controller set state did not read')
     state['Sequence'] &= 0xffffffff
@@ -93,8 +117,7 @@ def wait_response(comm, app, sequence, timeout=6.0):
 def _write(comm, target, value):
     from fraktal_ab_s16_execute import _success
     if target.endswith(('.Sequence', '.StoreAck')):
-        from fraktal_ab_mailbox_frame import signed
-        value = signed(value)
+        value = _signed(value)
     reply = comm.Write(target, value)
     if not _success(reply):
         raise sets.SetRejected(f'set staging write failed: {target}')
@@ -272,7 +295,7 @@ def process(comm, app, store, session, writes, write_base, *, expect_serial=None
         _write(comm, target + '.StoreAck', sequence)
         deadline = time.monotonic() + 6
         while time.monotonic() < deadline:
-            persist_state = execute.read_layout(comm, gen.config_persist_tag(app), gen.config_persist_members())
+            persist_state = _read_record(comm, gen.config_persist_tag(app), gen.config_persist_members())
             if persist_state is not None and not persist_state['Pending']:
                 break
             time.sleep(.02)

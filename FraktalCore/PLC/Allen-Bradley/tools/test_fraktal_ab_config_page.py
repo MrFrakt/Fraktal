@@ -13,14 +13,15 @@ import unittest
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
+import fraktal_ab_manifest_read as reader
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 from test_fraktal_ab_data_access import effective_levels
 
 
 APP = demo.application()
 ROWS = manifest.content(APP)
 BASE = "HmiResponse/ConfigPage"
+CFG_TYPE_DURATION = 3
 
 
 def _values(**overrides):
@@ -31,8 +32,8 @@ def _values(**overrides):
 
 
 def _page(rows=None, values=None):
-    return projection.config_page(APP, rows or ROWS,
-                                  values if values is not None else _values(), data_levels=effective_levels(APP))
+    return reader.config_page(APP, rows or ROWS,
+                              values if values is not None else _values(), data_levels=effective_levels(APP))
 
 
 def _entries(page):
@@ -150,7 +151,7 @@ class ClientContract(unittest.TestCase):
     def test_a_duration_is_typed_as_one(self):
         entry = next(e for e in _entries(_page())
                      if e["WriteKey"] == "press.dwellMs")
-        self.assertEqual(entry["ValueType"], projection.CFG_TYPE_DURATION)
+        self.assertEqual(entry["ValueType"], CFG_TYPE_DURATION)
 
     def test_deployment_and_recipe_values_are_distinguished(self):
         by_key = {e["WriteKey"]: e["ConfigKind"] for e in _entries(_page())}
@@ -211,39 +212,6 @@ class ConfigRevision(unittest.TestCase):
         """No capabilities, no page, no revision - the client correctly reads
         that as a station with no manifest protocol rather than an empty one."""
         self.assertEqual(_page(rows=dict(ROWS, WriteCapabilities=[])), {})
-
-
-class ControllerAccessLevel(unittest.TestCase):
-    def state(self):
-        import fraktal_ab_access as access
-        import fraktal_ab_st_model as st
-        return st.structure(access.state_members(APP))
-
-    def test_missing_controller_access_fails_closed(self):
-        self.assertEqual(projection.access_status(APP, projection.ACCESS_ADMIN), {})
-
-    def test_deployment_cannot_grant_a_prelogin_level(self):
-        self.assertEqual(projection.access_status(APP, projection.ACCESS_ENGINEER, self.state())['Access/CurrentLevel'], 0)
-
-    def test_the_ladder_matches_the_client(self):
-        self.assertEqual(projection.ACCESS_LEVELS, {'none': 0, 'operator': 1, 'technician': 2, 'engineer': 3, 'admin': 4})
-
-    def test_the_plc_user_level_reaches_the_snapshot(self):
-        import test_fraktal_ab_projection as fixture
-        s = self.state()
-        s.update(CurrentLevel=3, UserLength=8, UserBytes=list(b'engineer') + [0] * 24)
-        doc = fixture.build(access_level=projection.ACCESS_NONE, access_state=s)
-        self.assertEqual(doc['values']['Press/Access/CurrentLevel'], 3)
-        self.assertEqual(doc['values']['Press/Access/CurrentUser'], 'engineer')
-
-    def test_policy_defaults_match_tc3(self):
-        values = projection.access_status(APP, 4, self.state())
-        self.assertEqual({v for k, v in values.items() if 'Required' in k}, {projection.ACCESS_NONE})
-
-    def test_legacy_declarations_keep_the_deployment_level(self):
-        import dataclasses
-        legacy = dataclasses.replace(APP, access_users=None)
-        self.assertEqual(projection.access_status(legacy, 3)['Access/CurrentLevel'], 3)
 
 
 if __name__ == '__main__':

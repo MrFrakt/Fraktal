@@ -10,7 +10,6 @@ import fraktal_ab_manifest_read as reader
 import fraktal_ab_nameplate as plate
 import fraktal_ab_press_demo as press
 import fraktal_ab_press_echo38 as echo
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 
 
@@ -20,23 +19,6 @@ PLATE = decl.Nameplate('Example Maker', 'Offline equipment', 'TEST-001',
 
 
 class Nameplates(unittest.TestCase):
-    def test_versioned_plate_flows_through_the_shared_snapshot_projection(self):
-        app = dataclasses.replace(echo.application(), nameplate=PLATE)
-        rows = manifest.content(app)
-        header = dict(Magic=manifest.MANIFEST_MAGIC, SchemaMajor=5,
-                      Valid=1, Truncated=0, ContentHash=manifest.content_hash(app),
-                      ConfigRevision=manifest.config_revision(app))
-        for table in manifest.tables(app):
-            header[table.name + 'Capacity'] = table.capacity
-            header[table.name + 'Count'] = len(rows[table.name])
-        contexts = {m.name: st.structure(gen.module_members(m)) for m in app.modules}
-        with patch.object(projection, 'APP', app):
-            doc = projection.project(header, rows, st.structure(gen.unit_context_members(app)), contexts)
-            self.assertEqual(doc['values']['Press/Nameplate/ManufacturerName'], PLATE.manufacturer)
-            self.assertEqual(doc['values']['Press/Nameplate/FirmwareVersion'], PLATE.firmware_version)
-            self.assertNotIn('Nameplate/*', [r['path'] for r in doc['absent']])
-            with self.assertRaises(projection.ProjectionRefused):
-                projection.validate(dict(header, SchemaMajor=4))
     def test_legacy_manifest_and_shape_stay_v4(self):
         app = press.application()
         self.assertEqual(manifest.schema_major(app), 4)

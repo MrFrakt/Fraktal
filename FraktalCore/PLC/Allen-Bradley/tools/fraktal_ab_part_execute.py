@@ -23,7 +23,6 @@ import fraktal_ab_manifest as manifest
 import fraktal_ab_manifest_read as reader
 import fraktal_ab_part_demo as fixture
 import fraktal_ab_press_execute as px
-import fraktal_ab_projection as projection
 import fraktal_ab_set_broker as broker
 import fraktal_ab_sets as sets
 import fraktal_ab_station as station
@@ -44,9 +43,7 @@ class Guarded:
         elif app.canonical_collapse:
             self.allowed = frozenset(gen.externally_writable(app))
         else:
-            self.allowed = frozenset(gen.externally_writable(app)) | frozenset(
-                tag for tag, _ in mb.command_writes(app, mb.STOP, 1)) | frozenset(
-                mb.request_tag_name(app) + '.ConfigSet.' + member.name for member in sets.request_members())
+            raise FixtureRefused('canonical collapsed profile required')
         if app.canonical_collapse:
             self._canonical_hash = views.manifest_hash(app)
 
@@ -193,10 +190,7 @@ class Guarded:
             if held != dict(Valid=True, Truncated=False, ContentHash=self._canonical_hash):
                 raise FixtureRefused('canonical manifest pin acquisition or identity failed')
             return
-        raw, status, _ = reader._read_raw(self.comm, manifest.header_tag(self.app))
-        if raw is None:
-            raise FixtureRefused('manifest header acquisition failed')
-        projection.validate(reader.decode_header(raw))
+        raise FixtureRefused('canonical collapsed profile required')
 
     def Write(self, tag, value):
         if tag not in self.allowed:
@@ -222,14 +216,14 @@ class Run:
         return answer
 
     def unit(self):
-        value = views.read_unit(self.comm, app=self.app) if self.app.canonical_collapse else px.read_unit(self.comm)
+        value = views.unit_surface(self.comm, app=self.app) if self.app.canonical_collapse else px.unit_surface(self.comm)
         if value is None:
             raise FixtureRefused('Unit read failed')
         return value
 
     def module(self, name):
-        return (views.read_module(self.comm, name, app=self.app)
-                if self.app.canonical_collapse else px.read_module(self.comm, name))
+        return (views.module_surface(self.comm, name, app=self.app)
+                if self.app.canonical_collapse else px.module_surface(self.comm, name))
 
     def wait(self, test, label, timeout=8):
         deadline = time.monotonic() + timeout
@@ -255,30 +249,7 @@ class Run:
             from fraktal_ab_harness_documents import restore_configuration
             self.evidence['configuration'] = restore_configuration(self.comm, self.app)
             return
-        from fraktal_ab_gateway import MailboxWriter
-        directory = live.live_directory(self.app, self.evidence['serial'])
-        keeper = live.Keeper(self.app, live.FileMedium(directory))
-        held = projection.read_document(self.comm)['liveConfig']
-        writer = MailboxWriter('127.0.0.1', 0, self.evidence['serial'])
-        def command(kind, document, *, name='', model=0, store_result=0):
-            sequence = px.seed_sequence(self.comm) + 1
-            root = self.app.name + '/HmiRequest/'
-            writes = [(root+'Kind','int32',kind), (root+'TextValue','string',live.LIVE_NAME),
-                      (root+'NameValue','string',name), (root+'BoolValue','boolean',kind == mb.CREATE_MODEL),
-                      (root+'DurationMs','uint32',model), (root+'Sequence','uint32',sequence)]
-            return broker.restore_command(self.comm,self.app,writes,writer._write_base,document,store_result)
-        restoring = held.restoring
-        if restoring:
-            self.check(keeper.wants_restore(held), 'configuration restore is not authorized')
-            outcome = keeper.run_restore(held, command)
-            self.check(outcome is not None and outcome.complete, 'configuration restore failed: '+keeper.error)
-            self.check(not outcome.losses, 'configuration medium has lost documents')
-        after = projection.read_document(self.comm)['liveConfig']
-        self.check(not after.restoring, 'configuration is still restoring')
-        written = keeper.keep(after)
-        self.check(not keeper.failed, 'configuration medium persistence failed')
-        self.evidence['configuration'] = dict(wasRestoring=restoring, restoring=after.restoring,
-            medium=str(directory), written=written, health=keeper.health())
+        raise FixtureRefused('canonical collapsed profile required')
 
     def set(self, tag, value):
         if self.app.canonical_collapse:
@@ -287,8 +258,7 @@ class Run:
             if not px._success(self.comm.Write(tag, value)):
                 raise FixtureRefused('stimulus write failed')
             return
-        if not px.write(self.comm, tag, value):
-            raise FixtureRefused('stimulus write failed')
+        raise FixtureRefused('canonical collapsed profile required')
 
     def idle(self):
         for tag in (*px.FAULT.values(), *px.HOLD.values()):
@@ -336,7 +306,7 @@ class Run:
         self.set(px.TWO_HAND, 0)
         deadline = time.monotonic() + 4.0
         while time.monotonic() < deadline:
-            observed = views.read_module(self.comm, 'TwoHand', app=self.app)
+            observed = views.module_surface(self.comm, 'TwoHand', app=self.app)
             if observed is None or observed.get('OutImm_Armed') != 0:
                 break
             time.sleep(0.005)
@@ -501,13 +471,10 @@ def main(argv=None):
         native.SocketTimeout=5
         comm=Guarded(native,int(args.expect_serial,16),app)
         comm.guard()
-        if not app.canonical_collapse:
-            # Validate all static rows and native type layouts before the first write.
-            projection.read_document(comm)
         original={tag:px.read_scalar(comm,tag) for tag in gen.externally_writable(app)}
         if any(v is None for v in original.values()):
             raise FixtureRefused('fixture input snapshot incomplete')
-        original_mode=views.read_unit(comm, app=app)['Mode']
+        original_mode=views.unit_surface(comm, app=app)['Mode']
         initial_access=views.read_access(comm, app=app)
         if initial_access['CurrentLevel'] != 0:
             raise FixtureRefused('another controller session is active')

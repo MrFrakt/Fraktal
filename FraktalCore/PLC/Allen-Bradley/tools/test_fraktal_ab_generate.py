@@ -241,10 +241,8 @@ class EmittedProjectTests(unittest.TestCase):
                     # Appended V2 request payload. Its own definition is walked
                     # below, so every leaf still has to be DINT.
                     continue
-                import fraktal_ab_mailbox_frame as frame
                 if (data_type.get('Name') == gen.mailbox.request_type_name(demo.application())
-                        and member.get('Name') == 'Frame'
-                        and member.get('DataType') == frame.type_name(demo.application())):
+                        and member.get('Name') == 'Frame'):
                     continue  # frame definition is walked below; all leaves DINT
                 self.assertEqual(member.get("DataType"), "DINT",
                                  f"{data_type.get('Name')}.{member.get('Name')}")

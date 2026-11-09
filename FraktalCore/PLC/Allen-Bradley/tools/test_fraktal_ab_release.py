@@ -19,7 +19,7 @@ import unittest
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+from test_fraktal_ab_canonical_mailbox import release_report_values
 from test_fraktal_ab_core_ordinals import core_enum
 from test_fraktal_ab_manual import (AIR, APP, EXTEND, RETRACT, Bench, N, ORDINAL,
                                     UNIT, key)
@@ -216,7 +216,7 @@ class ActionReport(unittest.TestCase):
 class ThePublishedReport(unittest.TestCase):
     def publish(self, bench):
         catalogue = {v: k for k, v in gen.localization_numbers(APP).items()}
-        return projection.release_report_values(
+        return release_report_values(
             APP, bench.tags[gen.release_report_tag(APP)], catalogue)
 
     def test_tc3s_24_slots_in_tf6100s_naming(self):

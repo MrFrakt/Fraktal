@@ -20,11 +20,65 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 from test_fraktal_ab_core_ordinals import CORE_DUTS
 from test_fraktal_ab_manual import Bench
-from test_fraktal_ab_projection import oee_values
+
+
+def oee_values(**overrides):
+    oee = {m.name: ([0] * m.dimension if m.dimension else m.initial)
+           for m in gen.oee_members()}
+    oee.update(overrides)
+    return oee
+
+
+def oee_factors(run_ms: int, down_ms: int, good: int, nok: int,
+                ideal_ms: int):
+    good, nok = max(good, 0), max(nok, 0)
+    parts = good + nok
+    a_valid = run_ms + down_ms > 0
+    p_valid = ideal_ms > 0 and run_ms > 0
+    q_valid = parts > 0
+    a = run_ms / (run_ms + down_ms) if a_valid else 0.0
+    p = min(1.0, ideal_ms * parts / run_ms) if p_valid else 0.0
+    q = good / parts if q_valid else 0.0
+    oee, valid = 1.0, False
+    for ok, factor in ((a_valid, a), (p_valid, p), (q_valid, q)):
+        if ok:
+            oee, valid = oee * factor, True
+    return {"Availability": a, "AvailValid": a_valid, "Performance": p,
+            "PerfValid": p_valid, "Quality": q, "QualValid": q_valid,
+            "Oee": oee if valid else 0.0, "OeeValid": valid}
+
+
+def _ms(oee, bucket: str, index: int | None = None) -> int:
+    if index is None:
+        return oee[f"{bucket}S"] * 1000 + oee[f"{bucket}Ms"]
+    return oee[f"Smp{bucket}S"][index] * 1000 + oee[f"Smp{bucket}Ms"][index]
+
+
+def oee_status(app, oee, unit, record_values) -> dict:
+    if oee is None:
+        return {}
+    ideal = 0
+    if app.ideal_cycle_member and app.records:
+        ideal = (record_values or {}).get(app.records[0].name, {}).get(
+            app.ideal_cycle_member, 0)
+    run, down = _ms(oee, "Run"), _ms(oee, "Down")
+    values = {"Oee/RunMs": run, "Oee/DownMs": down,
+              "Oee/IdleMs": _ms(oee, "Idle")}
+    for name, value in oee_factors(run, down, unit["GoodCount"] - oee["GoodBase"],
+                                   unit["ScrapCount"] - oee["NokBase"], ideal).items():
+        values[f"Oee/{name}"] = value
+    values["OeeTrendHead"] = oee["Head"]
+    for slot in range(gen.OEE_SAMPLES):
+        current = oee["SmpEpoch"][slot] == oee["Epoch"]
+        factors = oee_factors(_ms(oee, "Run", slot), _ms(oee, "Down", slot),
+                              oee["SmpGood"][slot], oee["SmpNok"][slot],
+                              oee["SmpIdealMs"][slot]) if current else {}
+        values[f"OeeTrend[{slot + 1}]/Oee"] = factors.get("Oee", 0.0)
+        values[f"OeeTrend[{slot + 1}]/OeeValid"] = factors.get("OeeValid", False)
+    return values
 
 
 APP = demo.application()
@@ -48,7 +102,7 @@ class Station:
 
     def __init__(self):
         self.tags = {
-            UNIT: st.structure(gen.unit_context_members(APP)),
+            UNIT: st.structure(gen.unit_storage_members(APP)),
             OEE: st.structure(gen.oee_members()),
             ALARM: st.structure(gen.alarm_active_members()),
             CFG: st.structure(APP.records[0].members),
@@ -74,7 +128,7 @@ class Station:
         return self.oee[f"{bucket}S"] * 1000 + self.oee[f"{bucket}Ms"]
 
     def published(self):
-        return projection.oee_status(APP, self.oee, self.unit,
+        return oee_status(APP, self.oee, self.unit,
                                      {APP.records[0].name: self.tags[CFG]})
 
 
@@ -105,29 +159,29 @@ class TheFactors(unittest.TestCase):
     """TC3's _M_OeeCompute, case by case."""
 
     def test_nothing_counted_is_nothing_valid(self):
-        f = projection.oee_factors(0, 0, 0, 0, 950)
+        f = oee_factors(0, 0, 0, 0, 950)
         self.assertEqual((f["AvailValid"], f["PerfValid"], f["QualValid"],
                           f["OeeValid"], f["Oee"]), (False, False, False, False, 0.0))
 
     def test_availability_excludes_idle(self):
-        f = projection.oee_factors(3000, 1000, 0, 0, 0)
+        f = oee_factors(3000, 1000, 0, 0, 0)
         self.assertEqual((f["Availability"], f["AvailValid"]), (0.75, True))
 
     def test_performance_needs_an_ideal_cycle_and_is_capped(self):
-        self.assertFalse(projection.oee_factors(10000, 0, 5, 0, 0)["PerfValid"])
-        self.assertAlmostEqual(projection.oee_factors(10000, 0, 5, 0, 950)["Performance"],
+        self.assertFalse(oee_factors(10000, 0, 5, 0, 0)["PerfValid"])
+        self.assertAlmostEqual(oee_factors(10000, 0, 5, 0, 950)["Performance"],
                                0.475)
-        self.assertEqual(projection.oee_factors(1000, 0, 5, 0, 950)["Performance"], 1.0)
+        self.assertEqual(oee_factors(1000, 0, 5, 0, 950)["Performance"], 1.0)
 
     def test_quality_is_good_over_parts(self):
-        self.assertAlmostEqual(projection.oee_factors(1, 0, 3, 1, 0)["Quality"], 0.75)
+        self.assertAlmostEqual(oee_factors(1, 0, 3, 1, 0)["Quality"], 0.75)
 
     def test_oee_is_the_product_of_the_valid_factors_only(self):
         """No ideal cycle: P is omitted, never taken as 100 % (O7)."""
-        f = projection.oee_factors(3000, 1000, 3, 1, 0)
+        f = oee_factors(3000, 1000, 3, 1, 0)
         self.assertFalse(f["PerfValid"])
         self.assertAlmostEqual(f["Oee"], 0.75 * 0.75)
-        g = projection.oee_factors(10000, 0, 5, 0, 950)
+        g = oee_factors(10000, 0, 5, 0, 950)
         self.assertAlmostEqual(g["Oee"], 1.0 * 0.475 * 1.0)
 
 
@@ -227,7 +281,7 @@ class TheReset(unittest.TestCase):
         out = s.published()
         self.assertAlmostEqual(out["Oee/Performance"], 950 * 5 / 10000)
         self.assertEqual(out["Oee/Quality"], 1.0)
-        tc3 = projection.oee_factors(10000, 0, 505, 20, 950)
+        tc3 = oee_factors(10000, 0, 505, 20, 950)
         self.assertEqual(tc3["Performance"], 1.0, "what TC3 would publish")
 
 
@@ -263,10 +317,10 @@ class ThePublishedCard(unittest.TestCase):
         self.assertFalse(s.published()["Oee/PerfValid"])
 
     def test_nothing_is_published_without_the_accounting(self):
-        self.assertEqual(projection.oee_status(APP, None, Station().unit, None), {})
+        self.assertEqual(oee_status(APP, None, Station().unit, None), {})
 
     def test_the_fixture_is_a_fresh_reset(self):
-        out = projection.oee_status(APP, oee_values(), Station().unit, None)
+        out = oee_status(APP, oee_values(), Station().unit, None)
         self.assertEqual((out["OeeTrendHead"], out["Oee/OeeValid"]), (0, False))
 
 

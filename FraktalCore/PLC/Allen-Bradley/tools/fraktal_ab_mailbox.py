@@ -681,10 +681,15 @@ def _record_xml(app, type_name: str, members, access: str, comment: str) -> str:
             + "\n".join(body) + "\n</Members>\n</DataType>")
 
 
+def signed(value):
+    if isinstance(value, bool) or not isinstance(value, int) or not -0x80000000 <= value <= 0xffffffff:
+        raise ValueError('mailbox word is outside 32 bits')
+    return value if value < 0x80000000 else value - 0x100000000
+
+
 def data_types(app) -> list[str]:
     """The mailbox's string types and its two contract records."""
-    import fraktal_ab_mailbox_frame as frame
-    blocks = [] if app.canonical_collapse else frame.data_types(app)
+    blocks = []
     for length in string_lengths():
         name = string_type_name(app, length)
         blocks.append(
@@ -703,8 +708,6 @@ def data_types(app) -> list[str]:
             import fraktal_ab_sets as sets
             blocks[-1] = blocks[-1].replace('</Members>',
                 _member_xml('ConfigSet', sets.request_name(), 'Core 3.8b staged transaction; Sequence commits last', 'Read/Write') + '\n</Members>')
-        blocks[-1] = blocks[-1].replace('</Members>',
-            _member_xml('Frame', frame.type_name(app), 'S9 bounded operation and arguments', 'Read/Write') + '\n</Members>')
         if app.canonical_publication_stage>=8:
             import fraktal_ab_config_provider as provider
             blocks[-1]=blocks[-1].replace('</Members>',
@@ -742,14 +745,6 @@ def _structure_tag(app, tag_name: str, type_name: str, members,
             end = nested.index('</Structure>', start) + len('</Structure>')
             payload = nested[start:end].replace('<Structure ', '<StructureMember Name="ConfigSet" ', 1)
             parts.append(payload.replace('</Structure>', '</StructureMember>'))
-        if type_name == request_type_name(app):
-            import fraktal_ab_mailbox_frame as frame
-            import fraktal_ab_generate as gen
-            nested = gen._structure_tag('unused', frame.type_name(app), frame.members(app))
-            start = nested.index('<Structure DataType=')
-            end = nested.index('</Structure>', start) + len('</Structure>')
-            payload = nested[start:end].replace('<Structure ', '<StructureMember Name="Frame" ', 1)
-            parts.append(payload.replace('</Structure>', '</StructureMember>'))
         if app.canonical_publication_stage>=8 and type_name==request_type_name(app):
             import fraktal_ab_config_provider as provider
             import fraktal_ab_generate as gen
@@ -772,8 +767,7 @@ def tags(app) -> list[str]:
     nothing else. The response is ``Read Only`` - it is the machine's answer,
     not somewhere a client puts anything.
     """
-    import fraktal_ab_mailbox_frame as frame
-    frame_tags = [] if app.canonical_collapse else frame.tags(app)
+    frame_tags = []
     req_access = "None" if app.canonical_collapse else "Read/Write"
     return frame_tags + [
         _structure_tag(app, request_tag_name(app), request_type_name(app),
@@ -1469,8 +1463,8 @@ def member_writes(app, member: str, value) -> list[tuple[str, object]]:
     if isinstance(value, bool):
         return [(tag, 1 if value else 0)]
     if member == 'Sequence':
-        from fraktal_ab_mailbox_frame import signed
-        return [(tag, signed(value))]
+        signed_val = int.from_bytes((int(value) & 0xffffffff).to_bytes(4, 'little'), 'little', signed=True)
+        return [(tag, signed_val)]
     return [(tag, int(value))]
 
 
@@ -1489,6 +1483,4 @@ def command_writes(app, kind: int, sequence: int, **arguments
     if unknown:
         raise ValueError(f"not mailbox members: {sorted(unknown)}")
 
-    import fraktal_ab_mailbox_frame as frame
-    return [(frame.native_path(app), frame.encode(app, supplied)),
-            *member_writes(app, 'Sequence', sequence)]
+    raise NotImplementedError("canonical collapsed profile uses GatewayCommands or px.command")

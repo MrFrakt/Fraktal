@@ -35,21 +35,9 @@ class PressParityHarness(unittest.TestCase):
     def test_parity_reads_cfg0_surface_when_collapsed(self):
         comm = Mock()
         with patch.object(views, "surface", return_value={"Recipe": 1}) as mock_surface:
-            cfg = (views.surface(comm, "Cfg0", app=APP)
-                   if APP.canonical_collapse
-                   else px.read_layout(comm, px.CFG, APP.records[0].members) or {})
+            cfg = (views.surface(comm, "Cfg0", app=APP) or {})
             self.assertEqual(cfg, {"Recipe": 1})
             mock_surface.assert_called_once_with(comm, "Cfg0", app=APP)
-
-    def test_parity_falls_back_to_legacy_read_layout_when_not_collapsed(self):
-        legacy_app = NS(canonical_collapse=False, records=APP.records)
-        comm = Mock()
-        with patch.object(px, "read_layout", return_value={"Recipe": 2}) as mock_legacy:
-            cfg = (views.surface(comm, "Cfg0", app=legacy_app)
-                   if legacy_app.canonical_collapse
-                   else px.read_layout(comm, px.CFG, legacy_app.records[0].members) or {})
-            self.assertEqual(cfg, {"Recipe": 2})
-            mock_legacy.assert_called_once_with(comm, px.CFG, legacy_app.records[0].members)
 
 
 class Phase1Harness(unittest.TestCase):
@@ -231,15 +219,7 @@ class S3Harness(unittest.TestCase):
             self.assertEqual(probe, dummy_probe)
             mock_flat.assert_called_once_with(comm, gen.health_probe_tag(APP), members)
 
-    def test_s3_health_probe_legacy_fallback(self):
-        legacy_app = NS(canonical_collapse=False, name="Press")
-        comm = Mock()
-        dummy_probe = {"Samples": 100}
-        with patch.object(px, "read_layout", return_value=dummy_probe) as mock_layout:
-            probe = views.read_health_probe(comm, app=legacy_app)
-            self.assertEqual(probe, dummy_probe)
-            mock_layout.assert_called_once_with(comm, gen.health_probe_tag(legacy_app),
-                                                gen.health_probe_members())
+
 
 
 if __name__ == "__main__":

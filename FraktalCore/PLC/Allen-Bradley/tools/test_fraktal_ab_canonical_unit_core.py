@@ -9,7 +9,38 @@ import fraktal_ab_canonical_publication as publisher
 import fraktal_ab_canonical_unit_core as core
 import fraktal_ab_genealogy_s3a_demo as candidate
 import fraktal_ab_manifest as legacy
-from fraktal_ab_s3a_equivalence import subset_paths
+import fraktal_ab_declaration as decl
+
+def subset_paths(app, codes, *, canonical):
+    paths = set()
+    for module in (None, *app.modules):
+        base = app.name + ('/' + module.name if module else '') + '/Status/'
+        paths.update(base + leaf for leaf in ('Name', 'DisplayNameKey', 'ModuleType', 'State', 'FaultActive'))
+        if (module.type_key if module else app.type_key):
+            paths.add(base + 'TypeKey')
+    paths.update(app.name + '/' + leaf for leaf in ('ModeActivePublished', 'RunStyle', 'CurrentStep/StepNo'))
+    if app.models:
+        paths.add(app.name + '/Model/ModelCode')
+    root = app.name + '/'
+    paths.add(root + 'Decision/Default')
+    if app.decisions:
+        paths.add(root + 'Decision/Prompt')
+        paths.update(root + f'Decision/Options[{i}]' for i in range(1, max(len(d.option_keys) for d in app.decisions) + 1))
+    shift = 0 if canonical else 1
+    for ordinal in decl.declared_modes(app):
+        paths.add(root + f'SupportedModesPublished[{ordinal+shift}]')
+        paths.update(root + f'ModePolicy[{ordinal+shift}]/' + leaf for leaf in ('Shield', 'Style'))
+    paths.update(root + f'SupportedRunStylesPublished[{ordinal+shift}]' for ordinal in decl.RUN_STYLES)
+    if app.models:
+        paths.update((root + 'AvailableModelCount', root + 'ModelCapacity'))
+        paths.update(root + f'AvailableModels[{i}]/ModelCode' for i in range(1, len(codes) + 1))
+    for module in app.modules:
+        base = root + module.name + '/'
+        paths.add(base + 'CatalogCount')
+        for i in range(1, len(module.commands) + 1):
+            paths.update(base + f'Catalog[{i}]/' + leaf for leaf in ('Value', 'Label', 'Style'))
+    return paths
+
 
 
 class UnitCoreTests(unittest.TestCase):

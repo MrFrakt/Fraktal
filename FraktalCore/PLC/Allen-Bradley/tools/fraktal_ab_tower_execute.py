@@ -19,7 +19,6 @@ import fraktal_ab_manifest as manifest
 import fraktal_ab_live as live
 import fraktal_ab_part_execute as fixture
 import fraktal_ab_press_execute as px
-import fraktal_ab_projection as projection
 import fraktal_ab_reasons as reasons
 import fraktal_ab_signal_tower as tower
 import fraktal_ab_station as station
@@ -61,20 +60,7 @@ def exercise_common(run):
         record('configuration_preserved', documents=preserved,
                previousRevisions=previous_revs, currentRevision=current_rev)
     else:
-        before = projection.read_document(comm)['liveConfig']
-        medium = live.FileMedium(live.live_directory(app,evidence['serial']))
-        documents = {k:medium.read(k) for k in live.documents(app,before,0)}
-        run.login()
-        run.restore_configuration()
-        after = projection.read_document(comm)['liveConfig']
-        wanted = live.documents(app,after,0)
-        def values(document):
-            return [{key:value for key,value in row.items() if key!='rev'} for row in document[1:]]
-        preserved = {k:documents[k] is not None and values(documents[k])==values(v) for k,v in wanted.items()}
-        run.check(all(preserved.values()),'configuration values were not preserved')
-        record('configuration_preserved',documents=preserved,
-               previousRevisions={k:v[0]['configRev'] for k,v in documents.items()},
-               currentRevision=manifest.config_revision(app))
+        raise fixture.FixtureRefused('canonical collapsed profile required')
     run.idle()
     run.command(mb.SET_ACCESS_LEVEL,IntValue=2,TextValue='1')
     run.command(mb.LOGOUT)
@@ -183,12 +169,10 @@ def execute_fixture(args, app, account, *, run_type=fixture.Run,
         native.SocketTimeout=5
         comm=fixture.Guarded(native,int(args.expect_serial,16),app,plc_factory=plc_factory)
         comm.guard()
-        if not app.canonical_collapse:
-            projection.read_document(comm)
         original={tag:px.read_scalar(comm,tag) for tag in gen.externally_writable(app)}
         if any(v is None for v in original.values()):
             raise fixture.FixtureRefused('fixture input snapshot incomplete')
-        mode=views.read_unit(comm, app=app)['Mode']
+        mode=views.unit_surface(comm, app=app)['Mode']
         initial_access=views.read_access(comm, app=app)
         original_policy=list(initial_access['Required'])
         if initial_access['CurrentLevel']!=0:

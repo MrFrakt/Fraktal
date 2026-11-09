@@ -41,7 +41,7 @@ class SlowFixture(unittest.TestCase):
         with patch.object(fixture.time, 'monotonic', side_effect=lambda: tick[0]), \
              patch.object(fixture.time, 'sleep', side_effect=advance), \
              patch.object(fixture, 'oee_raw', side_effect=sample), \
-             patch.object(px, 'read_unit', side_effect=unit), \
+             patch.object(px, 'unit_surface', side_effect=unit), \
              patch.object(fixture.projection, 'read_records', side_effect=records):
             return fixture.down_time_row(None, {'Error': faulted})[0]
 
@@ -75,14 +75,14 @@ class SlowFixture(unittest.TestCase):
                     for _ in range(round(seconds * 100)):
                         press.scan()
 
-                def read_unit(_comm):
+                def mock_unit(_comm):
                     press.scan()
                     return dict(press.unit, Step=press.step())
 
                 def await_unit(_comm, predicate, settle):
                     last = None
                     for _ in range(round(settle * 100)):
-                        last = read_unit(None)
+                        last = mock_unit(None)
                         if predicate(last):
                             return last, 0
                     return last, settle * 1000
@@ -118,8 +118,8 @@ class SlowFixture(unittest.TestCase):
                 with patch.object(fixture, 'begin', return_value=opened), \
                      patch.object(fixture, 'issued', side_effect=lambda _comm: press.issued()), \
                      patch.object(fixture.time, 'sleep', side_effect=advance), \
-                     patch.object(px, 'read_unit', side_effect=read_unit), \
-                     patch.object(px, 'read_module', side_effect=lambda _comm, name: dict(press.ctx(name))), \
+                     patch.object(px, 'unit_surface', side_effect=mock_unit), \
+                     patch.object(px, 'module_surface', side_effect=lambda _comm, name: dict(press.ctx(name))), \
                      patch.object(px, 'await_module', side_effect=await_module), \
                      patch.object(px, 'await_unit', side_effect=await_unit), \
                      patch.object(px, 'command', side_effect=command), \
@@ -139,8 +139,8 @@ class SlowFixture(unittest.TestCase):
         with patch.object(fixture, 'begin', return_value={}), \
              patch.object(fixture, 'issued', return_value=0), \
              patch.object(fixture.time, 'sleep'), \
-             patch.object(px, 'read_unit', return_value={}), \
-             patch.object(px, 'read_module', return_value={'Busy': 1, 'OutImm_Held': 1}), \
+             patch.object(px, 'unit_surface', return_value={}), \
+             patch.object(px, 'module_surface', return_value={'Busy': 1, 'OutImm_Held': 1}), \
              patch.object(px, 'await_module', return_value=({'Busy': 1, 'OutImm_Held': 1}, 0)), \
              patch.object(px, 'await_unit', return_value=({}, 0)), \
              patch.object(px, 'command', side_effect=[{'accepted': True}, AssertionError('release failed')]), \

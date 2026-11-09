@@ -15,7 +15,6 @@ import fraktal_ab_manifest as mf
 import fraktal_ab_phase6_access_execute as users
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
 import fraktal_ab_shelving as shelf
 
 import fraktal_ab_fixture_reads as views
@@ -23,6 +22,14 @@ import fraktal_ab_phase6_sets_execute as sets_fixture
 
 APP = px.APP
 STANDING = APP.reasons['CONTROLLER_METRICS_UNAVAILABLE']
+
+
+def _verify_serial(comm, expected):
+    answer = comm.GetDeviceProperties()
+    if answer.Status != 'Success':
+        raise ValueError(f'device properties did not read: {answer.Status}')
+    serial = f"{int(str(answer.Value.SerialNumber), 0):08X}"
+    return serial, serial.upper() == parity._normalize_serial(expected).upper()
 
 
 class GuardedPLC:
@@ -34,7 +41,7 @@ class GuardedPLC:
         return getattr(self._comm, name)
 
     def Write(self, *args, **kwargs):
-        _serial, matches = projection.verify_serial(self._comm, self._serial)
+        _serial, matches = _verify_serial(self._comm, self._serial)
         if not matches:
             raise ValueError('controller serial changed before shelving fixture write')
         return self._comm.Write(*args, **kwargs)
@@ -45,8 +52,6 @@ def read_alarm_log(comm):
 
 
 def reason_description(comm, code):
-    if not APP.canonical_collapse:
-        return projection.reason_description(APP, code)
     active, _ring = read_alarm_log(comm)
     found = set()
     for slot, reason in enumerate(active['ActReasonCode']):
@@ -63,16 +68,12 @@ def reason_description(comm, code):
 
 
 def public_shelf(comm, active, ring, slot):
-    if not APP.canonical_collapse:
-        return projection.alarm_log_status(APP, active, ring)[f'AlarmLog/Active[{slot + 1}]/Shelved']
     path = f'{APP.name}/AlarmLog/Active[{slot + 1}]/Shelved'
     return views.values(comm, (path,), app=APP)[path]
 
 
 def start_report(comm):
-    if APP.canonical_collapse:
-        return views.surface(comm, 'ReleaseStart', app=APP)
-    return px.read_layout(comm, gen.release_report_tag(APP), gen.release_report_members())
+    return views.surface(comm, 'ReleaseStart', app=APP)
 
 
 def _user(state):

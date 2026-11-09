@@ -570,6 +570,16 @@ a back door proves the back door works.
 
 ## 3a. Allen-Bradley (Fraktal/AB) — ask before you assume
 
+**Canonical publication and collapse baseline:** The active reference profile
+is a CIP Security-capable CompactLogix 5380 or ControlLogix 5580 at firmware
+v37 or above; the development bench is FactoryTalk Logix Echo emulating a
+1756-L81E at 38.011. The legacy 1769-L24ER-QB1B/v33 bench is retired as a
+reference target, and frozen contracts V2 is active (`AB_FROZEN_CONTRACTS_V2.json`).
+The Python gateway and legacy projection are deleted. Canonical EtherNet/IP explicit
+messaging (`cip://<host>?slot=<n>&serial=<hex>`) is the canonical gateway and
+desktop transport; direct CIP from the desktop HMI is explicitly read-only unless
+connected via a commissioned CIP Security session.
+
 The AB binding has **R0-R6 PASS at their recorded scope and Phase 0-6
 reference-bench proof on press68**. The port is not complete apart from power;
 see the current AB project guide's gaps. Press70 now has owner-confirmed fit
@@ -877,10 +887,8 @@ Neither runs in the normal suite. Vocabulary and the demo's 150 s plant tour:
 `flutter run -d windows` additionally needs Visual Studio's *Desktop development with
 C++* workload. The desktop build uses the native FFI OPC UA adapter, so it reaches a
 TwinCAT target; the supported AB path is the gateway over WebSocket, which is the
-**web** build (`-d chrome`). A desktop build can also reach an AB controller directly
-with `cip://<controller>` (`lib/data/cip/`), but that is **spike scope**: it serves the
-core operator surface only and writes the mailbox without the gateway's write-root
-policy, so it is not the read-only AB posture of §3a.
+**web** build (`-d chrome`), or direct read-only desktop CIP (`cip://<controller>`)
+via `CipSessionClient` in `fraktal_opcua_client`.
 `analysis_options.yaml` is self-contained (no flutter_lints include) per the zero-package policy.
 
 **Gateway + Web HMI deployment:** follow
@@ -894,9 +902,11 @@ dart pub get
 dart run tool/build_gateway.dart --clean
 ```
 **PLC transports:** `--plc-endpoint` is `opc.tcp://` (TF6100/licensed OPC UA),
-`ads://` (TwinCAT) or `s7web://` (Siemens S7 Web API, licence-free, pinned
+`ads://` (TwinCAT), `s7web://` (Siemens S7 Web API, licence-free, pinned
 `--plc-certificate`, `FRAKTAL_TIA_WEB_USER/PASSWORD`; OPCUA_TRANSPORT "Siemens S7
-Web API transport"). All three emit `fraktal.opcua.snapshot.v1`.
+Web API transport"), or `cip://` (Allen-Bradley CIP transport, licence-free,
+slot/serial pinned; OPCUA_TRANSPORT "Allen-Bradley CIP transport"). All four
+emit `fraktal.opcua.snapshot.v1`.
 
 **One gateway process serves ONE PLC.** A host serving several controllers runs
 one *instance* per PLC, and an instance is just a folder:

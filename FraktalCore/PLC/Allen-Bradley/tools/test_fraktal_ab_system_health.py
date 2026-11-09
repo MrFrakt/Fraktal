@@ -17,7 +17,6 @@ import unittest
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_reasons as reasons
 import fraktal_ab_st_model as st
 from test_fraktal_ab_alarm_log import Bench as AlarmBench
@@ -202,38 +201,6 @@ class TheEvents(unittest.TestCase):
         b.scan()
         b.scan(reset=True)
         self.assertEqual(len(b.open_slots()), 1)
-
-
-class ThePublishedFacet(unittest.TestCase):
-    def test_where_the_hmi_reads_it(self):
-        s = Station()
-        s.scan()
-        health = s.scan(JitterUs=120)
-        out = projection.system_health_status(APP, health, s.tags[P])
-        self.assertEqual((out["SystemHealth/Present"], out["SystemHealth/Healthy"],
-                          out["SystemHealth/TaskAvailable"], out["SystemHealth/TaskCycleUs"],
-                          out["SystemHealth/TaskJitterUs"]), (True, True, True, PERIOD_US, 120))
-
-    def test_what_it_cannot_measure_is_unavailable_never_healthy(self):
-        s = Station()
-        s.scan()
-        out = projection.system_health_status(APP, s.scan(), s.tags[P])
-        for path in ("ControllerAvailable", "IpcAvailable", "FanHealthy",
-                     "FieldbusAvailable", "FieldbusMasterHealthy", "DcAvailable",
-                     "DcSynchronized"):
-            self.assertIs(out[f"SystemHealth/{path}"], False, path)
-
-    def test_time_quality_is_the_controllers(self):
-        s = Station()
-        s.scan()
-        out = projection.system_health_status(APP, s.scan(TimeIsSynchronized=0, TimePtpEnable=0),
-                                              s.tags[P])
-        self.assertEqual((out["SystemHealth/TimeQuality/Available"],
-                          out["SystemHealth/TimeQuality/Synchronized"],
-                          out["SystemHealth/TimeQuality/Source"]), (True, False, ""))
-
-    def test_nothing_without_the_reads(self):
-        self.assertEqual(projection.system_health_status(APP, None, None), {})
 
 
 if __name__ == "__main__":

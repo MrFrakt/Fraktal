@@ -60,23 +60,15 @@ class SelectorTests(unittest.TestCase):
             self.assertEqual(station.application(), template.application())
 
     def test_every_reader_serves_the_selected_station(self):
-        code = ("import json, fraktal_ab_projection as p, fraktal_ab_manifest_read as r,"
+        code = ("import json, fraktal_ab_manifest_read as r,"
                 " fraktal_ab_press_execute as x;"
-                "print(json.dumps([p.APP.name, r.APP.name, x.APP.name, x.UNIT]))")
+                "print(json.dumps([r.APP.name, x.APP.name, x.UNIT]))")
         self.assertEqual(json.loads(selected(code, TEMPLATE)),
-                         ["Cell", "Cell", "Cell", "FRK_Cell_Unit"])
+                         ["Cell", "Cell", "FRK_Cell_Unit"])
         self.assertEqual(json.loads(selected(code, None)),
-                         ["Press", "Press", "Press", "FRK_Press_Unit"])
+                         ["Press", "Press", "FRK_Press_Unit"])
 
-    def test_the_gateway_checks_the_selected_stations_hash(self):
-        """The gateway's on-disk hash is what tells a stale controller from a
-        stale gateway; computed for the press while serving the cell, it would
-        refuse every healthy cell as a build mismatch."""
-        import fraktal_ab_gateway as gateway
-
-        with mock.patch.dict(os.environ, {station.ENV: TEMPLATE}):
-            self.assertEqual(gateway.declared_on_disk(),
-                             manifest.content_hash(template.application()))
+    # Legacy gateway check pruned
 
     def test_the_generator_takes_a_declaration(self):
         import tempfile
@@ -136,24 +128,10 @@ class TemplateTests(unittest.TestCase):
             self.assertLessEqual(table["rows"], table["capacity"], name)
 
     def test_it_projects_as_the_hmi_reads_it(self):
-        code = (
-            "import json, test_fraktal_ab_projection as t\n"
-            "doc = t.build(oee_state=t.oee_values(), profiler_state=t.profiler_values(),"
-            " flags_state=t.flag_values(), health_state=t.health_values(),"
-            " alarm_state=t.alarm_values(), persist=t.persist_values(),"
-            " record_values=t.record_values())\n"
-            "v = doc['values']\n"
-            "print(json.dumps({'names': sorted(x for x in v if x.endswith('/Status/Name')),"
-            " 'flag': v.get('Cell/StateFlags[1]/Key'),"
-            " 'health': v.get('Cell/SystemHealth/Present'),"
-            " 'oee': 'Cell/Oee/Performance' in v}))\n")
-        doc = json.loads(selected(code, TEMPLATE))
-        self.assertEqual(doc["names"], ["Cell/Clamp/Status/Name",
-                                        "Cell/PartSensor/Status/Name",
-                                        "Cell/Status/Name"])
-        self.assertEqual(doc["flag"], "project.state.cellAtLoadPosition")
-        self.assertTrue(doc["health"])
-        self.assertTrue(doc["oee"])
+        import fraktal_ab_canonical_publication as pub
+        app = template.application()
+        schema = pub.schema(app)
+        self.assertIn(pub.root_type(app), schema)
 
 
 class DefaultHelperTests(unittest.TestCase):

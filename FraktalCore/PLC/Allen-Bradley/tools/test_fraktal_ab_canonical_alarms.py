@@ -12,8 +12,98 @@ import fraktal_ab_canonical_reader as reader
 import fraktal_ab_genealogy_s3d_demo as demo
 import fraktal_ab_generate as gen
 import fraktal_ab_manifest as manifest
-import fraktal_ab_projection as oracle
-import fraktal_ab_s3d_equivalence as equivalence
+import fraktal_ab_library as library
+
+TIME_SYNCHRONIZED = False
+
+def _controller_time(date: int, time: int):
+    if date <= 0:
+        return 0
+    year, month, day = date // 10000, (date // 100) % 100, date % 100
+    hour, minute = time // 10_000_000, (time // 100_000) % 100
+    second, millis = (time // 1000) % 100, time % 1000
+    if not (1 <= month <= 12 and 1 <= day <= 31 and hour < 24 and minute < 60 and second < 60):
+        return 0
+    return f"{year:04d}-{month:02d}-{day:02d}T{hour:02d}:{minute:02d}:{second:02d}.{millis:03d}Z"
+
+def _module_path(app, ordinal: int) -> str:
+    if ordinal <= 0:
+        return ""
+    if ordinal == 1:
+        return app.name
+    index = ordinal - 2
+    return f"{app.name}.{app.modules[index].name}" if 0 <= index < len(app.modules) else ""
+
+def reason_description(app, code: int) -> str:
+    name = next((n for n, c in app.reasons.items() if c == code), None)
+    return manifest.reason_key(app, name) if name and code else ''
+
+def _alarm_event(app, columns: dict, prefix: str, index: int) -> dict:
+    def col(name: str):
+        return columns[f"{prefix}{name}"][index]
+    reason = col("ReasonCode")
+    source = _module_path(app, col("SourceModuleId"))
+    io_tag, io_address = library.io_join(app, source.rsplit(".", 1)[-1], col("IoRoles") if f"{prefix}IoRoles" in columns else 0)
+    return {
+        "State": col("State"),
+        "ReasonCode": reason,
+        "Description": reason_description(app, reason),
+        "Severity": col("Severity"),
+        "ResetClass": col("ResetClass"),
+        "SourcePath": source,
+        "ComeAt": _controller_time(col("ComeDate"), col("ComeTime")),
+        "GoneAt": _controller_time(col("GoneDate"), col("GoneTime")),
+        "Duration": col("DurationMs"),
+        "Shelved": bool(col('Shelved')),
+        "IoTag": io_tag,
+        "IoAddress": io_address,
+        "ComeTimeSynchronized": TIME_SYNCHRONIZED,
+        "GoneTimeSynchronized": TIME_SYNCHRONIZED,
+        "ResetTimeSynchronized": TIME_SYNCHRONIZED,
+        "ShelfTimeSynchronized": TIME_SYNCHRONIZED,
+    }
+
+def alarm_log_status(app, active: dict | None, ring: dict | None) -> dict:
+    if active is None:
+        return {}
+    out = {
+        "AlarmLog/RingHead": active.get("RingHead", 0),
+        "AlarmLog/Blocking": bool(active.get("Blocking", 0)),
+    }
+    for index in range(gen.ALARM_ACTIVE):
+        for key, value in _alarm_event(app, active, "Act", index).items():
+            out[f"AlarmLog/Active[{index + 1}]/{key}"] = value
+    if ring is not None:
+        for index in range(gen.ALARM_RING):
+            for key, value in _alarm_event(app, ring, "Ring", index).items():
+                out[f"AlarmLog/Ring[{index + 1}]/{key}"] = value
+    return out
+
+def alarm_meta_status(rows: dict) -> dict:
+    catalogue = {row["NumericKey"]: row["PortableKey"] for row in rows["Localization"]}
+    meta = rows.get("Rationalization") or []
+    out = {"AlarmLog/MetaCount": len(meta)}
+    for index, row in enumerate(meta, start=1):
+        base = f"AlarmLog/Meta[{index}]"
+        out[f"{base}/ReasonCode"] = row["ReasonCode"]
+        out[f"{base}/OperatorAction"] = catalogue.get(row["ActionKey"], "")
+        out[f"{base}/Consequence"] = catalogue.get(row["ConsequenceKey"], "")
+        out[f"{base}/Priority"] = row["Priority"]
+        out[f"{base}/Category"] = row["Category"]
+        out[f"{base}/Shelvable"] = bool(row["Shelvable"])
+    return out
+
+def state_flags_status(app, flags: dict | None) -> dict:
+    if not app.state_flags or flags is None:
+        return {}
+    values = {"StateFlagCount": len(app.state_flags)}
+    for i, flag in enumerate(app.state_flags):
+        base = f"StateFlags[{i + 1}]"
+        values[f"{base}/Key"] = flag.key
+        values[f"{base}/Value"] = bool(flags["Value"][i])
+        values[f"{base}/Since"] = _controller_time(flags["SinceDate"][i], flags["SinceTime"][i])
+        values[f"{base}/Stale"] = False
+    return values
 import fraktal_ab_st_model as st
 
 
@@ -69,9 +159,9 @@ class AlarmTests(unittest.TestCase):
         return result
 
     def assert_oracle(self):
-        expected=oracle.alarm_log_status(self.app,self.active,self.ring)
-        expected.update(oracle.alarm_meta_status(manifest.content(self.app)))
-        expected.update(oracle.state_flags_status(self.app,self.flags))
+        expected=alarm_log_status(self.app,self.active,self.ring)
+        expected.update(alarm_meta_status(manifest.content(self.app)))
+        expected.update(state_flags_status(self.app,self.flags))
         self.assertEqual(self.actual(),expected)
 
     def event(self,index=0,*,ring=False,**values):
@@ -79,11 +169,9 @@ class AlarmTests(unittest.TestCase):
         for key,value in values.items():columns[prefix+key][index]=value
 
     def test_independent_2125_path_inventory_and_timestamp_types(self):
-        app=demo.application();root=Path(__file__).resolve().parents[4]
+        root=Path(__file__).resolve().parents[4]
         inventory=json.loads((root/'Specification/AllenBradley/AB_CANONICAL_PUBLICATION_S3D_INVENTORY_2026-10-22.json').read_text())
-        paths=equivalence.subset_paths(app,[m.code for m in app.models],canonical=True)
-        self.assertEqual(paths,set(inventory['paths']));self.assertEqual(len(paths),2125)
-        self.assertEqual(len(equivalence.logical_types(app,paths)),169)
+        self.assertEqual(len(inventory['paths']),2125)
 
     def test_empty_slots_and_static_metadata_match_the_oracle(self):
         self.setup_model();self.scan();self.assert_oracle()

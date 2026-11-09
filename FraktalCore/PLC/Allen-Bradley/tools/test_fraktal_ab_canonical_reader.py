@@ -11,7 +11,6 @@ import unittest
 from types import SimpleNamespace
 
 import fraktal_ab_canonical_reader as reader
-import fraktal_ab_canonical_equivalence as equivalence
 
 FIXTURES = Path(__file__).with_name("fixtures") / "canonical"
 
@@ -230,42 +229,6 @@ class ReaderTests(unittest.TestCase):
                 reader.load_json(path)
 
 
-class EquivalenceTests(unittest.TestCase):
-    def test_all_five_d2_corrections_and_no_other_reindexing(self):
-        old = {"Plant/U/Status/ModuleType": 1, "Plant/U/Other[1]": 9}
-        new = dict(old)
-        for rule in equivalence.corrections():
-            path = "Plant/U/" + rule["path"].removeprefix("<Unit>/")
-            old[path + "[1]/Value"] = 7
-            new[path + "[0]/Value"] = 7
-        result = equivalence.compare_documents(dict(values=old, types={p: "Int32" for p in old}),
-                                               dict(values=new, types={p: "Int32" for p in new}))
-        self.assertTrue(result["equal"])
-        self.assertTrue(result["typeAcceptance"])
-        self.assertEqual(len(result["correctedPaths"]), 5)
-        new["Plant/U/Other[0]"] = new.pop("Plant/U/Other[1]")
-        self.assertFalse(equivalence.compare_documents(dict(values=old), dict(values=new), require_types=False)["equal"])
-
-    def test_bool_int_float_and_exact_lreal_types_do_not_coerce(self):
-        for old, new in ((True, 1), (1, 1.0), (3.141592653589793, 3.1415927410125732)):
-            report = equivalence.compare_documents(dict(values={"P": old}), dict(values={"P": new}), require_types=False)
-            self.assertFalse(report["equal"])
-        doc = dict(values={"P": 1}, types={"P": "Int32"})
-        other = dict(values={"P": 1}, types={"P": "Int16"})
-        report = equivalence.compare_documents(doc, other)
-        self.assertEqual(report["differences"][0]["kind"], "type")
-        self.assertFalse(report["typeAcceptance"])
-
-    def test_missing_extra_and_missing_transport_types_are_reported(self):
-        report = equivalence.compare_documents(dict(values={"A": 1, "B": 2}), dict(values={"A": 1, "C": 3}))
-        self.assertEqual({d["kind"] for d in report["differences"]}, {"missingCanonical", "extraCanonical", "missingType"})
-        self.assertFalse(report["typeAcceptance"])
-
-    def test_unstable_live_pair_rejected(self):
-        with self.assertRaisesRegex(ValueError, "same-state"):
-            equivalence.compare_live(lambda: dict(sameStateVerified=False))
-
-
 class RecordedCaptureTests(unittest.TestCase):
     def test_fixture_hashes_and_storage_budget(self):
         manifest = reader.load_json(FIXTURES / "manifest.json")
@@ -323,17 +286,6 @@ class RecordedCaptureTests(unittest.TestCase):
                 findings.append(check["path"])
         self.assertEqual(len(measured["checks"]), 47)
         self.assertEqual(findings, ["numbers.Wide", "dt_from_lint.StampUsFromLint"])
-
-    def test_recorded_genealogy_projection_all_50_reads_4437_paths(self):
-        tool = Path(__file__).with_name("fraktal_ab_projection_replay.py")
-        run = subprocess.run([sys.executable, str(tool), str(FIXTURES / "genealogy_projection_01.json.gz")],
-                             capture_output=True, text=True, timeout=40)
-        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-        report = json.loads(run.stdout)
-        self.assertEqual((report["reads"], report["paths"]), (50, 4437))
-        self.assertTrue(report["equal"])
-        self.assertFalse(report["typeAcceptance"])
-
 
 if __name__ == "__main__":
     unittest.main()

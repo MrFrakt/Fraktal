@@ -13,14 +13,12 @@ import json
 from typing import Any
 
 import fraktal_ab_config as config
-import fraktal_ab_gateway as gateway
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
 import fraktal_ab_phase5_execute as phase5
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_parity as parity
-import fraktal_ab_projection as projection
 import fraktal_ab_fixture_reads as fixture
 from fraktal_ab_s16_execute import _normalize_serial, _status, _success, _value
 
@@ -30,42 +28,25 @@ KEY = 'press.recipe.baselineWorkMs'
 
 
 def configuration(comm):
-    if APP.canonical_collapse:
-        return fixture.surface(comm, 'Cfg0', app=APP)
-    return projection.read_records(comm)[APP.records[0].name]
+    return fixture.surface(comm, 'Cfg0', app=APP)
 
 
 def audit_rows(comm):
-    return (fixture.surface(comm, 'ConfigAudit', app=APP) if APP.canonical_collapse
-            else projection.read_config_audit(comm))
+    return fixture.surface(comm, 'ConfigAudit', app=APP)
 
 
 def capture(comm, ack, *, key=KEY, revision=None, scope=None):
-    if APP.canonical_collapse:
-        return px.command(comm, mb.CAPTURE_CONFIG, settle=ack, TargetPath=scope or APP.name,
-                          NameValue=key, IntValue=fixture.revision(comm, app=APP) if revision is None else revision,
-                          BoolValue=False, TextValue='999999', User='phase6-fixture')
-    # The same whole-batch translation the browser gateway uses, including
-    # the revision carrier; never invent a direct target write for the fixture.
-    root = APP.name + '/HmiRequest'
-    body = [('Kind', 'int32', mb.CAPTURE_CONFIG), ('TargetPath', 'string', scope or APP.name),
-            ('NameValue', 'string', key), ('IntValue', 'int32', mf.config_revision(APP) if revision is None else revision),
-            ('BoolValue', 'int32', 999999), ('TextValue', 'string', '999999'),
-            ('User', 'string', 'phase6-fixture'), ('Sequence', 'uint32', 0)]
-    resolved = mb.resolve_batch(APP, [(root + '/' + m, t, v) for m, t, v in body])
-    args = {p.rsplit('/', 1)[-1]: v for p, _t, v in resolved if not p.endswith(('/Kind', '/Sequence'))}
-    return px.command(comm, mb.CAPTURE_CONFIG, settle=ack, **args)
+    return px.command(comm, mb.CAPTURE_CONFIG, settle=ack, TargetPath=scope or APP.name,
+                      NameValue=key, IntValue=fixture.revision(comm, app=APP) if revision is None else revision,
+                      BoolValue=False, TextValue='999999', User='phase6-fixture')
 
 
 def read_rows(comm):
-    if APP.canonical_collapse:
-        definition = fixture.capture_definition(comm, KEY, app=APP)
-        path = APP.name + '/Features/CaptureEnabled'
-        enabled = fixture._session(comm, APP).reader.read_row((path,))['values'][path]
-        offered = dict(source=definition['CaptureSource'], canCapture=definition['CanCapture'], enabled=enabled)
-    else:
-        offered = legacy_capture_offer(comm)
-    unit = px.read_unit(comm)
+    definition = fixture.capture_definition(comm, KEY, app=APP)
+    path = APP.name + '/Features/CaptureEnabled'
+    enabled = fixture._session(comm, APP).reader.read_row((path,))['values'][path]
+    offered = dict(source=definition['CaptureSource'], canCapture=definition['CanCapture'], enabled=enabled)
+    unit = px.unit_surface(comm)
     return [px.row('capture_is_registered_beside_its_editable_value',
                    'published source Profiler.LastWork, capturable and enabled', offered, 0,
                    offered == {'source': 'Profiler.LastWork', 'canCapture': True, 'enabled': True}),
@@ -74,63 +55,24 @@ def read_rows(comm):
                    unit['Running'] == 0 and unit['Error'] == 0)]
 
 
-def legacy_capture_offer(comm):
-    values = projection.read_document(comm)['values']
-    entries = [k for k, v in values.items() if k.endswith('/WriteKey') and v == KEY]
-    prefix = entries[0].rsplit('/', 1)[0] if entries else ''
-    return {'source': values.get(prefix + '/CaptureSource'),
-               'canCapture': values.get(prefix + '/CanCapture'),
-               'enabled': values.get(APP.name + '/Features/CaptureEnabled')}
-
-
 async def viewer_rows(comm, serial, ack):
-    if APP.canonical_collapse:
-        before = px.seed_sequence(comm)
-        with fixture.viewer(comm, app=APP) as viewer:
-            page = viewer.read_configuration_page(APP.name)
-            after_page = px.seed_sequence(comm)
-            refused = viewer.write_batch(APP.name, (before + 1) & 0xffffffff, Kind=mb.START)
-            after_start = px.seed_sequence(comm)
-        values = page.result if page.ok and isinstance(page.result, dict) else {}
-        return [px.row('read_only_viewer_queries_configuration',
-                       'read-only configuration API returns published entries without a mailbox commit',
-                       {'ok': page.ok, 'entries': values.get('EntryCount'), 'sequence': after_page}, 0,
-                       page.ok and type(values.get('EntryCount')) is int and values['EntryCount'] > 0
-                       and any(v == KEY for k, v in values.items() if k.endswith('/WriteKey'))
-                       and after_page == before),
-                px.row('read_only_viewer_cannot_start',
-                       'START refused before any controller write; mailbox sequence unchanged',
-                       {'refused': not refused.ok, 'sequence': after_start}, 0,
-                       not refused.ok and after_start == before)]
-    # Exercise the real gateway route in its read-only posture, pinned to this
-    # controller. No server or write root is created. The writer checks serial
-    # again immediately before the inert page transaction.
-    g = gateway.Gateway(gateway.Station(lambda: projection.read_document(comm), cache_ttl=0),
-                        write_fn=gateway.MailboxWriter(comm.IPAddress, 0, serial))
-    state = gateway._ConnState()
-    responses = []
-    async def send(text):
-        responses.append(json.loads(text))
-    sequence = px.seed_sequence(comm) + 1
-    root = APP.name + '/HmiRequest'
-    params = {'writes': [{'path': root + '/' + m, 'valueType': t, 'value': v}
-                        for m, t, v in [('Kind', 'int32', mb.QUERY_CONFIG), ('IntValue', 'int32', 0),
-                                        ('DurationMs', 'uint32', 0), ('Sequence', 'uint32', sequence)]]}
-    await g.dispatch(send, state, json.dumps({'protocol': gateway.PROTOCOL, 'id': 1, 'method': 'writeBatch', 'params': params}))
-    response = px.await_response(comm, sequence, ack)
-    rows = [px.row('read_only_viewer_queries_configuration',
-                   'no bearer and no write root: QUERY_CONFIG reaches the page and is acknowledged',
-                   {'transport': responses[-1], 'response': response}, 0,
-                   responses[-1].get('result') is True and response.get('accepted') is True)]
-    params['writes'][0]['value'] = mb.START
-    params['writes'][-1]['value'] = sequence + 1
-    await g.dispatch(send, state, json.dumps({'protocol': gateway.PROTOCOL, 'id': 2, 'method': 'writeBatch', 'params': params}))
-    observed = px.seed_sequence(comm)
-    rows.append(px.row('read_only_viewer_cannot_start',
-                       'START refused before any controller write; mailbox sequence unchanged',
-                       {'transport': responses[-1], 'sequence': observed}, 0,
-                       responses[-1].get('ok') is False and observed == sequence))
-    return rows
+    before = px.seed_sequence(comm)
+    with fixture.viewer(comm, app=APP) as viewer:
+        page = viewer.read_configuration_page(APP.name)
+        after_page = px.seed_sequence(comm)
+        refused = viewer.write_batch(APP.name, (before + 1) & 0xffffffff, Kind=mb.START)
+        after_start = px.seed_sequence(comm)
+    values = page.result if page.ok and isinstance(page.result, dict) else {}
+    return [px.row('read_only_viewer_queries_configuration',
+                   'read-only configuration API returns published entries without a mailbox commit',
+                   {'ok': page.ok, 'entries': values.get('EntryCount'), 'sequence': after_page}, 0,
+                   page.ok and type(values.get('EntryCount')) is int and values['EntryCount'] > 0
+                   and any(v == KEY for k, v in values.items() if k.endswith('/WriteKey'))
+                   and after_page == before),
+            px.row('read_only_viewer_cannot_start',
+                   'START refused before any controller write; mailbox sequence unchanged',
+                   {'refused': not refused.ok, 'sequence': after_start}, 0,
+                   not refused.ok and after_start == before)]
 
 
 def run(comm, serial, settle, rows):
@@ -173,7 +115,7 @@ def run(comm, serial, settle, rows):
                        not answer['accepted'] and answer['diagnosticKey'] == fixture.numeric_key(comm, config.CAPTURE_SETUP_KEY, app=APP)))
     px.command(comm, mb.SET_MODE, settle=ack, IntValue=APP.manual_mode)
     px.write(comm, px.AIR_OK, 0)
-    px.await_unit(comm, lambda _u: not px.read_module(comm, 'AirPressureMonitor')['OutImm_PressureOk'], settle)
+    px.await_unit(comm, lambda _u: not px.module_surface(comm, 'AirPressureMonitor')['OutImm_PressureOk'], settle)
     answer = capture(comm, ack)
     rows.append(px.row('capture_respects_the_release_permissive', 'without air capture is refused', answer, 0,
                        not answer['accepted'] and configuration(comm)['BaselineWorkMs'] == work))
@@ -200,7 +142,7 @@ def restore(comm, original, settle, evidence):
                 evidence['restore'][name] = result if isinstance(result, dict) else {'accepted': result is not False}
             except Exception as error:
                 evidence['restore'][name] = {'accepted': False, 'error': str(error)}
-        unit = px.read_unit(comm)
+        unit = px.unit_surface(comm)
         evidence['restored'] = {'baseline': configuration(comm)['BaselineWorkMs'],
                                 'mode': unit['Mode'], 'style': unit['RunStyle']}
     finally:
@@ -273,7 +215,7 @@ def main(argv=None):
                                 from fraktal_ab_harness_documents import restore_configuration
                                 evidence['configuration'] = restore_configuration(comm, APP)
                             original = {'baseline': configuration(comm)['BaselineWorkMs'],
-                                        'mode': px.read_unit(comm)['Mode'], 'style': px.read_unit(comm)['RunStyle']}
+                                        'mode': px.unit_surface(comm)['Mode'], 'style': px.unit_surface(comm)['RunStyle']}
                             evidence['original'] = original
                             evidence['wrote'] = True
                             evidence['write_surface'] = list(px.WRITABLE) + ['mailbox'] + (

@@ -75,7 +75,7 @@ def one_parked_cycle(comm: Any, settle: float, ack: float) -> dict[str, int] | N
     px.write(comm, px.PART_PRESENT, 1)
     px.write(comm, px.AIR_OK, 1)
     px.write(comm, px.TWO_HAND, 0)
-    before = px.read_unit(comm)
+    before = px.unit_surface(comm)
     px.start_cycle(comm, settle)
     px.await_unit(comm, lambda u: u["Step"] == parity.AFTER_PARK, settle)
     px.write(comm, px.PART_PRESENT, 0)
@@ -98,8 +98,8 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     fresh_auto(comm, ack)
     started = time.monotonic()
     one_parked_cycle(comm, settle, ack)
-    chart = px.read_chart(comm)
-    unit = px.read_unit(comm)
+    chart = px.chart_surface(comm)
+    unit = px.unit_surface(comm)
     summary = views.sequence_step_summary(comm, app=APP)
     on_chart = chart_rows(chart) if chart else []
     published = published_rows(summary)
@@ -131,7 +131,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.command(comm, mailbox.STOP, settle=ack)
     px.command(comm, mailbox.OPERATOR_RESET, settle=ack)
     one_parked_cycle(comm, settle, ack)
-    chart = px.read_chart(comm)
+    chart = px.chart_surface(comm)
     rows.append(px.row(
         "a_second_cycle_adds_no_rows",
         "within one mode session a re-run keeps its rows",
@@ -170,7 +170,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.write(comm, px.FAULT["PressRam"], 1)
     unit, elapsed = px.await_unit(comm, lambda u: u["Step"] == 210, settle)
     time.sleep(0.1)
-    chart = px.read_chart(comm)
+    chart = px.chart_surface(comm)
     summary = views.sequence_step_summary(comm, app=APP)
     index = ORDER.index(200)
     notes, note = views.sequence_annotations(comm, app=APP)
@@ -201,7 +201,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     px.await_unit(comm, lambda u: u["Step"] == 100, settle * 2)
     px.two_hand_press(comm, settle)
     px.await_unit(comm, lambda u: u["Step"] == 220, settle * 2)
-    chart = px.read_chart(comm)
+    chart = px.chart_surface(comm)
     summary = views.sequence_step_summary(comm, app=APP)
     notes, _ = views.sequence_annotations(comm, app=APP)
     rows.append(px.row(

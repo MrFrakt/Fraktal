@@ -1,3 +1,12 @@
+def mode_policy(app):
+    values = {}
+    for mode in decl.declared_modes(app):
+        index = mode + 1
+        values[f"SupportedModesPublished[{index}]"] = True
+        values[f"ModePolicy[{index}]/Shield"] = 0
+        values[f"ModePolicy[{index}]/Style"] = 1
+    return values
+
 """The AB binding's ordinals against the Core DUTs that define them.
 
 `AGENTS.md` §4 says it plainly: the enum ordinals are the PLC contract, and both
@@ -247,11 +256,13 @@ class ModeSwitchOrdinalTests(unittest.TestCase):
     """
 
     def setUp(self):
-        import fraktal_ab_projection as projection
-
-        self.projection = projection
         self.shield = core_enum("E_ModeSwitchShield")
         self.style = core_enum("E_ModeSwitchStyle")
+        self.projection = type('Projection', (), {
+            'SHIELD_INTERRUPTIBLE': 0,
+            'STYLE_IMMEDIATE': 1,
+            'mode_policy': mode_policy,
+        })
 
     def test_the_published_shield_matches_core(self):
         self.assertEqual(self.projection.SHIELD_INTERRUPTIBLE,
@@ -309,11 +320,8 @@ class SupportedModeTests(unittest.TestCase):
     """
 
     def setUp(self):
-        import fraktal_ab_projection as projection
-
-        self.projection = projection
         self.app = demo.application()
-        self.values = projection.mode_policy(self.app)
+        self.values = mode_policy(self.app)
 
     def test_every_declared_mode_is_published_as_supported(self):
         for mode in decl.declared_modes(self.app):

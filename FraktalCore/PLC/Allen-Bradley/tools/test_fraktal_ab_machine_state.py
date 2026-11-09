@@ -11,20 +11,25 @@ import dataclasses
 import unittest
 
 import fraktal_ab_generate as gen
+import fraktal_ab_machine_state as ms
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 from test_fraktal_ab_core_ordinals import core_enum
-from test_fraktal_ab_projection import alarm_values, build, unit_values
 
 
 APP = demo.application()
 AUTO = next(c for c in APP.chains if c.name == "AUTO")
-STATE = projection.MACHINE_STATES
+STATE = ms.STATES
 CLEAR = {"Blocking": 0}
 
 
+def unit_values(**overrides):
+    values = {m.name: m.initial for m in gen.unit_storage_members(APP)}
+    values.update(overrides)
+    return values
+
+
 def state(unit, active=CLEAR, app=APP):
-    return projection.machine_state(app, unit, active)["MachineState"]
+    return ms.classify(app, unit, bool(active.get("Blocking", 0)))
 
 
 def unit(**overrides):
@@ -46,14 +51,17 @@ class TheContract(unittest.TestCase):
         self.assertEqual(STATE, core_enum("E_MachineState"))
 
     def test_changeover_is_the_core_mode(self):
-        self.assertEqual(projection.MODE_CHANGEOVER, core_enum("E_Mode")["CHANGEOVER"])
-        self.assertEqual(projection.MODE_CHANGEOVER, demo.MODE_CHANGEOVER)
+        self.assertEqual(ms.CHANGEOVER, core_enum("E_Mode")["CHANGEOVER"])
+        self.assertEqual(ms.CHANGEOVER, demo.MODE_CHANGEOVER)
 
     def test_the_press_never_waits_on_the_line(self):
         """No step of either binding's press is an upstream or downstream
         wait, so it is never STARVED or BLOCKED on the bench."""
         classes = {s.time_class for c in APP.chains for s in c.steps}
         self.assertFalse(classes & {"WAIT_UPSTREAM", "WAIT_DOWNSTREAM"})
+
+    def test_rework_is_a_counter_on_the_controller(self):
+        self.assertIn("ReworkCount", {m.name for m in gen.unit_storage_members(APP)})
 
 
 class TheClassification(unittest.TestCase):
@@ -107,23 +115,7 @@ class TheClassification(unittest.TestCase):
         they are the same function."""
         app = waiting("WAIT_UPSTREAM")
         at_wait = unit_values(Mode=demo.MODE_AUTO, Step=100, Running=1)
-        published = projection.step_status(app, at_wait, None)
-        self.assertEqual((published["Starved"], published["Blocked"]),
-                         projection.wait_attribution(app, at_wait))
-
-    def test_nothing_without_the_alarm_log(self):
-        self.assertEqual(projection.machine_state(APP, unit(), None), {})
-
-
-class ThePublishedValues(unittest.TestCase):
-    def test_machine_state_and_rework_count_where_the_hmi_reads_them(self):
-        out = build(unit=unit(Running=1, ReworkCount=4),
-                    alarm_state=alarm_values())["values"]
-        self.assertEqual(out[f"{APP.name}/MachineState"], STATE["PRODUCING"])
-        self.assertEqual(out[f"{APP.name}/ReworkCount"], 4)
-
-    def test_rework_is_a_counter_on_the_controller(self):
-        self.assertIn("ReworkCount", {m.name for m in gen.unit_context_members(APP)})
+        self.assertEqual(ms.waits(app, at_wait), (True, False))
 
 
 if __name__ == "__main__":

@@ -364,8 +364,8 @@ def project(app, raw):
             out['Part/ParentCount'] = len(parents)
             out.update({f'Part/Parents[{index+1}]':parents[index] if index < len(parents) else ''
                         for index in range(genealogy.capacity(app))})
-        import fraktal_ab_projection as projection
-        stamp = projection._controller_time(raw['Date'], raw['Time'])
+        from fraktal_ab_line import _controller_time
+        stamp = _controller_time(raw['Date'], raw['Time'])
         if raw['Verdict'] and not stamp:
             raise PartBad('result timestamp unavailable')
         out['Part/Result/Stamp'] = stamp or ''
@@ -394,13 +394,33 @@ def project(app, raw):
         raise PartBad('incomplete part snapshot') from error
 
 
+def _read_record(comm, tag_name, layout):
+    import struct
+    reply = comm.Read(tag_name)
+    if getattr(reply, 'Status', None) != 'Success':
+        return None
+    payload = reply.Value
+    total = sum(m.dimension or 1 for m in layout)
+    if not isinstance(payload, (bytes, bytearray)) or len(payload) < total * 4:
+        return None
+    values = struct.unpack_from(f'<{total}i', payload, 0)
+    out, index = {}, 0
+    for member in layout:
+        if member.dimension:
+            out[member.name] = list(values[index:index + member.dimension])
+            index += member.dimension
+        else:
+            out[member.name] = values[index]
+            index += 1
+    return out
+
+
 def read(comm, app, attempts=3):
-    from fraktal_ab_press_execute import read_layout
     revision = (decl.scalar('SchemaVersion'), decl.scalar('DataRevision'))
     for _ in range(attempts):
-        before = read_layout(comm, tag(app), revision)
-        raw = read_layout(comm, tag(app), members(app))
-        after = read_layout(comm, tag(app), revision)
+        before = _read_record(comm, tag(app), revision)
+        raw = _read_record(comm, tag(app), members(app))
+        after = _read_record(comm, tag(app), revision)
         if before is None or raw is None or after is None:
             raise PartBad('part acquisition failed')
         if before == {m.name: raw[m.name] for m in revision} == after and not after['DataRevision'] % 2:

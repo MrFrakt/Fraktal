@@ -82,7 +82,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
 
     # --- 1. MANUAL has no sequence ----------------------------------------------
     start = px.command(comm, mailbox.START, settle=ack)
-    unit = px.read_unit(comm)
+    unit = px.unit_surface(comm)
     rows.append(px.row(
         "start_has_nothing_to_run_in_manual",
         "START in MANUAL is refused by TC3's reason, manualHasNoAutoSequence, "
@@ -114,7 +114,7 @@ def run(comm: Any, settle: float) -> dict[str, Any]:
     answer = px.manual(comm, "Door", EXTEND, settle=ack)
     door, elapsed = px.await_module(comm, "Door", lambda c: c["OutImm_Held"] != 0, settle)
     time.sleep(0.8)                            # past the door's 500 ms timeout
-    door = px.read_module(comm, "Door")
+    door = px.module_surface(comm, "Door")
     held = described(comm, "Door")
     rows.append(px.row(
         "the_door_does_not_close_over_a_slide_outside",

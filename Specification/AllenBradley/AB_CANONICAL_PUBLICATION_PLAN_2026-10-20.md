@@ -71,7 +71,7 @@ The work is done when all six hold:
 | S4a coherence bindings | Done | [S4a](Evidence/AB_S4A_COHERENCE_RUNTIME_2026-10-25.md) | — |
 | S4b generic Dart client and desktop | **Done at Echo scope** | [V6.10 runtime](Evidence/AB_S4B_OWNER_REVISION_RUNTIME_2026-10-29.md): all E1–E9 pass together | Physical/security evidence remains S7; V2 activation remains S6 |
 | S5 gateway, Web, installer | **Done at Echo/package scope** | [S5 qualification](Evidence/AB_S5_GATEWAY_QUALIFICATION_2026-10-31.md): C1–C13, two-client stability, owner visual check, native gates and verified genealogy recovery | Original baseline START refusal retained; investigate in S6 harness migration. Physical/security acceptance remains S7 |
-| S6 retirement, collapse, persistence, events | WP6.1 classified; first offline WP6.2 harness migrated; shared row reader with bounded row-body batching passes offline replay; harness private facts assigned to a WP6.6 acceptance-only structure (O10); gateway command client built (O11); WP6.3 final oracle replay sealed; WP6.4 inventory and V6.11 layouts written, client binding and generic ingress pass offline; V6.11 opt-in emits; its set service (all eight operations) and LiveDocuments keep/restore pass on the emitted code offline; WP6.5 host adapter, ported to Dart and supervised by the tray, answers them offline (HostEvents open); Echo re-baselined onto the genealogy pin after a factory reset (§2.18); the first V6.11 candidate builds on both v38 targets and fits offline; WP6.6 started: context inventory, schema-identity gate with pre-collapse fixtures, collapse increments C0–C7; O12 approved | [S6 consumer review](AB_CANONICAL_PUBLICATION_S6_CONSUMER_REVIEW_2026-11-02.md), [row-reader review](AB_CANONICAL_PUBLICATION_S6_LIVE_READER_REVIEW_2026-11-02.md), [current classification](AB_S6_CONSUMER_CLASSIFICATION_2026-11-02_03.json), [host-service inventory](AB_CANONICAL_PUBLICATION_S6_HOST_SERVICES_REVIEW_2026-11-02.md), [Echo re-baseline](Evidence/AB_S6_ECHO_REBASELINE_2026-11-04.md), [V6.11 candidate](Evidence/AB_S6_HOST_CANDIDATE_OFFLINE_2026-11-04.md), [collapse review](AB_CANONICAL_PUBLICATION_S6_COLLAPSE_REVIEW_2026-11-05.md) | Live integration/native proof, remaining harnesses/replays, host-service layouts/implementation, collapse, retirement and activation (§5.3); S6 exit remains open |
+| S6 retirement, collapse, persistence, events | **Done at Echo scope** | [S6-Q runtime](Evidence/AB_S6_Q_RUNTIME_2026-11-08.md): 3 candidate profiles qualified live, O6 baseline switch, WP6.7 legacy deletion (census 0 direct refs), WP6.8 V2 active | Physical/security acceptance remains S7 |
 | S7 physical controller, CIP Security | Not started | — | §5.4 |
 
 S3 surface records: [S3a](Evidence/AB_S3A_CANONICAL_RUNTIME_2026-10-21.md),
@@ -1676,7 +1676,14 @@ declarations retain all three renditions (`ST`, `SFC`, `LD`) for the parity gate
 identity passes with zero uncovered or unused declarations across all five gated declarations.
 All 2,748 AB tests, 36 root tests, Dart manifest tests, and strict consistency gate (0 errors, 0 warnings) pass.
 WP6.6 context collapse (C0-C7) is complete offline.
-Next: Native S6-Q live controller qualification on Echo under standing O3.
+
+**Native session S6-Q and baseline switch qualified live on Echo, 2026-11-08 / 2026-11-09** ([evidence](Evidence/AB_S6_Q_RUNTIME_2026-11-08.md)).
+All three collapsed candidate profiles (genealogy, shelving acceptance, normal press) qualified clean under standing authorization O3:
+- Collapsed genealogy candidate: 31/31 canonical cases pass, scan timing 978 µs (< 10,000 µs), 0 overlaps, 59% Studio Capacity (1,862,228 Blocks).
+- Collapsed shelving acceptance: 4/4 read-only rows pass, standing reason-21 event verified live, scan timing 1,721 µs, 0 overlaps, 54% Studio Capacity.
+- Collapsed normal press candidate: 15/15 press rows and 23/23 canonical cases (all 7 core cases across ST, SFC, and LD) pass, scan timing 1,739 µs, 0 overlaps, 54% Studio Capacity.
+- Official baseline switch (O6): `genealogy_s6.ACD` copy downloaded as official Echo baseline (`7B69BB92…B1C5`), controller returned to Run mode, exported `genealogy_s6_baseline_downloaded.L5X`, all 31 canonical baseline cases passed 100%, scan timing 977 µs, 0 overlaps. The legacy genealogy pin is archived and no longer downloaded.
+Next: WP6.7 legacy retirement and gate updates, followed by WP6.8 specification activation.
 
 **WP6.7 — Delete and update the gates.**
 

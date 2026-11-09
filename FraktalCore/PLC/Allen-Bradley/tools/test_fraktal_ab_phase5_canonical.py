@@ -12,7 +12,6 @@ import fraktal_ab_phase5_execute as phase5
 import fraktal_ab_press_execute as px
 import fraktal_ab_press_s6_collapse_echo38 as base
 import fraktal_ab_press_s6_shelving_echo38 as shelving
-import fraktal_ab_projection as projection
 from test_fraktal_ab_s6_shelving_profile import Bench
 
 APP = base.application()

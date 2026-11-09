@@ -39,9 +39,7 @@ class Capture(unittest.TestCase):
             TextValue='950', IntValue=19, DurationMs=0))
 
     def test_raw_configuration_and_audit_are_accounted_not_projected(self):
-        with patch.object(capture, 'APP', APP), patch.object(views, 'surface', return_value={'native': -1}) as read, \
-                patch.object(capture.projection, 'read_records', side_effect=AssertionError()), \
-                patch.object(capture.projection, 'read_config_audit', side_effect=AssertionError()):
+        with patch.object(capture, 'APP', APP), patch.object(views, 'surface', return_value={'native': -1}) as read:
             self.assertEqual(capture.configuration('comm'), {'native': -1})
             self.assertEqual(capture.audit_rows('comm'), {'native': -1})
         self.assertEqual([c.args for c in read.call_args_list], [('comm', 'Cfg0'), ('comm', 'ConfigAudit')])
@@ -62,8 +60,7 @@ class Capture(unittest.TestCase):
             finally:
                 calls.append('closed')
         with patch.object(capture, 'APP', APP), patch.object(views, 'viewer', viewer), \
-                patch.object(capture.px, 'seed_sequence', return_value=0xffffffff), \
-                patch.object(capture.gateway, 'Gateway', side_effect=AssertionError('Python gateway')):
+                patch.object(capture.px, 'seed_sequence', return_value=0xffffffff):
             rows = asyncio.run(capture.viewer_rows(object(), '601FC87B', 4))
         self.assertTrue(all(row['passed'] for row in rows))
         self.assertEqual(calls, [('read', 'Press'), ('write', 'Press', 0, {'Kind': capture.mb.START}), 'closed'])

@@ -627,8 +627,11 @@ def content_hash(app: decl.Application) -> str:
     import json
 
     rows = content(app)
-    import fraktal_ab_mailbox_frame as frame
-    identity = dict(tables=rows, nativeMailbox=frame.profile(app))
+    path_bytes = len(f'FRK_{app.name}_HmiRequest.Frame.Words')
+    words = (500 - 110 - path_bytes - path_bytes % 2) // 4
+    arg_bytes = (words - 10 - 1) * 4
+    frame_prof = dict(schema=1, connectionBytes=500, words=words, stringArgumentBytes=arg_bytes)
+    identity = dict(tables=rows, nativeMailbox=frame_prof)
     if app.signal_tower is not None:
         import dataclasses
         identity['signalTower'] = dict(schema=1, config=dataclasses.asdict(app.signal_tower), timer='TONR')

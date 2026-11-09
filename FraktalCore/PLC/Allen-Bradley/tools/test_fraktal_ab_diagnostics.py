@@ -16,7 +16,41 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_library as library
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+def _controller_time(date, time):
+    if date <= 0: return 0
+    y, m, d = date // 10000, (date // 100) % 100, date % 100
+    hh, mm = time // 10_000_000, (time // 100_000) % 100
+    ss, ms = (time // 1000) % 100, time % 1000
+    return f"{y:04d}-{m:02d}-{d:02d}T{hh:02d}:{mm:02d}:{ss:02d}.{ms:03d}Z"
+
+def module_status(context, app, name):
+    reason = context.get("OutImm_Reason", 0)
+    roles = context.get("OutImm_IoRoles", 0)
+    stamped = context.get("DiagStamped", 0)
+    since_date = context.get("DiagSinceDate", 0)
+    since_time = context.get("DiagSinceTime", 0)
+    since = _controller_time(since_date, since_time) if stamped == reason and reason else 0
+    io_tag, io_address = library.io_join(app, name, roles)
+    return {
+        "Status/Diagnostic/ReasonCode": reason,
+        "Status/Diagnostic/Description": f"std.reason.{reason}" if reason else "",
+        "Status/Diagnostic/IoTag": io_tag,
+        "Status/Diagnostic/IoAddress": io_address,
+        "Status/Diagnostic/Since": since,
+        "Status/Diagnostic/TimeSynchronized": False,
+    }
+
+def unit_status(unit, chart=None):
+    reason = unit.get("DiagReason", 0)
+    roles = unit.get("DiagIoRoles", 0)
+    source = unit.get("ErrorSource", 0)
+    module_name = APP.modules[source - 1].name if 1 <= source <= len(APP.modules) else ""
+    io_tag, io_address = library.io_join(APP, module_name, roles)
+    return {
+        "Status/Diagnostic/ReasonCode": reason,
+        "Status/Diagnostic/IoTag": io_tag,
+        "Status/Diagnostic/IoAddress": io_address,
+    }
 import fraktal_ab_st_model as st
 
 
@@ -31,7 +65,7 @@ class Cylinder:
     """The cylinder AOI's body, run against one context."""
 
     def __init__(self, **ctx):
-        context = st.structure(gen.module_context_members(library.CYLINDER))
+        context = st.structure(gen.module_storage_members(library.CYLINDER))
         context.update(Par_TaskPeriodMs=10, **ctx)
         self.plc = st.Controller({"Ctx": context, "Scan": 0})
         self.logic = st.parse("\n".join(gen.type_logic(library.CYLINDER)))
@@ -105,32 +139,32 @@ class TheJoin(unittest.TestCase):
         """The slide's logical EXTENDED end is 'inside', where the feeder is
         RETRACTED: _101B301A (CX2030_PRESS_IO_MAPPING, TC3 FB_PressIoCatalog).
         Reading the channel description instead would name the wrong sensor."""
-        self.assertEqual(projection.io_join(APP, "PartSlide", EXTENDED)[0], "_101B301A")
-        self.assertEqual(projection.io_join(APP, "PartSlide", RETRACTED)[0], "_101B301B")
-        self.assertEqual(projection.io_join(APP, "Door", EXTENDED)[0], "_101B201A")
-        self.assertEqual(projection.io_join(APP, "PressRam", EXTENDED)[0], "_101B202A")
+        self.assertEqual(library.io_join(APP, "PartSlide", EXTENDED)[0], "_101B301A")
+        self.assertEqual(library.io_join(APP, "PartSlide", RETRACTED)[0], "_101B301B")
+        self.assertEqual(library.io_join(APP, "Door", EXTENDED)[0], "_101B201A")
+        self.assertEqual(library.io_join(APP, "PressRam", EXTENDED)[0], "_101B202A")
 
     def test_the_address_is_the_logix_channel_address(self):
         """channel_address is also what the fieldbus view publishes, so an
         alarm and the channel it cross-links to name the same terminal."""
-        self.assertEqual(projection.io_join(APP, "PressRam", RETRACTED),
+        self.assertEqual(library.io_join(APP, "PressRam", RETRACTED),
                          ("_101B202B", "Local:1:I.5"))
 
     def test_both_roles_join_the_way_tc3_joins_them(self):
-        tag, address = projection.io_join(APP, "Door", EXTENDED | RETRACTED)
+        tag, address = library.io_join(APP, "Door", EXTENDED | RETRACTED)
         self.assertEqual(tag, "_101B201A / _101B201B")
         self.assertEqual(address, "Local:1:I.2 / Local:1:I.3")
 
     def test_nothing_implicated_names_nothing(self):
-        self.assertEqual(projection.io_join(APP, "Door", 0), ("", ""))
-        self.assertEqual(projection.io_join(APP, "NoSuchModule", EXTENDED), ("", ""))
+        self.assertEqual(library.io_join(APP, "Door", 0), ("", ""))
+        self.assertEqual(library.io_join(APP, "NoSuchModule", EXTENDED), ("", ""))
 
 
 class ThePublishedDiagnostic(unittest.TestCase):
     def module(self, **ctx):
-        context = st.structure(gen.module_context_members(library.CYLINDER))
+        context = st.structure(gen.module_storage_members(library.CYLINDER))
         context.update(ctx)
-        return projection.module_status(context, APP, "PressRam")
+        return module_status(context, APP, "PressRam")
 
     def test_a_faulted_module_says_what_where_and_since_when(self):
         out = self.module(Error=1, OutImm_Reason=NOT_EXTENDED, OutImm_IoRoles=EXTENDED,
@@ -152,11 +186,11 @@ class ThePublishedDiagnostic(unittest.TestCase):
         self.assertEqual(out["Status/Diagnostic/Description"], "")
 
     def test_the_unit_publishes_the_adopted_childs_sensor(self):
-        unit = dict(st.structure(gen.unit_context_members(APP)),
+        unit = dict(st.structure(gen.unit_storage_members(APP)),
                     Error=1, ErrorID=NOT_EXTENDED, ErrorSource=gen.module_source(APP, "Door"),
                     DiagReason=NOT_EXTENDED, DiagStamped=NOT_EXTENDED, DiagIoRoles=RETRACTED,
                     DiagSinceDate=20260930, DiagSinceTime=1000)
-        out = projection.unit_status(unit, None)
+        out = unit_status(unit, None)
         self.assertEqual(out["Status/Diagnostic/ReasonCode"], NOT_EXTENDED)
         self.assertEqual(out["Status/Diagnostic/IoTag"], "_101B201B")
 
@@ -164,9 +198,9 @@ class ThePublishedDiagnostic(unittest.TestCase):
         """A rolled-up hold is the Unit's diagnostic but not a fault, so the
         Unit implicates no I/O for it."""
         held = demo.REASONS["INTERLOCK_DROPPED"]
-        unit = dict(st.structure(gen.unit_context_members(APP)),
+        unit = dict(st.structure(gen.unit_storage_members(APP)),
                     Running=1, DiagReason=held, DiagStamped=held, DiagIoRoles=0)
-        out = projection.unit_status(unit, None)
+        out = unit_status(unit, None)
         self.assertEqual(out["Status/Diagnostic/ReasonCode"], held)
         self.assertEqual(out["Status/Diagnostic/IoTag"], "")
 

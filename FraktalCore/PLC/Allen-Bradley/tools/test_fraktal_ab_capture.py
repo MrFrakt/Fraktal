@@ -8,8 +8,8 @@ import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_mailbox as mb
 import fraktal_ab_manifest as mf
+import fraktal_ab_manifest_read as reader
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_station_template as template
 from fraktal_ab_st_model import Controller
 
@@ -234,7 +234,7 @@ class CaptureBehavior(unittest.TestCase):
         audit = c.tags[config.audit_tag(APP)]
         self.assertEqual((audit['Head'], audit['Count']), (3, config.AUDIT_CAPACITY))
         self.assertEqual(audit['Sequence'][2], config.AUDIT_CAPACITY + 3)
-        page = projection.config_audit_status(APP, mf.content(APP), audit)
+        page = reader.config_audit_status(APP, mf.content(APP), audit)
         self.assertEqual(page['ConfigAudit/Entries[1]/ValueText'], str(1000 + config.AUDIT_CAPACITY + 3))
         self.assertEqual(page['ConfigAudit/Entries[1]/User'], 'owner')
         self.assertEqual(page['ConfigAudit/Entries[1]/CaptureSource'], 'Profiler.LastWork')

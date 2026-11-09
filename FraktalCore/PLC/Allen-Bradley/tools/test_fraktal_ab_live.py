@@ -18,7 +18,7 @@ import fraktal_ab_access as access
 import fraktal_ab_config as config
 import fraktal_ab_declaration as decl
 import fraktal_ab_document_revision as docrev
-import fraktal_ab_gateway as gw
+# Legacy gateway import pruned
 import fraktal_ab_generate as gen
 import fraktal_ab_live as live
 import fraktal_ab_mailbox as mb
@@ -480,7 +480,18 @@ class EndToEnd(unittest.TestCase):
             c = comm.c
             c.tags[STATION_TAG]['SchemaVersion'] = 0  # the download left it never-written
             c.tags[f'FRK_{LIVE.name}_Unit'].update(ModelOrdinal=1, CommitModel=0)
-            writer = gw.MailboxWriter('unused', 0, '7036B510', LIVE, set_store=object())
+            class DirectWriter:
+                def live_command(self, writes, mailbox_path, staged, store_result=0):
+                    import fraktal_ab_set_broker as broker
+                    def _write_base(comm_arg, writes_arg):
+                        for target, _type, value in writes_arg:
+                            member = target.rsplit('/', 1)[-1]
+                            for tag, val in mb.member_writes(LIVE, member, value):
+                                comm.Write(tag, val)
+                        return True
+                    with mock.patch('pylogix.PLC', return_value=comm):
+                        return broker.restore_command(comm, LIVE, writes, _write_base, staged, store_result)
+            writer = DirectWriter()
             sequence = [0]
 
             def command(kind, staged, *, name='', model=0, store_result=0):
@@ -510,59 +521,6 @@ class EndToEnd(unittest.TestCase):
             commits = [v for t, v in comm.writes if t == mb.request_tag_name(LIVE) + '.Sequence']
             self.assertEqual(commits, list(range(1, sequence[0] + 1)))
 
-
-class GatewayLive(unittest.IsolatedAsyncioTestCase):
-    def fixture(self, held_value, *, write_token='fixture'):
-        values = {'Press/HmiRequest/Sequence': 9, 'Press/HmiResponse/AckSequence': 9,
-                  'Press/ConfigPersist/Failed': False, 'Press/ConfigPersist/LastRejectKey': ''}
-        station = gw.Station(lambda: {'values': dict(values), 'liveConfig': held_value}, cache_ttl=0)
-        writer = mock.Mock()
-        writer.live_command = mock.Mock(return_value={'Accepted': 1, 'DiagnosticKey': 0})
-        keeper = mock.Mock(wraps=live.Keeper(LIVE, live.FileMedium(self.folder)))
-        g = gw.Gateway(station, write_token=write_token, write_roots=frozenset({'Press'}),
-                       write_fn=writer, live_keeper=keeper)
-        return g, writer, keeper
-
-    def setUp(self):
-        folder = tempfile.TemporaryDirectory()
-        self.addCleanup(folder.cleanup)
-        self.folder = folder.name
-
-    async def test_a_read_only_gateway_keeps_documents_but_never_restores(self):
-        g, writer, keeper = self.fixture(held(restoring=True), write_token='')
-        await g.live_cycle()
-        writer.live_command.assert_not_called()
-        self.assertIn('read-only', keeper.error)
-
-    async def test_a_restore_burns_forward_sequences_under_the_mailbox_lock(self):
-        g, writer, _keeper = self.fixture(held(restoring=True))
-        await g.live_cycle()
-        sequences = [call.args[0][-1][2] for call in writer.live_command.call_args_list]
-        self.assertEqual(sequences, list(range(10, 10 + len(sequences))))
-        self.assertGreaterEqual(len(sequences), 1)
-        self.assertEqual(g._mailbox_sequences['Press/HmiRequest'], sequences[-1])
-        state = gw._ConnState()
-        state.authenticated = True
-        stale = {'writes': [{'path': 'Press/HmiRequest/Kind', 'valueType': 'int32', 'value': mb.STOP},
-                            {'path': 'Press/HmiRequest/Sequence', 'valueType': 'uint32', 'value': sequences[-1]}]}
-        with self.assertRaises(gw.WriteRefused):
-            await g._write_batch(state, stale)  # an HMI that raced it is refused, never mis-acknowledged
-
-    async def test_an_intact_controller_is_kept_and_the_capture_is_never_sent(self):
-        g, writer, keeper = self.fixture(held())
-        await g.live_cycle()
-        keeper.keep.assert_called_once()
-        writer.live_command.assert_not_called()
-        snapshot = await g._snapshot(gw._ConnState())
-        self.assertNotIn('liveConfig', snapshot)
-
-    async def test_a_keeper_failure_overlays_the_published_status(self):
-        g, _writer, keeper = self.fixture(held())
-        keeper.values = mock.Mock(return_value={'Press/ConfigPersist/Failed': True, 'Press/Unpublished': 1})
-        doc = await g.station.document()
-        values = g._values_for(gw._ConnState(), doc)
-        self.assertTrue(values['Press/ConfigPersist/Failed'])
-        self.assertNotIn('Press/Unpublished', values)  # the path set never moves
 
 
 if __name__ == '__main__':

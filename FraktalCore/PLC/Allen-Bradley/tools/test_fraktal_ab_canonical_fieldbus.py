@@ -13,9 +13,151 @@ import fraktal_ab_canonical_publication as pub
 import fraktal_ab_canonical_manifest as wire
 import fraktal_ab_genealogy_s3j_demo as demo
 import fraktal_ab_genealogy_s3i_demo as prior
-import fraktal_ab_s3j_reference as reference
+import struct
 import fraktal_ab_st_model as st
-from test_fraktal_ab_s3g_metrics import NativeRealModel
+
+def f32(v):
+    return struct.unpack('f', struct.pack('f', float(v)))[0]
+
+class NativeRealModel(st.Controller):
+    def eval(self, node):
+        if node[0] == 'bin':
+            op = node[1]
+            a = self.eval(node[2])
+            b = self.eval(node[3])
+            if type(a) is float or type(b) is float:
+                if op in ('+', '-', '*', '/'):
+                    a, b = f32(a), f32(b)
+                    if op == '/':
+                        return f32(a / b)
+                    return f32({'+': lambda: a + b, '-': lambda: a - b, '*': lambda: a * b}[op]())
+                return {'=': a == b, '<>': a != b, '<': a < b, '>': a > b, '<=': a <= b, '>=': a >= b}[op]
+        return super().eval(node)
+
+    def write(self, ref, value):
+        holder, key = self._container(ref)
+        if type(holder[key]) is bool:
+            holder[key] = bool(value)
+        elif type(holder[key]) is float:
+            holder[key] = f32(value)
+        else:
+            super().write(ref, value)
+
+def topology(app, io_state: dict | None):
+    if not app.io_modules:
+        return {}
+    root = f"{app.name}Fieldbus/Topology"
+    values = {
+        f"{root}/NodeCount": len(app.io_modules),
+        f"{root}/MappingValid": True,
+        f"{root}/MappingDiagnostic": "",
+    }
+    for index, module in enumerate(app.io_modules, start=1):
+        node = f"{root}/Nodes[{index}]"
+        state = (io_state or {}).get(module.address)
+        live = state is not None and all(key in state for key in ("input", "output", "fault"))
+        fault_known = state is not None and "fault" in state
+        faults = (state or {}).get("fault", 0)
+        forced = (state or {}).get("forced", 0)
+        force_permitted = bool((state or {}).get("forcePermitted", 0))
+        mask = (1 << module.data_width) - 1
+        inhibited = live and (faults & mask) == mask
+        if not live or inhibited:
+            node_state = 0
+        elif faults:
+            node_state = 5
+        else:
+            node_state = 4
+        values.update({
+            f"{node}/Name": module.name,
+            f"{node}/DescriptionKey": module.description_key,
+            f"{node}/TypeId": module.type_id,
+            f"{node}/Address": module.address,
+            f"{node}/State": node_state,
+            f"{node}/LinkOk": node_state == 4,
+            f"{node}/ParentIdx": 0,
+            f"{node}/ChannelCount": len(module.channels),
+        })
+        for position, channel in enumerate(module.channels, start=1):
+            leaf = f"{node}/Channels[{position}]"
+            outward = channel.direction == 1
+            direction = "output" if outward else "input"
+            sampled = state is not None and direction in state
+            word = (state or {}).get(direction, 0)
+            faulted = bool(faults >> channel.bit & 1) if fault_known else False
+            valid = sampled and fault_known and not faulted
+            is_forced = bool(forced >> channel.bit & 1) if outward and live else False
+            values.update({
+                f"{leaf}/Name": channel.name,
+                f"{leaf}/DescriptionKey": channel.description_key,
+                f"{leaf}/Address": f"{module.address}:{'O' if outward else 'I'}.{channel.bit}",
+                f"{leaf}/Path": f"{module.name}.{channel.name}",
+                f"{leaf}/ModulePath": f"{app.name}.{channel.module_path}" if channel.module_path else app.name,
+                f"{leaf}/Dir": channel.direction,
+                f"{leaf}/Kind": channel.kind,
+                f"{leaf}/BoolValue": bool((word >> channel.bit) & 1) if sampled else False,
+                f"{leaf}/AnalogValue": 0,
+                f"{leaf}/Unit": channel.unit,
+                f"{leaf}/Quality": valid,
+                f"{leaf}/FaultActive": faulted,
+                f"{leaf}/Diagnostic": "",
+                f"{leaf}/Forced": is_forced,
+                f"{leaf}/Forceable": outward and valid and force_permitted,
+            })
+    return values
+
+def reference_values(app, samples, *, mapping_valid=True):
+    if len(samples) != len(app.io_modules):
+        raise ValueError('one sample per declared I/O module required')
+    if not app.io_modules:
+        return {}
+    io = {}
+    for module, s in zip(app.io_modules, samples):
+        io[module.address] = dict(forced=s['ForcedWord'], forcePermitted=0)
+        for key, word, valid in (('input', 'InputWord', 'InputValid'), ('output', 'OutputWord', 'OutputValid'), ('fault', 'FaultWord', 'FaultValid')):
+            if s[valid] == 1:
+                io[module.address][key] = s[word] & ((1 << module.data_width) - 1)
+    old = topology(app, io)
+    root = app.name + 'Fieldbus/Topology'
+    result = {
+        root + '/NodeCount': 0,
+        root + '/MappingValid': mapping_valid,
+        root + '/MappingDiagnostic': '' if mapping_valid else 'std.error.fieldbusChannelMappingInvalid',
+    }
+    for index, module in enumerate(app.io_modules, 1):
+        source = f'{root}/Nodes[{index}]'
+        groups = [('', module.channels)] if len(module.channels) <= 16 else [('', ()), ('.I', tuple(c for c in module.channels if c.direction == 0)), ('.O', tuple(c for c in module.channels if c.direction == 1))]
+        parent = result[root + '/NodeCount'] + 1
+        for suffix, channels in groups:
+            if suffix and not channels:
+                continue
+            result[root + '/NodeCount'] += 1
+            n = result[root + '/NodeCount']
+            target = f'{root}/Nodes[{n}]'
+            for field in ('Name', 'DescriptionKey', 'TypeId', 'Address', 'State', 'LinkOk', 'ParentIdx', 'ChannelCount'):
+                v = old[source + '/' + field]
+                if field == 'Name':
+                    v = module.name + suffix
+                elif field == 'Address':
+                    v = module.address + (':' + suffix[1:] if suffix else '')
+                elif field == 'ParentIdx':
+                    v = parent if suffix else 0
+                elif field == 'ChannelCount':
+                    v = len(channels)
+                result[target + '/' + field] = v
+            for slot, channel in enumerate(channels, 1):
+                original = module.channels.index(channel) + 1
+                prefix = f'{source}/Channels[{original}]/'
+                dest = f'{target}/Channels[{slot}]/'
+                for path, value in old.items():
+                    if path.startswith(prefix):
+                        field = path[len(prefix):]
+                        if field == 'AnalogValue':
+                            value = float(value)
+                        if field == 'Quality':
+                            value = value and mapping_valid
+                        result[dest + field] = value
+    return result
 
 
 def value(schema,kind,initial=None):
@@ -62,7 +204,7 @@ class FieldbusBehaviorTests(unittest.TestCase):
         return result
 
     def assert_oracle(self,*,valid=True):
-        expected=reference.values(self.app,self.tags[bus.samples_tag(self.app)],mapping_valid=valid)
+        expected=reference_values(self.app,self.tags[bus.samples_tag(self.app)],mapping_valid=valid)
         actual=self.actual();self.assertEqual(actual,expected)
         self.assertEqual({p:type(v) for p,v in actual.items()},{p:type(v) for p,v in expected.items()})
 
@@ -132,7 +274,7 @@ class FieldbusEngineeringTests(unittest.TestCase):
     def test_empty_product_does_not_allocate_ceilings_or_dummy_snapshot_rows(self):
         app=replace(demo.application(),io_modules=(),canonical_io_fixture=False)
         h=pub.manifest_values(app);self.assertEqual(h['DataProducts'],[])
-        self.assertEqual(reference.values(app,[]),{})
+        self.assertEqual(reference_values(app,[]),{})
         self.assertNotIn(bus.TOPOLOGY,pub.schema(app))
         self.assertEqual(bus.products(prior.application()),[])
 

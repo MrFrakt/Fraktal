@@ -60,7 +60,7 @@ def routine_name(app) -> str:
 def _surfaces(app):
     """Every surface a fixture may observe: its members and the tag that holds them."""
     import fraktal_ab_generate as gen
-    out = {'Unit': (gen.unit_context_members(app), f'FRK_{app.name}_Unit'),
+    out = {'Unit': (gen.unit_storage_members(app), f'FRK_{app.name}_Unit'),
            'Chart': (gen.chart_members(app), f'FRK_{app.name}_Chart')}
     import fraktal_ab_mailbox as mailbox
     out['Mailbox'] = ((decl.scalar('DiagnosticKey', 'the exact numeric refusal key asserted by the apparatus'),),

@@ -36,8 +36,7 @@ def validate(app):
     stage = app.canonical_publication_stage
     if type(stage) is not int or stage not in (0, wire.STAGE, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13):
         return ["canonical publication supports only disabled, S2 through S3j"]
-    import fraktal_ab_canonical_observation as observation
-    findings = observation.validate(app)
+    findings = []
     import fraktal_ab_canonical_text as text
     findings += text.validate(app)
     import fraktal_ab_canonical_type_manifest as type_manifest
@@ -366,9 +365,7 @@ def data_types(app):
         if app.canonical_io_fixture and kind==PREFIX+'IoSampleV65':
             for member in members:member.set('ExternalAccess','Read/Write')
         out.append(ET.tostring(node,encoding="unicode"))
-    import fraktal_ab_canonical_observation as observation
-    # Last: the frame nests the root and legacy owner types declared before it.
-    return out+observation.data_types(app)
+    return out
 
 
 def initial(app):
@@ -576,8 +573,7 @@ def tags(app):
             *__import__('fraktal_ab_owner_read_bindings').tags(app,tag),
             *__import__('fraktal_ab_host_services').tags(app,tag),
             f'<Tag Name="{generation_tag(app)}" TagType="Base" DataType="DINT" Radix="Decimal" ExternalAccess="Read Only"/>',
-            tag(f'FRK_{app.name}_CanonicalTiming',PREFIX+"TimingV6",{}),
-            *__import__("fraktal_ab_canonical_observation").tags(app)]
+            tag(f'FRK_{app.name}_CanonicalTiming',PREFIX+"TimingV6",{})]
 
 
 def cyclic(app):
@@ -668,8 +664,7 @@ def cyclic(app):
     # even generation proves it together with the canonical rows.
     lines += __import__('fraktal_ab_fixture_observation').cyclic(app)
     lines += [f'{generation_tag(app)} := {generation_tag(app)} + 1;']
-    import fraktal_ab_canonical_observation as observation
-    return lines + observation.cyclic(app)
+    return lines
 
 
 def publication_bindings(app):

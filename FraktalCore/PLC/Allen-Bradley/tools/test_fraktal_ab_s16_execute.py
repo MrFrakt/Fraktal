@@ -255,7 +255,7 @@ class FingerprintTests(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertIn("failed_tag", result)
 
-    def test_fingerprint_tags_are_read_only_context_members(self):
+    def test_fingerprint_tags_are_read_only_storage_members(self):
         for tag in FINGERPRINT_TAGS:
             self.assertNotIn(tag, WRITABLE)
 

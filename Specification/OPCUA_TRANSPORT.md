@@ -113,6 +113,41 @@ unlike the CPU's OPC UA server. Measured on a CPU 1214C V4.7.3
   on simulated1516 V3.0/Advanced7; full Unit rendering and commands are separate
   gates ([evidence](Siemens/Evidence/TIA_S12_WEBAPI_ADVANCED7_2026-10-10.md)).
 
+## Allen-Bradley CIP transport (Fraktal/AB)
+
+The desktop HMI and the Fraktal WebSocket gateway connect to an Allen-Bradley
+Logix controller (CompactLogix 5380, ControlLogix 5580, or FactoryTalk Logix Echo
+at v37+) using the `cip://<host>?slot=<n>&serial=<hex>` endpoint. `CipSessionClient`
+in `fraktal_opcua_client` communicates directly over EtherNet/IP (CIP explicit
+messaging) using the controller's Symbol (0x6B) and Template (0x6C) objects plus
+the validated PLC-resident manifest (`FRK_Manifest`), and emits the canonical
+`fraktal.opcua.snapshot.v1` document.
+
+- **Direct vs. Gateway:** Direct CIP from the desktop HMI is explicitly read-only
+  unless connected via a commissioned CIP Security session. FactoryTalk Logix Echo
+  does not support CIP Security, so Echo desktop connections are strictly read-only.
+  Web clients connect through the Fraktal WebSocket gateway (`--plc-endpoint cip://...`),
+  which enforces authenticated `wss://` posture and Core §14 access gates for commands.
+- **Discovery:** The client enumerates controller-scope tags and templates via CIP
+  objects 0x6B/0x6C. Module roots are identified by their standard `Status` contract
+  (`Status.State`, `Status.Name`). Canonical paths and logical types/bounds are
+  resolved from the validated manifest (manifest major 6, V6.4 type annotations,
+  V6.5 data products, V6.7 coherence, V6.8 read services, V6.10 owner revisions,
+  V6.11 host services).
+- **Row coherence & freshness:** Reads are governed by hash-covered
+  `ReadCoherenceBindings` (V6.7) and `OwnerReadBindings` (V6.10). Fast/slow cyclic
+  reads sample equal-even seqlock counters or owner revisions enclosing each native
+  request. Samples exceeding their tier's freshness limit (e.g. 1,000 ms fast tier)
+  or failing coherence validation fail closed to Uncertain or Bad and are withheld.
+- **Command writer:** Mailbox writes serialize arguments to `HmiRequest` before
+  issuing a separate `Sequence` commit. Writes require matching PLC acknowledgement
+  (`AckSequence`) and acceptance; timeouts and reconnects never replay unacknowledged
+  commands.
+- **Read-only configuration view:** Under V6.8+, `readConfigurationPage` reads
+  the PLC-published `ReadServices` view (`Definitions` and `Values`) without issuing
+  unsecured CIP writes, formatting access-masked values and validating bank/revision
+  coherence.
+
 ## Native ABI
 
 The native library exports create/connect/disconnect, snapshot, typed write and

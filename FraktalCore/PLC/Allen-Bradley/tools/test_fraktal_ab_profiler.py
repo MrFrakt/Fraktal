@@ -15,10 +15,8 @@ import unittest
 
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 from test_fraktal_ab_oee import pl_fraktal
-from test_fraktal_ab_projection import profiler_values
 from test_fraktal_ab_rendition_cycle import APP, AUTO, Press, UNIT, CHART, SCAN
 
 
@@ -61,7 +59,7 @@ class Station:
     """The observer alone, over the tags it reads, driven step by step."""
 
     def __init__(self):
-        self.tags = {UNIT: st.structure(gen.unit_context_members(APP)),
+        self.tags = {UNIT: st.structure(gen.unit_storage_members(APP)),
                      CHART: st.structure(gen.chart_members(APP)),
                      PROF: st.structure(gen.profiler_members(APP)),
                      CFG: st.structure(APP.records[0].members),
@@ -265,45 +263,6 @@ class AStopAbandonsTheCycle(unittest.TestCase):
                          "a step that closed before the stop still counts")
         self.assertEqual(s.prof["StatCount"][ORDER.index(130)], 0,
                          "the step it stopped in does not")
-
-
-class ThePublishedProfile(unittest.TestCase):
-    def test_where_the_hmi_reads_it(self):
-        press = Profiled(decl.ST)
-        press.one_cycle()
-        out = projection.profiler_status(APP, press.prof)
-        prof = press.prof
-        self.assertEqual(out["Profiler/LastCycle/CycleNo"], 1)
-        self.assertEqual(out["Profiler/LastCycle/NSteps"], prof["LastN"])
-        self.assertEqual(out["Profiler/LastCycle/WaitTime"],
-                         prof["LastTotal"] - prof["LastWork"])
-        self.assertEqual(out["Profiler/LastCycle/Steps[1]/StepNo"], 100)
-        self.assertEqual(out["Profiler/LastCycle/Steps[1]/StepName"],
-                         "project.step.awaitTwoHandStart")
-        self.assertEqual(out["Profiler/LastCycle/Steps[1]/TimeClass"], CLASS["WAIT_OPERATOR"])
-        row = ORDER.index(110) + 1
-        self.assertEqual((out[f"Profiler/StepStats[{row}]/Id"],
-                          out[f"Profiler/StepStats[{row}]/Count"]), (110, 1))
-        self.assertEqual(out["Profiler/HistoryHead"], 1)
-        self.assertEqual(out["Profiler/History[1]/ByClass[3]"],
-                         out["Profiler/LastCycle/WaitTime"])
-
-    def test_the_path_set_never_moves_with_a_cycle(self):
-        empty = projection.profiler_status(APP, profiler_values())
-        press = Profiled(decl.ST)
-        press.one_cycle()
-        self.assertEqual(set(projection.profiler_status(APP, press.prof)), set(empty))
-        self.assertEqual(sum(1 for k in empty if k.startswith("Profiler/History[")),
-                         gen.CYCLE_HISTORY * (4 + len(decl.TIME_CLASSES)))
-
-    def test_an_unvisited_step_is_an_empty_row(self):
-        out = projection.profiler_status(APP, profiler_values())
-        self.assertEqual((out["Profiler/StepStats[1]/Count"], out["Profiler/StepStats[1]/Label"]),
-                         (0, ""))
-        self.assertEqual(out["Profiler/LastCycle/CycleNo"], 0)
-
-    def test_nothing_without_the_profile(self):
-        self.assertEqual(projection.profiler_status(APP, None), {})
 
 
 if __name__ == "__main__":

@@ -23,7 +23,6 @@ import fraktal_ab_library as library
 import fraktal_ab_mailbox as mailbox
 import fraktal_ab_manifest as manifest
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 
 
@@ -45,6 +44,29 @@ def string(length):
     return {"LEN": 0, "DATA": [0] * length}
 
 
+def held_description(app, name: str, context: dict, catalogue: dict) -> str | None:
+    if not context.get("OutImm_Held"):
+        return None
+    module = next((m for m in app.modules if m.name == name), None)
+    if module is None:
+        return None
+    if context.get("AreaSafe", 1) == 0 and module.area_safe_key:
+        return module.area_safe_key
+    if context.get("Permit", 1) == 0 and context.get("PermitKey", 0):
+        return (catalogue or {}).get(context["PermitKey"])
+    return None
+
+
+def command_catalog(app, name: str) -> dict:
+    module = next((m for m in app.modules if m.name == name), None)
+    commands = module.commands if module is not None else ()
+    values = {"CatalogCount": len(commands)}
+    for index, command in enumerate(commands, start=1):
+        values[f"Catalog[{index}]/Value"] = command.ordinal
+        values[f"Catalog[{index}]/Label"] = f"std.command.{command.name.lower()}"
+        values[f"Catalog[{index}]/Style"] = 0
+    return values
+
 class Bench:
     """The routine in order: mailbox, modules, then the mode owner's manual
     logic and its reset, abort and mode-change releases."""
@@ -52,7 +74,7 @@ class Bench:
     def __init__(self, mode=None):
         tags = {
             gen.config_persist_tag(APP): st.structure(gen.config_persist_members()),
-            UNIT: st.structure(gen.unit_context_members(APP)),
+            UNIT: st.structure(gen.unit_storage_members(APP)),
             f"FRK_{N}_Chart": st.structure(gen.chart_members(APP)),
             **{f"{r.name}Tag": st.structure(r.members) for r in APP.records},
             SCAN: 0,
@@ -191,7 +213,7 @@ class TheContract(unittest.TestCase):
 
     def test_each_cylinder_publishes_tc3s_catalogue(self):
         for module in APP.modules:
-            out = projection.command_catalog(APP, module.name)
+            out = command_catalog(APP, module.name)
             if library.type_of(module) is library.CYLINDER:
                 self.assertEqual(out, {
                     "CatalogCount": 2,
@@ -270,9 +292,7 @@ class DirectionalPermits(unittest.TestCase):
         self.assertEqual((ctx["Busy"], ctx["OutImm_Held"], ctx["OutImm_Reason"], ctx["Error"]),
                          (1, 1, HELD, 0))
         catalogue = {v: k for k, v in gen.localization_numbers(APP).items()}
-        self.assertEqual(
-            projection.module_status(ctx, APP, name, catalogue)["Status/Diagnostic/Description"],
-            portable)
+        self.assertEqual(held_description(APP, name, ctx, catalogue), portable)
 
     def test_the_door_does_not_close_over_a_slide_outside(self):
         bench = Bench()

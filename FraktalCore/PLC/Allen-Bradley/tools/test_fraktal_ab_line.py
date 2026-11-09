@@ -146,8 +146,8 @@ class Calendar(unittest.TestCase):
 class Writes(unittest.TestCase):
     def test_same_named_recipe_and_line_values_keep_their_own_storage_and_audit(self):
         import fraktal_ab_config as config
-        import fraktal_ab_projection as projection
         import fraktal_ab_data_access as data
+        import fraktal_ab_manifest_read as reader
         app = dataclasses.replace(APP, baseline_work_member='StartMin1',
             records=tuple(dataclasses.replace(r, members=tuple(
                 dataclasses.replace(m, name='StartMin1') if m.name == 'BaselineWorkMs' else m
@@ -166,7 +166,7 @@ class Writes(unittest.TestCase):
         self.assertEqual(bank['StartMin1'], old_recipe)
         audit = c.tags[config.audit_tag(app)]
         self.assertEqual(audit['ModelOrdinal'][audit['Head'] - 1], 0)
-        page = projection.config_page(app, mf.content(app),
+        page = reader.config_page(app, mf.content(app),
             {r.name: c.tags[r.name + 'Tag'] for r in app.records},
             c.tags[gen.model_cfg_tag(app)], model=2, data_levels=c.tags[data.tag(app, 'Levels')])
         prefix = next(k.rsplit('/', 1)[0] for k, v in page.items()

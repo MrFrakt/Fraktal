@@ -311,3 +311,135 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def _config_revision(app, entries: list[dict[str, Any]]) -> int:
+    import hashlib
+    material = "|".join(
+        [str(manifest.config_revision(app))]
+        + [f"{e['WriteKey']}={e['ValueText']}:{e['ReadLevel']}:{e['WriteLevel']}:{e['Readable']}" for e in entries])
+    digest = hashlib.sha256(material.encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) & 0x7FFFFFFF
+
+
+def config_page(app, rows: dict[str, Any],
+                record_values: dict[str, dict[str, int]] | None,
+                model_values: list[dict[str, int]] | None = None,
+                model: int = 0, data_levels=None) -> dict[str, Any]:
+    capabilities = rows.get("WriteCapabilities") or []
+    if not capabilities:
+        return {}
+    catalogue = {row["NumericKey"]: row["PortableKey"]
+                 for row in rows["Localization"]}
+    values = record_values or {}
+    records = {r.name: r for r in app.records}
+
+    entries: list[dict[str, Any]] = []
+    for row in capabilities:
+        if app.access_users is not None:
+            import fraktal_ab_data_access as data
+            read_level, write_level, readable = data.entry_levels(data_levels, row['CapabilityIndex'], app=app)
+        else:
+            read_level, write_level, readable = -1, -1, True
+        path = catalogue.get(row["PathKey"], "")
+        if not path:
+            continue
+        parts = path.split(".")
+        if len(parts) < 2:
+            continue
+        record, member = parts[-2], parts[-1]
+        held = values.get(record, {})
+        declared = records.get(record)
+        scoped = declared is not None and gen.is_model_scoped(app, declared, member)
+        if readable and scoped and model:
+            stored = (model_values or [])
+            if not 1 <= model <= len(stored) or member not in stored[model - 1]:
+                continue
+            held = stored[model - 1]
+        elif readable and member not in held:
+            continue
+        entries.append({
+            "Scope": app.name,
+            "Item": f"Config/{member}",
+            "ValueText": str(held[member]) if readable else "",
+            "WriteKey": catalogue.get(row["WriteKeyKey"], ""),
+            "WriteRevision": manifest.config_revision(app),
+            "ConfigKind": row["ConfigKind"],
+            "ValueType": row["ValueType"],
+            "Writable": True,
+            "RequiresReady": row["RequiresReady"] != 0,
+            "HasMinimum": True,
+            "HasMaximum": True,
+            "Minimum": row["Minimum"],
+            "Maximum": row["Maximum"],
+            "Unit": "",
+            "LabelKey": catalogue.get(row["LabelKey"], ""),
+            "EnumDomain": "",
+            "UnitCode": row["UnitCode"],
+            "EnumLabelKey": "",
+            "ClassId": catalogue.get(row.get("ClassKey", 0), ""),
+            "ReadLevel": read_level,
+            "WriteLevel": write_level,
+            "Readable": readable,
+            "ModelScoped": scoped,
+            "CaptureSource": catalogue.get(row.get("CaptureSourceKey", 0), ""),
+            "CanCapture": bool(row.get("CaptureSourceKey", 0)),
+        })
+
+    out: dict[str, Any] = {
+        "Status/ConfigRev": _config_revision(app, entries),
+        "HmiResponse/ConfigPage/PageCount": 1,
+        "HmiResponse/ConfigPage/EntryCount": len(entries),
+    }
+    for index, entry in enumerate(entries, start=1):
+        for name, value in entry.items():
+            out[f"HmiResponse/ConfigPage/Entries[{index}]/{name}"] = value
+    return out
+
+
+def _controller_time(date: int, clock: int) -> str:
+    from datetime import datetime, timezone
+    if not date or not clock:
+        return ""
+    year = date // 10000
+    month = (date % 10000) // 100
+    day = date % 100
+    hour = clock // 10000000
+    minute = (clock % 10000000) // 100000
+    second = (clock % 100000) // 1000
+    ms = clock % 1000
+    try:
+        dt = datetime(year, month, day, hour, minute, second, ms * 1000, tzinfo=timezone.utc)
+        return dt.isoformat()
+    except ValueError:
+        return ""
+
+
+def config_audit_status(app, rows, audit):
+    """Resolve the PLC's bounded write audit through its own manifest keys."""
+    if not gen.editable_values(app):
+        return {}
+    import fraktal_ab_config as config
+    import fraktal_ab_mailbox as mailbox
+    held = audit or {}
+    catalogue = {r["NumericKey"]: r["PortableKey"] for r in rows.get("Localization", [])}
+    caps = {r["CapabilityIndex"]: r for r in rows.get("WriteCapabilities", [])}
+    count = min(max(held.get("Count", 0), 0), config.AUDIT_CAPACITY)
+    head = held.get("Head", 0)
+    out = {"ConfigAudit/Present": audit is not None, "ConfigAudit/EntryCount": count}
+    for row in range(count):
+        slot = (head - 1 - row) % config.AUDIT_CAPACITY
+        cap = caps.get(held["Capability"][slot], {})
+        offset = slot * mailbox.USER_LENGTH
+        length = min(max(held["UserLength"][slot], 0), mailbox.USER_LENGTH)
+        entry = {"Sequence": held["Sequence"][slot], "Kind": held["Kind"][slot],
+                 "Scope": app.name, "WriteKey": catalogue.get(cap.get("WriteKeyKey"), ""),
+                 "ValueText": str(held["Value"][slot]),
+                 "CaptureSource": catalogue.get(held["SourceKey"][slot], ""),
+                 "Source": "capture" if held["Kind"][slot] == mailbox.CAPTURE_CONFIG else "client",
+                 "ModelOrdinal": held['ModelOrdinal'][slot], "WriteRevision": held['Revision'][slot],
+                 "Timestamp": _controller_time(held["Date"][slot], held["Clock"][slot]),
+                 "User": bytes(v & 255 for v in held["UserBytes"][offset:offset + length]).decode("utf-8", errors="replace")}
+        for name, value in entry.items():
+            out[f"ConfigAudit/Entries[{row + 1}]/{name}"] = value
+    return out

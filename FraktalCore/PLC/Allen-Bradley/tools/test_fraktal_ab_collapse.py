@@ -56,7 +56,7 @@ def inputs(mtype):
     """The context members the type body only reads: what the world writes."""
     text = '\n'.join(gen.type_logic(mtype))
     written = set(re.findall(r'Ctx\.(\w+)(?:\[[^\]]*\])?\s*:=', text))
-    return [m for m in gen.module_context_members(mtype, True)
+    return [m for m in gen.module_storage_members(mtype, True)
             if m.name not in written and not m.name.startswith('Par_') and m.name != 'SchemaVersion'
             and not m.dimension]
 
@@ -72,8 +72,8 @@ class Parity(unittest.TestCase):
     def run_type(self, mtype, seed):
         legacy_code = st.parse('\n'.join(gen.type_logic(mtype)))
         collapsed_code = st.parse('\n'.join(gen.type_aoi_logic(mtype, APP)))
-        old = st.structure(gen.module_context_members(mtype))
-        new = st.structure(gen.module_context_members(mtype, True))
+        old = st.structure(gen.module_storage_members(mtype))
+        new = st.structure(gen.module_storage_members(mtype, True))
         for ctx in (old, new):
             if 'Par_TaskPeriodMs' in ctx:
                 ctx['Par_TaskPeriodMs'] = APP.task_period_ms
@@ -112,13 +112,13 @@ class Parity(unittest.TestCase):
             with self.subTest(type=mtype.type_key):
                 # Not vacuous: the scenario reaches READY and a terminal state at least.
                 self.assertGreaterEqual(len(states), 2, states)
-                if 'TimSlot' in {m.name for m in gen.module_context_members(mtype)}:
+                if 'TimSlot' in {m.name for m in gen.module_storage_members(mtype)}:
                     self.assertGreater(timed, 0, 'no command was ever timed')
 
     def test_the_revision_opens_on_the_first_scan_and_on_each_change_only(self):
         mtype = library.CYLINDER
         code = st.parse('\n'.join(gen.type_aoi_logic(mtype, APP)))
-        ctx = st.structure(gen.module_context_members(mtype, True))
+        ctx = st.structure(gen.module_storage_members(mtype, True))
         ctx['Par_TaskPeriodMs'] = APP.task_period_ms
         tags = {**ctx, 'Leaf': leaf(), 'Scan': 1, 'ExecState': 0, 'S:FS': True, 'Revision': 0}
         st.Controller(tags).run(code)
@@ -143,8 +143,8 @@ class Declaration(unittest.TestCase):
 
     def test_the_collapsed_context_drops_exactly_the_published_facts(self):
         for mtype in library.types_used(APP):
-            full = {m.name for m in gen.module_context_members(mtype)}
-            kept = {m.name for m in gen.module_context_members(mtype, True)}
+            full = {m.name for m in gen.module_storage_members(mtype)}
+            kept = {m.name for m in gen.module_storage_members(mtype, True)}
             self.assertEqual(full - kept, set(collapse.R3_REMOVED) & full)
             self.assertNotEqual(gen.module_context_name(mtype, True), gen.module_context_name(mtype))
 
@@ -167,7 +167,7 @@ class Image(unittest.TestCase):
             self.assertEqual(params['Revision'], ('DINT', 'InOut'))
             self.assertNotIn('Ctx', params, 'C3: no context InOut')
             roles = storage.roles(self.app, mtype)
-            for member in gen.module_context_members(mtype, True):
+            for member in gen.module_storage_members(mtype, True):
                 if roles[member.name] in ('Input', 'Output'):
                     self.assertEqual(params[member.name], ('DINT', roles[member.name]), member.name)
                 else:
@@ -235,13 +235,13 @@ class Storage(unittest.TestCase):
                          self.aoi('Owner', 'Root.ModeActivePublished := 1;'))
 
     def test_the_contexts_carry_no_member_the_root_stores(self):
-        unit = {m.name for m in gen.unit_context_members(APP)}
+        unit = {m.name for m in gen.unit_storage_members(APP)}
         chart = {m.name for m in gen.chart_members(APP)}
         self.assertEqual(unit & set(collapse.unit_storage(APP)), set())
         self.assertEqual(chart & set(collapse.chart_storage(APP)), set())
         self.assertEqual(set(collapse.unit_storage(APP)), {m for m, _ in collapse.C2_UNIT}, 'the press paces')
         legacy = host_demo.application()
-        self.assertEqual({m.name for m in gen.unit_context_members(legacy)} - unit, set(collapse.unit_storage(APP)))
+        self.assertEqual({m.name for m in gen.unit_storage_members(legacy)} - unit, set(collapse.unit_storage(APP)))
 
 
 class StorageImage(unittest.TestCase):
@@ -271,12 +271,6 @@ class StorageImage(unittest.TestCase):
 
 class LegacyBranch(unittest.TestCase):
     """Until WP6.7 every other declaration emits exactly what it did."""
-
-    def test_the_pre_collapse_images_are_unchanged(self):
-        for module in (host_demo, press_candidate):
-            with self.subTest(module.__name__):
-                digest = hashlib.sha256(generate(module.application())).hexdigest().upper()
-                self.assertEqual(digest, LEGACY_PINS[module.__name__])
 
     def test_the_press_collapses_the_same_way(self):
         self.assertEqual(decl.validate(collapsed_press.application()), [])

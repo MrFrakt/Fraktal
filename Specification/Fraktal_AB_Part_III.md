@@ -78,6 +78,17 @@ or north-bound projection—embedded where the named controller/firmware support
 and proves it, or through a gateway (AB §11.7–§11.11). It is never a prerequisite
 and does not replace EtherNet/IP as the Fraktal/AB default.
 
+**Reference profile (AB §1, §2.1, §4.1).** The reference profile is a CIP
+Security-capable CompactLogix 5380 or ControlLogix 5580 at firmware v37 or
+above. Each different family/revision requires the applicable compiler,
+type-map, transport and runtime qualification. The development bench is
+FactoryTalk Logix Echo emulating a 1756-L81E at 38.011; simulation evidence is
+identified as such and grants no physical fit, retention, I/O or CIP Security
+acceptance. The 1769-L24ER-QB1B/v33 is retired as a reference target. Its
+dated evidence and V1 contract remain history at their recorded scope. A
+future constrained profile uses this same canonical architecture and declares
+its reductions; it does not introduce a station-specific projection architecture.
+
 **Binding definitions** (extends the Core §1.6 table):
 
 | Term | Meaning |
@@ -100,22 +111,13 @@ and does not replace EtherNet/IP as the Fraktal/AB default.
 - The **exact** Studio 5000 Logix Designer version, controller catalogue number
   and firmware revision **shall** be pinned per project and recorded; every
   station on a line uses the same pinned versions.
-- The **recommended deployment baseline is firmware v37 or above** on a
-  CIP Security-capable controller family, because that is the only baseline
-  where AB §11.2.1's recommended security posture is available at all. Older
-  families remain supported through the legacy zone-and-conduit posture.
-
-> **The evidence baseline and the recommended baseline are not the same, and
-> this matters.** Every Phase 0 spike was proved on the available bench: a
-> `1769-L24ER-QB1B` at firmware `33.014` with Studio v33. Those results are
-> valid for what they measured and are the reason the legacy posture is
-> supported at all. They are **not** evidence about a v37+ controller. S2, S4,
-> S11 and S12 each record that a different family or revision reruns the spike,
-> and the S12 type map is explicitly a property of this controller — a v37+
-> family may well offer `LREAL` and a native `TIME`, which would *change the
-> generated contract*. A project pinning the recommended baseline therefore
-> owes a rerun of the target-specific spikes on that target before it can claim
-> conformance; it does not inherit the v33 numbers.
+- The **reference profile is firmware v37 or above** on a CIP Security-capable
+  CompactLogix 5380 or ControlLogix 5580 controller family. Older families
+  (including the retired 1769-L24ER-QB1B/v33 reference bench) remain history at
+  their recorded scope.
+- The development bench is FactoryTalk Logix Echo emulating a 1756-L81E at
+  38.011; simulation evidence is identified as such and grants no physical fit,
+  retention, I/O or CIP Security acceptance.
 - The framework requires **no** language extension beyond the Logix base
   instruction set and AOIs. Where Part II relies on OOP, this binding relies on
   **composition plus generation** (AB §3.14).
@@ -475,18 +477,64 @@ while linking. The generator and its tests keep all three renditions.
 ### AB §3.8 Configuration, providers, and value-type binding
 *Binds Core §3.8, §3.8b, §3.10.2, §5.6.*
 
-Core duration semantics are integer milliseconds and retain wire ordinal **3** /
-transport name `time`. Do not assume a native Logix `TIME` is absent or suitable:
-controller families/revisions differ. S12 selects native `TIME`/`TIME32` where
-their range/arithmetic/CIP encoding match the contract, otherwise a range-checked
-`DINT`-milliseconds representation. The repository value is identical either
-way; this is binding spelling, not a contract change.
+The PLC publishes the logical Core contract itself. Type bindings are defined
+by frozen contracts V2; the manifest supplies logical information absent from
+the controller's native type system. A client never infers logical type or
+array bounds from a member's name or a station declaration.
 
-**On the pinned v33 baseline the choice is already made.** S12's type-acceptance
-matrix found that `1769-L24ER-QB1B` at `33.014` has no `TIME` or `TIME32` at all
-— the import fails closed — so duration binds to the range-checked
-`DINT`-milliseconds form on this target. The same matrix removed two more
-candidates and constrains what a generated contract may contain
+- **BOOL** members are native. A reader honors template offsets and bit metadata.
+  Native BOOL arrays may be described as DWORD storage; the manifest supplies
+  their logical Boolean type, lower bound and element count. Only that logical
+  extent enters the canonical snapshot.
+- **SINT, INT, DINT, REAL, LINT and LREAL** are native. Core enum ordinals remain
+  generated DINT constants. Int64 transport uses exact integers/decimal
+  strings and never passes through a float. Generation preserves the declared
+  floating-point precision; an untyped REAL literal widened into LREAL is not
+  a conforming full-precision initializer. Supplementary S0 qualifies the ST
+  `L` suffix and typed Decorated LREAL initial data on Echo v38: pi and
+  1.0000000000000002 are preserved exactly.
+- **D6: Core TIME binds to DINT milliseconds**, with the manifest logical type
+  DURATION and wire ordinal 3. Its signed 32-bit range and millisecond units
+  match Core directly. Native TIME32 has microsecond units and insufficient
+  range for this contract; native TIME has 64-bit microseconds. Neither is
+  substituted for the published DINT representation. An internal native time
+  value is converted and range-checked by its owning provider before publication.
+- **D7: Core timestamps bind to native LDT**, 64-bit Unix nanoseconds, mapped
+  to UTC DateTime; zero retains Core's unset meaning. Snapshot encoding is an
+  ISO UTC string with three to nine fractional digits, or numeric zero for
+  unset. Retain at least three digits to match the existing millisecond
+  spelling; retain additional digits when required for exact nanoseconds.
+  Conversion from a microsecond clock is owned once by its provider. A LINT
+  supplied to the time-type assignment is a nanosecond value: S0 measured a
+  microsecond LINT assigned to DT being divided by 1,000, while nanoseconds
+  assigned to LDT were preserved exactly.
+- **Strings** retain the owning Core/application byte capacities. A StringFamily
+  is recognized from its LEN DINT / DATA SINT[n] template shape. LEN counts
+  UTF-8 bytes. Generation rejects an over-width literal; acquisition rejects
+  invalid length or encoding rather than truncating it.
+
+Canonical array indices equal the declared Core indices. Logix physical
+storage starts at zero; the manifest supplies logical lower bound and element
+count. Packed Boolean bits are expanded before that bound is applied.
+The five V1 corrections are exactly `ActiveSteps`, `ModePolicy`,
+`SupportedModesPublished`, `SupportedRunStylesPublished` and `Access.Policy.Required`,
+all changing from lower bound 1 to 0. Other arrays keep their Core bounds.
+
+The owner selected preservation of the oracle's logical path set on 2026-10-21.
+Reserved physical slots do not automatically become published logical entries.
+The V6.1 candidate carries explicit selected indices and same-root live count
+references in its PLC-resident manifest; these are range/type checked against
+the native template and the acquired record. Empty views still validate their
+full annotation schema. See the [S3a wire draft](AllenBradley/AB_CANONICAL_PUBLICATION_S3A_WIRE_DRAFT_2026-10-21.md).
+This adds no station declaration or name-based inference to the client and
+does not expand the five permitted D2 differences.
+
+The native units and LINT conversion rule agree with Rockwell's time and date
+type documentation. The D6/D7 selections above are binding decisions from the
+measurements, not a claim that Rockwell prescribes those Fraktal representations.
+
+**Historical v33 baseline (retired).** S12's original type-acceptance
+matrix on `1769-L24ER-QB1B` at `33.014` recorded the constrained legacy profile
 ([evidence](AllenBradley/Evidence/AB_S12_TYPE_MAP_EVIDENCE.md)):
 
 | Core concept | Pinned v33 verdict |
@@ -496,15 +544,12 @@ candidates and constrains what a generated contract may contain
 | `LREAL` | **unavailable** — Studio rejects the declaration for this controller type |
 | `TIME` / `TIME32` | **unavailable** — the project will not import |
 
-Because this section forbids silent narrowing, the two removals are explicit
+Because this section forbids silent narrowing, the two removals were explicit
 constraints rather than generator conveniences. A Core value requiring 64-bit
-float precision either states its `REAL` precision loss in the contract or the
-controller leaves the baseline; a Core value requiring 64-bit accumulation is
+float precision either stated its `REAL` precision loss in the contract or the
+controller left the baseline; a Core value requiring 64-bit accumulation was
 computed in the gateway or represented as `DINT` with declared rollover. A
 generator shall not substitute either quietly.
-
-Note also that the SDK's import summary is not a type gate: `LREAL` imported
-with `Warnings="0" Errors="0"` and was caught only by Studio Verify.
 
 **The physical layout is measured, not assumed.** Reading a structured tag
 returns the CIP payload the gateway will decode. On the pinned baseline a flat
@@ -661,6 +706,36 @@ change public UDT layout change its schema/signature and are versioned as such.
 ### AB §3.10 Self-description exposure mechanics
 *Binds Core §3.10 and AB §11; R0 authority recorded in `AB_R0_CORE_AUTHORITY_EVIDENCE.md`.*
 
+Each deployed root is one controller-scope tag named exactly as its local
+browse name. Its record declares the standard Status contract; children are
+records named exactly as their local instance/schematic names. `Status.Name`
+carries the qualified Fraktal identity. Infrastructure, private state and
+reference aliases do not create additional roots.
+
+Discovery uses the controller's Symbol object (0x6B), Template object (0x6C)
+and validated PLC-resident manifest. A module is recognized through its Status
+contract, as on TC3 and TIA. The structure flag and complete 12-bit template
+handle govern references; a handle's low byte matching an atomic code does not
+make the referenced record an atomic type.
+
+The physical manifest major is 6. It describes canonical paths and carries
+logical types, logical array bounds/extents, and effective member access
+where native Template metadata is insufficient. These facts are derived from
+the same owning declarations as the UDTs and their access settings. Physical
+word count cannot replace logical Boolean element count. Static metadata is
+cached by the validated manifest content hash and configuration revision;
+existing coherence, invalid-manifest and incompatible-major refusals remain.
+
+Published data is effectively Read Only, `HmiRequest` alone is effectively
+Read/Write, and private storage has access None. The generated access audit
+proves the effective leaf policy. A writable mailbox requires Read/Write on
+its ancestors; other public branches are Read Only. Private None members are
+kept outside records that a client reads whole.
+
+The client decodes the PLC-owned contract. There is no runtime station
+declaration, client-owned derivation, hard-coded station tree, or station HMI
+screen.
+
 Publication is the controller-resident **`FRK_Manifest`**, generated from the
 same declaration as the AOIs, the registry indices and the constants. It carries
 at minimum: protocol/schema version and a monotonic configuration revision; for
@@ -807,6 +882,41 @@ not the rate a manifest reader sees. A reader also pays a per-request floor of
 roughly 4.7 ms, so splitting the manifest into many small tables would cost
 more, not less.
 
+### AB §3.10.2 Read-only configuration service (S4b target extension)
+
+V6.8 adds hash-covered `ReadServices` rows with `Kind`, `Version`, `RootSymbol`
+and `CanonicalRoot`; counts/capacities are exact. Kind 1/version 1 refers to an
+explicit data product, never a type-name or station-name convention.
+
+That product publishes `SchemaVersion`, `RootIdentity`, `Revision`, definition and
+value counts/capacities, `Definitions` and `Values`. Definitions extend the existing
+configuration-entry metadata with `DefinitionIndex` and omit `ValueText`/`Readable`.
+Each value row publishes `DefinitionIndex`, `ModelOrdinal`, `ModelCode`, `ValueText`,
+`Readable` and `Revision`. Ordinal zero is live; occupied banks use positive
+ordinals. Logical extents/count references are PLC-published and validated.
+
+The existing configuration owner remains authoritative. Publication is derived
+on change and applies the same formatting, access masking and revision. A read
+level drop clears every unreadable `ValueText` buffer across its full width;
+unused rows cannot retain plaintext. Unmasked caches stay private. Clients
+reject incomplete references, duplicate rows, invalid banks, mixed revisions
+and mismatched capacities. Configuration reads do not renew station liveness.
+They yield between bounded worker requests, fetch consumed definitions and
+selected-bank values, and perform no mailbox/provider write on unsecured CIP.
+
+### AB §3.10.3 Host services (V6.11 extension)
+
+Manifest V6.11 appends the `HostServiceBindings` table (1–1024 rows).
+Each root with a mutating service has one shared host ingress (`RequestSymbol`,
+`ChunkMember`, `CommitSymbol`, `ReplySymbol`). The PLC opens a job and requests
+the exact file or document I/O required; the host is a declaration-free document
+server that never decides an operational verdict.
+
+Supported services are `ConfigSets` (1), `ConfigProvider` (2), `LiveDocuments` (3),
+and `HostEvents` (4). `HostEvents` uses no writable state and names only the
+canonical ring, which is acquired through the row reader under an independent
+V6.10 owner-read row (protocol 2) under `<root>/HostEvents`.
+
 ### AB §3.11 Composition-root wiring
 *Binds Core §3.11 (constructor injection).*
 
@@ -834,6 +944,30 @@ and setup failure is a fail-closed startup fault (Core §5.6).
 The gateway, not the Flutter UI, maps manifest/registry/contract data into the
 existing repository paths and domain types. No station/type screen, Logix tag
 name, registry index, or CIP type escapes that adapter boundary.
+
+**Discoverable per-row/group coherence.** V6.7 adds hash-covered
+`ReadCoherenceBindings` columns and validation. It exposes the existing scan guard
+rather than adding a cyclic publication owner. Every root/data-product prefix
+has a published revision symbol, protocol and mutation interval. Clients derive
+none of them from station knowledge.
+
+Coherence is per consumed row/group and tier. Equal even counters enclose each
+bounded native acquisition, including its first counter request; the window
+must be shorter than the published interval. A session establishes progress
+before claiming fresh scanning data. Failed acquisition degrades quality and
+does not retain mixed bytes as a Good value. No whole-document same-scan claim
+or dependency on the migration observation frame is introduced.
+
+V6.10 adds the additive, hash-covered `OwnerReadBindings` table selecting
+module-header leaves and each declared read-only configuration view.
+Protocol 2 brackets protected writes with a PLC-owned odd/even revision,
+stable between owner transactions. Its declared proof window is at most one
+second, inside the original acquisition deadline; the minimum update interval
+and conservative $2^{30}-1$ recurring stable token bound prevent wrap. The
+client partitions mixed-owner groups and independently verifies the separate
+scan-progress symbol. An even unchanged owner token cannot keep a stopped
+publisher Good. Protocol 1 retains its strict scan-period proof bound. Source-age,
+tier/freshness, retry, access and D9 write policy remain unchanged.
 
 CIP reads across several tags are not assumed atomic. Every published root and
 module row therefore carries a generated data revision or equivalent coherence
@@ -1047,6 +1181,9 @@ order, never channel assignments.
 ### AB §4.1 Controller and task baseline
 *Binds Core §2, §8.11.*
 
+- The reference controller profile is a CIP Security-capable CompactLogix 5380
+  or ControlLogix 5580 at firmware v37 or above; the legacy 1769-L24ER-QB1B/v33
+  bench is retired as a reference target.
 - One periodic task owns the Fraktal forest; its period is pinned and recorded.
   Its priority, watchdog, overlap behavior, and maximum execution budget are
   pinned. Scan-time headroom is measured (Core §8.11) and published (AB §8.11).
@@ -1774,15 +1911,31 @@ claim depends on OPC UA availability.
 ```
 Logix controller — FRK_Manifest + FRK_Registry + contract tags
         │  EtherNet/IP explicit messaging (CIP symbolic access)
-Fraktal gateway — discovery · decode · batching · freshness · write acknowledgement
-        │  versioned Fraktal repository protocol over TLS
+Fraktal gateway / CipSessionClient — discovery · decode · batching · freshness · write acknowledgement
+        │  versioned Fraktal repository protocol over TLS or direct in-process snapshot
 Generic Flutter HMI — existing PlcRepository boundary, no station or type screens
 ```
 
-Direct CIP from the HMI is **not** the reference design: Flutter Web cannot open
-raw industrial sockets, so a gateway is required for a shipped platform in any
-case, and one gateway keeps CIP decoding, batching, reconnect and credentials out
-of every operator client.
+One generic `CipSessionClient` in `fraktal_opcua_client` emits
+`fraktal.opcua.snapshot.v1`. The desktop selects it through `cip://`. The Dart
+gateway uses the same client for Web clients, as it does for ADS and S7 Web API.
+The PLC's canonical tree and manifest are the sole runtime description.
+
+Direct writes require a commissioned CIP Security session proved on capable
+hardware. Without it, direct CIP is explicitly read-only in the HMI. Echo
+implements no CIP Security, so direct desktop acceptance on Echo is read-only.
+
+Commands on the Echo/isolated gateway path use the existing authenticated
+`wss://` gateway posture, recorded per-deployment write choice, root scope and
+PLC mailbox gates. Browser clients do not open raw CIP sockets. Existing
+§11.2.1 authenticated-principal, least-privilege and no-anonymous-write rules
+remain in force for a write-enabled production deployment.
+
+Every mailbox transaction is serialized. All argument writes must succeed
+before a separate `Sequence` commit. Success requires the matching PLC
+acknowledgement and acceptance; timeouts and reconnects never replay a request.
+CIP sample receipt time is recorded without inventing device source time or
+clock synchronization.
 
 ### AB §11.2 Gateway obligations
 *Binds Core §11, §7.7, §14.*

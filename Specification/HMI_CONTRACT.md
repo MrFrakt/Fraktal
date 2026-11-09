@@ -10,6 +10,15 @@ All displayed strings follow `LOCALIZATION_AND_MODULE_CONTENT.md`: PLC display f
 
 In the TwinCAT binding, externally written request/configuration data is `VAR_INPUT` and published result/status data is `VAR_OUTPUT`; implementation `VAR` is private. This IEC access classification is a transport mapping, not authorization: every write listed below is still release-gated and re-checked by the PLC.
 
+## Array bounds across bindings (D2 canonical unification)
+
+Under canonical publication (Core §3.12, Part III §3.8 D2), all platform bindings
+(TwinCAT, Siemens, and Allen-Bradley canonical publication) share identical 0-based
+indexing for arrays: `Access.Policy.Required[0..11]`, `ActiveSteps[0..]`,
+`ModePolicy[0..]`, `SupportedModesPublished[0..]`, and `SupportedRunStylesPublished[0..]`.
+The HMI client binds 0-based array extents universally across all transports with
+zero platform-specific indexing branches.
+
 ## Part genealogy (Core §3.16)
 
 The generic Part card renders `Part.Parents` as ordered, selectable component

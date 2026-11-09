@@ -14,10 +14,8 @@ import unittest
 import fraktal_ab_declaration as decl
 import fraktal_ab_generate as gen
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
 import fraktal_ab_st_model as st
 from test_fraktal_ab_oee import pl_fraktal
-from test_fraktal_ab_projection import build, flag_values
 
 
 APP = demo.application()
@@ -150,35 +148,6 @@ class TheDeclaration(unittest.TestCase):
         many = tuple(dataclasses.replace(flag, key=f"project.state.f{i}")
                      for i in range(decl.MAX_STATE_FLAGS + 1))
         self.assertTrue(any("at most 12" in f for f in self.flagged(*many)))
-
-
-class ThePublishedTable(unittest.TestCase):
-    def test_where_the_hmi_reads_it(self):
-        flags = Station().scan(at=93015250)
-        out = projection.state_flags_status(APP, flags)
-        self.assertEqual(out["StateFlagCount"], 2)
-        self.assertEqual((out["StateFlags[1]/Key"], out["StateFlags[1]/Value"],
-                          out["StateFlags[1]/Stale"]),
-                         ("project.state.pressAtLoadPosition", True, False))
-        self.assertEqual(out["StateFlags[1]/Since"][:19], "2026-10-01T09:30:15")
-
-    def test_a_false_flag_is_not_stale(self):
-        """Stale means nobody computes it; AB computes every flag every scan."""
-        s = Station()
-        s.ctx("AirPressureMonitor")["OutImm_PressureOk"] = 0
-        out = projection.state_flags_status(APP, s.scan())
-        self.assertEqual((out["StateFlags[2]/Value"], out["StateFlags[2]/Stale"]),
-                         (False, False))
-
-    def test_a_flag_never_derived_has_no_since(self):
-        out = projection.state_flags_status(APP, flag_values())
-        self.assertEqual((out["StateFlags[2]/Value"], out["StateFlags[2]/Since"]),
-                         (False, 0))
-
-    def test_on_the_unit_and_nothing_without_the_table(self):
-        out = build(flags_state=flag_values())["values"]
-        self.assertIn(f"{N}/StateFlags[2]/Key", out)
-        self.assertEqual(projection.state_flags_status(APP, None), {})
 
 
 if __name__ == "__main__":

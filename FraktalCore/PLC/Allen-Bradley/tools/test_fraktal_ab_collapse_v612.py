@@ -227,8 +227,7 @@ class MailboxRetirementTests(unittest.TestCase):
         req_tag_str = [t for t in tags if f'Name="{mailbox.request_tag_name(app)}"' in t]
         self.assertEqual(len(req_tag_str), 1)
         self.assertIn('ExternalAccess="Read/Write"', req_tag_str[0])
-        self.assertIn('StructureMember Name="Frame"', req_tag_str[0])
-        self.assertIn('StructureMember Name="ConfigProvider"', req_tag_str[0])
+        self.assertIn('StructureMember Name="ConfigSet"', req_tag_str[0])
 
 
 if __name__ == "__main__":

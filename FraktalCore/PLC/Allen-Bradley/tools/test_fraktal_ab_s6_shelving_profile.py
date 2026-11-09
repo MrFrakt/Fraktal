@@ -27,7 +27,7 @@ class Bench:
         self.app = app or profile.application()
         app = self.app
         tags = {
-            f'FRK_{app.name}_Unit': st.structure(gen.unit_context_members(app)),
+            f'FRK_{app.name}_Unit': st.structure(gen.unit_storage_members(app)),
             gen.alarm_active_tag(app): st.structure(gen.alarm_active_members()),
             gen.alarm_ring_tag(app): st.structure(gen.alarm_ring_members()),
             gen.profiler_tag(app): st.structure(gen.profiler_members(app)),

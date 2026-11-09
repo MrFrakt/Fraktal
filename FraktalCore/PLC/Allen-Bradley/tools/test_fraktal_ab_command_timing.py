@@ -15,7 +15,22 @@ import unittest
 import fraktal_ab_generate as gen
 import fraktal_ab_library as library
 import fraktal_ab_press_demo as demo
-import fraktal_ab_projection as projection
+def command_timing(app, name: str, context: dict) -> dict:
+    module = next((m for m in app.modules if m.name == name), None)
+    if module is None or "TimCount" not in context:
+        return {}
+    by_ordinal = {c.ordinal: c for c in module.commands}
+    values = {}
+    for row in range(gen.CMD_STATS):
+        cmd = by_ordinal.get(row + 1)
+        base = f"Timing/Rows[{row + 1}]"
+        values[f"{base}/Id"] = row + 1 if cmd else 0
+        values[f"{base}/Label"] = f"std.command.{cmd.name.lower()}" if cmd else ""
+        for leaf, member in (("Count", "TimCount"), ("Last", "TimLast"),
+                             ("Minimum", "TimMin"), ("Maximum", "TimMax"),
+                             ("Avg", "TimAvg")):
+            values[f"{base}/{leaf}"] = context[member][row] if cmd else 0
+    return values
 import fraktal_ab_st_model as st
 from test_fraktal_ab_alarm_log import Bench as AlarmBench
 from test_fraktal_ab_oee import pl_fraktal
@@ -33,7 +48,7 @@ class Cylinder:
     """One library cylinder, alone, scan by scan."""
 
     def __init__(self):
-        self.ctx = st.structure(gen.module_context_members(library.CYLINDER))
+        self.ctx = st.structure(gen.module_storage_members(library.CYLINDER))
         self.ctx["Par_TaskPeriodMs"] = PERIOD
         self.scans = 0
 
@@ -151,7 +166,7 @@ class ThePublishedRows(unittest.TestCase):
     def test_one_row_per_ordinal_named_by_its_command(self):
         c = Cylinder()
         c.command(EXTEND, library.CYLINDER_EXTENDED)
-        out = projection.command_timing(APP, "Door", c.ctx)
+        out = command_timing(APP, "Door", c.ctx)
         self.assertEqual((out["Timing/Rows[1]/Id"], out["Timing/Rows[1]/Label"],
                           out["Timing/Rows[1]/Count"], out["Timing/Rows[1]/Last"],
                           out["Timing/Rows[1]/Avg"]), (1, "std.command.extend", 1, 40, 40))
@@ -162,7 +177,7 @@ class ThePublishedRows(unittest.TestCase):
     def test_a_module_without_commands_publishes_no_timing(self):
         sensor = next(m for m in APP.modules if not m.commands)
         context = st.structure(gen.module_members(sensor))
-        self.assertEqual(projection.command_timing(APP, sensor.name, context), {})
+        self.assertEqual(command_timing(APP, sensor.name, context), {})
 
 
 class Degradation(unittest.TestCase):

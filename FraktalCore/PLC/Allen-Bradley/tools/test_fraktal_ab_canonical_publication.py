@@ -16,8 +16,58 @@ import fraktal_ab_genealogy_demo as genealogy
 import fraktal_ab_genealogy_canonical_demo as candidate
 import fraktal_ab_generate as gen
 import fraktal_ab_manifest as legacy
-from fraktal_ab_canonical_equivalence import stable_scan_pair
-from fraktal_ab_s2_equivalence import subset_paths
+import time
+
+def subset_paths(app):
+    paths = set()
+    for module in (None, *app.modules):
+        base = app.name + ('/' + module.name if module else '') + '/Status/'
+        paths.update(base + leaf for leaf in ('Name', 'DisplayNameKey', 'ModuleType', 'State', 'FaultActive'))
+        if (module.type_key if module else app.type_key):
+            paths.add(base + 'TypeKey')
+    paths.update(app.name + '/' + leaf for leaf in ('ModeActivePublished', 'RunStyle', 'CurrentStep/StepNo'))
+    if app.models:
+        paths.add(app.name + '/Model/ModelCode')
+    return paths
+
+def stable_scan_pair(read_generation, acquire, *, attempts=100, seconds=5.0, fresh_start=False):
+    if type(attempts) is not int or not 1 <= attempts <= 100 or not 0 < seconds <= 5 or type(fresh_start) is not bool:
+        raise ValueError('invalid paired-acquisition budget')
+    started, history = time.monotonic(), []
+    previous = None
+    for unused in range(attempts):
+        if time.monotonic() - started > seconds:
+            break
+        before = read_generation()
+        if type(before) is not int or not 1 <= before <= 2147483646:
+            raise ValueError('invalid or uninitialized PLC scan generation')
+        row = dict(before=before)
+        history.append(row)
+        if before % 2:
+            previous = before
+            continue
+        if fresh_start and (previous is None or before == previous):
+            previous = before
+            row['waitingFreshScan'] = True
+            time.sleep(.001)
+            continue
+        pair = acquire()
+        after = read_generation()
+        row['after'] = after
+        if type(after) is not int:
+            raise ValueError('invalid trailing PLC scan generation')
+        previous = after
+        if before == after and time.monotonic() - started <= seconds:
+            pair.update(sameStateVerified=True,
+                        stateEvidence=dict(kind='PLC entire-scan generation', generation=before,
+                                           attempts=history, readOnly=True))
+            if fresh_start:
+                pair['stateEvidence']['freshStart'] = True
+            return pair
+    error = ValueError('no completed PLC scan held across the paired read window')
+    error.attempts = history
+    raise error
+
 from test_fraktal_ab_canonical_reader import synthetic
 
 
@@ -70,7 +120,7 @@ class ManifestTests(unittest.TestCase):
             tree=ast.parse((folder/name).read_text(encoding='utf-8'))
             imports=[node.module for node in ast.walk(tree) if isinstance(node,ast.ImportFrom)]
             imports += [alias.name for node in ast.walk(tree) if isinstance(node,ast.Import) for alias in node.names]
-            self.assertFalse(set(imports)&{'fraktal_ab_station','fraktal_ab_declaration','fraktal_ab_generate','fraktal_ab_projection','fraktal_ab_genealogy_demo'})
+            self.assertFalse(set(imports)&{'fraktal_ab_station','fraktal_ab_declaration','fraktal_ab_generate','fraktal_ab_genealogy_demo'})
 
     def test_paired_state_skips_active_scan_and_retries_generation_change(self):
         generations=iter((1,2,4,4,4))
@@ -108,7 +158,7 @@ class ManifestTests(unittest.TestCase):
 
     def test_fresh_start_waiting_keeps_original_time_budget(self):
         from unittest.mock import patch
-        with patch('fraktal_ab_canonical_equivalence.time.monotonic',side_effect=(0,.1,.6)):
+        with patch('test_fraktal_ab_canonical_publication.time.monotonic',side_effect=(0,.1,.6)):
             with self.assertRaises(ValueError) as error:
                 stable_scan_pair(lambda:2,lambda:self.fail('must not acquire'),attempts=100,seconds=.5,fresh_start=True)
         self.assertEqual(len(error.exception.attempts),1)
@@ -116,14 +166,14 @@ class ManifestTests(unittest.TestCase):
     def test_fresh_start_paces_only_unchanged_even_polls_inside_original_budget(self):
         from unittest.mock import patch
         generations=iter((2,2,3,4,4))
-        with patch('fraktal_ab_canonical_equivalence.time.sleep') as wait:
+        with patch('test_fraktal_ab_canonical_publication.time.sleep') as wait:
             result=stable_scan_pair(lambda:next(generations),lambda:{},fresh_start=True)
         self.assertEqual(wait.call_args_list,[unittest.mock.call(.001)]*2)
         self.assertEqual(len(result['stateEvidence']['attempts']),4)
         now=[0.0];reads=[]
         def sleep(delay):now[0]+=delay
-        with patch('fraktal_ab_canonical_equivalence.time.monotonic',side_effect=lambda:now[0]), \
-             patch('fraktal_ab_canonical_equivalence.time.sleep',side_effect=sleep):
+        with patch('test_fraktal_ab_canonical_publication.time.monotonic',side_effect=lambda:now[0]), \
+             patch('test_fraktal_ab_canonical_publication.time.sleep',side_effect=sleep):
             with self.assertRaises(ValueError) as error:
                 stable_scan_pair(lambda:(reads.append(2) or 2),lambda:self.fail('same generation must wait'),
                                  fresh_start=True,seconds=.0025)
