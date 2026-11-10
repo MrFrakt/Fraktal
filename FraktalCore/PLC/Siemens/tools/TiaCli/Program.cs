@@ -234,6 +234,10 @@ Commands:
   umac-user --plc PLC_1 --list
             | (--anonymous | --name N [--password-env VAR | --keep-password]) [--role R --rights id1,id2] [--system-roles id1,id2]
                                                           (the custom role gets exactly these rights)
+  io-system      --plc PLC_1 --name ""PROFINET IO-System"" [--item <interface>] [--subnet PN/IE_1]
+  add-module     --station S --order ""OrderNumber:..."" --name N --slot n   plug into the station's rack
+  connect-io     --plc PLC_1 --station S [--ip A] [--pn-name n]   IO device joins the controller's IO system
+  system-constants --plc PLC_1 [--filter fragment]           hardware identifiers by name
   ?<command> ...                                             (plan line) record failure, continue
   import-sources ... [--only 00_,10_]                         restrict to file-name prefixes
   save
@@ -313,6 +317,10 @@ Commands:
                 case "webserver-certificate": return WebserverCertificate(a);
                 case "umac-user": return UmacUser(a);
                 case "cax-export": return CaxExport(a);
+                case "io-system": return IoSystemCreate(a);
+                case "add-module": return AddModule(a);
+                case "connect-io": return ConnectIo(a);
+                case "system-constants": return SystemConstants(a);
                 case "save": Project.Save(); Log.Emit("saved", ("path", Project.Path.FullName)); return 0;
                 default:
                     Log.Emit("unknown-command", ("command", a.Command));
@@ -385,6 +393,76 @@ Commands:
                     if (node.NodeType == NetType.Ethernet) return (item, node);
             }
             return null;
+        }
+
+        // ---- PROFINET IO (P8 node health) ----------------------------------------
+        // An IO system belongs to a subnet, so the controller interface joins one
+        // first. Re-running keeps an existing subnet and IO system.
+        private int IoSystemCreate(Args a)
+        {
+            var cpu = Cpu(a);
+            var (item, node) = EthernetNode(cpu, a.Get("item", null))
+                ?? throw new InvalidOperationException("No Ethernet interface under " + cpu.Name);
+            var subnet = node.ConnectedSubnet ?? node.CreateAndConnectToSubnet(a.Get("subnet", "PN/IE_1"));
+            var controller = item.GetService<NetworkInterface>().IoControllers.FirstOrDefault()
+                ?? throw new InvalidOperationException("Interface is not an IO controller: " + item.Name);
+            var system = controller.IoSystem ?? controller.CreateIoSystem(a.Require("name"));
+            Log.Emit("io-system", ("interface", item.Name), ("subnet", subnet.Name), ("name", system.Name), ("number", system.Number));
+            return 0;
+        }
+
+        // The slot is offered to every rack of the station first, so a wrong
+        // position fails with its reason instead of leaving a half-built rack.
+        private int AddModule(Args a)
+        {
+            var device = Station(a.Require("station"));
+            var order = a.Require("order");
+            var name = a.Require("name");
+            var slot = int.Parse(a.Require("slot"), System.Globalization.CultureInfo.InvariantCulture);
+            var rack = device.DeviceItems.FirstOrDefault(i => i.CanPlugNew(order, name, slot))
+                ?? throw new InvalidOperationException("No rack of " + device.Name + " accepts " + order + " at slot " + slot);
+            var module = rack.PlugNew(order, name, slot);
+            Log.Emit("module-added", ("station", device.Name), ("rack", rack.Name), ("slot", slot), ("order", order), ("name", module.Name));
+            return 0;
+        }
+
+        // An IO device joins the controller's subnet and IO system through its own
+        // PROFINET interface; its address and device name are set on that node.
+        private int ConnectIo(Args a)
+        {
+            var cpu = Cpu(a);
+            var (cpuItem, _) = EthernetNode(cpu, a.Get("controller-item", null))
+                ?? throw new InvalidOperationException("No Ethernet interface under " + cpu.Name);
+            var system = cpuItem.GetService<NetworkInterface>().IoControllers.FirstOrDefault()?.IoSystem
+                ?? throw new InvalidOperationException("Create the IO system first (io-system)");
+            var device = Station(a.Require("station"));
+            var (item, node) = device.DeviceItems.Select(i => EthernetNode(i, null)).FirstOrDefault(f => f != null)
+                ?? throw new InvalidOperationException("No Ethernet interface in station " + device.Name);
+            if (node.ConnectedSubnet == null) node.ConnectToSubnet(system.Subnet);
+            var connector = item.GetService<NetworkInterface>().IoConnectors.FirstOrDefault()
+                ?? throw new InvalidOperationException("Interface is not an IO device: " + item.Name);
+            if (connector.ConnectedToIoSystem == null) connector.ConnectToIoSystem(system);
+            if (a.Has("ip")) node.SetAttribute("Address", a.Get("ip", null));
+            if (a.Has("pn-name"))
+            {
+                node.SetAttribute("PnDeviceNameAutoGeneration", false);
+                node.SetAttribute("PnDeviceName", a.Get("pn-name", null));
+            }
+            Log.Emit("io-connected", ("station", device.Name), ("interface", item.Name), ("io_system", connector.ConnectedToIoSystem.Name),
+                ("address", node.GetAttribute("Address")), ("pn_name", node.GetAttribute("PnDeviceName")));
+            return 0;
+        }
+
+        // Hardware identifiers by name: the program addresses a station or an IO
+        // system through these constants, and the simulator's fault API through their values.
+        private int SystemConstants(Args a)
+        {
+            var filter = a.Get("filter", null);
+            foreach (var table in Plc(a).TagTableGroup.TagTables)
+                foreach (var constant in table.SystemConstants)
+                    if (filter == null || constant.Name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+                        Log.Emit("system-constant", ("table", table.Name), ("name", constant.Name), ("type", constant.DataTypeName), ("value", constant.Value));
+            return 0;
         }
 
         // Order matters: types before the blocks that use them, global data before the
@@ -1274,6 +1352,11 @@ Commands:
         }
 
         private PlcSoftware Plc(Args a) => (PlcSoftware)Cpu(a).GetService<SoftwareContainer>().Software;
+
+        // Distributed IO stations land in the ungrouped devices, not the project root.
+        private Device Station(string name) =>
+            AllDevices(Project.Devices, Project.DeviceGroups).Concat(Project.UngroupedDevicesGroup.Devices).FirstOrDefault(d => d.Name == name)
+            ?? throw new InvalidOperationException("Station not found: " + name);
 
         private static IEnumerable<Device> AllDevices(DeviceComposition devices, DeviceUserGroupComposition groups)
         {
