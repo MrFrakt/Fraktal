@@ -70,6 +70,10 @@ if ($Action -eq 'host') {
   }
 } else {
   $inst = Find-Instance
+  # An instance its owner stopped is a state to preserve, not a failure to
+  # observe: the before/after guards compare it like any other. Acting on one
+  # still requires it to exist.
+  if (-not $inst -and $Action -eq 'status') { Emit 'instance' @{name=$instanceName;state='Absent'}; exit }
   if (-not $inst) { throw 'FrkS12 is not registered' }
   if ($Action -eq 'status') { Instance-Status $inst; exit }
   if ("$($inst.CPUType)" -ne 'CPU1516' -or "$($inst.CommunicationInterface)" -ne 'TCPIP' -or $address -notin @($inst.ControllerIP)) { throw 'S12 simulation target differs' }

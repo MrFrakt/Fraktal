@@ -21,7 +21,7 @@ class IoBridgeTests(unittest.TestCase):
         frame = bridge.Frame(1, 0x01020304, 0x11223344, 17, 19, 0x1234, True)
         raw = frame.encode()
         self.assertEqual(len(raw), 32)
-        self.assertEqual(raw[:16].hex(), '4652494f010100000102030411223344')
+        self.assertEqual(raw[:16].hex(), '4652494f020100000102030411223344')
         self.assertEqual(raw[16:30].hex(), '0000001100000013000012340100')
         self.assertEqual(int.from_bytes(raw[30:], 'big'), binascii.crc_hqx(raw[:30], 0xffff))
         self.assertEqual(bridge.Frame.decode(raw, 1), frame)
@@ -33,15 +33,44 @@ class IoBridgeTests(unittest.TestCase):
 
     def test_valid_crc_does_not_admit_wrong_role_reserved_bits_or_zero_identity(self):
         raw = bridge.Frame(2, 1, 1).encode()
-        for offset, value in ((4, 2), (5, 1), (6, 1), (7, 1), (28, 2), (29, 1), (11, 0), (15, 0)):
+        # Offset 4 = 1: a version-1 peer (no applied-output feedback) never links.
+        for offset, value in ((4, 1), (5, 1), (6, 1), (7, 1), (28, 2), (29, 1), (11, 0), (15, 0)):
             changed = bytearray(raw[:30]); changed[offset] = value
             changed += binascii.crc_hqx(changed, 0xffff).to_bytes(2, 'big')
             with self.subTest(offset=offset), self.assertRaises(ValueError): bridge.Frame.decode(changed, 2)
 
     def test_no_control_on_or_undefined_input_bits_cross_the_wire(self):
         for frame in (bridge.Frame(2, 1, 1, signals=0x100), bridge.Frame(1, 1, 1, signals=0x4000),
-                      bridge.Frame(1, 0, 1), bridge.Frame(1, 1, 0)):
-            with self.assertRaises(ValueError): frame.encode()
+                      bridge.Frame(1, 1, 1, signals=0x8000), bridge.Frame(1, 1, 1, signals=0x1000000),
+                      bridge.Frame(2, 1, 1, signals=0x10000), bridge.Frame(1, 0, 1), bridge.Frame(1, 1, 0)):
+            with self.subTest(frame=frame), self.assertRaises(ValueError): frame.encode()
+
+    def test_physical_frame_carries_applied_outputs_beside_its_inputs(self):
+        frame = bridge.Frame(1, 1, 1, signals=0x00ff3fff)
+        self.assertEqual(bridge.Frame.decode(frame.encode(), 1), frame)
+        endpoint = bridge.template_text()
+        self.assertEqual(endpoint.count('#ReceiveBytes[4] = %d' % bridge.FRAME_VERSION), 1)
+        self.assertEqual(endpoint.count('#SendBytes[4] := %d;' % bridge.FRAME_VERSION), 1)
+        self.assertIn('AND DW#16#FF00C000) = DW#16#0', endpoint)
+        self.assertNotIn('@', endpoint.replace('@PRIVATE@', ''))
+
+    def test_physical_driver_returns_what_it_wrote_not_the_demand(self):
+        driver = bridge.physical_driver(bridge.read_map())
+        self.assertIn('LocalSignals := #Inputs OR #Applied,', driver)
+        last_write = max(driver.index('"%s" :=' % row['tag']) for row in bridge.read_map()['outputs'] + bridge.read_map()['inhibited_outputs'])
+        for row in bridge.read_map()['outputs']:
+            echo = '#Applied.%%X%d := "%s";' % (bridge.APPLIED_SHIFT + row['bit'], row['tag'])
+            self.assertGreater(driver.index(echo), last_write, echo)
+        # The inhibited Control On coils carry no feedback bit.
+        for row in bridge.read_map()['inhibited_outputs']:
+            self.assertNotIn(':= "%s";' % row['tag'], driver)
+
+    def test_client_stores_each_tag_applied_state_and_its_validity(self):
+        from fraktal_tia_examples import applied_member
+        client = bridge.client_driver(bridge.read_map())
+        for row in bridge.read_map()['outputs']:
+            self.assertIn('"GDB_PressDemoIO".%s := #Signals.%%X%d;' % (applied_member(row), bridge.APPLIED_SHIFT + row['bit']), client)
+        self.assertIn('"GDB_PressDemoIO".OutputFeedbackHealthy := #Connected;', client)
 
     def test_map_fits_confirmed_onboard_capacity_and_keeps_control_on_separate(self):
         mapping = bridge.read_map()

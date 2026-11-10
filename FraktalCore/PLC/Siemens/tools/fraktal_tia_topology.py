@@ -11,8 +11,9 @@ maxima (64 nodes x 16 channels would cost ~1.2 MB and ~20,000 Web API leaves):
   (names, addresses, paths, owning modules, parent links, counts);
 * one publish function that copies only live state each scan: channel values
   from the station's logical I/O image and link health from its health bit.
-  Input quality follows the validated link. Output values are local demands;
-  their quality stays FALSE until an applied-output feedback profile exists.
+  Input quality follows the validated link. An output is its local demand with
+  quality FALSE, unless the station declares applied-output feedback: then,
+  while that feedback is valid, it is the state the I/O owner reports applied.
 
 The Core marks identity members OPC.UA.DA := 0, i.e. excluded from the cyclic
 tree. The S7 Web API has no cyclic tree: the HMI classifies every Topology
@@ -77,6 +78,9 @@ def validate(spec: dict, image_members: set, root: str, modules: set, types: dic
         raise ValueError('fieldbus forcing needs the apply function identifier')
     if spec['healthy'] not in image_members:
         raise ValueError('health bit is not a member of the I/O image: ' + spec['healthy'])
+    feedback_healthy = spec.get('feedback_healthy')
+    if feedback_healthy is not None and feedback_healthy not in image_members:
+        raise ValueError('feedback health bit is not a member of the I/O image: %s' % feedback_healthy)
     if not spec['nodes']:
         raise ValueError('fieldbus declares no node')
     node_fields, channel_fields = types['ST_BusNode'], types['ST_IoChannel']
@@ -112,6 +116,10 @@ def validate(spec: dict, image_members: set, root: str, modules: set, types: dic
             # Rule 2: outputs only, and only one the application actually drives.
             if forceable and (channel['dir'] != 'OUTPUT' or source is None):
                 raise ValueError('channel %s: only a driven OUTPUT may be forceable' % channel['tag'])
+            feedback = channel.get('feedback')
+            if feedback is not None and (channel['dir'] != 'OUTPUT' or source is None
+                                         or feedback_healthy is None or feedback not in image_members):
+                raise ValueError('channel %s: feedback needs a driven OUTPUT, an image member and the feedback health bit' % channel['tag'])
             module = channel.get('module', root)
             if module != root and module not in modules:
                 raise ValueError('channel %s: unknown owning module %s' % (channel['tag'], module))
@@ -166,11 +174,18 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
                 start.append('    %sForceable := TRUE;' % item)
                 applied.append(('"%s".%s' % (spec['block'], item), channel['source']))
             live_item = '"%s".%s' % (spec['block'], item)
+            if channel.get('feedback'):
+                # Applied state while the owner's report is valid; otherwise the
+                # local demand, unconfirmed. A demand is never presented as applied.
+                confirmed = '"%s".%s' % (spec['image'], spec['feedback_healthy'])
+                publish += ['    IF %s THEN %sBoolValue := "%s".%s;' % (confirmed, live_item, spec['image'], channel['feedback']),
+                            '    ELSE %sBoolValue := "%s".%s; END_IF;' % (live_item, spec['image'], channel['source']),
+                            '    %sQuality := %s;' % (live_item, confirmed)]
+                continue
             if channel.get('source'):
                 publish.append('    %sBoolValue := "%s".%s;' % (live_item, spec['image'], channel['source']))
-            # This map observes the local command image for DQ, not the
-            # physical endpoint's final applied outputs. The bridge protocol
-            # returns DI only. Never present a demand as confirmed output I/O.
+            # Without declared feedback a DQ is the local command image, not the
+            # physical endpoint's applied output. Never present a demand as confirmed.
             quality = '#Healthy' if channel['dir'] == 'INPUT' else 'FALSE'
             publish.append('    %sQuality := %s;' % (live_item, quality))
 

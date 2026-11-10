@@ -1217,6 +1217,16 @@ the channel path. **[OPEN]** The CPU's own force jobs (TIA force tables) have no
 runtime API; this path neither reads nor replaces them, and annunciating a
 native force job is not yet implemented.
 
+**Applied-output feedback.** A DQ channel's value is its local demand with
+quality FALSE unless the station declares where the I/O owner's report of the
+applied state lands: one image member per output tag plus one validity bit
+(`feedback_healthy`). While that bit is TRUE the channel publishes the applied
+state with quality TRUE; otherwise it falls back to the unconfirmed demand, so a
+demand is never presented as applied. Only a driven OUTPUT may declare feedback.
+The press's 1214C I/O bridge reports, in wire version 2, each `%Q` it wrote after
+its own permit and interlocks; that is the controller's output image, not an
+electrical measurement, and the two inhibited Control On coils carry none.
+
 ### TIA §10.6 Motion
 *Binds Core §10.6.* PLCopen `MC_*` on technology objects: S7-1500 `TO_PositioningAxis`/
 `TO_SpeedAxis`; S7-1200 `TO_PositioningAxis` (PTO or PROFIdrive). The press

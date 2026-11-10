@@ -24,6 +24,13 @@ PROJECT = ROOT / 'Examples/PressIoBridge'
 MAP = PROJECT / '00_System/io.json'
 TEMPLATE = ROOT / 'Framework/IoBridge/bridge.scl.in'
 INSTRUCTIONS = {'TSEND_C': '3.2', 'TRCV_C': '3.2', 'TCON_IP_v4': '1.0'}
+# Version 2: the physical endpoint also returns the outputs it applied (bits
+# 16..23) beside its inputs (bits 0..13). A version-1 peer is refused, so a
+# mismatched pair never links instead of misreading feedback as inputs.
+FRAME_VERSION = 2
+APPLIED_SHIFT = 16
+PHYSICAL_SIGNALS = 0x3fff | 0xff << APPLIED_SHIFT
+CLIENT_SIGNALS = 0xff
 
 
 def template_text():
@@ -34,6 +41,12 @@ def template_text():
         text, hits = re.subn(pattern, lambda m: attributes.strip() + m[2], text)
         if hits != (2 if instruction == 'TCON_IP_v4' else 1):
             raise ValueError('instruction declaration inventory changed: ' + instruction)
+    for token, value, hits in (('@FRAME_VERSION@', str(FRAME_VERSION), 2),
+                               ('@PHYSICAL_RESERVED@', '%08X' % (~PHYSICAL_SIGNALS & 0xffffffff), 1),
+                               ('@CLIENT_SIGNALS@', str(CLIENT_SIGNALS), 1)):
+        if text.count(token) != hits:
+            raise ValueError('frame constant inventory changed: ' + token)
+        text = text.replace(token, value)
     return text.replace('@PRIVATE@', PRIVATE.strip())
 
 
@@ -51,11 +64,11 @@ class Frame:
     def encode(self):
         if self.role not in (1, 2) or not 1 <= self.epoch <= 0xffffffff or not 1 <= self.sequence <= 0xffffffff:
             raise ValueError('invalid frame identity')
-        if not 0 <= self.signals <= (0x3fff if self.role == 1 else 0xff):
+        if not 0 <= self.signals <= 0xffffffff or self.signals & ~(PHYSICAL_SIGNALS if self.role == 1 else CLIENT_SIGNALS):
             raise ValueError('signals exceed this endpoint role')
         if type(self.enabled) is not bool:
             raise ValueError('enable must be Boolean')
-        body = struct.pack('>4sBBBB5IBB', b'FRIO', 1, self.role, 0, 0,
+        body = struct.pack('>4sBBBB5IBB', b'FRIO', FRAME_VERSION, self.role, 0, 0,
                            self.epoch, self.sequence, self.echo_epoch, self.echo_sequence,
                            self.signals, int(self.enabled), 0)
         return body + struct.pack('>H', binascii.crc_hqx(body, 0xffff))
@@ -65,7 +78,7 @@ class Frame:
         if len(data) != 32 or binascii.crc_hqx(data[:30], 0xffff) != int.from_bytes(data[30:], 'big'):
             raise ValueError('invalid frame length/checksum')
         magic, version, role, reserved1, reserved2, epoch, sequence, echo_epoch, echo_sequence, signals, enabled, reserved3 = struct.unpack('>4sBBBB5IBB', data[:30])
-        if magic != b'FRIO' or version != 1 or role != expected_role or any((reserved1, reserved2, reserved3)) or enabled > 1:
+        if magic != b'FRIO' or version != FRAME_VERSION or role != expected_role or any((reserved1, reserved2, reserved3)) or enabled > 1:
             raise ValueError('invalid frame schema/role/flags')
         frame = cls(role, epoch, sequence, echo_epoch, echo_sequence, signals, bool(enabled))
         frame.encode()  # Apply the same public wire bounds to inbound frames.
@@ -158,6 +171,7 @@ def physical_driver(mapping):
              '    LinkHealthy'+READONLY+' : Bool;', '    OutputsEnabled'+READONLY+' : Bool;', 'END_VAR', 'VAR',
              '    Endpoint'+PRIVATE+' : "FB_IoBridgeEndpoint";', '    Config'+PRIVATE+' : "ST_IoBridgeConfig";',
              '    Inputs'+PRIVATE+' : DWord;', '    Demands'+PRIVATE+' : DWord;',
+             '    Applied'+PRIVATE+' : DWord;',
              '    Connected'+PRIVATE+' : Bool;', '    PeerEnabled'+PRIVATE+' : Bool;',
              '    PermitOutputs'+PRIVATE+' : Bool;', 'END_VAR', 'VAR CONSTANT',
              '    OUTPUT_MAPPING_CONFIRMED : Bool := FALSE;',
@@ -168,8 +182,10 @@ def physical_driver(mapping):
         if row['signal'] == 'TwoHandSafeActive':
             expr += ' AND #EVALUATED_TWO_HAND_WIRED'
         lines.append('    #Inputs.%%X%d := %s;' % (row['bit'], expr))
+    # The outputs written last scan travel with this scan's inputs: what this
+    # controller applied, after its own permit and interlocks, not the demand.
     lines += ['    #Endpoint(Startup := #Startup, Enabled := TRUE, PhysicalRole := TRUE,',
-              '        LocalSignals := #Inputs, LocalEnable := #OUTPUT_MAPPING_CONFIRMED,',
+              '        LocalSignals := #Inputs OR #Applied, LocalEnable := #OUTPUT_MAPPING_CONFIRMED,',
               '        BootEpoch := "GDB_IoBridgeEpoch".Epoch, Config := #Config,',
               '        LinkHealthy => #Connected, PeerEnable => #PeerEnabled, PeerSignals => #Demands);',
               '    #LinkHealthy := #Connected;',
@@ -185,6 +201,9 @@ def physical_driver(mapping):
         lines.append('    "' + row['tag'] + '" := ' + expr + ';')
     for row in mapping['inhibited_outputs']:
         lines.append('    "' + row['tag'] + '" := FALSE;')
+    lines.append('    #Applied := DW#16#0;')
+    for row in mapping['outputs']:
+        lines.append('    #Applied.%%X%d := "%s";' % (APPLIED_SHIFT + row['bit'], row['tag']))
     lines += ['END_FUNCTION_BLOCK', '', 'DATA_BLOCK "GDB_PressIoBridgeHardwareDriver"',
               "{ S7_Optimized_Access := 'TRUE' }", 'VERSION : 0.1', 'NON_RETAIN',
               '"FB_PressIoBridgeHardwareDriver"', 'BEGIN', 'END_DATA_BLOCK', '',
@@ -211,6 +230,12 @@ def client_driver(mapping):
     # publishes on its fieldbus view (control power is the bench circuit's).
     for row in mapping['inputs']:
         lines.append('    "GDB_PressDemoIO".%s := #Signals.%%X%d;' % (row['signal'], row['bit']))
+    # Each DQ tag's applied state, as the physical endpoint reports it; the two
+    # lamp tags share one demand but are applied, and reported, separately.
+    from fraktal_tia_examples import applied_member
+    for row in mapping['outputs']:
+        lines.append('    "GDB_PressDemoIO".%s := #Signals.%%X%d;' % (applied_member(row), APPLIED_SHIFT + row['bit']))
+    lines.append('    "GDB_PressDemoIO".OutputFeedbackHealthy := #Connected;')
     # Input freshness is independent of the physical output commissioning gate.
     # PeerEnabled is output authority; using it as input quality hides a live
     # input-only bridge whenever OUTPUT_MAPPING_CONFIRMED is deliberately FALSE.

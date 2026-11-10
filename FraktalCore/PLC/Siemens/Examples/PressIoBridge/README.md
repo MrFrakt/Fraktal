@@ -85,7 +85,8 @@ companion accepts both. `TSEND_C` and `TRCV_C` support either connection role.
 This avoids requiring an incoming TCP connection to the VM's simulated CPU.
 `io.json` schema 2 names these facts `physical_receive_port` and
 `physical_send_port`; the latter replaces schema 1's `simulator_receive_port`.
-The 32-byte wire schema remains version 1. Both listeners must have distinct
+The 32-byte wire schema is version 2 (see below); both endpoints refuse any
+other version, so they are regenerated and downloaded together. Both listeners must have distinct
 ports in the physical S7-1200 range. Interface hardware ID 64 and connection IDs 257/258 are project
 configuration: verify them against the target's system constants and other
 OUC users. The small standalone bridge allocates only these two connections.
@@ -93,6 +94,14 @@ OUC users. The small standalone bridge allocates only these two connections.
 Each 32-byte frame is explicitly encoded in network byte order: `FRIO`,
 version/role/reserved bytes, boot epoch, sequence, echoed epoch/sequence,
 signal bits, enable/reserved bytes and CRC-16/CCITT-FALSE over bytes 0–29.
+The controller sends its eight demands in bits 0–7. The physical endpoint sends
+its fourteen inputs in bits 0–13 and, since version 2, the eight outputs it
+**applied** in bits 16–23: each `%Q` it wrote on the previous scan, after its own
+permit and interlocks. The bench publishes that as the DQ channel value with
+quality TRUE while the link is healthy (Core §10.5.1 applied-output feedback);
+without it a DQ shows its demand, unconfirmed. This is the 1214C's output image,
+not an electrical measurement: a broken wire or coil is not seen. The two
+inhibited Control On coils carry no feedback bit.
 Send buffers remain unchanged while a job is busy. Receive uses a fixed full
 frame, so TCP segmentation cannot expose a partially updated image.
 

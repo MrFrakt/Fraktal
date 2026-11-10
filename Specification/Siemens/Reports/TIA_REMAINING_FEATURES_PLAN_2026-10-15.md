@@ -346,6 +346,15 @@ by the approved Openness driver, which cannot create an IO system), annunciating
 the CPU's own force jobs, the live press force path over the Web API, applied-
 output feedback and physical acceptance.
 
+**P8 applied-output feedback (November 10):** [the feedback record](../Evidence/TIA_OUTPUT_FEEDBACK_2026-11-10.md)
+(owner decision 4A): bridge wire version 2 returns the 1214C's applied outputs;
+the topology publishes them per DQ tag with quality while the report is valid.
+Both bridge sides compile 0/0 with native read-back; nothing is downloaded, and
+both endpoints need the owner's download authorization. The owner approved
+adding PROFINET IO-system commands to the Openness driver (2A); the candidate
+build awaits review of its diff and hash. The force-job detection spike (3B)
+needs that PROFINET fixture for a forceable DQ address.
+
 ## 6. Decisions for the owner
 
 1. **Cross-controller line transport** (P12): owner selected **OUC TCP between

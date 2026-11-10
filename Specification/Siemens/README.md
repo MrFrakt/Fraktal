@@ -3,6 +3,8 @@
 Output forcing (2026-11-10): [engineering-image forcing behind `OUTPUT_FORCING`](Evidence/TIA_OUTPUT_FORCING_2026-11-10.md)
 and the [first native compile of the P9 module types](Evidence/TIA_P9_MODULES_NATIVE_2026-11-10.md),
 now also [run natively](Evidence/TIA_P9_MODULES_RUNTIME_2026-11-10.md) with three port defects fixed.
+DQ channels now carry [applied-output feedback](Evidence/TIA_OUTPUT_FEEDBACK_2026-11-10.md)
+from the 1214C bridge (compiled; downloads await the owner).
 Native PROFINET node health, CPU force-job annunciation and the live press force
 path remain open in P8.
 

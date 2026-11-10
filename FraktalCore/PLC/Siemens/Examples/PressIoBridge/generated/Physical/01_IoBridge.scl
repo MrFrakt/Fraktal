@@ -160,14 +160,15 @@ BEGIN
         IF #PhysicalRole THEN #ExpectedRole := B#16#02; ELSE #ExpectedRole := B#16#01; END_IF;
         #ValidFrame := #ReceiveBytes[0] = B#16#46 AND #ReceiveBytes[1] = B#16#52
             AND #ReceiveBytes[2] = B#16#49 AND #ReceiveBytes[3] = B#16#4F
-            AND #ReceiveBytes[4] = 1 AND #ReceiveBytes[5] = #ExpectedRole
+            AND #ReceiveBytes[4] = 2 AND #ReceiveBytes[5] = #ExpectedRole
             AND #ReceiveBytes[6] = 0 AND #ReceiveBytes[7] = 0
             AND #ReceiveBytes[28] <= 1 AND #ReceiveBytes[29] = 0
             AND #ReceiveBytes[30] = WORD_TO_BYTE(SHR(IN := #Checksum, N := 8))
             AND #ReceiveBytes[31] = WORD_TO_BYTE(#Checksum)
             AND #Epoch <> 0 AND #CandidateSequence <> 0;
+        // Demands from the controller; inputs plus applied outputs from the physical endpoint.
         IF #PhysicalRole THEN #ValidFrame := #ValidFrame AND #Signals <= 255;
-        ELSE #ValidFrame := #ValidFrame AND #Signals <= 16383; END_IF;
+        ELSE #ValidFrame := #ValidFrame AND (UDINT_TO_DWORD(#Signals) AND DW#16#FF00C000) = DW#16#0; END_IF;
         IF #ValidFrame AND #PeerSeen THEN
             IF #Epoch = #PeerEpoch THEN
                 #Delta := "F_IoBridgeElapsed"(NowMs := #CandidateSequence, SinceMs := #PeerSequence);
@@ -220,7 +221,7 @@ BEGIN
         IF #Sequence = UDINT#4294967295 THEN #Sequence := 1; ELSE #Sequence := #Sequence + 1; END_IF;
         #SendBytes[0] := B#16#46; #SendBytes[1] := B#16#52;
         #SendBytes[2] := B#16#49; #SendBytes[3] := B#16#4F;
-        #SendBytes[4] := 1;
+        #SendBytes[4] := 2;
         IF #PhysicalRole THEN #SendBytes[5] := 1; ELSE #SendBytes[5] := 2; END_IF;
         #SendBytes[6] := 0; #SendBytes[7] := 0;
         "F_IoBridgePut32"(Offset := 8, Value := #BootEpoch, Bytes := #SendBytes);

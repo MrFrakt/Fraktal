@@ -34,6 +34,30 @@ class TopologyTests(unittest.TestCase):
         self.assertIn('Nodes[3].Channels[1].Quality := FALSE;',source)
         self.assertIn('Nodes[3].Channels[1].BoolValue := "GDB_BenchIO".Valve;',source)
 
+    def feedback(self):
+        spec=copy.deepcopy(self.spec);spec['feedback_healthy']='ValveFeedbackOk'
+        spec['nodes'][2]['channels'][0]['feedback']='ValveApplied'
+        self.members|={'ValveFeedbackOk','ValveApplied'}
+        return spec
+
+    def test_declared_feedback_publishes_the_applied_state_only_while_valid(self):
+        source=self.build(self.feedback())['38_F_PublishBenchFieldbus.scl']
+        item='"GDB_BenchFieldbus".Topology.Nodes[3].Channels[1].'
+        self.assertIn('IF "GDB_BenchIO".ValveFeedbackOk THEN %sBoolValue := "GDB_BenchIO".ValveApplied;'%item,source)
+        self.assertIn('ELSE %sBoolValue := "GDB_BenchIO".Valve; END_IF;'%item,source)
+        self.assertIn('%sQuality := "GDB_BenchIO".ValveFeedbackOk;'%item,source)
+        self.assertIn('Nodes[2].Channels[1].Quality := #Healthy;',source)
+
+    def test_feedback_refused_where_it_could_not_be_true(self):
+        for case in ('input','undriven','no_health','unknown','health_unknown'):
+            spec=self.feedback()
+            if case=='input':spec['nodes'][1]['channels'][0]['feedback']='ValveApplied'
+            elif case=='undriven':spec['nodes'][2]['channels'][0]['source']=None
+            elif case=='no_health':del spec['feedback_healthy']
+            elif case=='unknown':spec['nodes'][2]['channels'][0]['feedback']='Missing'
+            else:spec['feedback_healthy']='Missing'
+            with self.subTest(case=case),self.assertRaises(ValueError):self.build(spec)
+
     def test_invalid_mapping_fails_before_emission(self):
         for case in ('parent','source','owner','duplicate','width'):
             spec=copy.deepcopy(self.spec)

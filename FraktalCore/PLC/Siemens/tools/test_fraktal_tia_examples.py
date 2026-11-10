@@ -122,6 +122,21 @@ class PressCommittedReplay(unittest.TestCase):
         self.assertGreater(EX.verify(Path(__file__).resolve().parents[1]/'Examples/PressDemo/generated')['replayed_sources'],0)
 
 
+class PressOutputFeedback(unittest.TestCase):
+    def test_every_ordinary_output_declares_feedback_and_the_control_coils_none(self):
+        definition=json.loads((EX.EXAMPLE/'press.json').read_bytes())
+        io=json.loads((EX.ROOT/definition['fieldbus']['io_list']).read_bytes())
+        channels=[c for node in EX.fieldbus_spec(definition)['nodes'] for c in node.get('channels',[]) if c['dir']=='OUTPUT']
+        self.assertEqual({c['tag']:c.get('feedback') for c in channels},
+            {**{row['tag']:EX.applied_member(row) for row in io['outputs']},**{row['tag']:None for row in io['inhibited_outputs']}})
+
+    def test_feedback_members_are_private_image_storage(self):
+        sources,_,_=EX.build()
+        image=sources['38_GDB_PressDemoIO.db']
+        for name in ['OutputFeedbackHealthy']+[EX.applied_member(row) for row in json.loads((EX.ROOT/'Examples/PressIoBridge/00_System/io.json').read_bytes())['outputs']]:
+            self.assertRegex(image,r"\n\s+%s \{ExternalAccessible := 'False'[^}]*\} : Bool;"%name)
+
+
 class PressOutputForcing(unittest.TestCase):
     def engineering(self):
         definition=json.loads((EX.EXAMPLE/'press.json').read_bytes())

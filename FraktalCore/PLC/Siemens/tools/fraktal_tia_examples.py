@@ -536,6 +536,19 @@ def unit_policy(catalog):
       'CommandStart':'    #OutCmd.ChangeoverCompleted := FALSE;'}
 
 
+def applied_member(row):
+    """The I/O image member holding one DQ tag's applied state (per tag, not per signal)."""
+    return 'Applied'+row['tag']
+
+
+def applied_image(definition):
+    """Image members a declared output-feedback transport writes; none without one."""
+    bus=definition.get('fieldbus') or {}
+    if not bus.get('feedback_healthy'):return ''
+    io=json.loads((ROOT/bus['io_list']).read_bytes())
+    return ''.join('    %s : Bool;\n'%name for name in [bus['feedback_healthy']]+[applied_member(row) for row in io['outputs']])
+
+
 def fieldbus_spec(definition):
     """Join the approved I/O list (one source of tags and terminal addresses)
     with the press's signal ownership into the generic topology declaration."""
@@ -546,12 +559,15 @@ def fieldbus_spec(definition):
     assert set(owner)<=known,'fieldbus owner names a signal missing from the I/O list: '+str(sorted(set(owner)-known))
     forceable=set(bus.get('forceable',[]))
     assert forceable<={row['signal'] for row in io['outputs']},'forceable names a signal that is not a driven output: '+str(sorted(forceable-{row['signal'] for row in io['outputs']}))
+    feedback=bool(bus.get('feedback_healthy'))
     def channel(row,direction,source=True):
+        driven=source and direction=='OUTPUT'
         return {'tag':row['tag'],'address':row['address'],'dir':direction,
                 'description_key':'project.io.'+row['tag'].lstrip('_'),
                 'source':row['signal'] if source else None,
                 'module':owner.get(row.get('signal'),root) if source else root,
-                **({'forceable':True} if source and direction=='OUTPUT' and row['signal'] in forceable else {})}
+                **({'forceable':True} if driven and row['signal'] in forceable else {}),
+                **({'feedback':applied_member(row)} if driven and feedback else {})}
     inputs=[channel(row,'INPUT') for row in io['inputs']]
     outputs=[channel(row,'OUTPUT') for row in io['outputs']]+[channel(row,'OUTPUT',False) for row in io['inhibited_outputs']]
     station=dict(bus['station'],type_id='CPU 1214C DC/DC/DC '+io['cpu_order'],address=io['physical_address']+' (I/O bridge)')
@@ -561,6 +577,7 @@ def fieldbus_spec(definition):
     # Core 10.5.1 rule 1: the force surface exists only in an engineering image.
     forcing=definition['integration'].get('output_forcing',False)
     return {**{k:bus[k] for k in ('block','publisher','image','healthy')},
+            **({'feedback_healthy':bus['feedback_healthy']} if feedback else {}),
             **({'forcing':True,'apply':bus['apply']} if forcing else {}),
             'nodes':[station,group('inputs',inputs),group('outputs',outputs)]}
 
@@ -588,8 +605,8 @@ def wire_demo(sources,definition,catalog):
     # so USE_SIMULATION still holds every terminal FALSE (Core 7.5).
     apply='        "'+spec['apply']+'"();\n' if spec.get('forcing') else ''
     template=(ROOT/'Examples/PressDemo/00_System/Hardware/hardware_driver.scl.in').read_text('ascii')
-    assert template.count('@APPLY_FORCES@\n')==1
-    hardware=bind(template.replace('@APPLY_FORCES@\n',apply),catalog,
+    assert template.count('@APPLY_FORCES@\n')==1 and template.count('@APPLIED_OUTPUTS@\n')==1
+    hardware=bind(template.replace('@APPLY_FORCES@\n',apply).replace('@APPLIED_OUTPUTS@\n',applied_image(definition)),catalog,
         {'USE_SIMULATION':'TRUE' if simulate else 'FALSE'})
     # DB declarations have their own native interface/initializer read-back gate.
     # Keep them separate from the driver FCs rather than hiding DBs in an SCL file.
