@@ -8,7 +8,7 @@ void main() {
     final result=await Process.run('powershell.exe',[
       '-NoProfile','-ExecutionPolicy','Bypass','-File','test/installer_endpoints.ps1']);
     expect(result.exitCode,0,reason:'${result.stdout}\n${result.stderr}');
-    expect(result.stdout,contains('17 installer endpoint cases passed.'));
+    expect(result.stdout,contains('19 installer endpoint cases passed.'));
   });
   test('gateway endpoint requires serial and bounds every transport parameter',
       () {
