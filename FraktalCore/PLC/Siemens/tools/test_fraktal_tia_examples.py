@@ -116,5 +116,78 @@ class PressRecoveryGraph(unittest.TestCase):
         self.assertIn('"FB_GRAPH_PressDemoAuto"',dbs)
 
 
+class PressGraphRenditionGate(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sources, cls.definition, _ = EX.build()
+
+    def test_changeover_rendition_parity(self):
+        xml = self.sources['27_FB_GRAPH_PressDemoChangeover.xml']
+        scl = self.sources['23_FB_PressDemoChangeover.scl']
+        ok, only_g, only_s = GRAPH.parity(xml, scl)
+        self.assertTrue(ok)
+        self.assertEqual(only_g, set())
+        self.assertEqual(only_s, set())
+        edges = {(e['from'], e['to']) for e in GRAPH.dump(xml)['edges']}
+        self.assertIn((880, 810), edges)
+        self.assertIn((880, 999), edges)
+
+    def test_changeover_mutation_detected(self):
+        xml = self.sources['27_FB_GRAPH_PressDemoChangeover.xml']
+        scl = self.sources['23_FB_PressDemoChangeover.scl']
+        mutated_scl = scl.replace('OnJump1 := 810', 'OnJump1 := 800')
+        ok, only_g, only_s = GRAPH.parity(xml, mutated_scl)
+        self.assertFalse(ok)
+        self.assertEqual(only_g, {(880, 810)})
+        self.assertEqual(only_s, {(880, 800)})
+
+    def test_load_position_rendition_parity(self):
+        xml = self.sources['27_FB_GRAPH_PressDemoLoadPosition.xml']
+        scl = self.sources['23_00_FB_PressDemoLoadPosition.scl']
+        ok, only_g, only_s = GRAPH.parity(xml, scl)
+        self.assertTrue(ok)
+        self.assertEqual(only_g, set())
+        self.assertEqual(only_s, set())
+        chart = GRAPH.dump(xml)
+        self.assertEqual([s['step'] for s in chart['steps']], [240, 260, 280, 300])
+
+    def test_load_position_mutation_detected(self):
+        xml = self.sources['27_FB_GRAPH_PressDemoLoadPosition.xml']
+        scl = self.sources['23_00_FB_PressDemoLoadPosition.scl']
+        mutated_scl = scl.replace('OnAdvance := 280', 'OnAdvance := 300')
+        ok, only_g, only_s = GRAPH.parity(xml, mutated_scl)
+        self.assertFalse(ok)
+        self.assertEqual(only_g, {(260, 280)})
+        self.assertEqual(only_s, {(260, 300)})
+
+    def test_home_rendition_parity(self):
+        xml = self.sources['27_FB_GRAPH_PressDemoHome.xml']
+        scl = self.sources['23_FB_PressDemoHome.scl']
+        ok, only_g, only_s = GRAPH.parity(xml, scl)
+        self.assertTrue(ok)
+        self.assertEqual(only_g, set())
+        self.assertEqual(only_s, set())
+        chart = GRAPH.dump(xml)
+        self.assertEqual([s['step'] for s in chart['steps']], [0, 900, 910, 999])
+
+    def test_auto_rendition_parity(self):
+        xml = self.sources['27_FB_GRAPH_PressDemoAuto.xml']
+        scl = self.sources['23_FB_PressDemoAuto.scl']
+        aux = {250, 300, 310}
+        ok, only_g, only_s = GRAPH.parity(xml, scl, auxiliary=aux)
+        self.assertTrue(ok)
+        self.assertEqual(only_g, set())
+        self.assertEqual(only_s, set())
+
+    def test_auto_mutation_detected(self):
+        xml = self.sources['27_FB_GRAPH_PressDemoAuto.xml']
+        scl = self.sources['23_FB_PressDemoAuto.scl']
+        mutated_scl = scl.replace('OnJump1 := 185', 'OnJump1 := 190')
+        ok, only_g, only_s = GRAPH.parity(xml, mutated_scl, auxiliary={250, 300, 310})
+        self.assertFalse(ok)
+        self.assertEqual(only_g, {(180, 185)})
+        self.assertEqual(only_s, {(180, 190)})
+
+
 if __name__=='__main__':
     unittest.main()

@@ -105,7 +105,7 @@ None exist; the press sensor CMs therefore omit TC3's `IoTag` fields.
 
 ### 3.6 Sequences
 
-- GRAPH renditions of CHANGEOVER and LoadPosition (Phase 7); CHANGEOVER is ST only.
+- GRAPH renditions of CHANGEOVER and LoadPosition: complete with automated rendition gate (Phase P10).
 - Two-hand start from READY (TC3 calls `Start()` on the armed edge); TIA starts from the HMI only.
 - Decision audit text renders `option=+2` (TIA `INT_TO_STRING` sign).
 
@@ -190,7 +190,7 @@ Each phase ends in evidence (dated report + archive) and leaves the press runnab
 | P7 | Data classes, model creation, capture | `SET_CLASS_LEVEL`, `CREATE_MODEL`, `CAPTURE_CONFIG` | P1 (line classes) | M |
 | P8 | I/O topology + PROFINET health + forcing | catalog, `IoTag` on CMs/diagnostics, fieldbus page, `FORCE_CHANNEL` | P5 | L |
 | P9 | Modules | `FB_ClampEM`, configurable cylinder, separator (complete) | — | M |
-| P10 | GRAPH CHANGEOVER/LoadPosition | Phase 7 parity with rendition gate | — | M |
+| P10 | GRAPH CHANGEOVER/LoadPosition | Phase 7 parity with rendition gate (complete) | — | M |
 | P11 | Host events / MES | §11.6 fixed set over the existing delivery FIFO | P3 | M |
 | P12 | Cross-controller line source | §4 item 6 (OUC TCP or host-mediated) | P1, S13 or gateway work | L |
 | P13 | Contracts, gates, test runner | R3 frozen contracts, R4 gate script, R5 `FRK_Test*` + runner + suites | — (start early) | L |
@@ -201,6 +201,24 @@ Recommended start: P13's contract freeze in parallel with P1, because every
 later phase adds published surface that the frozen contract must then cover.
 
 ### Implementation progress
+
+**November 10 GRAPH CHANGEOVER & LoadPosition Renditions milestone — Phase P10.**
+Phase P10 GRAPH rendition parity and automated gate are completed:
+- `fraktal_tia_graph.py`:
+  - `dump()` enhanced to trace connection topologies bidirectionally through `BranchRef` (`AltBegin`, `AltEnd`, `SimBegin`, `SimEnd`), resolving all exit transitions and destinations without unmapped nodes.
+  - `scl_edges()` updated to parse both `"FRK_SeqRoute"` and `"FRK_Seq_Advance"` across arbitrary parameter ordering and multiple exits (`OnAdvance`, `OnJump1`), filtering disabled targets (`-1`).
+  - `parity()` updated to filter dead-end terminal self-loops (`when: FALSE`) and support auxiliary wait step contraction (`auxiliary={...}`) for native simultaneous parallel joins.
+  - CLI `parity` command extended with optional auxiliary step filter.
+- Parity and mutation testing:
+  - `test_fraktal_tia_graph.py` adds tests for multi-keyword argument order in `scl_edges()`, dead-end loop filtering, and auxiliary contraction.
+  - `test_fraktal_tia_examples.py` adds `PressGraphRenditionGate` proving 100% parity across all 4 Siemens press sequences: `PressDemoChangeover` (6 steps, alternative jump 880->810 / advance 880->999), `PressDemoLoadPosition` (4 steps), `PressDemoHome` (4 steps), and `PressDemoAuto` (19 steps, simultaneous parallel branch contraction).
+  - Explicit mutation tests verify that modifying any advance or jump target in `Changeover`, `LoadPosition`, or `Auto` is detected by the rendition gate with exact diff reporting.
+- Native build and bench:
+  - 286 replayed sources compiled cleanly in TIA Portal V20 with 0 errors and 0 warnings.
+  - PLCSIM Advanced bench passes 93/93 live in-PLC assertions.
+  - All 281 tool tests pass (`test_fraktal_tia_graph`, `test_fraktal_tia_examples`, `test_fraktal_tia_reusable_modules`, etc.).
+  - `check_consistency.py --strict` passes with 0 errors and 0 warnings.
+  - `tia_lint.py` passes with 0 findings.
 
 **November 10 Core Reusable Modules milestone — Phase P9.**
 Phase P9 reusable modules are implemented and verified:

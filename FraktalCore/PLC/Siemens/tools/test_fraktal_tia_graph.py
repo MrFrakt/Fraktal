@@ -124,6 +124,60 @@ class SclEdgesTest(unittest.TestCase):
         self.assertEqual(g.scl_edges("// 5: not a label\n 7: \"FRK_Seq_Advance\"(OnAdvance := 9, OnJump1 := -1, Seq := #Seq);"),
                          {(7, 9)})
 
+    def test_seq_route_and_advance_argument_orders(self):
+        scl = (
+            "CASE #Seq.Step OF\n"
+            "  10:\n"
+            "    \"FRK_SeqRoute\"(Seq := #Seq, OnAdvance := 20, OnJump1 := 15);\n"
+            "  15:\n"
+            "    \"FRK_SeqRoute\"(OnJump1 := -1, OnAdvance := 30, Seq := #Seq);\n"
+            "  20:\n"
+            "    \"FRK_Seq_Advance\"(OnAdvance := 30, OnJump1 := -1);\n"
+            "  30:\n"
+            "    \"FRK_SeqComplete\"(#Seq);\n"
+            "END_CASE;\n"
+        )
+        self.assertEqual(g.scl_edges(scl), {(10, 20), (10, 15), (15, 30), (20, 30)})
+
+
+class ParityGateTest(unittest.TestCase):
+    def test_dead_end_terminal_loop_is_filtered(self):
+        # In GRAPH, terminal steps have a dead-end self loop with when: FALSE
+        chain = copy.deepcopy(CHAIN)
+        xml = g.generate(chain, REFERENCE)
+        chart = g.dump(xml)
+        chart["edges"].append({"from": 120, "to": 120, "link": "Jump", "when": {"operands": ["FALSE"]}})
+        # Ensure parity does not see 120 -> 120
+        ok, only_g, only_s = g.parity(xml, SCL)
+        self.assertTrue(ok)
+        self.assertEqual(only_g, set())
+        self.assertEqual(only_s, set())
+
+    def test_auxiliary_contraction_bridges_intermediate_wait_steps(self):
+        chain = {
+            "name": "FB_TestAux",
+            "number": 100,
+            "inout": [],
+            "steps": [
+                {"no": 10, "label": "step10", "next": 15, "when": ["#Seq.RetVal"]},
+                {"no": 15, "label": "step15", "next": 20, "when": ["#Seq.RetVal"]},
+                {"no": 20, "label": "step20", "next": 10, "when": ["#Seq.RetVal"]},
+            ],
+        }
+        xml = g.generate(chain, REFERENCE)
+        scl = (
+            "CASE #Seq.Step OF\n"
+            "  10:\n"
+            "    \"FRK_SeqRoute\"(OnAdvance := 20, OnJump1 := -1);\n"
+            "  20:\n"
+            "    \"FRK_SeqRoute\"(OnAdvance := 10, OnJump1 := -1);\n"
+            "END_CASE;\n"
+        )
+        ok, only_g, only_s = g.parity(xml, scl, auxiliary={15})
+        self.assertTrue(ok)
+        self.assertEqual(only_g, set())
+        self.assertEqual(only_s, set())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -306,17 +306,62 @@ def dump(xml_text: str) -> dict:
         if branches_in_sequence(seq):
             network=next(n for n in t.iter() if _local(n.tag)=='FlgNet')
             conditions[t.get("Number")]['wiring']=_transition_wiring(network)
-    source, edges = {}, []
+    fwd, bwd = {}, {}
+
+    def key(node):
+        return (_local(node.tag), node.get("Number"))
+
     links = [(c.find("g:NodeFrom/*", NS), c.find("g:NodeTo/*", NS), c.find("g:LinkType", NS).text)
              for c in seq.findall("g:Connections/g:Connection", NS)]
-    for frm, to, _ in links:
-        if _local(frm.tag) == "StepRef" and _local(to.tag) == "TransitionRef":
-            source[to.get("Number")] = by_number[frm.get("Number")]
     for frm, to, link in links:
-        if _local(frm.tag) == "TransitionRef" and _local(to.tag) == "StepRef":
-            t = frm.get("Number")
-            edges.append({"from": source.get(t), "to": by_number[to.get("Number")], "link": link,
-                          "when": conditions.get(t)})
+        kf, kt = key(frm), key(to)
+        fwd.setdefault(kf, []).append((kt, link))
+        bwd.setdefault(kt, []).append((kf, link))
+
+    def find_upstream_steps(node, visited=None):
+        if visited is None:
+            visited = set()
+        if node in visited:
+            return set()
+        visited.add(node)
+        tag, num = node
+        if tag == "StepRef":
+            return {by_number[num]}
+        steps = set()
+        for src, _ in bwd.get(node, []):
+            if src[0] in ("StepRef", "BranchRef"):
+                steps |= find_upstream_steps(src, visited)
+        return steps
+
+    def find_downstream_steps(node, visited=None):
+        if visited is None:
+            visited = set()
+        if node in visited:
+            return set()
+        visited.add(node)
+        tag, num = node
+        if tag == "StepRef":
+            return {(by_number[num], "Direct")}
+        targets = set()
+        for dst, link in fwd.get(node, []):
+            if dst[0] == "StepRef":
+                targets.add((by_number[dst[1]], link))
+            elif dst[0] == "BranchRef":
+                for s, l in find_downstream_steps(dst, visited):
+                    targets.add((s, link if link != "Direct" else l))
+        return targets
+
+    edges = []
+    transitions = [t.get("Number") for t in seq.findall("g:Transitions/g:Transition", NS)]
+    for t_num in transitions:
+        t_node = ("TransitionRef", t_num)
+        up_steps = find_upstream_steps(t_node)
+        down_steps = find_downstream_steps(t_node)
+        cond = conditions.get(t_num)
+        for u in (up_steps or [None]):
+            for d, link in (down_steps or [(None, "Direct")]):
+                if u is not None or d is not None:
+                    edges.append({"from": u, "to": d, "link": link, "when": cond})
     edges.sort(key=lambda e: (str(e["from"]), str(e["to"])))
     attrs = root.find("SW.Blocks.FB/AttributeList")
     settings = {name: attrs.findtext(name) for name in ("AcknowledgeErrorsRequired", "SkipSteps")}
@@ -375,20 +420,37 @@ def _network_dump(network: ET.Element) -> dict:
 
 
 def scl_edges(scl: str) -> set[tuple[int, int]]:
-    """Edges of an SCL `CASE #Seq.Step OF` chain: each label's FRK_Seq_Advance targets."""
+    """Edges of an SCL `CASE #Seq.Step OF` chain: each label's FRK_Seq_Advance or FRK_SeqRoute targets."""
     body = re.sub(r"//[^\n]*", "", scl)
     labels = list(re.finditer(r"^\s*(\d+)\s*:(?!=)", body, re.M))
     edges = set()
     for i, lab in enumerate(labels):
         branch = body[lab.end(): labels[i + 1].start() if i + 1 < len(labels) else len(body)]
-        for adv in re.finditer(r'"FRK_Seq_Advance"\s*\(\s*OnAdvance\s*:=\s*(-?\d+)\s*,\s*OnJump1\s*:=\s*(-?\d+)', branch):
-            edges |= {(int(lab.group(1)), int(t)) for t in adv.groups() if int(t) >= 0}
+        step_no = int(lab.group(1))
+        for adv in re.finditer(r'"FRK_Seq(?:_Advance|Route)"\s*\(([^)]+)\)', branch):
+            args = adv.group(1)
+            on_adv = re.search(r'OnAdvance\s*:=\s*(-?\d+)', args)
+            on_jmp1 = re.search(r'OnJump1\s*:=\s*(-?\d+)', args)
+            if on_adv and int(on_adv.group(1)) >= 0:
+                edges.add((step_no, int(on_adv.group(1))))
+            if on_jmp1 and int(on_jmp1.group(1)) >= 0:
+                edges.add((step_no, int(on_jmp1.group(1))))
     return edges
 
 
-def parity(graph_xml: str, scl: str) -> tuple[bool, set, set]:
+def parity(graph_xml: str, scl: str, auxiliary: set[int] | None = None) -> tuple[bool, set, set]:
     """The rendition gate (Part IV §3.5, §5.3): identical step graphs."""
-    g = {(e["from"], e["to"]) for e in dump(graph_xml)["edges"]}
+    raw_edges = dump(graph_xml)["edges"]
+    g = {(e["from"], e["to"]) for e in raw_edges
+         if not (e["from"] == e["to"] and e.get("when", {}).get("operands") == ["FALSE"])}
+    if auxiliary:
+        in_aux = {u: aux for u, aux in g if aux in auxiliary}
+        out_aux = {aux: v for aux, v in g if aux in auxiliary}
+        contracted = {(u, v) for u, v in g if u not in auxiliary and v not in auxiliary}
+        for u, aux in in_aux.items():
+            if u not in auxiliary and aux in out_aux and out_aux[aux] not in auxiliary:
+                contracted.add((u, out_aux[aux]))
+        g = contracted
     s = scl_edges(scl)
     return g == s, g - s, s - g
 
@@ -406,9 +468,11 @@ def main(argv: list[str]) -> int:
     if cmd == "dump" and len(argv) == 2:
         print(json.dumps(dump(pathlib.Path(argv[1]).read_text(encoding="utf-8-sig")), indent=1))
         return 0
-    if cmd == "parity" and len(argv) == 3:
+    if cmd == "parity" and len(argv) in (3, 4):
+        auxiliary = {int(x) for x in argv[3].split(",") if x} if len(argv) == 4 else None
         ok, only_g, only_s = parity(pathlib.Path(argv[1]).read_text(encoding="utf-8-sig"),
-                                    pathlib.Path(argv[2]).read_text(encoding="utf-8"))
+                                    pathlib.Path(argv[2]).read_text(encoding="utf-8"),
+                                    auxiliary=auxiliary)
         print("parity %s; only in GRAPH %s; only in SCL %s" % ("OK" if ok else "FAILED", sorted(only_g), sorted(only_s)))
         return 0 if ok else 1
     print(__doc__)
