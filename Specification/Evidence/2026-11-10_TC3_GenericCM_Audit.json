@@ -1,0 +1,65 @@
+{
+  "baseCommit": "2c5f9b2c9b2075775c754d9c7921356f9e7b233f",
+  "auditBranch": "audit/generic-cm-library",
+  "auditDate": "2026-11-10",
+  "versions": {
+    "Fraktal_Core": "0.26.7.0",
+    "Fraktal_Modules": "0.17.0.0"
+  },
+  "cheapGates": "plc_lint modern+4024 468 files clean; TC3 tool tests 79 OK (1 skip); check_consistency --strict 0/0; repository gate tests 85 OK; AB spec/frozen gates clean; TIA candidate V2 clean (plain and --generated); tia_lint 0 findings; TIA generator/examples/io-bridge replays verified; Siemens tool tests 271 OK; reason generator --check clean; flutter analyze lib clean; gateway dart analyze clean; HMI unit tests pass",
+  "evidenceIntegrity": {
+    "receiptsAudited": 11,
+    "evidenceFilesChecked": 192,
+    "evidenceFilesPassed": 192,
+    "sourceBindingsChecked": 290,
+    "sourceBindingsPassed": 290,
+    "junitXmlsChecked": 22,
+    "aggregateTestsPassing": 353,
+    "pressTestsPassing": 9,
+    "buildLogsCheckedClean": 101,
+    "incidentLogsReconciled": 5,
+    "unprovenClaimsDocumented": 4
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "severity": "S3",
+      "package": "Robot",
+      "location": "Annex I §15",
+      "summary": "Route preview not implemented on connector or simulator"
+    },
+    {
+      "id": "F-02",
+      "severity": "S2",
+      "package": "Robot",
+      "location": "FB_RobotCM.TcPOU:122",
+      "summary": "_safetyPermit defaults to TRUE when no alias supplied"
+    },
+    {
+      "id": "F-03",
+      "severity": "S4",
+      "package": "Robot",
+      "location": "ST_RobotCapabilities.TcDUT:13",
+      "summary": "Commands bitmask is DWORD (0..31)"
+    },
+    {
+      "id": "F-04",
+      "severity": "S4",
+      "package": "Cylinder",
+      "location": "FB_ValveDrive.TcPOU:45",
+      "summary": "Cylinder timeout without ResetOnTimeout leaves pulsed coil at instantaneous state"
+    },
+    {
+      "id": "F-05",
+      "severity": "S5",
+      "package": "Axis",
+      "location": "FB_AxisCM.TcPOU",
+      "summary": "ASCII 'S' used instead of section symbol '§' in comments"
+    }
+  ],
+  "recommendation": "GO",
+  "files": {
+    "Specification/Reports/TC3_GENERIC_CM_AUDIT_REPORT_2026-11-10.md": "18a19c27f321e44a580aca9c867a77440e9ac5a43b18e0bf09cbbef1235814ee",
+    "Specification/Evidence/2026-11-10_TC3_GenericCM_Audit.md": "fbff883d12680be106ab9bed8f5b79ba24fd8a919ec61a222b4191052e004f9d"
+  }
+}
