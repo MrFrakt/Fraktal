@@ -105,6 +105,10 @@ IF _againDone THEN
 END_IF
 _again.M_Begin(Pulsing := TRUE, MinOutputTime := T#1S);
 AssertFalse(Condition := _again.MinTimeElapsed, Message := 'the first move waits its minimum');
+AssertTrue(Condition := _again.Pulsing, Message := 'pulsing property returns TRUE');
+_again.M_Reset();
+AssertFalse(Condition := _again.Pulsing, Message := 'M_Reset drops pulsing');
+AssertFalse(Condition := _again.MinTimeElapsed, Message := 'M_Reset clears MinTimeElapsed');
 _again.M_Begin(Pulsing := FALSE, MinOutputTime := T#0MS);
 AssertTrue(Condition := _again.MinTimeElapsed, Message := 'a new move takes its own minimum');
 AssertTrue(Condition := _again.M_Coil(Steady := FALSE, PulsingWidth := T#20MS, PulsingPeriod := T#100MS),

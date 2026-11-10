@@ -55,5 +55,26 @@ ELSE
     M_Coil := TRUE;
 END_IF]]></ST></Implementation>
     </Method>
+    <Method Name="M_Reset" Id="{47df81e2-a774-4d31-82a8-c6bcb18af5ac}">
+      <Declaration><![CDATA[// Drops pulsing, timers and minimum time elapsed.
+METHOD M_Reset]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_pulsing := FALSE;
+_tPeriod(IN := FALSE);
+_tMin(IN := FALSE);
+MinTimeElapsed := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="Pulsing" Id="{5932e5a0-0e2b-4d19-9963-39d6d549997b}">
+      <Declaration><![CDATA[// Whether this move was begun as a pulsing move.
+PROPERTY Pulsing : BOOL]]></Declaration>
+      <Get Name="Get" Id="{20ab7f21-866b-451f-9647-7ec1d16c05eb}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[Pulsing := _pulsing;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
   </POU>
 </TcPlcObject>

@@ -16,14 +16,14 @@
 // this for FB_StaubliVal3Connector changes a declaration and nothing else. That
 // is the whole point - simulation is paid once in the connector family, never
 // per station (S1.1 O1).
-FUNCTION_BLOCK FB_SimRobotConnector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector, I_RobotRoutines
+FUNCTION_BLOCK FB_SimRobotConnector EXTENDS FB_DeviceConnectorBase IMPLEMENTS I_RobotConnector, I_RobotRoutines, I_SimulatedRobotConnector
 VAR_INPUT
     MoveTime : TIME  := T#200MS;              // how long an accepted motion takes
     HomeTime : TIME  := T#500MS;
     HomeArea : DWORD := 1;                    // area reported once homed (I.11)
     Inject   : E_RobotSimFault;               // I.5c - level, cleared by the caller
     UserIn   : ARRAY[1..PL_Robot.MAX_USER_SIGNALS] OF LREAL;   // what the robot program reports (I.3)
-    Offered  : DWORD := 16#0003FFFE;          // commands offered: bit n = E_RobotCommand n (1..17)
+    Offered  : LWORD := 16#0003FFFE;          // commands offered: bit n = E_RobotCommand n (1..17)
     JogAxes  : INT   := 7;                    // axes a jog may address
     TaughtPoints : DWORD := 999;              // IDs 1..TaughtPoints are taught; any other is refused
 END_VAR

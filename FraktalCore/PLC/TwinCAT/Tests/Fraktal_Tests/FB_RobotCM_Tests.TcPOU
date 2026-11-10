@@ -918,7 +918,11 @@ END_CASE]]></ST>
         </Implementation>
       </Method>
       <Method Name="Power_on_is_refused_without_the_safety_alias" Id="{911ae33b-8393-46af-8392-a993436121a9}">
-        <Declaration><![CDATA[METHOD PRIVATE Power_on_is_refused_without_the_safety_alias]]></Declaration>
+        <Declaration><![CDATA[METHOD PRIVATE Power_on_is_refused_without_the_safety_alias
+VAR
+    cmReal   : FB_RobotCM;
+    connReal : FB_StaubliVal3Connector;
+END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[TEST('Power_on_is_refused_without_the_safety_alias');
 IF _sN = 99 THEN
@@ -928,6 +932,12 @@ _rbN.Connect();
 _rbN.Cyclic();
 CASE _sN OF
     0:
+        cmReal.Setup(Name := 'Test.RobotReal', Robot := connReal);
+        AssertFalse(Condition := cmReal.OutImm.SafetyPermit,
+            Message := 'unconfigured real connector defaults to absent safety permit');
+        cmReal.SetSimulationOverride(Enable := TRUE);
+        AssertTrue(Condition := cmReal.OutImm.SafetyPermit,
+            Message := 'SetSimulationOverride enables permit on un-aliased connector');
         _cmN.Setup(Name := 'Test.RobotN', Robot := _rbN);
         _cmN.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmN.ParCfg.MoveTimeout := T#3S;
@@ -1498,7 +1508,7 @@ CASE _sV OF
     1:
         _cmV();
         AssertTrue(Condition := _cmV.OutImm.Capabilities.Reported, Message := 'the controller$'s offer is published');
-        AssertEquals_DWORD(Expected := 16#00039FFE, Actual := _cmV.OutImm.Capabilities.Commands,
+        AssertEquals_DWORD(Expected := 16#00039FFE, Actual := TO_DWORD(_cmV.OutImm.Capabilities.Commands),
             Message := 'command by command');
         AssertEquals_INT(Expected := 7, Actual := _cmV.OutImm.Capabilities.JogAxes, Message := 'with its jog axes');
         _cmV.Command := E_RobotCommand.SET_PAYLOAD;

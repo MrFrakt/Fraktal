@@ -72,9 +72,12 @@ VAR
     _requested   : E_RobotOpMode := E_RobotOpMode.MANUAL_REDUCED;   // the mode last REQUESTED
     _wasLinked   : BOOL;
     _reportSeen  : BOOL;                 // a real mode was reported since the link came up
-    _safetyPermit : BOOL := TRUE;        // S9 alias as supplied; TRUE until an application supplies one
-    _safetyPrev  : BOOL := TRUE;
+    _safetyPermit : BOOL := FALSE;       // §9 alias as supplied; FALSE until an application supplies one or simulation is enabled
+    _safetyPrev  : BOOL := FALSE;
     _safetyKey   : STRING(255);          // names the alias in the fault; '' = the generic text
+    _safetyConfigured : BOOL := FALSE;   // SetSafetyPermit was called explicitly
+    _simOverride : BOOL := FALSE;        // deliberate simulation override (F-02)
+    _simulated   : BOOL := FALSE;        // connector queried as I_SimulatedRobotConnector
     _tPowerRetry : TON;                  // re-ask for power off while it is still reported on
     _jogReqDir   : INT;                  // direction asked for this scan (RequestHeldCommand)
     _jogDir      : INT;                  // direction the connector was started in
@@ -100,6 +103,7 @@ VAR_INPUT
 END_VAR
 VAR
     InitialModel : ST_ModelId;
+    simConnector : I_SimulatedRobotConnector;
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[_M_SetName(Name);
@@ -123,6 +127,14 @@ _conn := Robot;
 // I.5b - the routines are a capability group: present only when the connector
 // implements the secondary interface; otherwise they are simply not offered.
 __QUERYINTERFACE(Robot, _routines);
+// Core §10.6, §9.8 (F-02) - detect simulation connector to permit un-aliased motion in test benches.
+IF __QUERYINTERFACE(Robot, simConnector) THEN
+    _simulated := TRUE;
+    IF NOT _safetyConfigured THEN
+        _safetyPermit := TRUE;
+        _safetyPrev := TRUE;
+    END_IF
+END_IF
 // §5.6 - a configuration this type cannot honour refuses Setup, as for every CM.
 Setup := PrepareRecipe(Model := InitialModel);
 IF Setup THEN
@@ -686,15 +698,31 @@ END_CASE]]></ST>
 // scan like SetAreaSafe. It GRANTS nothing: TRUE only lets ordinary requests
 // through. FALSE drops arm power and stops a running command with
 // ROBOT_SAFETY_DROPPED; TRUE again re-enables nothing (§9.3/§9.4). Defaults
-// TRUE: a station that supplies no alias is not gated by one.
+// FALSE (fail-closed, O10): an un-aliased real robot cannot move unless SetSimulationOverride is set.
 METHOD SetSafetyPermit
 VAR_INPUT
     Permit         : BOOL;
     DescriptionKey : STRING(255);   // names the alias in the fault; '' = the generic text
 END_VAR]]></Declaration>
         <Implementation>
-          <ST><![CDATA[_safetyPermit := Permit;
+          <ST><![CDATA[_safetyConfigured := TRUE;
+_safetyPermit := Permit;
 _safetyKey := DescriptionKey;]]></ST>
+        </Implementation>
+      </Method>
+      <Method Name="SetSimulationOverride" Id="{ee22151e-e830-424c-97c3-ac438a360483}">
+        <Declaration><![CDATA[// Deliberately override safety permit gating for offline simulation or bench testing (Core §10.6, §9.8, F-02).
+METHOD SetSimulationOverride : BOOL
+VAR_INPUT
+    Enable : BOOL;
+END_VAR]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[_simOverride := Enable;
+IF NOT _safetyConfigured THEN
+    _safetyPermit := Enable;
+    _safetyPrev := Enable;
+END_IF
+SetSimulationOverride := TRUE;]]></ST>
         </Implementation>
       </Method>
       <Method Name="_M_SafetyCyclic" Id="{830ab572-26e2-4140-ae42-3156db219532}">
@@ -994,11 +1022,11 @@ IF NOT _caps.Reported THEN
     _M_Offered := TRUE;
     RETURN;
 END_IF
-IF (Value < 0) OR (Value > 31) THEN
+IF (Value < 0) OR (Value > 63) THEN
     _M_Offered := FALSE;
     RETURN;
 END_IF
-_M_Offered := (_caps.Commands AND SHL(DWORD#1, DINT_TO_UINT(Value))) <> 0;]]></ST>
+_M_Offered := (_caps.Commands AND SHL(LWORD#1, DINT_TO_UINT(Value))) <> 0;]]></ST>
         </Implementation>
       </Method>
       <Method Name="_M_IsRoutine" Id="{adc903a7-519d-4355-b779-62fc367c3d73}">

@@ -316,9 +316,10 @@ CASE _step OF
             _step := 30;
         ELSIF _tMove.Q THEN
             _tMove(IN := FALSE);
-            IF ParCfg.ResetOnTimeout THEN
+            IF ParCfg.ResetOnTimeout OR _drive.Pulsing THEN
                 _M_DriveCoil(ToWork := toWork, Level := FALSE);
             END_IF
+            _drive.M_Reset();
             _M_FaultN(SEL(toWork, PL_ModuleReasons.CYL_HOME_NOT_REACHED, PL_ModuleReasons.CYL_WORK_NOT_REACHED),
                       SEL(toWork, 'std.error.cylinderHomeTimeout', 'std.error.cylinderWorkTimeout'));
         END_IF

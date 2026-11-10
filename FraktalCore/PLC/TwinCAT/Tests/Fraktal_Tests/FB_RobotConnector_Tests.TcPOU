@@ -361,7 +361,7 @@ _connH.Cyclic();
 _iH := _iH + 1;
 _capsH := _connH.Capabilities;
 IF _capsH.Reported THEN
-    AssertEquals_DWORD(Expected := 40958, Actual := _capsH.Commands, Message := 'the offered commands, as sent');
+    AssertEquals_DWORD(Expected := 40958, Actual := TO_DWORD(_capsH.Commands), Message := 'the offered commands, as sent');
     AssertEquals_INT(Expected := 6, Actual := _capsH.JogAxes, Message := 'the jog axes');
     AssertEquals_INT(Expected := 4, Actual := _capsH.UserSignals, Message := 'the user-signal slots');
     AssertTrue(Condition := _connH.BrakeTestDue, Message := 'due bit 1 is the brake test');

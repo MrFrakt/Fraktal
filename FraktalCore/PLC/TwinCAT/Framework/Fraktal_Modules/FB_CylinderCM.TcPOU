@@ -96,6 +96,7 @@ _bothSensorAddresses := CONCAT(Identity.ExtendedSensor.Address, CONCAT(' / ', Id
 // This is not a certified stop; the safety system remains authoritative.
 METHOD WithdrawOutputs]]></Declaration>
       <Implementation><ST><![CDATA[_withdrawn := TRUE;
+_drive.M_Reset();
 IF __ISVALIDREF(_hal) THEN
     _hal.ExtendOut := FALSE;
     _hal.RetractOut := FALSE;
@@ -342,10 +343,11 @@ CASE _step OF
         ELSIF _tMove.Q THEN
             _tMove(IN := FALSE);
             _tSettle(IN := FALSE);
-            IF ParCfg.ResetOnTimeout THEN
+            IF ParCfg.ResetOnTimeout OR _drive.Pulsing THEN
                 _holdCoil := FALSE;
                 _M_DriveCoil(Level := FALSE);
             END_IF
+            _drive.M_Reset();
             IF ext AND (_extendedSensorTag <> '') THEN
                 _M_FaultIoN(Code := PL_ModuleReasons.CYL_NOT_EXTENDED, Text := _extendedTimeoutKey,
                     IoTag := _extendedSensorTag, IoAddress := _extendedSensorAddress);

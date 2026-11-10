@@ -2,16 +2,16 @@
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <POU Name="FB_AxisCM" Id="{67f6d9e3-e1d3-4e52-8c0e-a2b82552da28}" SpecialFunc="None">
     <Declaration><![CDATA[// Annex G worked example on the base class: PLCopen Motion behind the standard
-// handshake (S10.6). The parent Unit commands MOVE_TO exactly as it commands a
-// cylinder EXTEND - it neither knows nor cares that a servo is involved (S6.1).
+// handshake (§10.6). The parent Unit commands MOVE_TO exactly as it commands a
+// cylinder EXTEND - it neither knows nor cares that a servo is involved (§6.1).
 //
 // The drive is reached ONLY through AXIS_REF and Tc2_MC2. That is what makes the
 // type drive-agnostic: a Jenny Science XENAX linked as a CiA402 EtherCAT axis, a
 // Beckhoff AX5000, or a simulated NC axis are the same code here. Any
-// vendor-specific facility belongs in the driver layer (S10.2), never in a
+// vendor-specific facility belongs in the driver layer (§10.2), never in a
 // reusable CM.
 //
-// Like FB_SeparatorCM this type declares NO interlocks of its own (S7.2.1). Safe
+// Like FB_SeparatorCM this type declares NO interlocks of its own (§7.2.1). Safe
 // motion lives in the certified system; this module only READS its status, and
 // the application supplies that status - and any station policy - through
 // DeclareCondition/SetCondition. A library cannot name "STO cleared" for a
@@ -44,7 +44,7 @@ VAR PERSISTENT
     _station : ST_AxisStationCfg;
 END_VAR
 VAR PERSISTENT
-    // S3.8b - the second retained image: named positions 2..N and the manual
+    // §3.8b - the second retained image: named positions 2..N and the manual
     // step. A separate image, so the v2 axis StationCfg (TaughtPosition,
     // JogRequiresEnable) is unchanged and no deployed image is lost.
     _teach : ST_AxisTeachCfg;
@@ -94,10 +94,10 @@ END_VAR]]></Declaration>
         <ST><![CDATA[OnCyclic := SUPER^.OnCyclic();
 _M_ApplyConditions();
 Intlk();
-IF __ISVALIDREF(_axis) THEN                  // defensive (S5.6) [TC3]
+IF __ISVALIDREF(_axis) THEN                  // defensive (§5.6) [TC3]
     // Enable follows the declared conditions. Losing one drops the enable in the
     // same scan it is lost; re-enabling after it returns is a deliberate command,
-    // never automatic (S9.3, S9.4).
+    // never automatic (§9.3, §9.4).
     _power(Axis := _axis, Enable := Intlk.AllOk, Enable_Positive := Intlk.AllOk,
         Enable_Negative := Intlk.AllOk, Override := _override);
     OutImm.ActPos := _axis.NcToPlc.ActPos;
@@ -123,8 +123,8 @@ END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="DeclareCondition" Id="{523d6056-ce78-4c1f-bac4-a4fb8c004e4b}">
-      <Declaration><![CDATA[// Core S7.2.1 - the application names its own conditions on this module; the
-// library declares none. Safe-motion status (S9.2) is read-only application
+      <Declaration><![CDATA[// Core §7.2.1 - the application names its own conditions on this module; the
+// library declares none. Safe-motion status (§9.2) is read-only application
 // input, so "STO cleared" is declared here by the station that can see it.
 // Declared conditions start FALSE: declaring one states an intent to gate.
 METHOD DeclareCondition : BOOL
@@ -281,10 +281,10 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_M_SetName(Name);
 _M_SetPresentation(DisplayNameKey := 'std.moduleType.axis.name', DescriptionKey := 'std.moduleType.axis.description', TypeKey := 'std.moduleType.axis');
-_axis REF= AxisRef;                      // [TC3] TC3 S3.11
+_axis REF= AxisRef;                      // [TC3] TC3 §3.11
 _recipe := Recipe;
 // No Intlk.Define here: safe-motion status and station policy are the
-// application's to name (S7.2.1).
+// application's to name (§7.2.1).
 _M_PublishCommand(Value := TO_DINT(E_AxisCommand.HOME), Label := 'std.command.home');
 _M_PublishCommand(Value := TO_DINT(E_AxisCommand.MOVE_TO), Label := 'std.command.moveTo');
 _M_PublishHeldCommand(Value := TO_DINT(E_AxisCommand.JOG_POS), Label := 'std.command.jogPositive');
@@ -338,14 +338,14 @@ Setup := M_RegisterConfigFlag(Key := 'axis.jogRequiresEnable',
     Kind := E_ConfigKind.STATION_CFG, pTarget := ADR(_station.JogRequiresEnable),
     RequiresReady := TRUE) AND Setup;
 
-// S3.8b - the second retained image: named positions 2..N and the manual step.
+// §3.8b - the second retained image: named positions 2..N and the manual step.
 // Version 0 is a first boot of the upgrade: nothing was retained, so nothing
 // was lost and nothing is announced; the defaults are all zero.
 IF NOT M_RestoreStationCfg(pVersion := ADR(_teach.SchemaVersion),
         SchemaVersion := PL_Axis.AXIS_TEACHCFG_SCHEMA) THEN
     _teach.ManualStep := 0.0;
 END_IF
-// S3.8a/S3.8c - every position the composition root declared becomes an
+// §3.8a/§3.8c - every position the composition root declared becomes an
 // ordinary editable value with the soft limits as bounds, capturable from the
 // live position; the manual step is always editable. Registration budget:
 // 2 standing + manualStep + up to 7 positions = 10 of 12.
@@ -394,7 +394,7 @@ SetJogRequiresEnable := TRUE;]]></ST>
     <Method Name="WithdrawOutputs" Id="{7048fa32-48b6-4490-a0f4-1a93a00524fb}">
       <Declaration><![CDATA[// Functional stop used by an owning sequence on abort/interlock loss. This is a
 // controlled MC_Stop, NOT a certified safe stop: the safety system remains
-// authoritative and STO is its business, not this module's (S9).
+// authoritative and STO is its business, not this module's (§9).
 METHOD WithdrawOutputs]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF __ISVALIDREF(_axis) THEN
@@ -415,7 +415,7 @@ _tMove(IN := FALSE);]]></ST>
     <Method Name="OnAbort" Id="{e9fcd5a6-e437-44a3-9c68-4beda7d104fb}">
       <Declaration><![CDATA[METHOD PROTECTED OnAbort : DINT]]></Declaration>
       <Implementation>
-        <ST><![CDATA[OnAbort := SUPER^.OnAbort();            // base first (S3.14.2)
+        <ST><![CDATA[OnAbort := SUPER^.OnAbort();            // base first (§3.14.2)
 WithdrawOutputs();]]></ST>
       </Implementation>
     </Method>
@@ -425,7 +425,7 @@ VAR_INPUT
     Model : ST_ModelId;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// S5.6/S3.8 - the speed-scale band is configuration the type must be able
+        <ST><![CDATA[// §5.6/§3.8 - the speed-scale band is configuration the type must be able
 // to honour: a non-positive minimum, an inverted band or a maximum beyond 100
 // percent is refused and the recipe is not applied (WP3.3). Judged on the LIVE
 // ParCfg, so a bad staged record is refused here on the next changeover too.
@@ -503,7 +503,7 @@ IF (Command <> E_AxisCommand.HOME) AND (Command <> E_AxisCommand.MOVE_TO)
     RETURN;
 END_IF
 IF Command = E_AxisCommand.HOME THEN
-    _M_TagCommand(Id := 1, Label := 'std.command.home');          // S8.11.4(a)
+    _M_TagCommand(Id := 1, Label := 'std.command.home');          // §8.11.4(a)
 ELSIF Command = E_AxisCommand.MOVE_TO THEN
     _M_TagCommand(Id := 2, Label := 'std.command.moveTo');
 ELSIF Command = E_AxisCommand.MOVE_REL THEN
@@ -516,14 +516,14 @@ END_IF
 _M_ApplyConditions();
 Intlk();
 IF NOT Intlk.AllOk THEN
-    // HELD, not a fault (S6.1). Losing a declared condition mid-move is expected
+    // HELD, not a fault (§6.1). Losing a declared condition mid-move is expected
     // - an operator releasing an enable is the designed way to stop. The axis is
     // brought to a controlled stop by the same permit that gates the enable, and
     // the move resumes from step 10 with a full MoveTimeout window so a hold
     // cannot silently consume travel time the axis was not moving for.
     WithdrawOutputs();
     dg := Intlk.Diagnostic;
-    dg.SourcePath := _name;                          // owner sets the path (S7.2)
+    dg.SourcePath := _name;                          // owner sets the path (§7.2)
     _M_HoldDiag(Diag := dg);
     _step := 10;
     RETURN;
@@ -570,7 +570,7 @@ CASE _step OF
             _M_FaultStopped(Code := PL_ModuleReasons.AXIS_MOVE_TIMEOUT, Text := 'std.error.axisMoveTimeout');
         END_IF
 ELSE
-    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (§5.6)
 END_CASE]]></ST>
       </Implementation>
     </Method>
@@ -581,7 +581,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// Validate the REQUEST before the STATE, and both before commanding motion
-// (S5.6). Annex G checked homed-first; range-first is used here because a target
+// (§5.6). Annex G checked homed-first; range-first is used here because a target
 // outside the soft limits is malformed regardless of whether the axis is homed,
 // and reporting "not homed" for an impossible target sends the operator to the
 // wrong problem. It also makes both rejections provable without a licensed NC
@@ -608,7 +608,7 @@ IF (target < ParCfg.SoftMin) OR (target > ParCfg.SoftMax) THEN
     RETURN;
 END_IF
 // The speed scale is judged before the datum so a mis-scaled request is
-// provable without a licensed NC axis (WP3.3; S5.6 validate-before-state).
+// provable without a licensed NC axis (WP3.3; §5.6 validate-before-state).
 IF (TO_LREAL(ParCmd.SpeedScale) < TO_LREAL(ParCfg.SpeedScaleMin))
     OR (TO_LREAL(ParCmd.SpeedScale) > TO_LREAL(ParCfg.SpeedScaleMax)) THEN
     _M_FaultN(Code := PL_ModuleReasons.AXIS_PARAM_OOR, Text := 'std.error.axisSpeedScaleOutOfRange');
@@ -631,7 +631,7 @@ CASE _step OF
     20:
         // MC_MoveAbsolute's Busy/Done/Error/CommandAborted map one-to-one onto
         // the CM handshake, which is what lets a parent Unit command MOVE_TO
-        // exactly as it commands a cylinder EXTEND (S6.1).
+        // exactly as it commands a cylinder EXTEND (§6.1).
         _moveFb(Axis := _axis, Execute := TRUE, Position := target,
             Velocity := ParCfg.Velocity * TO_LREAL(ParCmd.SpeedScale) / 100.0,
             Acceleration := ParCfg.Acceleration,
@@ -658,7 +658,7 @@ END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="M_DeclarePosition" Id="{3104dcf8-96f0-4a34-bd47-59135f454530}">
-      <Declaration><![CDATA[// S3.8a - declare a named taught position (index 2..MAX_POSITIONS) BEFORE
+      <Declaration><![CDATA[// §3.8a - declare a named taught position (index 2..MAX_POSITIONS) BEFORE
 // Setup, the SetJogRequiresEnable idiom: the composition root names the
 // positions this installation actually has, and Setup turns each declaration
 // into an editable value with a capture. Refused out of range, for an empty
@@ -682,7 +682,7 @@ _positionDeclared[Index] := TRUE;
 M_DeclarePosition := TRUE;]]></ST></Implementation>
     </Method>
     <Method Name="SetOverride" Id="{d0bb905d-f123-4446-b745-59480ccaef08}">
-      <Declaration><![CDATA[// S6.1/WP3.3 - the set-and-hold speed override in percent. It scales motion
+      <Declaration><![CDATA[// §6.1/WP3.3 - the set-and-hold speed override in percent. It scales motion
 // through _power's Override, so it acts on a running move and on jog. Refused
 // (and the previous value kept) outside 0..100: an override nobody accepted is
 // not a value the axis inherits. No freshness fallback: a silent owner can
@@ -777,7 +777,7 @@ CASE _step OF
             _M_FaultStopped(Code := PL_ModuleReasons.AXIS_MOVE_TIMEOUT, Text := 'std.error.axisMoveTimeout');
         END_IF
 ELSE
-    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (S5.6)
+    _M_Fault(E_Reason.STEP_STALLED, 'std.error.undefinedStep');    // defined ELSE (§5.6)
 END_CASE]]></ST></Implementation>
     </Method>
   </POU>

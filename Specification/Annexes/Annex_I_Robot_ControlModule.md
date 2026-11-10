@@ -1214,6 +1214,13 @@ authorising it and a commissioning engineer can tell a bad affinity table from a
 Generating routes instead of enumerating them is only an O3 improvement if the result is visible;
 otherwise it trades a list someone can read for a graph they cannot.
 
+> [!NOTE] Implementation Status (Route Preview)
+> Full dynamic route preview streaming across the connector boundary is deferred to subsequent vision
+> integration and trajectory tooling work. In the initial reference implementation (`FB_RobotCM`,
+> `I_RobotConnector`, and `FB_SimulatedRobotConnector`), route planning and safety validation occur
+> natively within the module, while streaming the serialized waypoint preview to the HMI is slated
+> for the vision integration package.
+
 ---
 
 
@@ -1254,7 +1261,7 @@ otherwise it trades a list someone can read for a graph they cannot.
   O6 is unsatisfiable without a simulating one — including deliberate fault injection, since the
   reasons of I.2 cannot otherwise be proven without breaking a real cell.
 - **Route preview as a requirement** (I.15): a generated route is only an O3 improvement over a
-  taught list if the operator can see it.
+  taught list if the operator can see it (deferred to vision integration in reference runtime).
 - **Optional capability groups** (I.5b) — conveyor tracking, work-area/zone interlocking, force
   control, brake test and the rest — declared through `Features` and added as narrow secondary
   interfaces, so the common case keeps a small surface.
