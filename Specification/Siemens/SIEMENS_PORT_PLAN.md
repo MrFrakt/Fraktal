@@ -872,3 +872,18 @@ Typed configuration now uses exact integer-rational conversion and verified
 17-digit text. Native REAL leaf JSON remains limited to seven significant
 figures on this bench; configuration editor/export precision uses PLC-owned
 text. Lossless raw REAL telemetry remains part of the wider transport gate.
+
+## Progress, 2026-10-15: press operated over the direct Web API link
+
+The press demo is now downloaded to the simulated CPU1516 `Fraktal` and operated
+MANUAL/HOME/CHANGEOVER/AUTO by the native HMI over `s7web://` with no gateway
+([evidence](Evidence/TIA_PRESS_COMPLETE_2026-10-15.md)). This updates D4's
+consequence: the native desktop HMI reaches a TIA station through the
+licence-free Web API directly (certificate pinned by SHA-256, CPU web user,
+mailbox-only writes), not only where OPC UA is licensed. §7.2 M2/M3/M4 now exist
+as passive CM types; §7.3 gains CHANGEOVER with a seeded model catalog, the
+simulation driver and the start-lamp derivation. Running the press exposed four
+latent defects (idle sub-chain fault, zero mode timeout, passive-type timeout
+sync, `ModelId` contract name), all fixed in the generator. Still open for §7.3:
+I/O catalog/PROFINET topology, engineering-gate register, line/OEE/shift, signal
+tower, health, PartFeed (S14), physical process and deployment acceptance.

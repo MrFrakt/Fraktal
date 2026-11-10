@@ -154,31 +154,13 @@ class StepParetoView extends StatelessWidget {
             child: Text('${s.stepNo} ${ctx.tr(s.label)}',
                 overflow: TextOverflow.ellipsis)),
         Expanded(
-          child: LayoutBuilder(builder: (_, box) {
-            return SizedBox(
+          child: TimingBar(
+              avgFraction: avgFrac,
+              maxFraction: maxFrac,
               height: 20,
-              child: Stack(children: [
-                Container(
-                    decoration: BoxDecoration(
-                        color:
-                            Theme.of(ctx).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(4))),
-                Container(
-                  width: (box.maxWidth * avgFrac).clamp(2.0, box.maxWidth),
-                  decoration: BoxDecoration(
-                      color: timeClassColor(s.timeClass),
-                      borderRadius: BorderRadius.circular(4)),
-                ),
-                Positioned(
-                  left: (box.maxWidth * maxFrac).clamp(0.0, box.maxWidth - 2),
-                  child: Container(
-                      width: 2,
-                      height: 20,
-                      color: Theme.of(ctx).colorScheme.onSurface),
-                ),
-              ]),
-            );
-          }),
+              radius: 4,
+              color: timeClassColor(s.timeClass),
+              tickColor: Theme.of(ctx).colorScheme.onSurface),
         ),
         const SizedBox(width: 8),
         SizedBox(

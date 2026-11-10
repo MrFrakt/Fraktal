@@ -861,7 +861,7 @@ rather than hard-coding a path):
 ```
 flutter pub get
 flutter analyze                 # clean as of 2026-09-28 (Flutter 3.47.5)
-flutter test                    # 563 passing, 7 intentional skips (2026-10-08, Flutter 3.47.6)
+flutter test                    # 587 passing, 12 opt-in live skips (2026-10-15, Flutter 3.47.6)
 flutter run -d windows|chrome
 ```
 **The pinned version is 3.47.5, and `pub get` will not tell you when you are on the
@@ -886,9 +886,13 @@ Neither runs in the normal suite. Vocabulary and the demo's 150 s plant tour:
 
 `flutter run -d windows` additionally needs Visual Studio's *Desktop development with
 C++* workload. The desktop build uses the native FFI OPC UA adapter, so it reaches a
-TwinCAT target; the supported AB path is the gateway over WebSocket, which is the
-**web** build (`-d chrome`), or direct read-only desktop CIP (`cip://<controller>`)
-via `CipSessionClient` in `fraktal_opcua_client`.
+TwinCAT target, and a Siemens TIA station directly with
+`s7web://<cpu>?pin=<SHA-256 fingerprint>`; the CPU web login is entered in the
+connection wizard/screen and kept in memory only unless the operator ticks
+"Remember" (DPAPI / Linux keyring / Android Keystore / iOS Keychain) (or `FRAKTAL_TIA_WEB_USER`/
+`FRAKTAL_TIA_WEB_PASSWORD` on an unattended panel; OPCUA_TRANSPORT "Direct native HMI"). The supported AB
+path is the gateway over WebSocket, which is the **web** build (`-d chrome`), or direct read-only desktop CIP (`cip://<controller>`)
+via `CipSessionClient` in `fraktal_opcua_client` (core operator surface only; see `lib/data/cip/` and OPCUA_TRANSPORT §3a).
 `analysis_options.yaml` is self-contained (no flutter_lints include) per the zero-package policy.
 
 **Gateway + Web HMI deployment:** follow
@@ -902,11 +906,12 @@ dart pub get
 dart run tool/build_gateway.dart --clean
 ```
 **PLC transports:** `--plc-endpoint` is `opc.tcp://` (TF6100/licensed OPC UA),
-`ads://` (TwinCAT), `s7web://` (Siemens S7 Web API, licence-free, pinned
-`--plc-certificate`, `FRAKTAL_TIA_WEB_USER/PASSWORD`; OPCUA_TRANSPORT "Siemens S7
-Web API transport"), or `cip://` (Allen-Bradley CIP transport, licence-free,
-slot/serial pinned; OPCUA_TRANSPORT "Allen-Bradley CIP transport"). All four
-emit `fraktal.opcua.snapshot.v1`.
+`ads://` (TwinCAT), `s7web://` (Siemens S7 Web API, licence-free, pinned by
+`?pin=` or `--plc-certificate`; CPU login per instance from `--plc-login-file`
+(DPAPI, written by the installer wizard), systemd credentials, or
+`FRAKTAL_TIA_WEB_USER/PASSWORD`; OPCUA_TRANSPORT "Siemens S7 Web API transport"),
+or `cip://` (Allen-Bradley CIP transport, licence-free, slot/serial pinned;
+OPCUA_TRANSPORT "Allen-Bradley CIP transport"). All four emit `fraktal.opcua.snapshot.v1`.
 
 **One gateway process serves ONE PLC.** A host serving several controllers runs
 one *instance* per PLC, and an instance is just a folder:

@@ -168,6 +168,8 @@ Future<void> main(List<String> arguments) async {
     await File(
             '${project.path}/deploy/linux/fraktal-gateway-instance.env.example')
         .copy('${output.path}/fraktal-gateway-instance.env.example');
+    await File('${project.path}/deploy/linux/fraktal-gateway-s7web-login.conf.example')
+        .copy('${output.path}/fraktal-gateway-s7web-login.conf.example');
   }
   stdout.writeln('Gateway package: ${output.path}');
 }

@@ -165,6 +165,20 @@ foreach ($instance in $instances) {
   } else {
     Write-Output "  $($instance.Name): commands allowed for $($writeRoots -join ', ')"
   }
+  # An s7web:// instance logs in to the CPU web server with the login the
+  # wizard sealed for this Windows user; other transports carry no such file.
+  $loginPath = Get-FraktalPlcLoginPath $instance.Name
+  if (Test-FraktalS7WebEndpoint $instance.Endpoint) {
+    Set-FraktalArgument -Path $configPath -Option '--plc-login-file' -Value $loginPath
+    if (Test-Path -LiteralPath $loginPath) {
+      Write-Output "  $($instance.Name): CPU web login stored (sealed for $env:USERNAME)"
+    } else {
+      Write-Output "  $($instance.Name): WARNING no CPU web login stored; run setup again and enter it"
+    }
+  } else {
+    Remove-FraktalArgument -Path $configPath -Option '--plc-login-file'
+    if (Test-Path -LiteralPath $loginPath) { Remove-Item -LiteralPath $loginPath -Force }
+  }
 }
 
 if ($legacyConsumed) {
@@ -184,6 +198,9 @@ if ($authoritative) {
     $orphan = Join-Path $directory.FullName 'gateway.args'
     if (-not (Test-Path -LiteralPath $orphan)) { continue }
     Move-Item -LiteralPath $orphan -Destination "$orphan.removed" -Force
+    # The configuration is kept for reference; a credential nobody runs is not.
+    $orphanLogin = Join-Path $directory.FullName 'plc_login.json'
+    if (Test-Path -LiteralPath $orphanLogin) { Remove-Item -LiteralPath $orphanLogin -Force }
     Write-Output "  $($directory.Name): retired (configuration kept as gateway.args.removed)"
   }
 }

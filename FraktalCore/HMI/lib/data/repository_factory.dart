@@ -54,11 +54,14 @@ Future<PlcRepository> createRepository(ConnectionSettings settings) async {
     throw ConnectionStartupException(
       stage: 'tcp-preflight',
       message: '${probe.host}:${probe.port} is not reachable: ${probe.detail}',
-      remediation: endpoint.scheme == 'opc.tcp'
-          ? 'Verify that the TwinCAT OPC UA Server (TF6100) is installed, '
-              'licensed, configured, and listening on this port.'
-          : 'Start the Fraktal WebSocket/REST gateway and verify its address, '
-              'port, firewall, and route.',
+      remediation: switch (endpoint.scheme) {
+        'opc.tcp' => 'Verify that the TwinCAT OPC UA Server (TF6100) is '
+            'installed, licensed, configured, and listening on this port.',
+        's7web' => 'Verify that the CPU web server is enabled for HTTPS and '
+            'that its address, port, firewall, and route are correct.',
+        _ => 'Start the Fraktal WebSocket/REST gateway and verify its '
+            'address, port, firewall, and route.',
+      },
     );
   }
 

@@ -27,6 +27,54 @@ String timeClassLabel(TimeClass c) => switch (c) {
       TimeClass.waitExternal => 'Wait external',
     };
 
+/// One horizontal duration bar: average as a fill, maximum as a tick, both as
+/// fractions of the chart's largest maximum. Geometry stays inside whatever
+/// width the flow layout grants, including none at all.
+class TimingBar extends StatelessWidget {
+  final double avgFraction;
+  final double maxFraction;
+  final double height;
+  final double radius;
+  final Color color;
+  final Color tickColor;
+  const TimingBar(
+      {super.key,
+      required this.avgFraction,
+      required this.maxFraction,
+      required this.height,
+      required this.radius,
+      required this.color,
+      required this.tickColor});
+
+  static const double _tick = 2;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final width = box.maxWidth.isFinite ? box.maxWidth : 0.0;
+        final fill = (width * avgFraction).clamp(0.0, width);
+        final tickRoom = width > _tick ? width - _tick : 0.0;
+        return SizedBox(
+          height: height,
+          child: Stack(children: [
+            Container(
+                decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(radius))),
+            Container(
+              width: fill < _tick && width >= _tick ? _tick : fill,
+              decoration: BoxDecoration(
+                  color: color, borderRadius: BorderRadius.circular(radius)),
+            ),
+            if (width >= _tick)
+              Positioned(
+                left: (width * maxFraction - _tick).clamp(0.0, tickRoom),
+                child: Container(width: _tick, height: height, color: tickColor),
+              ),
+          ]),
+        );
+      });
+}
+
 class TimingChartOption<T> {
   final T id;
   final String label;

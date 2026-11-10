@@ -1,4 +1,4 @@
-﻿param(
+param(
   # Silent mode: when Components is bound the UI is skipped and the listed
   # components are installed with the supplied endpoints. Escape hatch for
   # Group-Policy/AppLocker hosts where the WinForms UI cannot run, and for
@@ -10,7 +10,9 @@
   [string]$GatewayEndpoint,
   # One gateway instance per PLC, repeatable. Each value is a spec:
   #   name=<label>;endpoint=<uri>;port=<loopback port>;origin=<https://host[:port]>
-  #   ;writeroot=<root Unit path[,root Unit path...]>
+  #   ;writeroot=<root Unit path[,root Unit path...]>;webuser=<CPU web user>
+  # webuser= (s7web:// only) takes its password from FRAKTAL_TIA_WEB_PASSWORD
+  # and stores the login sealed for the installing Windows user.
   # Only endpoint is required; name defaults to 'default' then instance2,
   # instance3, …, and port to 8080, 8081, ….
   [string[]]$GatewayInstance,
@@ -143,6 +145,27 @@ function Run-SelectedInstalls(
         $ok = $false
         continue
       }
+      # CPU web logins entered this session are sealed for this Windows user
+      # BEFORE the installer runs, by the packaged gateway itself; they never
+      # reach the instances file below.
+      $sealed = $true
+      foreach ($instance in $Instances) {
+        if (-not (Test-FraktalS7WebEndpoint $instance.Endpoint)) { continue }
+        if ($instance.PlcLogin) {
+          try {
+            Save-FraktalPlcLogin (Join-Path $PSScriptRoot 'fraktal_gateway.exe') `
+              $instance.Name $instance.PlcLogin.User $instance.PlcLogin.Password | Out-Null
+            Write-WizardLog "[Gateway] $($instance.Name): CPU web login stored for $env:USERNAME."
+          } catch {
+            Write-WizardLog "[Gateway] $($instance.Name): $($_.Exception.Message)"
+            $sealed = $false
+          }
+        } elseif (-not (Test-Path -LiteralPath (Get-FraktalPlcLoginPath $instance.Name))) {
+          Write-WizardLog "[Gateway] $($instance.Name): s7web:// needs the CPU web user and password."
+          $sealed = $false
+        }
+      }
+      if (-not $sealed) { $ok = $false; continue }
       # The instance set is handed over as a file: a name, a URI, and an origin
       # per instance do not survive nested PowerShell quoting reliably.
       $instancesFile = Join-Path $env:TEMP `
@@ -206,7 +229,19 @@ if ($PSBoundParameters.ContainsKey('Components')) {
       } else {
         @()
       }
-      $instances += (New-FraktalInstance $name $endpoint $port $origin $roots)
+      $instance = New-FraktalInstance $name $endpoint $port $origin $roots
+      # webuser= names the CPU web user of an s7web:// instance; its password
+      # comes only from FRAKTAL_TIA_WEB_PASSWORD, never from the command line.
+      if ($fields.ContainsKey('webuser')) {
+        $webPassword = $env:FRAKTAL_TIA_WEB_PASSWORD
+        if (-not $webPassword) {
+          [Console]::Error.WriteLine('webuser= needs the password in FRAKTAL_TIA_WEB_PASSWORD.')
+          exit 2
+        }
+        $secure = ConvertTo-SecureString $webPassword -AsPlainText -Force
+        $instance.PlcLogin = @{ User = $fields['webuser']; Password = $secure }
+      }
+      $instances += $instance
       $index++
     }
   } else {
@@ -474,7 +509,7 @@ function Show-InstanceDialog(
 ) {
   $dialog = New-Object System.Windows.Forms.Form
   $dialog.Text = $Title
-  $dialog.Size = New-Object System.Drawing.Size(520, 415)
+  $dialog.Size = New-Object System.Drawing.Size(520, 495)
   $dialog.StartPosition = 'CenterParent'
   $dialog.FormBorderStyle = 'FixedDialog'
   $dialog.MaximizeBox = $false
@@ -502,7 +537,7 @@ function Show-InstanceDialog(
   $endpointLabel.Text = if ($LockEndpoint) {
     'PLC endpoint (shared with the HMI / local endpoint):'
   } else {
-    'PLC endpoint (ads://, opc.tcp://, s7web:// or cip://<host>?slot=0&serial=<serial>):'
+    'PLC endpoint (ads://, opc.tcp://, s7web://<CPU>?pin=<SHA-256> or cip://<host>?slot=0&serial=<serial>):'
   }
   $endpointLabel.Location = New-Object System.Drawing.Point(16, 72)
   $endpointLabel.Size = New-Object System.Drawing.Size(470, 20)
@@ -546,14 +581,38 @@ function Show-InstanceDialog(
   $hint.Location = New-Object System.Drawing.Point(16, 264)
   $hint.Size = New-Object System.Drawing.Size(470, 62)
 
+  # s7web:// only: the CPU web login, sealed for this Windows user before the
+  # installer runs. Blank keeps a login stored by an earlier setup.
+  $storedLogin = Test-Path -LiteralPath (Get-FraktalPlcLoginPath $Instance.Name)
+  $webUserLabel = New-Object System.Windows.Forms.Label
+  $webUserLabel.Text = 'CPU web user (s7web):'
+  $webUserLabel.Location = New-Object System.Drawing.Point(16, 332)
+  $webUserLabel.Size = New-Object System.Drawing.Size(220, 20)
+  $webUserBox = New-Object System.Windows.Forms.TextBox
+  if ($Instance.PlcLogin) { $webUserBox.Text = $Instance.PlcLogin.User }
+  $webUserBox.Location = New-Object System.Drawing.Point(16, 354)
+  $webUserBox.Size = New-Object System.Drawing.Size(220, 24)
+  $webPasswordLabel = New-Object System.Windows.Forms.Label
+  $webPasswordLabel.Text = if ($storedLogin) {
+    'CPU web password (blank = keep stored):'
+  } else {
+    'CPU web password:'
+  }
+  $webPasswordLabel.Location = New-Object System.Drawing.Point(266, 332)
+  $webPasswordLabel.Size = New-Object System.Drawing.Size(220, 20)
+  $webPasswordBox = New-Object System.Windows.Forms.TextBox
+  $webPasswordBox.UseSystemPasswordChar = $true
+  $webPasswordBox.Location = New-Object System.Drawing.Point(266, 354)
+  $webPasswordBox.Size = New-Object System.Drawing.Size(220, 24)
+
   $okBtn = New-Object System.Windows.Forms.Button
   $okBtn.Text = 'OK'
   $okBtn.Size = New-Object System.Drawing.Size(90, 30)
-  $okBtn.Location = New-Object System.Drawing.Point(286, 330)
+  $okBtn.Location = New-Object System.Drawing.Point(286, 410)
   $cancelDialogBtn = New-Object System.Windows.Forms.Button
   $cancelDialogBtn.Text = 'Cancel'
   $cancelDialogBtn.Size = New-Object System.Drawing.Size(90, 30)
-  $cancelDialogBtn.Location = New-Object System.Drawing.Point(386, 330)
+  $cancelDialogBtn.Location = New-Object System.Drawing.Point(386, 410)
   $cancelDialogBtn.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
 
   $syncCommandFields = {
@@ -562,6 +621,14 @@ function Show-InstanceDialog(
   }
   $commandCheck.Add_CheckedChanged($syncCommandFields)
   & $syncCommandFields
+  $syncLoginFields = {
+    $s7web = Test-FraktalS7WebEndpoint $endpointBox.Text
+    foreach ($control in @($webUserLabel, $webUserBox, $webPasswordLabel, $webPasswordBox)) {
+      $control.Enabled = $s7web
+    }
+  }
+  $endpointBox.Add_TextChanged($syncLoginFields)
+  & $syncLoginFields
 
   $okBtn.Add_Click({
     if (-not (Test-FraktalInstanceName $nameBox.Text)) {
@@ -572,9 +639,22 @@ function Show-InstanceDialog(
     }
     if (-not (Test-FraktalEndpoint $endpointBox.Text)) {
       [System.Windows.Forms.MessageBox]::Show($dialog,
-        'Enter a valid PLC endpoint, e.g. cip://192.168.1.6?slot=0&serial=601FC87B, ads://192.168.1.6.1.1:851, s7web://192.168.1.6 or opc.tcp://192.168.1.6:4840.',
+        'Enter a valid PLC endpoint, e.g. ads://192.168.1.6.1.1:851 (six dot-separated parts), opc.tcp://192.168.1.6:4840, s7web://192.168.0.1?pin=<SHA-256 fingerprint>, or cip://192.168.1.6?slot=0&serial=601FC87B.',
         'Invalid PLC endpoint', 0, 48)
       return
+    }
+    if (Test-FraktalS7WebEndpoint $endpointBox.Text) {
+      $hasUser = -not [string]::IsNullOrWhiteSpace($webUserBox.Text)
+      $hasPassword = $webPasswordBox.Text.Length -gt 0
+      $storedUnderName = Test-Path -LiteralPath (Get-FraktalPlcLoginPath $nameBox.Text.Trim())
+      $keeps = (-not $hasUser) -and (-not $hasPassword) -and
+        ($storedUnderName -or $Instance.PlcLogin)
+      if (-not $keeps -and -not ($hasUser -and $hasPassword)) {
+        [System.Windows.Forms.MessageBox]::Show($dialog,
+          'Enter the CPU web user and its password (TIA Portal: CPU properties, Web server, User management). The gateway logs in to the CPU web server with it.',
+          'CPU web login required', 0, 48)
+        return
+      }
     }
     $parsedPort = 0
     if (-not [int]::TryParse($portBox.Text.Trim(), [ref]$parsedPort) -or
@@ -614,6 +694,7 @@ function Show-InstanceDialog(
     $nameLabel, $nameBox, $portLabel, $portBox,
     $endpointLabel, $endpointBox, $originLabel, $originBox,
     $commandCheck, $rootLabel, $rootBox, $hint,
+    $webUserLabel, $webUserBox, $webPasswordLabel, $webPasswordBox,
     $okBtn, $cancelDialogBtn
   ))
   $dialog.AcceptButton = $okBtn
@@ -632,6 +713,17 @@ function Show-InstanceDialog(
   }
   $edited = New-FraktalInstance `
     $nameBox.Text.Trim() $endpointBox.Text.Trim() $port $originBox.Text.Trim() $roots
+  if (Test-FraktalS7WebEndpoint $edited.Endpoint) {
+    if ($webPasswordBox.Text.Length -gt 0) {
+      $secure = New-Object System.Security.SecureString
+      foreach ($character in $webPasswordBox.Text.ToCharArray()) { $secure.AppendChar($character) }
+      $secure.MakeReadOnly()
+      $edited.PlcLogin = @{ User = $webUserBox.Text.Trim(); Password = $secure }
+    } else {
+      $edited.PlcLogin = $Instance.PlcLogin
+    }
+  }
+  $webPasswordBox.Text = ''
   $dialog.Dispose()
   return $edited
 }

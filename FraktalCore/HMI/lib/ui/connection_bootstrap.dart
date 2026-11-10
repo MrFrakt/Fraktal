@@ -10,6 +10,8 @@ import '../content/module_content_controller.dart';
 import '../data/connection_settings_store.dart';
 import '../data/plc_repository.dart';
 import '../data/repository_factory.dart';
+import '../data/s7web_credentials.dart';
+import '../data/s7web_endpoint.dart';
 import '../data/scoped_plc_repository.dart';
 import '../domain/connection_settings.dart';
 import '../domain/module_node.dart';
@@ -81,6 +83,10 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
   String? _startupError;
   bool _editingUnitSelection = false;
 
+  /// Set when the direct s7web:// link needs the CPU web login: the screen
+  /// asks for it instead of retrying a connection that cannot succeed.
+  S7WebLoginRequired? _loginRequired;
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +97,9 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
     await Future.wait([
       widget.localization.load(),
       widget.content.load(),
+      // Remembered CPU web logins, so the wizard and the login screen know
+      // whether to offer "remember" and a saved endpoint can log in itself.
+      s7WebCredentials.ready(),
     ]);
     final loadedSettings = await widget.store.load();
     final settings = loadedSettings ??
@@ -144,6 +153,7 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
       _canEdit = false;
       _lastLink = LinkState.connecting;
       _startupError = null;
+      _loginRequired = null;
     });
     _armEditDelay();
     debugPrint('[Fraktal/Connection] stage=start '
@@ -199,6 +209,16 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
       app.addListener(_onAppChanged);
       debugPrint('[Fraktal/Connection] stage=subscriptions-created');
       _onAppChanged();
+    } on S7WebLoginRequired catch (error) {
+      repository?.dispose();
+      debugPrint('[Fraktal/Connection] stage=s7web-login-required '
+          'rejected=${error.rejected}');
+      if (!mounted || generation != _connectionGeneration) return;
+      setState(() {
+        _lastLink = LinkState.down;
+        _startupError = null;
+        _loginRequired = error;
+      });
     } on Object catch (error, stackTrace) {
       repository?.dispose();
       debugPrint('[Fraktal/Connection] stage=startup-failed error=$error');
@@ -384,6 +404,18 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
         setState(() => _canEdit = true);
       }
     });
+  }
+
+  /// The operator entered the CPU web login on the connection screen. It is
+  /// held for this endpoint only (in memory, and sealed for the OS user when
+  /// [persist]), then the same saved settings connect again.
+  void _submitS7WebLogin(String user, String password, bool persist) {
+    final settings = _settings;
+    if (settings == null) return;
+    s7WebCredentials.remember(
+        S7WebEndpoint.parse(Uri.parse(settings.endpoint)), user, password,
+        persist: persist);
+    _connect(settings, newlySaved: false);
   }
 
   void _editSettings() {
@@ -596,6 +628,14 @@ class _ConnectionBootstrapState extends State<ConnectionBootstrap> {
               canEdit: _canEdit,
               startupError: _startupError,
               onEdit: _editSettings,
+              login: _loginRequired == null
+                  ? null
+                  : S7WebLoginForm(
+                      rejected: _loginRequired!.rejected,
+                      target: S7WebEndpoint.parse(
+                          Uri.parse(_settings?.endpoint ?? '')),
+                      onSubmit: _submitS7WebLogin,
+                    ),
             ),
           ),
         _BootstrapPhase.unitSelection => _ConnectionMaterial(
@@ -800,6 +840,9 @@ class _ConnectionWizardState extends State<ConnectionWizard> {
   final _form = GlobalKey<FormState>();
   late ConnectionTransport _transport;
   late final TextEditingController _endpoint;
+  final _webUser = TextEditingController();
+  final _webPassword = TextEditingController();
+  bool _rememberWebLogin = false;
 
   @override
   void initState() {
@@ -808,24 +851,68 @@ class _ConnectionWizardState extends State<ConnectionWizard> {
     _endpoint = TextEditingController(
       text: widget.initial?.endpoint ?? defaultConnectionEndpoint(),
     );
+    final target = _s7WebTarget;
+    if (target != null) {
+      _webUser.text = s7WebCredentials.userFor(target);
+      _rememberWebLogin = s7WebCredentials.isRemembered(target);
+    }
   }
 
   @override
   void dispose() {
     _endpoint.dispose();
+    _webUser.dispose();
+    _webPassword.dispose();
     super.dispose();
   }
+
+  /// The endpoint as a valid direct s7web:// target, or null.
+  S7WebEndpoint? get _s7WebTarget {
+    final uri = Uri.tryParse(_endpoint.text.trim());
+    if (uri == null || uri.scheme != S7WebEndpoint.scheme) return null;
+    return S7WebEndpoint.defect(uri) == null ? S7WebEndpoint.parse(uri) : null;
+  }
+
+  /// The login already held for the target, kept when the operator leaves
+  /// its prefilled user unchanged and the password empty (it is never shown
+  /// back).
+  S7WebCredentials? get _heldWebLogin {
+    final target = _s7WebTarget;
+    final held = target == null ? null : s7WebCredentials.lookup(target);
+    return held != null &&
+            held.user == _webUser.text.trim() &&
+            _webPassword.text.isEmpty
+        ? held
+        : null;
+  }
+
+  /// Both or neither: an empty login is asked for on connect (or comes from
+  /// the environment on an unattended panel).
+  String? _validateWebLogin(String? _) =>
+      _heldWebLogin == null &&
+              (_webUser.text.trim().isEmpty) != (_webPassword.text.isEmpty)
+          ? context.tr('std.connection.s7webLoginMissing')
+          : null;
 
   String? _validateEndpoint(String? value) {
     if (_transport == ConnectionTransport.simulation) return null;
     final uri = Uri.tryParse(value?.trim() ?? '');
     if (uri == null || !uri.hasScheme || uri.host.isEmpty)
       return context.tr('std.connection.endpointInvalid');
-    const accepted = {'ws', 'wss', 'http', 'https', 'opc.tcp', 'ads', 'cip'};
+    const accepted = {
+      'ws', 'wss', 'http', 'https', 'opc.tcp', 'ads', 'cip', 's7web' //
+    };
     if (!accepted.contains(uri.scheme))
       return context.tr('std.connection.schemeInvalid');
     if (uri.scheme == 'ads' && uri.host.split('.').length != 6)
       return context.tr('std.connection.adsNetIdInvalid');
+    if (uri.scheme == S7WebEndpoint.scheme) {
+      // A browser cannot pin a certificate or hold the CPU login: Web builds
+      // reach a TIA station through the gateway, which does both.
+      if (kIsWeb) return context.tr('std.connection.s7webNative');
+      if (S7WebEndpoint.defect(uri) != null)
+        return context.tr('std.connection.s7webInvalid');
+    }
     return null;
   }
 
@@ -842,6 +929,9 @@ class _ConnectionWizardState extends State<ConnectionWizard> {
   /// the AmsNetId/port format guidance next to the field.
   bool get _isAdsEndpoint =>
       _endpoint.text.trim().toLowerCase().startsWith('ads:');
+
+  bool get _isS7WebEndpoint =>
+      _endpoint.text.trim().toLowerCase().startsWith('s7web:');
 
   @override
   Widget build(BuildContext context) {
@@ -908,8 +998,21 @@ class _ConnectionWizardState extends State<ConnectionWizard> {
                             LText(
                                 _isAdsEndpoint
                                     ? 'std.connection.adsHelp'
-                                    : 'std.connection.transportHelp',
+                                    : _isS7WebEndpoint
+                                        ? 'std.connection.s7webHelp'
+                                        : 'std.connection.transportHelp',
                                 style: Theme.of(context).textTheme.bodySmall),
+                            if (_isS7WebEndpoint && !kIsWeb) ...[
+                              const SizedBox(height: 16),
+                              S7WebLoginFields(
+                                user: _webUser,
+                                password: _webPassword,
+                                validator: _validateWebLogin,
+                                remember: _rememberWebLogin,
+                                onRememberChanged: (value) =>
+                                    setState(() => _rememberWebLogin = value),
+                              ),
+                            ],
                           ],
                           const SizedBox(height: 24),
                           FilledButton.icon(
@@ -919,6 +1022,17 @@ class _ConnectionWizardState extends State<ConnectionWizard> {
                             onPressed: () {
                               if (!(_form.currentState?.validate() ?? false))
                                 return;
+                              final target = _s7WebTarget;
+                              final held = _heldWebLogin;
+                              if (_transport == ConnectionTransport.gateway &&
+                                  target != null &&
+                                  _webUser.text.trim().isNotEmpty) {
+                                s7WebCredentials.remember(
+                                    target,
+                                    _webUser.text.trim(),
+                                    held?.password ?? _webPassword.text,
+                                    persist: _rememberWebLogin);
+                              }
                               widget.onConnect((widget.initial ??
                                       ConnectionSettings(
                                         endpoint: defaultConnectionEndpoint(),
@@ -952,6 +1066,9 @@ class ConnectionBlockingScreen extends StatelessWidget {
   final String? startupError;
   final VoidCallback? onEdit;
 
+  /// The direct s7web:// login prompt, when the link needs one.
+  final Widget? login;
+
   const ConnectionBlockingScreen({
     super.key,
     this.loadingSettings = false,
@@ -960,6 +1077,7 @@ class ConnectionBlockingScreen extends StatelessWidget {
     this.canEdit = false,
     this.startupError,
     this.onEdit,
+    this.login,
   });
 
   @override
@@ -975,10 +1093,15 @@ class ConnectionBlockingScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: Padding(
+          // Scrolls on a small panel, where the login form makes it taller
+          // than the screen.
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              if (failed)
+              if (login != null)
+                Icon(Icons.lock_outline,
+                    size: 56, color: Theme.of(context).colorScheme.primary)
+              else if (failed)
                 Icon(Icons.link_off,
                     size: 56, color: Theme.of(context).colorScheme.error)
               else
@@ -990,7 +1113,9 @@ class ConnectionBlockingScreen extends StatelessWidget {
               LText(
                   loadingSettings
                       ? 'std.connection.loading'
-                      : 'std.connection.connecting',
+                      : login != null
+                          ? 'std.connection.s7webLoginTitle'
+                          : 'std.connection.connecting',
                   key: const Key('connection-blocking-title'),
                   style: Theme.of(context).textTheme.headlineSmall),
               if (!loadingSettings && endpoint.isNotEmpty) ...[
@@ -1028,6 +1153,13 @@ class ConnectionBlockingScreen extends StatelessWidget {
                   ),
                 ),
               ],
+              if (login != null) ...[
+                const SizedBox(height: 16),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: login,
+                ),
+              ],
               if (canEdit) ...[
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
@@ -1041,6 +1173,153 @@ class ConnectionBlockingScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The CPU web user and password fields shared by the wizard and the login
+/// prompt. The password is obscured and never prefilled or suggested. The
+/// "remember" box appears only where the platform can seal the login for the
+/// OS user (Windows DPAPI); elsewhere the login stays in memory only.
+class S7WebLoginFields extends StatelessWidget {
+  final TextEditingController user;
+  final TextEditingController password;
+  final FormFieldValidator<String>? validator;
+  final VoidCallback? onSubmitted;
+  final bool remember;
+  final ValueChanged<bool>? onRememberChanged;
+
+  const S7WebLoginFields({
+    super.key,
+    required this.user,
+    required this.password,
+    this.validator,
+    this.onSubmitted,
+    this.remember = false,
+    this.onRememberChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      TextFormField(
+        key: const Key('s7web-user'),
+        controller: user,
+        decoration: InputDecoration(
+          labelText: context.tr('std.connection.s7webUser'),
+          border: const OutlineInputBorder(),
+        ),
+        autocorrect: false,
+        enableSuggestions: false,
+        validator: validator,
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        key: const Key('s7web-password'),
+        controller: password,
+        decoration: InputDecoration(
+          labelText: context.tr('std.connection.s7webPassword'),
+          border: const OutlineInputBorder(),
+        ),
+        obscureText: true,
+        autocorrect: false,
+        enableSuggestions: false,
+        validator: validator,
+        onFieldSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
+      ),
+      if (canRemember) ...[
+        const SizedBox(height: 4),
+        CheckboxListTile(
+          key: const Key('s7web-remember'),
+          checkboxScaleFactor: ControlScaleScope.of(context).toggleScale,
+          materialTapTargetSize: MaterialTapTargetSize.padded,
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          value: remember,
+          title: const LText('std.connection.s7webRemember'),
+          onChanged: (checked) => onRememberChanged!(checked ?? false),
+        ),
+      ],
+      const SizedBox(height: 8),
+      LText(
+          canRemember
+              ? 'std.connection.s7webLoginHelpRemember'
+              : 'std.connection.s7webLoginHelp',
+          style: Theme.of(context).textTheme.bodySmall),
+    ]);
+  }
+
+  bool get canRemember =>
+      onRememberChanged != null && s7WebCredentials.canRemember;
+}
+
+/// Asks for the CPU web login of a saved s7web:// endpoint (after an HMI
+/// restart, or after the CPU refused the previous one).
+class S7WebLoginForm extends StatefulWidget {
+  final bool rejected;
+  final S7WebEndpoint target;
+  final void Function(String user, String password, bool remember) onSubmit;
+
+  const S7WebLoginForm({
+    super.key,
+    required this.rejected,
+    required this.target,
+    required this.onSubmit,
+  });
+
+  @override
+  State<S7WebLoginForm> createState() => _S7WebLoginFormState();
+}
+
+class _S7WebLoginFormState extends State<S7WebLoginForm> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _user =
+      TextEditingController(text: s7WebCredentials.userFor(widget.target));
+  final _password = TextEditingController();
+  late bool _remember = s7WebCredentials.isRemembered(widget.target);
+
+  @override
+  void dispose() {
+    _user.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_form.currentState?.validate() ?? false)) return;
+    widget.onSubmit(_user.text.trim(), _password.text, _remember);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _form,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (widget.rejected) ...[
+          LText('std.connection.s7webLoginRejected',
+              key: const Key('s7web-login-rejected'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          const SizedBox(height: 12),
+        ],
+        S7WebLoginFields(
+          user: _user,
+          password: _password,
+          validator: (value) => (value ?? '').trim().isEmpty
+              ? context.tr('std.connection.s7webLoginMissing')
+              : null,
+          onSubmitted: _submit,
+          remember: _remember,
+          onRememberChanged: (value) => setState(() => _remember = value),
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          key: const Key('s7web-login-connect'),
+          icon: const Icon(Icons.login),
+          label: const LText('std.connection.s7webLoginConnect'),
+          onPressed: _submit,
+        ),
+      ]),
     );
   }
 }

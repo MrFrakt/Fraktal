@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:fraktal_gateway/fraktal_gateway.dart';
@@ -7,6 +8,8 @@ import 'package:fraktal_opcua_client/cip_session_client.dart';
 import 'package:fraktal_opcua_client/reconnecting_opcua_session_client.dart';
 import 'package:fraktal_opcua_client/opcua_native_client.dart';
 import 'package:fraktal_opcua_client/opcua_session_client.dart';
+import 'package:fraktal_opcua_client/certificate_pin.dart';
+import 'package:fraktal_opcua_client/user_seal.dart';
 import 'package:fraktal_opcua_client/webapi_session_client.dart';
 
 Future<void> main(List<String> arguments) async {
@@ -21,6 +24,10 @@ Future<void> main(List<String> arguments) async {
   }
   if (options.help) {
     stdout.write(_usage);
+    return;
+  }
+  if (options.sealPlcLoginFile.isNotEmpty) {
+    exitCode = _sealPlcLogin(options.sealPlcLoginFile);
     return;
   }
 
@@ -88,27 +95,34 @@ Future<void> main(List<String> arguments) async {
       // Siemens S7 Web API (Fraktal/TIA Part IV §11.1a): licence-free HTTPS to
       // the CPU's web server, trusting exactly the pinned server certificate;
       // the web user's rights in the CPU are the PLC-side write gate.
-      final user = Platform.environment['FRAKTAL_TIA_WEB_USER'] ?? '';
-      final password = Platform.environment['FRAKTAL_TIA_WEB_PASSWORD'] ?? '';
-      if (user.isEmpty || password.isEmpty) {
-        throw const FormatException(
-          'The s7web transport requires FRAKTAL_TIA_WEB_USER and '
-          'FRAKTAL_TIA_WEB_PASSWORD (never on the command line).',
-        );
-      }
+      final login = _plcLogin(options);
+      final user = login.user;
+      final password = login.password;
       final host = options.plcEndpoint.host;
       final port = options.plcEndpoint.hasPort ? options.plcEndpoint.port : 443;
+      // The pin is either the certificate captured at commissioning
+      // (--plc-certificate) or its SHA-256 fingerprint in the endpoint
+      // (?pin=, the same form the native HMI and the installer use).
+      final pin = options.plcEndpoint.queryParameters['pin'] ?? '';
       stdout.writeln('[Fraktal/Gateway] stage=webapi-connect '
-          'host=$host port=$port user=$user '
-          'pinnedCertificate=${options.plcCertificatePath} '
+          'host=$host port=$port user=$user login=${login.source} '
+          'pinnedCertificate=${options.plcCertificatePath.isEmpty ? 'sha256:${normalizeSha256Fingerprint(pin)}' : options.plcCertificatePath} '
           'batch=${options.webApiBatch}');
       client = await WebApiSessionClient.connect(
-        transport: HttpsWebApiTransport(
-          host: host,
-          port: port,
-          pinnedCertificate: File(options.plcCertificatePath).readAsBytesSync(),
-          timeout: options.connectTimeout * 2,
-        ),
+        transport: options.plcCertificatePath.isEmpty
+            ? HttpsWebApiTransport.fingerprint(
+                host: host,
+                port: port,
+                sha256Fingerprint: pin,
+                timeout: options.connectTimeout * 2,
+              )
+            : HttpsWebApiTransport(
+                host: host,
+                port: port,
+                pinnedCertificate:
+                    File(options.plcCertificatePath).readAsBytesSync(),
+                timeout: options.connectTimeout * 2,
+              ),
         user: user,
         password: password,
         batchSize: options.webApiBatch,
@@ -214,6 +228,65 @@ Future<void> main(List<String> arguments) async {
   }
 }
 
+/// The CPU web login for an s7web:// instance, from the first source that
+/// has one. Each instance has its own file or credentials, so several PLCs on
+/// one host never share a login through the process environment.
+({String user, String password, String source}) _plcLogin(
+    _GatewayOptions options) {
+  final env = Platform.environment;
+  final envUser = env['FRAKTAL_TIA_WEB_USER'] ?? '';
+  final envPassword = env['FRAKTAL_TIA_WEB_PASSWORD'] ?? '';
+  if (envUser.isNotEmpty && envPassword.isNotEmpty) {
+    return (user: envUser, password: envPassword, source: 'environment');
+  }
+  if (options.plcLoginFile.isNotEmpty) {
+    final login = PlcLoginFile.read(File(options.plcLoginFile));
+    return (user: login.user, password: login.password, source: 'sealed-file');
+  }
+  final credentials = env['CREDENTIALS_DIRECTORY'] ?? '';
+  if (credentials.isNotEmpty) {
+    final sep = Platform.pathSeparator;
+    final userFile = File('$credentials${sep}tia-web-user');
+    final passwordFile = File('$credentials${sep}tia-web-password');
+    if (userFile.existsSync() && passwordFile.existsSync()) {
+      final user = userFile.readAsStringSync().trim();
+      final password = passwordFile.readAsStringSync().trimRight();
+      if (user.isNotEmpty && password.isNotEmpty) {
+        return (user: user, password: password, source: 'systemd-credentials');
+      }
+    }
+  }
+  throw const FormatException(
+    'The s7web transport needs a CPU web login: --plc-login-file (Windows), '
+    'systemd credentials tia-web-user/tia-web-password (Linux), or '
+    'FRAKTAL_TIA_WEB_USER and FRAKTAL_TIA_WEB_PASSWORD. Never on the command '
+    'line.',
+  );
+}
+
+/// Reads user and password as two lines on standard input and seals them.
+int _sealPlcLogin(String path) {
+  // UTF-8 (not the console code page), and a byte-order mark some writers
+  // emit is not part of the user name.
+  final user = (stdin.readLineSync(encoding: utf8) ?? '')
+      .replaceFirst('﻿', '')
+      .trim();
+  final password = stdin.readLineSync(encoding: utf8) ?? '';
+  if (user.isEmpty || password.isEmpty) {
+    stderr.writeln('fraktal_gateway: --seal-plc-login reads the user and the '
+        'password as two lines on standard input.');
+    return 64;
+  }
+  try {
+    PlcLoginFile.write(File(path), user, password);
+  } on UnsupportedError catch (error) {
+    stderr.writeln('fraktal_gateway: ${error.message}');
+    return 69;
+  }
+  stdout.writeln('[Fraktal/Gateway] stage=plc-login-sealed path=$path user=$user');
+  return 0;
+}
+
 class _GatewayOptions {
   final Uri plcEndpoint;
   final int port;
@@ -235,6 +308,8 @@ class _GatewayOptions {
   final Duration commissioningTtl;
   final String plcCertificatePath;
   final int webApiBatch;
+  final String plcLoginFile;
+  final String sealPlcLoginFile;
   final bool help;
 
   const _GatewayOptions({
@@ -258,6 +333,8 @@ class _GatewayOptions {
     required this.commissioningTtl,
     required this.plcCertificatePath,
     required this.webApiBatch,
+    required this.plcLoginFile,
+    required this.sealPlcLoginFile,
     required this.help,
   });
 
@@ -308,6 +385,8 @@ class _GatewayOptions {
     var commissioningTtl = const Duration(hours: 2);
     var plcCertificatePath = '';
     var webApiBatch = 20;
+    var plcLoginFile = '';
+    var sealPlcLoginFile = '';
     var help = false;
 
     String valueAfter(int index, String option) {
@@ -389,6 +468,12 @@ class _GatewayOptions {
         case '--webapi-batch':
           webApiBatch = int.parse(valueAfter(index, argument));
           index++;
+        case '--plc-login-file':
+          plcLoginFile = valueAfter(index, argument);
+          index++;
+        case '--seal-plc-login':
+          sealPlcLoginFile = valueAfter(index, argument);
+          index++;
         default:
           throw FormatException('Unknown option: $argument');
       }
@@ -414,12 +499,15 @@ class _GatewayOptions {
       if (endpoint.host.isEmpty) {
         throw const FormatException('--plc-endpoint s7web:// needs a host.');
       }
-      if (plcCertificatePath.isEmpty) {
+      final pin = endpoint.queryParameters['pin'] ?? '';
+      if (plcCertificatePath.isEmpty && pin.isEmpty) {
         throw const FormatException(
-          's7web:// requires --plc-certificate (the CPU web server certificate '
-          'captured at commissioning, PEM or DER).',
+          's7web:// requires the CPU web server certificate pinned: '
+          '--plc-certificate (PEM or DER captured at commissioning) or '
+          '?pin=<SHA-256 fingerprint> in the endpoint.',
         );
       }
+      if (plcCertificatePath.isEmpty) normalizeSha256Fingerprint(pin);
       if (webApiBatch < 1 || webApiBatch > 200) {
         throw const FormatException(
             '--webapi-batch must be between 1 and 200.');
@@ -470,6 +558,8 @@ class _GatewayOptions {
       commissioningTtl: commissioningTtl,
       plcCertificatePath: plcCertificatePath,
       webApiBatch: webApiBatch,
+      plcLoginFile: plcLoginFile,
+      sealPlcLoginFile: sealPlcLoginFile,
       help: help,
     );
   }
@@ -506,17 +596,26 @@ Options:
                              ads://<AmsNetId>:851   (native TwinCAT; the AMS
                              route is the trust boundary, so the OPC UA security
                              profile/credentials below are ignored)
-                             s7web://<host>[:443]   (Siemens S7 Web API, no
-                             runtime licence; needs --plc-certificate and the
-                             FRAKTAL_TIA_WEB_* variables; OPC UA profile ignored)
+                             s7web://<host>[:443][?pin=<SHA-256>]
+                                                    (Siemens S7 Web API, no
+                             runtime licence; needs the pin or --plc-certificate
+                             and a CPU web login, see "s7web login" below; OPC
+                             UA profile ignored)
                              cip://<host>[:44818]?slot=0&serial=<8 hex digits>
                              (Allen-Bradley; OPC UA profile ignored; commands
                              require explicit --write-root and the authenticated proxy)
   --plc-certificate PATH   s7web: the CPU web server certificate (PEM or DER)
                             pinned at commissioning; nothing else is trusted
+                            (alternative to ?pin= in the endpoint)
   --webapi-batch N         s7web: leaves per Web API request (default 20); the
                             CPU serves one request at a time, so small batches
                             keep a mailbox acknowledgement from queueing
+  --plc-login-file PATH    s7web (Windows): the CPU web login sealed with DPAPI
+                            for the Windows user running this gateway
+  --seal-plc-login PATH    Write that file from two lines on standard input
+                            (user, then password) and exit; the installer
+                            uses it, so the password never reaches a command
+                            line or gateway.args
   --port PORT              Loopback WebSocket port (default 8080)
   --path PATH              WebSocket path (default /fraktal)
   --instance-name NAME     Label for this gateway when several run on one host,
@@ -551,6 +650,12 @@ Environment:
   FRAKTAL_OPCUA_LIBRARY    Absolute native bridge library path (optional)
   FRAKTAL_TIA_WEB_USER     s7web: the CPU web (UMAC) user
   FRAKTAL_TIA_WEB_PASSWORD s7web: its password (never CLI)
+
+s7web login, first found wins:
+  1. FRAKTAL_TIA_WEB_USER + FRAKTAL_TIA_WEB_PASSWORD
+  2. --plc-login-file (Windows; written by the installer or --seal-plc-login)
+  3. systemd credentials tia-web-user + tia-web-password in
+     \$CREDENTIALS_DIRECTORY (Linux; LoadCredential[Encrypted]= in the unit)
 
 The gateway listens on 127.0.0.1 only. Local http(s) origins are accepted by
 default. Remote browsers require a same-host TLS/authenticating reverse proxy

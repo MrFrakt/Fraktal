@@ -1,0 +1,30 @@
+# s7web:// instances only: the CPU web login as systemd credentials, so the
+# password is in no environment file, unit, command line or journal line.
+# systemd decrypts it into the service's private $CREDENTIALS_DIRECTORY at
+# start; the gateway reads tia-web-user and tia-web-password from there.
+#
+# Install as a drop-in for ONE instance (here: line2), then reload:
+#
+#   sudo install -d -m 0755 /etc/systemd/system/fraktal-gateway@line2.service.d
+#   sudo install -m 0644 fraktal-gateway-s7web-login.conf.example \
+#     /etc/systemd/system/fraktal-gateway@line2.service.d/s7web-login.conf
+#   (replace line2 in the two paths below with the instance name)
+#
+# Seal the login, bound to this host (TPM2 when present, else the host key):
+#
+#   sudo install -d -m 0700 /etc/fraktal/credentials/line2
+#   printf '%s' 'fraktal' | sudo systemd-creds encrypt --name=tia-web-user \
+#     - /etc/fraktal/credentials/line2/tia-web-user.cred
+#   systemd-ask-password -n 'CPU web password:' | sudo systemd-creds encrypt \
+#     --name=tia-web-password - /etc/fraktal/credentials/line2/tia-web-password.cred
+#   sudo systemctl daemon-reload && sudo systemctl restart fraktal-gateway@line2
+#
+# The instance env file names the endpoint with its certificate pin:
+#   FRAKTAL_PLC_ENDPOINT=s7web://192.168.0.1?pin=<SHA-256 of the CPU certificate>
+#
+# systemd older than 250 has no systemd-creds: use LoadCredential= with two
+# root-owned 0600 files holding the user and the password instead.
+
+[Service]
+LoadCredentialEncrypted=tia-web-user:/etc/fraktal/credentials/line2/tia-web-user.cred
+LoadCredentialEncrypted=tia-web-password:/etc/fraktal/credentials/line2/tia-web-password.cred

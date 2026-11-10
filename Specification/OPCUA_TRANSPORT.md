@@ -21,6 +21,7 @@ transport is specified in `ADS_TRANSPORT_MIGRATION.md`; the summary is below.
 | Windows (remote / non-Beckhoff) | direct OPC UA or the gateway | native `ws`/`wss` client; open62541 through `dart:ffi` |
 | Linux / Android | Fraktal WebSocket gateway | native `ws`/`wss` client; direct C ABI remains source-compatible where packaged |
 | Web | Fraktal WebSocket gateway | browser WebSocket client; the gateway owns the OPC UA session |
+| Windows / Linux (Siemens S7, Fraktal/TIA) | direct **S7 Web API** (`s7web://…?pin=`) | the same `WebApiSessionClient` in the native HMI, no gateway; licence-free |
 | Gateway → Siemens S7 (Fraktal/TIA) | **S7 Web API** (`s7web://`) | `WebApiSessionClient` over one pinned HTTPS connection; licence-free (Part IV §11.1a) |
 | Gateway → Allen-Bradley | **CIP** (`cip://host?slot=0&serial=...`) | `CipSessionClient`; serial-pinned canonical discovery, separate typed command connection only with explicit write roots |
 
@@ -65,7 +66,7 @@ is absent, so the HMI falls back to OPC UA and non-TwinCAT builds are unaffected
 ADS is Beckhoff-specific by design: it is the native fast path, while OPC UA stays
 the portable multi-brand path — a PLC with a licensed OPC UA server integrates by
 pointing the same HMI at `opc.tcp://…`. A Siemens CPU without that licence uses
-the gateway's `s7web://` transport (below); Allen-Bradley uses its CIP gateway. Reconnect-on-router-loss and
+`s7web://` (below), directly from the native HMI or through the gateway; Allen-Bradley uses its CIP gateway. Reconnect-on-router-loss and
 first-snapshot handle batching are tracked as hardening in
 `ADS_TRANSPORT_MIGRATION.md` §11.
 
@@ -79,11 +80,18 @@ manifest and mailbox contracts apply unchanged — no runtime licence is needed,
 unlike the CPU's OPC UA server. Measured on a CPU 1214C V4.7.3
 (`Siemens/Evidence/TIA_S1W_WEBAPI_2026-10-08.md`):
 
-- **Trust** is one pinned server certificate (`--plc-certificate`, PEM or DER),
-  checked on every new connection; system roots are never consulted. The CPU
+- **Trust** is one pinned server certificate (`?pin=<SHA-256>` in the endpoint,
+  or `--plc-certificate`, PEM or DER), checked on every new connection; system
+  roots are never consulted. The CPU
   user (UMAC on S7-1200 V4.7) holds only read/write-process-data rights, and
   members without "Writable from HMI/OPC UA/Web API" refuse writes in the CPU
   (`205`), so the mailbox remains the single write surface even past the gateway.
+- **Login** is per instance, never on a command line, in `gateway.args` or a
+  log: the `FRAKTAL_TIA_WEB_*` variables, else `--plc-login-file` (Windows, a
+  DPAPI-sealed file the installer wizard writes for the tray's Windows user),
+  else the systemd credentials `tia-web-user`/`tia-web-password` (Linux). The
+  browser never sees or sends the CPU login; the authenticated proxy in front
+  of the gateway protects access (`gateway/DEPLOYMENT.md`).
 - **Discovery** browses every DB whose top level has a `Status` structure,
   breadth-first in batched requests, and expands structures and arrays to scalar
   leaves (the Web API reads leaves only). Paths are spelled as on ADS:
@@ -112,6 +120,57 @@ unlike the CPU's OPC UA server. Measured on a CPU 1214C V4.7.3
   wide `wstring` fields become String. These encodings passed the live client
   on simulated1516 V3.0/Advanced7; full Unit rendering and commands are separate
   gates ([evidence](Siemens/Evidence/TIA_S12_WEBAPI_ADVANCED7_2026-10-10.md)).
+
+### Direct native HMI (no gateway)
+
+The native HMI reaches a TIA station directly, as it reaches TwinCAT over
+`ads://`, with
+
+`s7web://<host>[:port]?pin=<SHA-256 fingerprint>[&roots=A,B][&batch=N]`
+
+- **Trust** is the SHA-256 fingerprint of the CPU web server certificate, the
+  64 hexadecimal digits TIA Portal and `tia_webapi.py --trust-first` display
+  (`AA:BB:…`, spaced and `sha256:` forms accepted). It is mandatory: an endpoint
+  without a pin is refused before any connection, and a different certificate
+  fails the TLS handshake with its own fingerprint named so commissioning can
+  compare it with TIA Portal before deliberately re-pinning. There is no CA or
+  "accept any" mode. The fingerprint is public, so the endpoint may live in the
+  plain settings file.
+- **Identity** is the CPU web user. The operator enters it in the connection
+  wizard, or on the connection screen when a saved endpoint has none (always
+  after an HMI restart) or the CPU refused it. By default it is held in
+  process memory only, keyed by host, port and pin, never in settings,
+  the customization bundle or logs. When the operator ticks **Remember on this
+  device**, the HMI also keeps it, bound to that same key, in the platform's
+  store for the current user, and logs in by itself on the next start;
+  unticking it on a later entry removes it:
+
+  | Platform | Store |
+  |---|---|
+  | Windows | DPAPI (current user) in `%APPDATA%\Fraktal\HMI\s7web_logins.json`, each login bound to its target |
+  | Linux | one item in the desktop keyring (Secret Service via libsecret, opened at run time) |
+  | Android | AES-256-GCM under a key held in the Android Keystore, ciphertext in app-private preferences |
+  | iOS | a Keychain item, `AfterFirstUnlockThisDeviceOnly` (no backup, no migration) |
+
+  The app's own `fraktal/secure_store` method channel serves Android and iOS
+  (no plugin package). Where there is no such store (a Linux panel without a
+  keyring session, any Web build) the box is not offered. Anyone who can run
+  programs as that user can use a remembered login, so leave it unticked on a
+  shared account. A refused login is dropped, from the store too, and asked
+  for again, never retried automatically.
+  An unattended panel may instead provide `FRAKTAL_TIA_WEB_USER` /
+  `FRAKTAL_TIA_WEB_PASSWORD` (the names the gateway reads), which take
+  precedence. Credentials in the endpoint (`user@host`) are refused. Operator
+  identity and roles remain the PLC's Core §14 session through the mailbox.
+- **Write surface** is unchanged: the CPU refuses every write except the
+  `ExternalWritable` `HmiRequest` mailbox, and the PLC re-checks each request.
+  This is stronger than direct ADS, whose only boundary is the AMS route.
+- **Batch** defaults to 64 leaves on the native path (the S7-1500 reference);
+  pass `batch=20` for an S7-1200. `roots` narrows discovery to named root DBs.
+- **Reconnect** wraps the session in the same generation-guarded reconnecting
+  client the gateway path uses: snapshots retry, writes are never replayed.
+- A browser cannot pin a certificate or hold the CPU login, so a Web build
+  refuses `s7web://` and reaches a TIA station through the gateway.
 
 ## Allen-Bradley CIP transport (Fraktal/AB)
 

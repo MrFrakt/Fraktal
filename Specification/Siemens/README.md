@@ -106,6 +106,18 @@ small integers, Core enums and explicit array elements, plus token-bound current
 station/model documents. Broader providers, runtime model creation/collections,
 the complete Line profile, baseline/OEE, module/HAL and deployment remain open.
 
+Latest press continuation: [press operated over the direct S7 Web API link](Evidence/TIA_PRESS_COMPLETE_2026-10-15.md).
+The press demo now carries TwoHand, PartPresent and AirPressure CMs, CHANGEOVER
+with a seeded ALUMINUM/PLASTIC/STEEL model catalog and a simulated plant. It was
+downloaded to the simulated CPU1516 `Fraktal` (replacing the config-types bench
+image, owner-authorized) and operated MANUAL/HOME/CHANGEOVER/AUTO by the native
+HMI over `s7web://` with no gateway. Current project: Press_Complete_20261015.
+Physical process, engineering-gate/IO-topology/OEE/line services and PartFeed remain open.
+
+Remaining-feature census and implementation plan (2026-10-15):
+[TIA_REMAINING_FEATURES_PLAN_2026-10-15](Reports/TIA_REMAINING_FEATURES_PLAN_2026-10-15.md).
+Line configuration and shifts (Core §3.8e/§8.5.2) are the first planned phase.
+
 Latest operations continuation (2026-10-16):
 [shared operations and wired GRAPH](Evidence/TIA_OPERATIONS_GRAPH_2026-10-16.md).
 Generator0.22 qualifies OEE/shifts/degradation, health/nameplates/build gates,

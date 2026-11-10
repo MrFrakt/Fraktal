@@ -82,3 +82,8 @@ and separate TIA_CONFIG_TYPES_2026-10-15 archive. It binds exact numeric witness
 typed/current and saved-set regressions, live generic HMI, final privacy/durability
 checks and warning-clean runtime/offline press readback. Prior archives remain
 unchanged; native projects and the private knowledge backup remain local.
+
+The [2026-10-15 press report](../../../../Specification/Siemens/Evidence/TIA_PRESS_COMPLETE_2026-10-15.md)
+binds the first downloaded press runs, the failed attempts that exposed four
+latent defects, the direct `s7web://` HMI live records and native GRAPH/LAD
+readback in the separate TIA_PRESS_COMPLETE_2026-10-15 archive.

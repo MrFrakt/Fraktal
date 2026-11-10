@@ -4,6 +4,8 @@
 /// drill-through table (§8.11.4(a)/(c)). Pure CustomPaint; no packages.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show setEquals;
 import 'theme_surfaces.dart';
@@ -253,8 +255,6 @@ class _TrendPainter extends CustomPainter {
 /// in the cycle Gantt is slow, this names the command (and its Min/Avg/Max drift)
 /// that consumed the time. Plain table = the accessibility fallback by design.
 class CommandTimingView extends StatelessWidget {
-  static const _labelWidth = 140.0, _valueWidth = 56.0;
-  static const _minimumTableWidth = _labelWidth + 5 * _valueWidth + 8 + 96;
   final String moduleName;
   final List<CommandTiming> rows;
   const CommandTimingView(
@@ -270,106 +270,122 @@ class CommandTimingView extends StatelessWidget {
     return FraktalCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Icon(Icons.av_timer),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: LText('Command timing — $moduleName',
-                      style: theme.textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis),
-                ),
-              ]),
-              const SizedBox(height: 8),
-              LayoutBuilder(builder: (context, box) {
-                // Preserve every numeric column on narrow cards. The chart always
-                // has positive space, avoiding reversed clamp bounds in its bars.
-                final width = box.maxWidth < _minimumTableWidth
-                    ? _minimumTableWidth
-                    : box.maxWidth;
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: width,
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Row(children: [
-                        const SizedBox(width: _labelWidth),
-                        _h(context, 'Count'),
-                        _h(context, 'Last'),
-                        _h(context, 'Min'),
-                        _h(context, 'Avg'),
-                        _h(context, 'Max'),
-                        const Expanded(child: SizedBox.shrink()),
-                      ]),
-                      for (final r in rows) _row(context, r, maxMs),
-                    ]),
-                  ),
-                );
-              }),
-            ]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.av_timer),
+            const SizedBox(width: 8),
+            Flexible(
+              child: LText('Command timing — $moduleName',
+                  style: theme.textTheme.titleMedium,
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+              builder: (context, box) => _table(context, box.maxWidth, maxMs)),
+        ]),
       ),
     );
   }
 
-  Widget _h(BuildContext context, String text) => SizedBox(
-      width: _valueWidth,
-      child: LText(text,
-          style: Theme.of(context).textTheme.labelSmall,
-          textAlign: TextAlign.right));
+  static const _headers = ['Count', 'Last', 'Min', 'Avg', 'Max'];
+  static const double _columnGap = 12;
+  static const double _barGap = 8;
+  static const double _minBar = 40;
+  static const double _minLabel = 48;
 
-  Widget _row(BuildContext context, CommandTiming r, int maxMs) {
-    final avgFrac = r.avg.inMilliseconds / maxMs;
-    final maxFrac = r.maximum.inMilliseconds / maxMs;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(children: [
-        SizedBox(
-            width: _labelWidth,
-            child: LText(r.label, overflow: TextOverflow.ellipsis)),
-        _cell(context, '${r.count}'),
-        _cell(context, _s(r.last)),
-        _cell(context, _s(r.minimum)),
-        _cell(context, _s(r.avg)),
-        _cell(context, _s(r.maximum)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: LayoutBuilder(builder: (context, box) {
-            return Stack(children: [
-              Container(
+  /// Columns are sized from the text they hold, measured in the active
+  /// language, theme and text scale, so the card fits wherever the flow
+  /// layout puts it: the bar takes what is left and is the first thing given
+  /// up, then the label is ellipsized, and only below that minimum does the
+  /// table scroll sideways.
+  Widget _table(BuildContext context, double available, int maxMs) {
+    final theme = Theme.of(context);
+    final headStyle = theme.textTheme.labelSmall;
+    final cellStyle = theme.textTheme.bodySmall;
+    final labelStyle = DefaultTextStyle.of(context).style;
+    double measure(String text, TextStyle? style) =>
+        _textWidth(context, context.tr(text), style);
+    final cells = [
+      for (final r in rows)
+        ['${r.count}', _s(r.last), _s(r.minimum), _s(r.avg), _s(r.maximum)],
+    ];
+    final numeric = [
+      for (var c = 0; c < _headers.length; c++)
+        _columnGap +
+            cells.fold(measure(_headers[c], headStyle),
+                (w, row) => math.max(w, measure(row[c], cellStyle))),
+    ];
+    final numericWidth = numeric.fold<double>(0, (a, b) => a + b);
+    final labelNatural =
+        rows.fold<double>(0, (w, r) => math.max(w, measure(r.label, labelStyle)));
+    final finite = available.isFinite ? available : numericWidth + labelNatural;
+    final room = finite - numericWidth;
+    final showBar = room - labelNatural >= _barGap + _minBar;
+    final labelWidth = showBar
+        ? labelNatural
+        : math.max(math.min(_minLabel, labelNatural), math.min(room, labelNatural));
+    final tableWidth = math.max(finite, numericWidth + labelWidth);
+
+    Widget cell(String text, double width, TextStyle? style) => SizedBox(
+        width: width,
+        child: LText(text,
+            style: style, textAlign: TextAlign.right, maxLines: 1, softWrap: false));
+
+    Widget row(Widget label, List<Widget> values, Widget? bar) => Row(children: [
+          SizedBox(width: labelWidth, child: label),
+          ...values,
+          if (showBar) ...[
+            const SizedBox(width: _barGap),
+            Expanded(child: bar ?? const SizedBox.shrink()),
+          ],
+        ]);
+
+    final table = SizedBox(
+      width: tableWidth,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        row(const SizedBox.shrink(), [
+          for (var c = 0; c < _headers.length; c++)
+            cell(_headers[c], numeric[c], headStyle),
+        ], null),
+        for (var i = 0; i < rows.length; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: row(
+              LText(rows[i].label,
+                  maxLines: 1, softWrap: false, overflow: TextOverflow.ellipsis),
+              [
+                for (var c = 0; c < _headers.length; c++)
+                  cell(cells[i][c], numeric[c], cellStyle),
+              ],
+              TimingBar(
+                  avgFraction: rows[i].avg.inMilliseconds / maxMs,
+                  maxFraction: rows[i].maximum.inMilliseconds / maxMs,
                   height: 14,
-                  decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(3))),
-              Container(
-                height: 14,
-                width: (box.maxWidth * avgFrac).clamp(2.0, box.maxWidth),
-                decoration: BoxDecoration(
-                    color: timeClassColor(TimeClass.work),
-                    borderRadius: BorderRadius.circular(3)),
-              ),
-              Positioned(
-                left: (box.maxWidth * maxFrac - 2).clamp(0.0, box.maxWidth - 2),
-                child: Container(
-                    width: 2,
-                    height: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-            ]);
-          }),
-        ),
+                  radius: 3,
+                  color: timeClassColor(TimeClass.work),
+                  tickColor: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
       ]),
     );
+    return tableWidth > finite
+        ? SingleChildScrollView(scrollDirection: Axis.horizontal, child: table)
+        : table;
   }
 
-  Widget _cell(BuildContext context, String text) => SizedBox(
-      width: _valueWidth,
-      child: LText(text,
-          style: Theme.of(context).textTheme.bodySmall,
-          textAlign: TextAlign.right));
+  static double _textWidth(BuildContext context, String text, TextStyle? style) {
+    final painter = TextPainter(
+        text: TextSpan(
+            text: text, style: DefaultTextStyle.of(context).style.merge(style)),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1)
+      ..layout();
+    final width = painter.width.ceilToDouble();
+    painter.dispose();
+    return width;
+  }
 
   static String _s(Duration d) =>
       '${(d.inMilliseconds / 1000).toStringAsFixed(2)}s';

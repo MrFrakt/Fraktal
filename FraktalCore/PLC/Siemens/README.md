@@ -53,7 +53,16 @@ creates only a reserved unmapped test CPU and always releases it. The saved
 complete Line integration, module/connectivity expansion and deployment/physical
 qualification remain open; host rings do not yet implement durable MES delivery.
 
-Current continuation: generator0.21 adds typed configuration and complete
+Current state (2026-10-15): the press demo is downloaded to the simulated
+CPU1516 `Fraktal` and operated MANUAL/HOME/CHANGEOVER/AUTO by the native HMI over
+the direct `s7web://` link (no gateway): TwoHand, PartPresent and AirPressure
+sensor CMs, a seeded ALUMINUM/PLASTIC/STEEL model catalog (`model_config.seeds`)
+and a simulated plant behind a generated `USE_SIMULATION` constant. Project:
+`%LOCALAPPDATA%\Fraktal\TiaStations\Press_Complete_20261015\FrkS12\FrkS12.ap20`.
+See [the press evidence](../../../Specification/Siemens/Evidence/TIA_PRESS_COMPLETE_2026-10-15.md).
+The config-types bench below is no longer the running image.
+
+Previous continuation: generator0.21 adds typed configuration and complete
 current-value exports through the existing provider, mailbox and generic HMI.
 The selected two-root LOAD_DB runtime is
 `%LOCALAPPDATA%\Fraktal\TiaStations\Config_Types_Runtime_20261015\FrkS12\FrkS12.ap20`;

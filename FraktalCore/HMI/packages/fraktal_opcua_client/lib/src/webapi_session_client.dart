@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'opcua_session_client.dart';
+import 'sha256.dart';
 
 /// Siemens S7 **Web API** (JSON-RPC 2.0 over HTTPS) implementation of the
 /// transport-neutral session contract — the licence-free Fraktal/TIA path
@@ -629,7 +630,8 @@ abstract interface class WebApiTransport {
 final class HttpsWebApiTransport implements WebApiTransport {
   final String _host;
   final int _port;
-  final List<int> _pinnedDer;
+  final List<int>? _pinnedDer;
+  final String? _pinnedSha256;
   final Duration _timeout;
   final Duration? _keepAlive;
 
@@ -654,6 +656,24 @@ final class HttpsWebApiTransport implements WebApiTransport {
   })  : _host = host,
         _port = port,
         _pinnedDer = certificateDer(pinnedCertificate),
+        _pinnedSha256 = null,
+        _timeout = timeout,
+        _keepAlive = keepAlive;
+
+  /// Pins the CPU's web server certificate by its SHA-256 fingerprint instead
+  /// of the certificate file: the 64 hexadecimal digits TIA Portal and
+  /// `tia_webapi.py --trust-first` show, separators and case ignored. Same
+  /// trust rule: no system roots, exactly one acceptable certificate.
+  HttpsWebApiTransport.fingerprint({
+    required String host,
+    int port = 443,
+    required String sha256Fingerprint,
+    Duration timeout = const Duration(seconds: 10),
+    Duration? keepAlive = const Duration(milliseconds: 700),
+  })  : _host = host,
+        _port = port,
+        _pinnedDer = null,
+        _pinnedSha256 = normalizeSha256Fingerprint(sha256Fingerprint),
         _timeout = timeout,
         _keepAlive = keepAlive;
 
@@ -788,8 +808,17 @@ final class HttpsWebApiTransport implements WebApiTransport {
         _port,
         context: SecurityContext(withTrustedRoots: false),
         onBadCertificate: (certificate) {
-          final ok = _sameBytes(certificate.der, _pinnedDer);
-          if (!ok) _pinFailure = 'server certificate "${certificate.subject}" is not the pinned one';
+          final presented = sha256Hex(certificate.der);
+          final pinnedDer = _pinnedDer;
+          final ok = pinnedDer != null
+              ? _sameBytes(certificate.der, pinnedDer)
+              : presented == _pinnedSha256;
+          // The presented fingerprint is public; naming it lets a commissioning
+          // engineer compare it with TIA Portal before deliberately re-pinning.
+          if (!ok) {
+            _pinFailure = 'server certificate "${certificate.subject}" '
+                '(SHA-256 $presented) is not the pinned one';
+          }
           return ok;
         },
         timeout: _timeout,

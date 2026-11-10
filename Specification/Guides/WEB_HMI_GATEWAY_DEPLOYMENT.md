@@ -176,6 +176,15 @@ PLC/TMC and configuration exports.
    because "every command is refused" is otherwise discovered at commissioning
    with no obvious cause. The native HMI is unaffected, and the PLC re-checks
    its own release/access gates either way.
+   A Siemens TIA station uses `s7web://<CPU>?pin=<SHA-256 fingerprint of the CPU
+   web server certificate>`, the same endpoint the native HMI takes. For such an
+   instance the dialog also asks for the **CPU web user and password** (TIA
+   Portal: CPU properties → Web server → User management on a V3.0 CPU). Before
+   installing, the wizard seals that login with DPAPI for the Windows user
+   running setup — which must be the user the tray runs as — in
+   `instances\<name>\plc_login.json`, and the installer adds `--plc-login-file`.
+   The password never reaches the instance list, `gateway.args` or the log, and
+   the browser never sees it. Blank fields on an upgrade keep the stored login.
 6. For remote browsers, leave **secure remote Web HMI** selected and enter one
    proxy account/password for the host; every instance that has an origin is
    published as its own HTTPS site under that account. Allow the local-subnet
@@ -371,6 +380,12 @@ template reads first; per-PLC overrides go in the instance file, which wins. Do
 not enable both `fraktal-gateway.service` and `fraktal-gateway@<name>` for the
 same PLC, and never give two instances the same port. The site proxy publishes
 one origin per instance, exactly as the Windows profile does.
+
+An `s7web://<CPU>?pin=<SHA-256>` instance also needs its CPU web login, kept
+out of every environment file as systemd credentials. Install
+`fraktal-gateway-s7web-login.conf.example` as a drop-in for that instance and
+seal the user and password with `systemd-creds encrypt` as the file describes;
+systemd decrypts them into the service's private credentials directory at start.
 
 ## 7. Remote HTTPS/WSS browser deployment
 

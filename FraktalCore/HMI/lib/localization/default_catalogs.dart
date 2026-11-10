@@ -121,7 +121,25 @@ const standardEnglish = <String, String>{
   'std.connection.endpoint': 'PLC or gateway endpoint',
   'std.connection.saveConnect': 'Save and connect',
   'std.connection.endpointInvalid': 'Enter a complete endpoint URI.',
-  'std.connection.schemeInvalid': 'Use ws, wss, http, https, opc.tcp, or ads.',
+  'std.connection.schemeInvalid':
+      'Use ws, wss, http, https, opc.tcp, ads, s7web, or cip.',
+  'std.connection.s7webInvalid':
+      'An s7web endpoint is s7web://<CPU address>?pin=<SHA-256 fingerprint of the CPU web server certificate>; batch (1-200) and roots are optional.',
+  'std.connection.s7webNative':
+      'A browser cannot connect to a Siemens CPU directly; use the Fraktal gateway endpoint.',
+  'std.connection.s7webHelp':
+      'S7 Web API (native Siemens, no gateway): s7web://<CPU address>?pin=<fingerprint>. The pin is the SHA-256 fingerprint of the CPU web server certificate recorded at commissioning; any other certificate is refused. Enter the CPU web user and password below; they are kept in memory only unless you choose to remember them. An unattended panel may provide them in FRAKTAL_TIA_WEB_USER and FRAKTAL_TIA_WEB_PASSWORD instead.',
+  'std.connection.s7webUser': 'CPU web user',
+  'std.connection.s7webPassword': 'CPU web password',
+  'std.connection.s7webLoginTitle': 'CPU web login required',
+  'std.connection.s7webLoginHelp':
+      'Kept in memory only: enter it again after the HMI restarts. Operator access is the PLC login inside the HMI.',
+  'std.connection.s7webLoginHelpRemember':
+      'Kept in memory only unless remembered: a remembered login is kept in the protected store of this device for your user account (Windows DPAPI, Linux keyring, Android Keystore, iOS Keychain) and logs in automatically when the HMI starts; untick to forget it. Operator access is the PLC login inside the HMI.',
+  'std.connection.s7webRemember': 'Remember on this device and log in automatically',
+  'std.connection.s7webLoginRejected': 'The CPU refused this user or password.',
+  'std.connection.s7webLoginMissing': 'Enter both the CPU web user and its password.',
+  'std.connection.s7webLoginConnect': 'Log in and connect',
   'std.connection.adsNetIdInvalid':
       'An ADS AmsNetId has six parts, e.g. ads://192.168.1.6.1.1:851.',
   'std.connection.transportHelp':
@@ -556,6 +574,12 @@ const standardEnglish = <String, String>{
       'Two I/O channels use the same electrical tag or audit path.',
   'std.error.passiveInputHasNoCommand':
       'This passive input module has no executable command.',
+  'fraktal.command.unsupported':
+      'The module does not support the requested command.',
+  'fraktal.command.timeout':
+      'The command did not complete within its configured time.',
+  'fraktal.command.timeout.invalid':
+      'The command has no valid timeout configured.',
   'std.error.airPressureSwitchConflict':
       'The low-pressure and operating-pressure switches are active together.',
   'std.moduleType.airPressure': 'Air pressure monitor',
@@ -1415,7 +1439,25 @@ const standardSpanish = <String, String>{
   'std.connection.endpoint': 'Dirección del PLC o gateway',
   'std.connection.saveConnect': 'Guardar y conectar',
   'std.connection.endpointInvalid': 'Introduzca una URI de destino completa.',
-  'std.connection.schemeInvalid': 'Use ws, wss, http, https, opc.tcp o ads.',
+  'std.connection.schemeInvalid':
+      'Use ws, wss, http, https, opc.tcp, ads, s7web o cip.',
+  'std.connection.s7webInvalid':
+      'Un destino s7web es s7web://<dirección de la CPU>?pin=<huella SHA-256 del certificado del servidor web de la CPU>; batch (1-200) y roots son opcionales.',
+  'std.connection.s7webNative':
+      'Un navegador no puede conectarse directamente a una CPU Siemens; use la dirección del gateway Fraktal.',
+  'std.connection.s7webHelp':
+      'S7 Web API (Siemens nativo, sin gateway): s7web://<dirección de la CPU>?pin=<huella>. El pin es la huella SHA-256 del certificado del servidor web de la CPU registrada en la puesta en marcha; cualquier otro certificado se rechaza. Introduzca abajo el usuario web de la CPU y su contraseña; solo se guardan en memoria salvo que elija recordarlos. Un panel desatendido puede proporcionarlos en FRAKTAL_TIA_WEB_USER y FRAKTAL_TIA_WEB_PASSWORD.',
+  'std.connection.s7webUser': 'Usuario web de la CPU',
+  'std.connection.s7webPassword': 'Contraseña web de la CPU',
+  'std.connection.s7webLoginTitle': 'Se requiere el inicio de sesión web de la CPU',
+  'std.connection.s7webLoginHelp':
+      'Solo en memoria: vuelva a introducirlo tras reiniciar la HMI. El acceso del operador es el inicio de sesión del PLC dentro de la HMI.',
+  'std.connection.s7webLoginHelpRemember':
+      'Solo en memoria salvo que se recuerde: un inicio de sesión recordado se guarda en el almacén protegido de este equipo para su cuenta de usuario (DPAPI de Windows, llavero de Linux, Android Keystore, llavero de iOS) e inicia sesión automáticamente al arrancar la HMI; desmarque para olvidarlo. El acceso del operador es el inicio de sesión del PLC dentro de la HMI.',
+  'std.connection.s7webRemember': 'Recordar en este dispositivo e iniciar sesión automáticamente',
+  'std.connection.s7webLoginRejected': 'La CPU rechazó este usuario o contraseña.',
+  'std.connection.s7webLoginMissing': 'Introduzca el usuario web de la CPU y su contraseña.',
+  'std.connection.s7webLoginConnect': 'Iniciar sesión y conectar',
   'std.connection.adsNetIdInvalid':
       'Un AmsNetId de ADS tiene seis partes, p. ej. ads://192.168.1.6.1.1:851.',
   'std.connection.adsHelp':
@@ -1804,6 +1846,12 @@ const standardSpanish = <String, String>{
       'Dos canales usan la misma etiqueta eléctrica o ruta de auditoría.',
   'std.error.passiveInputHasNoCommand':
       'Este módulo de entrada pasiva no tiene comandos ejecutables.',
+  'fraktal.command.unsupported':
+      'El módulo no admite el comando solicitado.',
+  'fraktal.command.timeout':
+      'El comando no terminó dentro del tiempo configurado.',
+  'fraktal.command.timeout.invalid':
+      'El comando no tiene un tiempo límite válido configurado.',
   'std.error.airPressureSwitchConflict':
       'Los interruptores de presión baja y de operación están activos simultáneamente.',
   'std.moduleType.airPressure': 'Monitor de presión de aire',
@@ -2700,6 +2748,7 @@ const projectEnglish = <String, String>{
   'project.config.pressRequireTwoHandStart': 'Require two-hand start',
   'project.config.pressStallGuardMs': 'Step stall guard',
   'project.config.pressSettleTime': 'Press settle time',
+  'project.config.modeSwitchTimeout': 'Mode switch timeout',
   'project.config.transferSettleTime': 'Transfer settle time',
   'project.config.idealCycleMs': 'Ideal cycle time (OEE performance)',
   'project.config.degradationPercent': 'Work-time degradation threshold (%)',
@@ -2756,6 +2805,10 @@ const projectEnglish = <String, String>{
   'project.hardware.el6001':
       'Single-channel RS232 serial-interface terminal; no press HAL consumer is assigned.',
   'project.hardware.el9011': 'EtherCAT end terminal for the press I/O station.',
+  'project.hardware.s71214c':
+      'S7-1200 CPU holding the press I/O, reached over the ordinary I/O bridge.',
+  'project.hardware.s71214cDi': 'Onboard 14-channel 24 V DC digital inputs of the I/O CPU.',
+  'project.hardware.s71214cDq': 'Onboard 10-channel 24 V DC digital outputs of the I/O CPU.',
   'project.io.101B301A': 'Part feeder retracted / slide inside sensor.',
   'project.io.101B301B': 'Part feeder extended / slide outside sensor.',
   'project.io.101B201A': 'Press access door closed sensor.',
@@ -2770,6 +2823,8 @@ const projectEnglish = <String, String>{
   'project.io.000K911_Y32': 'Control On feedback.',
   'project.io.000K910A':
       'Ordinary emergency-stop healthy mirror (not a safety input).',
+  'project.io.EvaluatedTwoHand':
+      'Evaluated two-hand relay result (requires verified wiring).',
   'project.io.101K301A': 'Command part feeder backward / slide inside.',
   'project.io.101K301B': 'Command part feeder forward / slide outside.',
   'project.io.101K201A': 'Command press access door closed.',
@@ -3159,6 +3214,7 @@ const projectSpanish = <String, String>{
   'project.config.pressRequireTwoHandStart': 'Exigir arranque a dos manos',
   'project.config.pressStallGuardMs': 'Vigilancia de paso detenido',
   'project.config.pressSettleTime': 'Tiempo de asentamiento de la prensa',
+  'project.config.modeSwitchTimeout': 'Tiempo límite del cambio de modo',
   'project.config.transferSettleTime':
       'Tiempo de asentamiento de la transferencia',
   'project.config.idealCycleMs': 'Tiempo de ciclo ideal (rendimiento OEE)',
@@ -3193,6 +3249,10 @@ const projectSpanish = <String, String>{
       'Terminal de interfaz serie RS232 de un canal; no tiene consumidor HAL asignado en la prensa.',
   'project.hardware.el9011':
       'Terminal final EtherCAT de la estación de E/S de la prensa.',
+  'project.hardware.s71214c':
+      'CPU S7-1200 con las E/S de la prensa, conectada por el puente de E/S ordinario.',
+  'project.hardware.s71214cDi': 'Entradas digitales integradas de 14 canales a 24 V DC de la CPU de E/S.',
+  'project.hardware.s71214cDq': 'Salidas digitales integradas de 10 canales a 24 V DC de la CPU de E/S.',
   'project.io.101B301A': 'Alimentador retraído / sensor de corredera adentro.',
   'project.io.101B301B': 'Alimentador extendido / sensor de corredera afuera.',
   'project.io.101B201A': 'Sensor de puerta de acceso cerrada.',
@@ -3207,6 +3267,8 @@ const projectSpanish = <String, String>{
   'project.io.000K911_Y32': 'Realimentación de Control On.',
   'project.io.000K910A':
       'Espejo ordinario de paro de emergencia sano (no es entrada de seguridad).',
+  'project.io.EvaluatedTwoHand':
+      'Resultado del relé evaluado de mando a dos manos (requiere cableado verificado).',
   'project.io.101K301A': 'Orden de alimentador atrás / corredera adentro.',
   'project.io.101K301B': 'Orden de alimentador adelante / corredera afuera.',
   'project.io.101K201A': 'Orden de cerrar la puerta de acceso.',

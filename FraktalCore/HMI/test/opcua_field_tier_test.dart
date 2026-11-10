@@ -39,7 +39,6 @@ void main() {
       'Press/MyHistory/HistoryHead',
     ]), {'History', 'Timing', 'Ring'});
   });
-
   group('CONFIG — manifest-served, DA=0', () {
     const paths = [
       'PLC1/MAIN/PneumaticPress/Nameplate/SerialNumber',

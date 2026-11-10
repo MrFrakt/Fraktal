@@ -49,6 +49,31 @@ and host rings are shared services. Full Line integration and physical bench
 commissioning remain open. The saved original `Fraktal` runtime still has the
 `Press_Complete_20261015` image.
 
+**Current (2026-10-15).** The press runs on the simulated CPU1516 and is
+operated by the native HMI over `s7web://` (no gateway); see
+[the press evidence](../../../../../Specification/Siemens/Evidence/TIA_PRESS_COMPLETE_2026-10-15.md).
+The Unit composes PressRam, Door, PartSlide (cylinders) and the TwoHand,
+PartPresentSensor and AirPressureMonitor sensor CMs (`press.json` `sensors`).
+Modes are AUTO (GRAPH), HOME (GRAPH), CHANGEOVER (ST: validate model, shared load
+position under its own lease identity, operator confirm or repeat) and MANUAL.
+PressSettleTime, TransferSettleTime and the mode-switch Timeout are model data
+for ALUMINUM/PLASTIC/STEEL with the TC3 recipe seeds; RequireTwoHandStart stays
+station data. `integration.simulate_feedback` generates `USE_SIMULATION` in the
+hardware driver: travel-time cylinders, part swap, air and quality, with every
+physical output held FALSE. The stimuli are readable, not Web-API writable.
+The 216-source package compiles 0/0 at both stages; GRAPH 19/4 steps and LAD
+198 networks/192 calls read back natively. PartFeed (S14) and power control
+(D3) are excluded. The sections below describe earlier packages.
+
+**Station users are commissioned, never shipped.** The generated package has
+no users and the login provider off, so every PLC permission is open and no
+HMI ADMIN session exists. For one station, `tools/fraktal_tia_users.py` rewrites
+the flat package's composition root to enable the provider for a root and
+register users once, through `FRK_AccessRegisterHash`, while the retained store
+is empty. Records are salted Core-work-factor hashes and PINs come only from
+environment variables. The replay gate then reports T-GEN on the composition
+root, which marks the build as commissioned. Keep such a build local; a short
+PIN's hash is brute-forceable, so never commit it to `generated/`.
 
 The current generator0.21 package has185 grouped sources and selects the
 [shared LOAD_DB medium](../../Tests/Persistence/README.md) for station config,
@@ -80,8 +105,9 @@ The demo wires `FB_GRAPH_PressDemoAuto` and `FB_GRAPH_PressDemoHome` to the
 owning `FB_PressDemoUnit`, with `FB_PressDemoRelease` evaluating permissives in ST.
 ST and native LD sequence twins, and the LD release twin, remain optional examples
 with no instances. Main calls input read, the composition root and output write.
-One hardware-driver FB owns all logical I/O access. Feedback is not synthesized;
-field addresses and physical process qualification await the owner's bench.
+One hardware-driver FB owns all logical I/O access. Feedback is synthesized only
+by the plant model under `USE_SIMULATION`; field addresses and physical process
+qualification await the owner's bench.
 
 AUTO follows the TC3 press's sixteen main steps and its native chart's nineteen
 steps. It includes the two recovery choices, backwards jumps and parallel join:

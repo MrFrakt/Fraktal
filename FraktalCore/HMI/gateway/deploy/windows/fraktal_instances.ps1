@@ -1,4 +1,4 @@
-﻿# Shared instance model for the Fraktal Gateway deployment scripts.
+# Shared instance model for the Fraktal Gateway deployment scripts.
 #
 # ONE gateway process serves ONE PLC. A host serves several controllers by
 # running several gateway instances, and an instance is nothing more than a
@@ -51,6 +51,8 @@ function Test-FraktalInstanceName([string]$Name) {
 
 # Validates an endpoint the same way the HMI wizard does, so a bad value fails
 # here instead of letting the installed gateway reject it later.
+#   scheme in {ws,wss,http,https,opc.tcp,ads,s7web,cip}; an ads:// host has 6 dot
+#   parts; an s7web:// endpoint carries ?pin=<SHA-256 of the CPU certificate>;
 #   CIP pins the controller serial and permits only slot/serial query keys.
 function Test-FraktalEndpoint([string]$Endpoint) {
   if ([string]::IsNullOrWhiteSpace($Endpoint)) { return $false }
@@ -59,6 +61,7 @@ function Test-FraktalEndpoint([string]$Endpoint) {
   $scheme = $uri.Scheme.ToLowerInvariant()
   if ($scheme -notin @('ws', 'wss', 'http', 'https', 'opc.tcp', 'ads', 's7web', 'cip')) { return $false }
   if ($scheme -eq 'ads' -and ($uri.Host.Split('.') | Measure-Object).Count -ne 6) { return $false }
+  if ($scheme -eq 's7web' -and -not (Get-FraktalS7WebPin $Endpoint)) { return $false }
   if ($scheme -eq 'cip') {
     $authority = (($uri.OriginalString -split '://', 2)[1] -split '[/?#]', 2)[0]
     $declaredPortMatch = [regex]::Match($authority, ':([0-9]*)$')
@@ -85,6 +88,76 @@ function Test-FraktalEndpoint([string]$Endpoint) {
     }
   }
   return $true
+}
+
+function Test-FraktalS7WebEndpoint([string]$Endpoint) {
+  return "$Endpoint".Trim().ToLowerInvariant().StartsWith('s7web:')
+}
+
+# The certificate pin of an s7web:// endpoint as 64 lowercase hex digits, or ''
+# when absent or malformed. Same spellings the HMI and gateway accept
+# (AA:BB:..., spaced, sha256: prefix).
+function Get-FraktalS7WebPin([string]$Endpoint) {
+  $match = [regex]::Match("$Endpoint", '[?&]pin=([^&#]+)')
+  if (-not $match.Success) { return '' }
+  $value = [System.Uri]::UnescapeDataString($match.Groups[1].Value).Trim().ToLowerInvariant()
+  if ($value.StartsWith('sha256:')) { $value = $value.Substring(7) }
+  $value = $value -replace '[\s:\-]', ''
+  if ($value -notmatch '^[0-9a-f]{64}$') { return '' }
+  return $value
+}
+
+# An s7web:// instance's CPU web login, sealed with DPAPI for the Windows user
+# that installs and runs the tray, beside its gateway.args. The gateway reads it
+# with --plc-login-file; nothing else ever holds the password.
+function Get-FraktalPlcLoginPath([string]$Name) {
+  return (Join-Path (Get-FraktalInstanceDirectory $Name) 'plc_login.json')
+}
+
+# Seals one login through the gateway itself (--seal-plc-login), so the DPAPI
+# format has one implementation. The password goes over the child's standard
+# input only: never a command line, an argument file or a log.
+function Save-FraktalPlcLogin(
+  [string]$GatewayExe,
+  [string]$Name,
+  [string]$User,
+  [System.Security.SecureString]$Password
+) {
+  if (-not (Test-Path -LiteralPath $GatewayExe)) {
+    throw "fraktal_gateway.exe is missing: $GatewayExe"
+  }
+  $path = Get-FraktalPlcLoginPath $Name
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $path) | Out-Null
+  $start = New-Object System.Diagnostics.ProcessStartInfo
+  $start.FileName = $GatewayExe
+  $start.Arguments = '--seal-plc-login "' + $path + '"'
+  $start.UseShellExecute = $false
+  $start.CreateNoWindow = $true
+  $start.RedirectStandardInput = $true
+  $start.RedirectStandardOutput = $true
+  $start.RedirectStandardError = $true
+  $process = [System.Diagnostics.Process]::Start($start)
+  # Raw UTF-8 without a byte-order mark: Windows PowerShell's StandardInput
+  # writer would otherwise prefix one, which becomes part of the user name.
+  $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
+  $bytes = $null
+  try {
+    $bytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes(
+      $User + "`n" + [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) + "`n")
+    $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+    $process.StandardInput.BaseStream.Flush()
+    $process.StandardInput.Close()
+  } finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
+    if ($bytes) { [Array]::Clear($bytes, 0, $bytes.Length) }
+  }
+  $errors = $process.StandardError.ReadToEnd()
+  $process.StandardOutput.ReadToEnd() | Out-Null
+  $process.WaitForExit()
+  if ($process.ExitCode -ne 0) {
+    throw "Storing the CPU web login for '$Name' failed: $($errors.Trim())"
+  }
+  return $path
 }
 
 # A published root Unit browse path, validated the way the gateway itself does
@@ -157,6 +230,11 @@ function New-FraktalInstance(
     # own §7.6/§7.7 release and access gates regardless.
     WriteRoots   = @($WriteRoots | Where-Object { $_ })
     ConfigPath   = (Get-FraktalInstanceConfigPath $Name)
+    # s7web:// only, wizard memory only: @{ User; Password = SecureString }
+    # entered this session. Never written to the instances file; sealed by
+    # Save-FraktalPlcLogin before the installer runs. $null keeps any stored
+    # login.
+    PlcLogin     = $null
   }
 }
 

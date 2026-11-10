@@ -18,10 +18,12 @@ The [native TIA integration](../../Specification/Siemens/Evidence/TIA_SEQUENCE_I
 uses the same repository and chart without station-specific UI code.
 
 ## Platforms
-One codebase for **Windows, Linux, Android, Web**. Platform folders for
-**windows** and **web** are generated; add the others as needed:
+One codebase for **Windows, Linux, Android, iOS, Web**. Platform folders for all
+five are generated; **linux**, **android** and **ios** have not been built yet:
+follow `Specification/Guides/HMI_LINUX_AND_MOBILE_TARGETS.md` (application ID,
+prerequisites and the acceptance checklist) before the first device install.
 ```
-flutter create . --platforms=linux,android   # adds the remaining platform folders
+flutter pub get --enforce-lockfile
 flutter run -d windows|linux|<device>|chrome
 ```
 The UI remains repository-driven and dependency-light. Flutter's SDK localization

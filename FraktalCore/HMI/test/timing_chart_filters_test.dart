@@ -193,6 +193,76 @@ void main() {
     expect(tester.getSize(_paretoFill(TimeClass.work)).width, before);
   });
 
+  // A narrow flow column can leave a bar less than its own tick; it must lay
+  // out inside whatever it gets instead of throwing from clamp().
+  testWidgets('timing bar stays inside any granted width', (tester) async {
+    for (final width in [0.0, 1.0, 1.5, 2.0, 3.0, 120.0]) {
+      for (final frac in [0.0, 0.01, 0.5, 1.0]) {
+        await _pump(
+            tester,
+            Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                    width: width,
+                    child: TimingBar(
+                        avgFraction: frac,
+                        maxFraction: frac,
+                        height: 14,
+                        radius: 3,
+                        color: timeClassColor(TimeClass.work),
+                        tickColor: Colors.black))));
+        expect(tester.takeException(), isNull, reason: 'width $width frac $frac');
+        final bar = tester.getRect(find.byType(TimingBar));
+        for (final box in tester.renderObjectList<RenderBox>(find.descendant(
+            of: find.byType(TimingBar), matching: find.byType(Container)))) {
+          final rect = box.localToGlobal(Offset.zero) & box.size;
+          expect(rect.left, greaterThanOrEqualTo(bar.left - 1e-9));
+          expect(rect.right, lessThanOrEqualTo(bar.right + 1e-9),
+              reason: 'width $width frac $frac');
+        }
+      }
+    }
+  });
+
+  // The flow layout gave this card 391 px; fixed 140+5x56 columns overflowed.
+  testWidgets('command timing sizes its columns to the card it gets',
+      (tester) async {
+    const rows = [
+      CommandTiming(1, 'RETRACT', 3, Duration(milliseconds: 420),
+          Duration(milliseconds: 400), Duration(milliseconds: 1250),
+          Duration(milliseconds: 610)),
+      CommandTiming(2, 'EXTEND', 3, Duration(milliseconds: 380),
+          Duration(milliseconds: 350), Duration(milliseconds: 900),
+          Duration(milliseconds: 500)),
+    ];
+    for (final width in [120.0, 260.0, 300.0, 391.0, 700.0]) {
+      await _pump(
+          tester,
+          Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                  width: width,
+                  child: const CommandTimingView(
+                      moduleName: 'PressRam', rows: rows))));
+      expect(tester.takeException(), isNull, reason: 'width $width');
+      expect(find.text('RETRACT'), findsOneWidget);
+      expect(find.text('1.25s'), findsOneWidget);
+      final scrolls = find.descendant(
+          of: find.byType(CommandTimingView),
+          matching: find.byType(SingleChildScrollView));
+      // The test font draws every glyph as a full square, much wider than a
+      // UI font, so only the widest card is guaranteed room for the bar.
+      if (width >= 700) {
+        expect(find.byType(TimingBar), findsNWidgets(2), reason: 'width $width');
+        expect(scrolls, findsNothing);
+        // The label keeps its full text when the numbers fit beside it.
+        expect(tester.getSize(find.text('RETRACT')).width,
+            greaterThanOrEqualTo(_naturalWidth(tester, 'RETRACT')));
+      }
+      if (width <= 120) expect(scrolls, findsOneWidget);
+    }
+  });
+
   for (final trend in [true, false]) {
     testWidgets(
         '${trend ? 'trend' : 'Pareto'} all-hidden selection is recoverable',
@@ -244,6 +314,18 @@ void main() {
           isTrue);
     });
   }
+}
+
+double _naturalWidth(WidgetTester tester, String text) {
+  final context = tester.element(find.text(text));
+  final painter = TextPainter(
+      text: TextSpan(text: text, style: DefaultTextStyle.of(context).style),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context))
+    ..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
 }
 
 class _PaintCounter extends CustomPainter {

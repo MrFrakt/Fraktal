@@ -46,7 +46,7 @@ int _effectivePort(Uri endpoint) {
   return switch (endpoint.scheme) {
     'opc.tcp' => 4840,
     'ws' || 'http' => 80,
-    'wss' || 'https' => 443,
+    'wss' || 'https' || 's7web' => 443,
     'cip' => 44818,
     _ => 0,
   };

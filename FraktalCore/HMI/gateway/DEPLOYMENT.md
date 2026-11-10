@@ -21,12 +21,29 @@ same gateway protocol to browsers, so the Web HMI is identical either way):
   by the installer when built with the TwinCAT ADS SDK) and an AMS route to the
   target. The **AMS route is the trust boundary**, so the OPC UA security profile,
   certificates, and `FRAKTAL_OPCUA_USERNAME`/`PASSWORD` **do not apply** to ADS.
-- `s7web://<host>[:443]` — Siemens S7 **Web API** (JSON-RPC over HTTPS), the
-  licence-free Fraktal/TIA path (Part IV §11.1a). Requires `--plc-certificate
-  <file>`: the CPU's web server certificate (PEM or DER) captured once at
-  commissioning — the gateway trusts exactly that certificate, never system roots
-  or "accept any". Credentials come from `FRAKTAL_TIA_WEB_USER` /
-  `FRAKTAL_TIA_WEB_PASSWORD` only; the user's rights in the CPU (read/write process
+- `s7web://<host>[:443][?pin=<SHA-256>]` — Siemens S7 **Web API** (JSON-RPC
+  over HTTPS), the licence-free Fraktal/TIA path (Part IV §11.1a). The CPU's web
+  server certificate is pinned either by its SHA-256 fingerprint in the endpoint
+  (`?pin=`, the form the native HMI and the Windows installer use) or by
+  `--plc-certificate <file>` (PEM or DER captured at commissioning) — the gateway
+  trusts exactly that certificate, never system roots or "accept any". The CPU
+  web login is remembered per instance and never on a command line, in
+  `gateway.args` or a log; the first source found wins:
+  1. `FRAKTAL_TIA_WEB_USER` / `FRAKTAL_TIA_WEB_PASSWORD` (whole-process, so only
+     for a host serving one PLC);
+  2. `--plc-login-file <path>` (Windows): the login sealed with DPAPI for the
+     Windows user that runs the tray. The installer wizard asks for it on an
+     `s7web://` instance and stores `instances\<name>\plc_login.json` by piping it
+     to `fraktal_gateway --seal-plc-login <path>` (user and password as two lines
+     on standard input); blank fields on an upgrade keep the stored login.
+     Silent installs pass `webuser=<user>` in the `-GatewayInstance` spec with the
+     password in `FRAKTAL_TIA_WEB_PASSWORD`. A file sealed by another Windows user
+     does not open; run setup again as the tray's user;
+  3. systemd credentials `tia-web-user` / `tia-web-password` (Linux):
+     `LoadCredentialEncrypted=` in a per-instance drop-in, see
+     `fraktal-gateway-s7web-login.conf.example`.
+
+  The user's rights in the CPU (read/write process
   data, nothing else) are the PLC-side write gate. `--webapi-batch` (default 20)
   bounds leaves per request: the CPU serves one request at a time, so small batches
   keep a mailbox acknowledgement from queueing behind a snapshot. The OPC UA

@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fraktal_hmi/data/connection_settings_store.dart';
+import 'package:fraktal_hmi/data/s7web_credentials.dart';
+import 'package:fraktal_hmi/data/s7web_endpoint.dart';
+import 'package:fraktal_hmi/data/s7web_vault.dart';
 import 'package:fraktal_hmi/data/sim_repository.dart';
 import 'package:fraktal_hmi/data/plc_repository.dart';
 import 'package:fraktal_hmi/domain/connection_settings.dart';
@@ -13,6 +16,8 @@ import 'package:fraktal_hmi/ui/shell.dart';
 import 'package:fraktal_hmi/state/app_state.dart';
 import 'package:fraktal_hmi/content/module_content_controller.dart';
 import 'package:fraktal_hmi/localization/localization_controller.dart';
+
+import 'support/memory_s7web_vault.dart';
 
 ConnectionBootstrap _bootstrap({
   required MemoryConnectionSettingsStore store,
@@ -292,6 +297,165 @@ void main() {
 
     await tester.pump(const Duration(seconds: 30));
     expect(find.byKey(const Key('edit-connection-settings')), findsOneWidget);
+  });
+
+  testWidgets(
+      'an s7web endpoint without a CPU web login asks for it, keeps it in '
+      'memory only and connects', (tester) async {
+    const endpoint = 's7web://169.254.212.49?pin='
+        '33f3df01cd14f8dd4faf73da564f0162fc25b634707a9793c75b9d2bf76d8f15';
+    final target = S7WebEndpoint.parse(Uri.parse(endpoint));
+    s7WebCredentials.forget(target);
+    addTearDown(() => s7WebCredentials.forget(target));
+    final store = MemoryConnectionSettingsStore(const ConnectionSettings(
+        endpoint: endpoint,
+        everConnected: true,
+        selectedUnitPaths: ['StationA'],
+        unitSelectionComplete: true,
+        enabledLanguageCodes: ['en'],
+        activeLanguageCode: 'en',
+        languageSelectionComplete: true));
+    final offered = <String>[];
+    await tester.pumpWidget(_bootstrap(
+      store: store,
+      repositoryFactory: (_) {
+        final login = s7WebCredentials.lookup(target);
+        if (login == null) throw const S7WebLoginRequired(rejected: false);
+        offered.add('${login.user}/${login.password}');
+        if (login.password != 'right') {
+          s7WebCredentials.forget(target);
+          throw const S7WebLoginRequired(rejected: true);
+        }
+        return SimRepository();
+      },
+      startupRetryBase: const Duration(milliseconds: 10),
+    ));
+    await tester.pump();
+
+    // A login cannot succeed by retrying: the screen asks, still locked.
+    expect(find.byType(Shell), findsNothing);
+    expect(find.byKey(const Key('s7web-login-connect')), findsOneWidget);
+    expect(find.byKey(const Key('s7web-login-rejected')), findsNothing);
+    await tester.pump(const Duration(seconds: 1));
+    expect(offered, isEmpty, reason: 'no automatic retry without a login');
+
+    await tester.enterText(find.byKey(const Key('s7web-user')), 'fraktal');
+    await tester.enterText(find.byKey(const Key('s7web-password')), 'wrong');
+    await tester.tap(find.byKey(const Key('s7web-login-connect')));
+    await tester.pump();
+    expect(find.byKey(const Key('s7web-login-rejected')), findsOneWidget);
+    expect(s7WebCredentials.lookup(target), isNull,
+        reason: 'a refused login is not kept');
+
+    await tester.enterText(find.byKey(const Key('s7web-password')), 'right');
+    await tester.tap(find.byKey(const Key('s7web-login-connect')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(offered, ['fraktal/wrong', 'fraktal/right']);
+    expect(find.byType(Shell), findsOneWidget);
+    expect((await store.load())!.toJson().toString(), isNot(contains('right')),
+        reason: 'the password never reaches persisted settings');
+  });
+
+  testWidgets(
+      'a remembered CPU web login connects at start; ticking the box on the '
+      'login screen remembers a new one', (tester) async {
+    const endpoint = 's7web://169.254.212.49?pin='
+        '33f3df01cd14f8dd4faf73da564f0162fc25b634707a9793c75b9d2bf76d8f15';
+    final target = S7WebEndpoint.parse(Uri.parse(endpoint));
+    final vault = MemoryS7WebVault();
+    s7WebCredentials.vault = vault;
+    addTearDown(() {
+      s7WebCredentials.forget(target);
+      s7WebCredentials.vault = const UnavailableS7WebVault();
+    });
+    const saved = ConnectionSettings(
+        endpoint: endpoint,
+        everConnected: true,
+        selectedUnitPaths: ['StationA'],
+        unitSelectionComplete: true,
+        enabledLanguageCodes: ['en'],
+        activeLanguageCode: 'en',
+        languageSelectionComplete: true);
+    final offered = <String>[];
+    PlcRepository connect(ConnectionSettings _) {
+      final login = s7WebCredentials.lookup(target);
+      if (login == null) throw const S7WebLoginRequired(rejected: false);
+      offered.add('${login.user}/${login.password}');
+      return SimRepository();
+    }
+
+    // First start: asked, and the box remembers the answer.
+    await tester.pumpWidget(_bootstrap(
+        store: MemoryConnectionSettingsStore(saved), repositoryFactory: connect));
+    await tester.pump();
+    expect(find.byKey(const Key('s7web-remember')), findsOneWidget);
+    expect(tester.widget<CheckboxListTile>(
+            find.byKey(const Key('s7web-remember'))).value, isFalse);
+    await tester.enterText(find.byKey(const Key('s7web-user')), 'fraktal');
+    await tester.enterText(find.byKey(const Key('s7web-password')), 'secret');
+    await tester.ensureVisible(find.byKey(const Key('s7web-remember')));
+    await tester.tap(find.byKey(const Key('s7web-remember')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('s7web-login-connect')));
+    await tester.tap(find.byKey(const Key('s7web-login-connect')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(Shell), findsOneWidget);
+    expect(vault.logins.values.single, (user: 'fraktal', password: 'secret'));
+
+    // HMI restart: process memory is gone, the vault logs in by itself.
+    await tester.pumpWidget(const SizedBox());
+    s7WebCredentials.vault = vault;
+    await tester.pumpWidget(_bootstrap(
+        store: MemoryConnectionSettingsStore(saved), repositoryFactory: connect));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byKey(const Key('s7web-login-connect')), findsNothing);
+    expect(find.byType(Shell), findsOneWidget);
+    expect(offered, ['fraktal/secret', 'fraktal/secret']);
+  });
+
+  testWidgets('the wizard takes the CPU web login with an s7web endpoint',
+      (tester) async {
+    final endpoint = 's7web://10.0.0.7?pin=${'ab' * 32}';
+    final target = S7WebEndpoint.parse(Uri.parse(endpoint));
+    addTearDown(() => s7WebCredentials.forget(target));
+    final store = MemoryConnectionSettingsStore(const ConnectionSettings(
+        enabledLanguageCodes: ['en'],
+        activeLanguageCode: 'en',
+        languageSelectionComplete: true,
+        appearanceSetupComplete: true));
+    String? offered;
+    await tester.pumpWidget(_bootstrap(
+      store: store,
+      repositoryFactory: (settings) {
+        final login = s7WebCredentials.lookup(target);
+        offered = login == null ? null : '${login.user}/${login.password}';
+        return SimRepository();
+      },
+    ));
+    await tester.pump();
+    expect(find.byKey(const Key('s7web-user')), findsNothing);
+    await tester.enterText(find.byType(TextFormField).first, endpoint);
+    await tester.pump();
+    expect(find.byKey(const Key('s7web-user')), findsOneWidget);
+    expect(find.byKey(const Key('s7web-password')), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('s7web-user')), 'fraktal');
+    await tester.ensureVisible(find.byKey(const Key('save-connect')));
+    await tester.tap(find.byKey(const Key('save-connect')));
+    await tester.pump();
+    expect(offered, isNull, reason: 'a user without its password is refused');
+
+    await tester.enterText(find.byKey(const Key('s7web-password')), 'secret');
+    await tester.ensureVisible(find.byKey(const Key('save-connect')));
+    await tester.tap(find.byKey(const Key('save-connect')));
+    await tester.pump();
+    expect(offered, 'fraktal/secret');
+    expect(
+        (await store.load())!.toJson().toString(), isNot(contains('secret')));
   });
 
   testWidgets('startup failure retries automatically and reaches live',
