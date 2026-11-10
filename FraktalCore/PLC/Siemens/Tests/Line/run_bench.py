@@ -6,12 +6,14 @@ import os
 from pathlib import Path
 import subprocess
 
+import sys
+
 from make_fixture import build
 
 HERE = Path(__file__).resolve().parent
 TIA = HERE.parents[1]
-DRIVER = TIA/'tools/TiaCli/bin/candidate_structure_examples/Fraktal.Tia.Cli.exe'
-DRIVER_SHA256 = 'ba24e6aaa0338b286accaf3d19c0d9dfaf2b394268b57a1a43ff1d330652fc74'
+sys.path.insert(0, str(TIA/'tools'))
+from tia_driver import DRIVER, DRIVER_SHA256
 
 
 def powershell(script, *args):

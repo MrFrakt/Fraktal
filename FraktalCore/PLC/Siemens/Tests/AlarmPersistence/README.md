@@ -47,7 +47,7 @@ rejected the initial direct non-ASCII fixture write with -32602; raw attempts ar
 preserved. No production transport workaround is claimed.
 
 Use the existing Tests/Access/with_credentials.ps1 DPAPI wrapper for prepare and
-probe; use the owner-whitelisted candidate_structure_examples explicitly for
-native plans. Current runtime is Alarm_Persistence_Runtime_20261012/FrkS12/FrkS12.ap20;
+probe; use the owner-whitelisted driver named in `tools/tia_driver.py`
+explicitly for native plans. Current runtime is Alarm_Persistence_Runtime_20261012/FrkS12/FrkS12.ap20;
 the wired press compiles separately in Alarm_Persistence_Press_Offline_20261012.
 See [dated evidence](../../../../../Specification/Siemens/Evidence/TIA_ALARM_HISTORY_2026-10-12.md).

@@ -4,9 +4,11 @@ Output forcing (2026-11-10): [engineering-image forcing behind `OUTPUT_FORCING`]
 and the [first native compile of the P9 module types](Evidence/TIA_P9_MODULES_NATIVE_2026-11-10.md),
 now also [run natively](Evidence/TIA_P9_MODULES_RUNTIME_2026-11-10.md) with three port defects fixed.
 DQ channels now carry [applied-output feedback](Evidence/TIA_OUTPUT_FEEDBACK_2026-11-10.md)
-from the 1214C bridge (compiled; downloads await the owner).
-Native PROFINET node health, CPU force-job annunciation and the live press force
-path remain open in P8.
+from the 1214C bridge (compiled; downloads await the owner), and topology nodes
+bound to PROFINET devices carry [native node health](Evidence/TIA_PROFINET_HEALTH_2026-11-10.md)
+(compiled in the gate; its bench run awaits PLCSIM TCP/IP mode).
+CPU force-job annunciation, the live press force path and physical acceptance
+remain open in P8.
 
 Bench/HMI wrap-up (2026-10-18): [final connection setup and SiemensAgent update](Reports/TIA_BENCH_WRAP_UP_2026-10-18.md).
 The offline-tree report was an HMI endpoint mismatch; the shared Settings

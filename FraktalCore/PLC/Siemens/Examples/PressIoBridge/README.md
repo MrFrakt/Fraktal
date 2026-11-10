@@ -125,8 +125,8 @@ python FraktalCore/PLC/Siemens/tools/fraktal_tia_io_bridge.py --out <new-sources
 python FraktalCore/PLC/Siemens/tools/fraktal_tia_io_bridge.py --client --out <new-client-sources> --project <copied-press-1516.ap20> --native <new-client-export>
 ```
 
-Run each resulting `import.plan` with the existing owner-whitelisted
-`candidate_structure_examples/Fraktal.Tia.Cli.exe`. Require zero compile errors
+Run each resulting `import.plan` with the owner-approved, whitelisted driver
+named in `tools/tia_driver.py`. Require zero compile errors
 and warnings and compare native exports before deployment. The client profile
 wraps the press's existing input routine, replaces the local plant simulation
 with real feedback and retains the three-call press `Main`.

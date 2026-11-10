@@ -350,10 +350,17 @@ output feedback and physical acceptance.
 (owner decision 4A): bridge wire version 2 returns the 1214C's applied outputs;
 the topology publishes them per DQ tag with quality while the report is valid.
 Both bridge sides compile 0/0 with native read-back; nothing is downloaded, and
-both endpoints need the owner's download authorization. The owner approved
-adding PROFINET IO-system commands to the Openness driver (2A); the candidate
-build awaits review of its diff and hash. The force-job detection spike (3B)
-needs that PROFINET fixture for a forceable DQ address.
+both endpoints need the owner's download authorization.
+
+**P8 PROFINET node health (November 10):** [the PROFINET record](../Evidence/TIA_PROFINET_HEALTH_2026-11-10.md)
+(owner decision 2A): the approved, whitelisted driver build creates IO systems,
+devices and modules; a topology node bound to a PROFINET device takes its link
+and state from `DeviceStates` (sampled per IO system) with the device number from
+`LOG2GEO`. The new `Tests/ProfinetHealth` suite compiles 0/0 with read-back in
+the native gate; its runtime assertions and the force-job spike (3B) wait for
+the PLCSIM manager to return to TCP/IP mode. Still open in P8: CPU force-job
+annunciation, the live press force path, ModuleStates/OB event detail and
+physical acceptance.
 
 ## 6. Decisions for the owner
 

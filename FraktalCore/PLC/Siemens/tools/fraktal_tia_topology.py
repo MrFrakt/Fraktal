@@ -11,7 +11,9 @@ maxima (64 nodes x 16 channels would cost ~1.2 MB and ~20,000 Web API leaves):
   (names, addresses, paths, owning modules, parent links, counts);
 * one publish function that copies only live state each scan: channel values
   from the station's logical I/O image and link health from its health bit.
-  Input quality follows the validated link. An output is its local demand with
+  Input quality follows the validated link: the station's health bit, or for
+  a node bound to a PROFINET device, that device's state as the CPU reports it
+  (DeviceStates, sampled per IO system). An output is its local demand with
   quality FALSE, unless the station declares applied-output feedback: then,
   while that feedback is valid, it is the state the I/O owner reports applied.
 
@@ -35,7 +37,7 @@ import dataclasses
 from pathlib import Path
 import re
 
-from fraktal_tia_binding import Catalog, READONLY, literal, type_source
+from fraktal_tia_binding import Catalog, PRIVATE, READONLY, literal, type_source
 
 FORCING_TEMPLATE = Path(__file__).resolve().parents[1] / 'Framework/Core/output_forcing.scl.in'
 
@@ -44,6 +46,12 @@ PRIVATE_MEMBERS = {'Forceable', 'ForceBool', 'ForceAnalog', 'ForcesEnabled'}
 TYPES = ('ST_IoChannel', 'ST_BusNode', 'ST_FieldbusTopology')
 DIRECTIONS = ('INPUT', 'OUTPUT')
 IDENT = re.compile(r'[A-Za-z_]\w*')
+# A hardware system constant ("Local~PROFINET_IO-System", "IM_1~IODevice").
+SYSTEM_CONSTANT = re.compile(r'[A-Za-z_][\w~\-]{0,124}')
+# Part IV 10.5: device state is sampled per IO system, never per scan per device.
+PN_SAMPLE_MS = 250
+# DeviceStates modes (S7-1500): devices that are disabled, that exist, that report a problem.
+PN_DISABLED, PN_EXISTING, PN_PROBLEM = 3, 4, 5
 
 
 def resolve_types(catalog: Catalog, nodes: int, channels: int, forcing: bool = False) -> dict:
@@ -97,6 +105,10 @@ def validate(spec: dict, image_members: set, root: str, modules: set, types: dic
                 raise ValueError('node %d: %s too long or not ASCII' % (index, key))
         if not node.get('name'):
             raise ValueError('node %d needs a name' % index)
+        profinet = node.get('profinet')
+        if profinet is not None and (set(profinet) != {'io_system', 'device'} or not all(
+                type(profinet[key]) is str and SYSTEM_CONSTANT.fullmatch(profinet[key]) for key in profinet)):
+            raise ValueError('node %d: profinet names its io_system and device system constants' % index)
         for channel in node.get('channels', []):
             for member, key in (('Name', 'tag'), ('DescriptionKey', 'description_key'),
                                 ('Address', 'address')):
@@ -160,7 +172,12 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
                   '    %sParentIdx := %d;' % (prefix, node.get('parent', 0)),
                   '    %sChannelCount := %d;' % (prefix, len(node.get('channels', [])))]
         live = '"%s".%s' % (spec['block'], prefix)
-        publish += ['    %sLinkOk := #Healthy;' % live, '    %sState := #State;' % live]
+        if node.get('profinet'):
+            # The sampled device state owns this node's link; its inputs follow it.
+            link = live + 'LinkOk'
+        else:
+            publish += ['    %sLinkOk := #Healthy;' % live, '    %sState := #State;' % live]
+            link = '#Healthy'
         for c, channel in enumerate(node.get('channels', []), 1):
             item = prefix + 'Channels[%d].' % c
             start += ['    %sName := %s;' % (item, literal(channel['tag'])),
@@ -186,23 +203,24 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
                 publish.append('    %sBoolValue := "%s".%s;' % (live_item, spec['image'], channel['source']))
             # Without declared feedback a DQ is the local command image, not the
             # physical endpoint's applied output. Never present a demand as confirmed.
-            quality = '#Healthy' if channel['dir'] == 'INPUT' else 'FALSE'
+            quality = link if channel['dir'] == 'INPUT' else 'FALSE'
             publish.append('    %sQuality := %s;' % (live_item, quality))
 
+    sample, temps, members = profinet_sample(spec['block'], nodes, enums['E_NodeState'])
     files['38_%s.db' % spec['block']] = '\n'.join([
         '// Core 10.5.1: identity is fixed at generation; the publisher writes live state.',
         'DATA_BLOCK "%s"' % spec['block'], "{ S7_Optimized_Access := 'TRUE' }", 'VERSION : 0.1', 'NON_RETAIN',
-        'VAR', '    Topology%s : "ST_FieldbusTopology";' % READONLY, 'END_VAR', 'BEGIN',
+        'VAR', '    Topology%s : "ST_FieldbusTopology";' % READONLY, *members, 'END_VAR', 'BEGIN',
         *start, 'END_DATA_BLOCK', ''])
     files['38_%s.scl' % spec['publisher']] = '\n'.join([
         'FUNCTION "%s" : Void' % spec['publisher'], "{ S7_Optimized_Access := 'TRUE' }", 'VERSION : 0.1',
-        'VAR_TEMP', '    Healthy : Bool;', '    State : DInt;', 'END_VAR', 'BEGIN',
+        'VAR_TEMP', '    Healthy : Bool;', '    State : DInt;', *temps, 'END_VAR', 'BEGIN',
         '    // Core 10.5.1: live values and link health only. An input without a',
         '    // healthy link is not a claim, so its quality follows the link.',
         '    #Healthy := "%s".%s;' % (spec['image'], spec['healthy']),
         '    #State := %d;' % enums['E_NodeState']['OFFLINE'],
         '    IF #Healthy THEN #State := %d; END_IF;' % enums['E_NodeState']['OPERATIONAL'],
-        *publish, 'END_FUNCTION', ''])
+        *sample, *publish, 'END_FUNCTION', ''])
     if forcing:
         text = FORCING_TEMPLATE.read_text('ascii')
         for name, values in enums.items():
@@ -219,6 +237,44 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
             '    // forcing is permitted, so the demand returns the moment the Unit can act.',
             *lines, 'END_FUNCTION', ''])
     return files
+
+
+def profinet_sample(block: str, nodes: list, states: dict) -> tuple:
+    """Node link and state from the CPU's own PROFINET view (Part IV 10.5).
+
+    One DeviceStates read per mode per IO system, at most every PN_SAMPLE_MS;
+    the device number comes from the device's hardware identifier (LOG2GEO), so
+    the declaration names the hardware, never a number to keep in step with it.
+    A read that fails is not a claim: the node is OFFLINE with no link."""
+    bound = [(n, node['profinet']) for n, node in enumerate(nodes, 1) if node.get('profinet')]
+    if not bound:
+        return [], [], []
+    # The system type carries its instruction identity, as the native export writes it.
+    temps = ['    PnOk : Bool;', '    PnRet : Int;', '    PnStation : Int;',
+             "    PnGeo {InstructionName := 'GEOADDR'; LibVersion := '1.0'} : GEOADDR;",
+             *['    Pn%s : Array[0..1023] of Bool;' % name for name in ('Existing', 'Disabled', 'Problem')]]
+    members = ['    PnSampled%s : Bool;' % PRIVATE, '    PnSampleMs%s : UDInt;' % PRIVATE]
+    lines = ['    // Part IV 10.5: PROFINET device state, sampled per IO system - never per scan per device.',
+             '    IF NOT "%s".PnSampled OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "%s".PnSampleMs) >= %d THEN' % (block, block, PN_SAMPLE_MS),
+             '        "%s".PnSampled := TRUE;' % block, '        "%s".PnSampleMs := "FRK_Clock".NowMs;' % block]
+    for system in dict.fromkeys(p['io_system'] for _, p in bound):
+        lines += ['        #PnRet := DeviceStates(LADDR := "%s", MODE := %d, STATE := #PnExisting); #PnOk := #PnRet = 0;' % (system, PN_EXISTING),
+                  '        #PnRet := DeviceStates(LADDR := "%s", MODE := %d, STATE := #PnDisabled); #PnOk := #PnOk AND #PnRet = 0;' % (system, PN_DISABLED),
+                  '        #PnRet := DeviceStates(LADDR := "%s", MODE := %d, STATE := #PnProblem); #PnOk := #PnOk AND #PnRet = 0;' % (system, PN_PROBLEM)]
+        for n, profinet in bound:
+            if profinet['io_system'] != system:
+                continue
+            live = '"%s".Topology.Nodes[%d].' % (block, n)
+            lines += ['        #PnStation := 0;',
+                      '        #PnRet := LOG2GEO(LADDR := "%s", GEOADDR := #PnGeo);' % profinet['device'],
+                      '        IF #PnRet = 0 AND #PnGeo.STATION >= 1 AND #PnGeo.STATION <= 1023 THEN #PnStation := UINT_TO_INT(#PnGeo.STATION); END_IF;',
+                      '        %sLinkOk := #PnOk AND #PnStation > 0;' % live,
+                      '        IF %sLinkOk THEN %sLinkOk := #PnExisting[#PnStation] AND NOT #PnDisabled[#PnStation]; END_IF;' % (live, live),
+                      '        IF NOT %sLinkOk THEN %sState := %d;' % (live, live, states['OFFLINE']),
+                      '        ELSIF #PnProblem[#PnStation] THEN %sState := %d;' % (live, states['FAULT']),
+                      '        ELSE %sState := %d; END_IF;' % (live, states['OPERATIONAL'])]
+    lines.append('    END_IF;')
+    return lines, temps, members
 
 
 def unit_calls(spec: dict, catalog: Catalog) -> dict:

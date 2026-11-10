@@ -1217,6 +1217,19 @@ the channel path. **[OPEN]** The CPU's own force jobs (TIA force tables) have no
 runtime API; this path neither reads nor replaces them, and annunciating a
 native force job is not yet implemented.
 
+**PROFINET node health — the TIA realization.** A topology node may bind to a
+PROFINET device by naming two hardware system constants, its IO system and its
+device (`"Local~PROFINET_IO-System"`, `"IM_1~IODevice"`); the declaration names
+hardware, never a device number, which `LOG2GEO` derives at run time. The
+generated publisher reads `DeviceStates` (existing, disabled, problem) once per
+IO system at most every 250 ms. The node's link is "exists and not disabled";
+its state is `OFFLINE` without a link, `FAULT` when the device reports a problem
+and `OPERATIONAL` otherwise; a read that fails is not a claim, so the node is
+`OFFLINE`. That node's inputs take their quality from its link, not from the
+station bit. **[OPEN]** `ModuleStates`, `GET_DIAG` detail and OB82/OB83/OB86
+event wake-up are not used yet, and the runtime mapping awaits the isolated
+PROFINET bench (`Tests/ProfinetHealth`).
+
 **Applied-output feedback.** A DQ channel's value is its local demand with
 quality FALSE unless the station declares where the I/O owner's report of the
 applied state lands: one image member per output tag plus one validity bit

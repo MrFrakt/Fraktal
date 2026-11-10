@@ -58,6 +58,41 @@ class TopologyTests(unittest.TestCase):
             else:spec['feedback_healthy']='Missing'
             with self.subTest(case=case),self.assertRaises(ValueError):self.build(spec)
 
+    def profinet(self):
+        spec=copy.deepcopy(self.spec)
+        spec['nodes'][1]['profinet']=dict(io_system='Local~PROFINET_IO-System',device='IM_1~IODevice')
+        return spec
+
+    def test_profinet_node_follows_the_cpu_device_state_sampled_per_io_system(self):
+        sources=self.build(self.profinet())
+        source=sources['38_F_PublishBenchFieldbus.scl'];node='"GDB_BenchFieldbus".Topology.Nodes[2].'
+        self.assertEqual(source.count('DeviceStates(LADDR := "Local~PROFINET_IO-System"'),3)
+        self.assertIn('LOG2GEO(LADDR := "IM_1~IODevice", GEOADDR := #PnGeo);',source)
+        # The native export writes the system type's instruction identity; read-back compares it.
+        self.assertIn("PnGeo {InstructionName := 'GEOADDR'; LibVersion := '1.0'} : GEOADDR;",source)
+        self.assertIn('"FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "GDB_BenchFieldbus".PnSampleMs) >= %d'%topology.PN_SAMPLE_MS,source)
+        states=self.catalog.enums['E_NodeState']
+        self.assertIn('IF NOT %sLinkOk THEN %sState := %d;'%(node,node,states['OFFLINE']),source)
+        self.assertIn('ELSIF #PnProblem[#PnStation] THEN %sState := %d;'%(node,states['FAULT']),source)
+        # The bound node's link is never overwritten by the station bit, and its
+        # input quality follows the device, not the station.
+        self.assertNotIn(node+'LinkOk := #Healthy;',source)
+        self.assertIn('Nodes[2].Channels[1].Quality := %sLinkOk;'%node,source)
+        self.assertIn('Nodes[3].LinkOk := #Healthy;',source)
+        self.assertLess(source.index('DeviceStates('),source.index('Nodes[2].Channels[1].Quality'))
+        self.assertIn("PnSampled {ExternalAccessible := 'False'",sources['38_GDB_BenchFieldbus.db'])
+
+    def test_station_without_profinet_samples_nothing(self):
+        sources=self.build()
+        self.assertNotIn('DeviceStates',sources['38_F_PublishBenchFieldbus.scl'])
+        self.assertNotIn('PnSampled',sources['38_GDB_BenchFieldbus.db'])
+
+    def test_profinet_binding_names_hardware_constants_only(self):
+        for binding in (dict(io_system='Local~PROFINET_IO-System'),dict(io_system='X"; DROP',device='IM_1~IODevice'),
+                        dict(io_system='Local~PROFINET_IO-System',device='IM_1~IODevice',number=1),dict(io_system=1,device='IM')):
+            spec=copy.deepcopy(self.spec);spec['nodes'][1]['profinet']=binding
+            with self.subTest(binding=binding),self.assertRaises(ValueError):self.build(spec)
+
     def test_invalid_mapping_fails_before_emission(self):
         for case in ('parent','source','owner','duplicate','width'):
             spec=copy.deepcopy(self.spec)

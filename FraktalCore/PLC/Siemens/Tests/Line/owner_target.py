@@ -76,11 +76,13 @@ class Target:
         if self.action('status')['state'] != 'Run':
             self.action('run')
 
-    def configure_web(self, output):
+    def configure_web(self, output, enable=False):
         """Prepare credentials on the saved isolated project before hosting.
 
         Download once afterwards: two successive full downloads on the same
         fresh simulated CPU caused a large temporary simulator allocation.
+        `enable` first switches on the web server, its use on interface 1 and
+        its certificate: a fresh gate project serves no web (S12 commands).
         """
         if output.resolve().parent!=self.work or not self.project.is_file():raise ValueError('fixed isolated copy required')
         import re
@@ -89,6 +91,9 @@ class Target:
         if not os.environ.get('FRAKTAL_TIA_WEB_PASSWORD'):raise ValueError('DPAPI credential wrapper required')
         before=original()
         commands=['open-project --path "'+str(self.project)+'"',
+            *(['set-hw-attribute --plc PLC_1 --attr WebserverActivate --value true',
+               'set-hw-attribute --plc PLC_1 --item "PROFINET interface_1" --attr UseWebServerForInterface --value true',
+               'webserver-certificate --plc PLC_1'] if enable else []),
             'webserver-user --plc PLC_1 --name fraktal --permissions ReadTagStatus,ModifyTagStatus --password-env FRAKTAL_TIA_WEB_PASSWORD',
             'save','compile --plc PLC_1 --hw','save']
         plan=output.with_suffix('.plan')
