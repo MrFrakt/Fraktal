@@ -1,0 +1,212 @@
+// Configurable Cylinder Control Module logic.
+@REGION:CommandStart@
+    IF (#ParCfg.HomeSensorCount < 0) OR (#ParCfg.HomeSensorCount > 4)
+        OR (#ParCfg.WorkSensorCount < 0) OR (#ParCfg.WorkSensorCount > 4)
+        OR (#ParCfg.TravelTime >= #ParCfg.MoveTimeout)
+        OR ((#ParCfg.HomeSensorCount = 0) AND (#ParCfg.TravelTime <= T#0s))
+        OR ((#ParCfg.WorkSensorCount = 0) AND (#ParCfg.TravelTime <= T#0s))
+        OR ((#ParCfg.MinOutputTime > T#0s) AND (#ParCfg.MinOutputTime >= #ParCfg.MoveTimeout))
+        OR ((#ParCfg.PulsingWidth > T#0s) AND ((#ParCfg.PulsingWidth >= #ParCfg.PulsingPeriod) OR (#ParCfg.HomeSensorCount = 0) OR (#ParCfg.WorkSensorCount = 0)))
+        OR (#ParCfg.ResetOnEndPos AND #ParCfg.SingleActing) THEN
+        "FRK_Fault"(ReasonCode := @CYL_CFG_INVALID@,
+            Description := WSTRING#'std.error.cylinderConfigurationInvalid', Core := #Core, Status := #Status);
+    ELSE
+        #Device.TargetWork := #Core.Command = @TO_WORK@;
+        #Device.Step := 10;
+        #Device.Withdrawn := FALSE;
+        #Device.PulsingActive := (#ParCfg.PulsingWidth > T#0s) AND NOT #Device.AtHome AND NOT #Device.AtWork;
+        IF NOT #Device.Lease.Raised THEN
+            #Device.Lease.OwnerIndex := 0;
+            #Device.Lease.ChainIndex := 0;
+            #Device.Lease.BranchIndex := 0;
+        END_IF;
+    END_IF;
+@REGION:Abort@
+    #Device.Step := 0;
+    IF #ParCfg.DeenergizeOnAbort THEN
+        #Hal.ToWorkOut := FALSE;
+        #Hal.ToHomeOut := FALSE;
+    ELSIF #ParCfg.SafePosOnAbort = 2 THEN
+        #Hal.ToWorkOut := TRUE;
+        #Hal.ToHomeOut := FALSE;
+    ELSE
+        #Hal.ToWorkOut := FALSE;
+        #Hal.ToHomeOut := NOT #ParCfg.SingleActing;
+    END_IF;
+@REGION:AbortInError@
+    #Device.Step := 0;
+    IF #ParCfg.DeenergizeOnAbort THEN
+        #Hal.ToWorkOut := FALSE;
+        #Hal.ToHomeOut := FALSE;
+    ELSIF #ParCfg.SafePosOnAbort = 2 THEN
+        #Hal.ToWorkOut := TRUE;
+        #Hal.ToHomeOut := FALSE;
+    ELSE
+        #Hal.ToWorkOut := FALSE;
+        #Hal.ToHomeOut := NOT #ParCfg.SingleActing;
+    END_IF;
+@REGION:Cyclic@
+    IF #ParCfg.HomeSensorCount > 0 THEN
+        #Device.AtHome := TRUE;
+        #Device.DiscHomeSplit := FALSE;
+        IF #ParCfg.HomeSensorCount >= 1 AND NOT #Hal.HomeFb[1] THEN #Device.AtHome := FALSE; END_IF;
+        IF #ParCfg.HomeSensorCount >= 2 THEN
+            IF NOT #Hal.HomeFb[2] THEN #Device.AtHome := FALSE; END_IF;
+            IF #Hal.HomeFb[2] <> #Hal.HomeFb[1] THEN #Device.DiscHomeSplit := TRUE; END_IF;
+        END_IF;
+        IF #ParCfg.HomeSensorCount >= 3 THEN
+            IF NOT #Hal.HomeFb[3] THEN #Device.AtHome := FALSE; END_IF;
+            IF #Hal.HomeFb[3] <> #Hal.HomeFb[1] THEN #Device.DiscHomeSplit := TRUE; END_IF;
+        END_IF;
+        IF #ParCfg.HomeSensorCount >= 4 THEN
+            IF NOT #Hal.HomeFb[4] THEN #Device.AtHome := FALSE; END_IF;
+            IF #Hal.HomeFb[4] <> #Hal.HomeFb[1] THEN #Device.DiscHomeSplit := TRUE; END_IF;
+        END_IF;
+    ELSE
+        #Device.AtHome := FALSE;
+        #Device.DiscHomeSplit := FALSE;
+    END_IF;
+
+    IF #ParCfg.WorkSensorCount > 0 THEN
+        #Device.AtWork := TRUE;
+        #Device.DiscWorkSplit := FALSE;
+        IF #ParCfg.WorkSensorCount >= 1 AND NOT #Hal.WorkFb[1] THEN #Device.AtWork := FALSE; END_IF;
+        IF #ParCfg.WorkSensorCount >= 2 THEN
+            IF NOT #Hal.WorkFb[2] THEN #Device.AtWork := FALSE; END_IF;
+            IF #Hal.WorkFb[2] <> #Hal.WorkFb[1] THEN #Device.DiscWorkSplit := TRUE; END_IF;
+        END_IF;
+        IF #ParCfg.WorkSensorCount >= 3 THEN
+            IF NOT #Hal.WorkFb[3] THEN #Device.AtWork := FALSE; END_IF;
+            IF #Hal.WorkFb[3] <> #Hal.WorkFb[1] THEN #Device.DiscWorkSplit := TRUE; END_IF;
+        END_IF;
+        IF #ParCfg.WorkSensorCount >= 4 THEN
+            IF NOT #Hal.WorkFb[4] THEN #Device.AtWork := FALSE; END_IF;
+            IF #Hal.WorkFb[4] <> #Hal.WorkFb[1] THEN #Device.DiscWorkSplit := TRUE; END_IF;
+        END_IF;
+    ELSE
+        #Device.AtWork := FALSE;
+        #Device.DiscWorkSplit := FALSE;
+    END_IF;
+
+    IF #Device.DiscHomeSplit THEN
+        IF #Device.DiscHomeSinceMs = 0 THEN
+            #Device.DiscHomeSinceMs := "FRK_Clock".NowMs;
+        ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.DiscHomeSinceMs) >= TIME_TO_UDINT(#ParCfg.DiscrepancyTime) THEN
+            "FRK_Fault"(ReasonCode := @CYL_DISCREPANCY@,
+                Description := WSTRING#'std.error.cylinderSensorDiscrepancy', Core := #Core, Status := #Status);
+        END_IF;
+    ELSE
+        #Device.DiscHomeSinceMs := 0;
+    END_IF;
+
+    IF #Device.DiscWorkSplit THEN
+        IF #Device.DiscWorkSinceMs = 0 THEN
+            #Device.DiscWorkSinceMs := "FRK_Clock".NowMs;
+        ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.DiscWorkSinceMs) >= TIME_TO_UDINT(#ParCfg.DiscrepancyTime) THEN
+            "FRK_Fault"(ReasonCode := @CYL_DISCREPANCY@,
+                Description := WSTRING#'std.error.cylinderSensorDiscrepancy', Core := #Core, Status := #Status);
+        END_IF;
+    ELSE
+        #Device.DiscWorkSinceMs := 0;
+    END_IF;
+
+    IF #Device.AtHome AND #Device.AtWork THEN
+        #Device.Position := 0;
+    ELSIF #Device.AtHome THEN
+        #Device.Position := 1;
+    ELSIF #Device.AtWork THEN
+        #Device.Position := 2;
+    ELSIF (#ParCfg.HomeSensorCount > 0) OR (#ParCfg.WorkSensorCount > 0) THEN
+        #Device.Position := 3;
+    ELSE
+        #Device.Position := 0;
+    END_IF;
+
+    IF #Core.Exec = @E_ExecState.READY@ AND #Device.AtHome AND #Device.AtWork THEN
+        "FRK_Fault"(ReasonCode := @CYL_POS_IMPLAUSIBLE@,
+            Description := WSTRING#'std.error.cylinderPositionImplausible', Core := #Core, Status := #Status);
+    END_IF;
+@REGION:dispatch@
+    CASE #Device.Step OF
+        10:
+            #OutCmd.ReachedPosition := 0;
+            IF #Device.TargetWork AND NOT #Hal.ToWorkPermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.ToWorkPermitDiag);
+            ELSIF NOT #Device.TargetWork AND NOT #Hal.ToHomePermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.ToHomePermitDiag);
+            ELSE
+                #Device.MoveStartMs := "FRK_Clock".NowMs;
+                #Device.PulseStartMs := "FRK_Clock".NowMs;
+                #Device.PulseCoilOn := TRUE;
+                #Device.Step := 20;
+            END_IF;
+        20:
+            IF #Device.TargetWork AND NOT #Hal.ToWorkPermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.ToWorkPermitDiag);
+            ELSIF NOT #Device.TargetWork AND NOT #Hal.ToHomePermit THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.ToHomePermitDiag);
+            ELSE
+                IF #Device.PulsingActive AND TIME_TO_UDINT(#ParCfg.PulsingPeriod) > 0 THEN
+                    IF ("FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PulseStartMs) MOD TIME_TO_UDINT(#ParCfg.PulsingPeriod)) < TIME_TO_UDINT(#ParCfg.PulsingWidth) THEN
+                        #Device.PulseCoilOn := TRUE;
+                    ELSE
+                        #Device.PulseCoilOn := FALSE;
+                    END_IF;
+                ELSE
+                    #Device.PulseCoilOn := TRUE;
+                END_IF;
+
+                IF ((#Device.TargetWork AND #ParCfg.WorkSensorCount > 0) OR (NOT #Device.TargetWork AND #ParCfg.HomeSensorCount > 0))
+                    AND ((#Device.TargetWork AND #Device.AtWork) OR (NOT #Device.TargetWork AND #Device.AtHome)) THEN
+                    #Device.SettleStartMs := "FRK_Clock".NowMs;
+                    #Device.Step := 30;
+                ELSIF ((#Device.TargetWork AND #ParCfg.WorkSensorCount = 0) OR (NOT #Device.TargetWork AND #ParCfg.HomeSensorCount = 0))
+                    AND ("FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.MoveStartMs) >= TIME_TO_UDINT(#ParCfg.TravelTime)) THEN
+                    #Device.SettleStartMs := "FRK_Clock".NowMs;
+                    #Device.Step := 30;
+                ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.MoveStartMs) >= TIME_TO_UDINT(#ParCfg.MoveTimeout) THEN
+                    IF #ParCfg.ResetOnTimeout OR #Device.PulsingActive THEN
+                        #Device.Withdrawn := TRUE;
+                    END_IF;
+                    IF #Device.TargetWork THEN
+                        "FRK_Fault"(ReasonCode := @CYL_WORK_NOT_REACHED@,
+                            Description := WSTRING#'std.error.cylinderWorkTimeout', Core := #Core, Status := #Status);
+                    ELSE
+                        "FRK_Fault"(ReasonCode := @CYL_HOME_NOT_REACHED@,
+                            Description := WSTRING#'std.error.cylinderHomeTimeout', Core := #Core, Status := #Status);
+                    END_IF;
+                END_IF;
+            END_IF;
+        30:
+            IF (#Device.TargetWork AND #ParCfg.WorkSensorCount > 0) OR (NOT #Device.TargetWork AND #ParCfg.HomeSensorCount > 0) THEN
+                IF (#Device.TargetWork AND #Device.AtWork) OR (NOT #Device.TargetWork AND #Device.AtHome) THEN
+                    IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.SettleStartMs) >= TIME_TO_UDINT(#ParCfg.SettleTime)
+                        AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.MoveStartMs) >= TIME_TO_UDINT(#ParCfg.MinOutputTime) THEN
+                        #OutCmd.ReachedPosition := SEL(#Device.TargetWork, 1, 2);
+                        IF #ParCfg.ResetOnEndPos THEN #Device.Withdrawn := TRUE; END_IF;
+                        "FRK_Complete"(Core := #Core, Status := #Status);
+                    END_IF;
+                ELSE
+                    #Device.Step := 20;
+                END_IF;
+            ELSE
+                IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.MoveStartMs) >= TIME_TO_UDINT(#ParCfg.MinOutputTime) THEN
+                    #OutCmd.ReachedPosition := SEL(#Device.TargetWork, 1, 2);
+                    IF #ParCfg.ResetOnEndPos THEN #Device.Withdrawn := TRUE; END_IF;
+                    "FRK_Complete"(Core := #Core, Status := #Status);
+                END_IF;
+            END_IF;
+        ELSE
+            ;
+    END_CASE;
+@REGION:cyclic@
+    #Hal.ToWorkOut := NOT #Device.Withdrawn AND #Device.PulseCoilOn AND #Device.TargetWork AND #Hal.ToWorkPermit
+        AND #Core.Exec <> @E_ExecState.ERROR@ AND #Core.Exec <> @E_ExecState.ABORTED@;
+    #Hal.ToHomeOut := NOT #Device.Withdrawn AND #Device.PulseCoilOn AND NOT #Device.TargetWork AND #Hal.ToHomePermit
+        AND NOT #ParCfg.SingleActing AND #Core.Exec <> @E_ExecState.ERROR@ AND #Core.Exec <> @E_ExecState.ABORTED@;
+    #OutImm.AtHome := "FRK_State"(Idx := 1, Key := 'module.state.atHome', Ok := #Device.AtHome);
+    #OutImm.AtWork := "FRK_State"(Idx := 2, Key := 'module.state.atWork', Ok := #Device.AtWork);
+    #OutImm.Position := #Device.Position;
+@REGION:ManRelease@
+    "FRK_ManualCondition"(Conditions := #ManConditions, Slot := 1, Value := @TO_HOME@, Ok := #Hal.ToHomePermit, Diag := #Hal.ToHomePermitDiag, Bypassable := FALSE);
+    "FRK_ManualCondition"(Conditions := #ManConditions, Slot := 2, Value := @TO_WORK@, Ok := #Hal.ToWorkPermit, Diag := #Hal.ToWorkPermitDiag, Bypassable := FALSE);

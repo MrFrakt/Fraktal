@@ -272,7 +272,7 @@ def validate(value, core=None):
                 raise DeclarationError("T-ASCII", location + ".logic." + region, "SCL regions must be ASCII")
         commands = []
         for row in items(data.get("commands", []), location + ".commands"):
-            object_fields(row, ("id", "label"), (), location + ".commands")
+            object_fields(row, ("id", "label"), ("api",), location + ".commands")
             if type(row["id"]) is not int or not 1 <= row["id"] <= 2147483647:
                 raise DeclarationError("T-GEN", location, "command id must be a positive DInt")
             if not isinstance(row["label"], str) or not row["label"].isascii() or not 1 <= len(row["label"]) <= core.command_label_width:

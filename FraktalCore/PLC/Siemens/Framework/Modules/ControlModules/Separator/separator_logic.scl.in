@@ -1,0 +1,123 @@
+// Separator / Stopper Control Module logic.
+@REGION:CommandStart@
+    #Device.Step := 10;
+    #Device.Withdrawn := FALSE;
+    IF NOT #Device.Lease.Raised THEN
+        #Device.Lease.OwnerIndex := 0;
+        #Device.Lease.ChainIndex := 0;
+        #Device.Lease.BranchIndex := 0;
+    END_IF;
+@REGION:Abort@
+    #Device.Step := 0;
+    #Hal.ValveOpen := FALSE;
+@REGION:AbortInError@
+    #Device.Step := 0;
+    #Hal.ValveOpen := FALSE;
+@REGION:Cyclic@
+    IF NOT #Hal.Permit THEN
+        #Hal.ValveOpen := FALSE;
+        #Device.Withdrawn := TRUE;
+        "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.PermitDiagnostic);
+        #Device.Step := 10;
+    END_IF;
+@REGION:dispatch@
+    IF #Core.Command = @OPEN_CLOSE@ THEN
+        #Hal.ValveOpen := #ParCmd.OpenStopper AND #Hal.Permit;
+        IF NOT #ParCmd.OpenStopper THEN
+            #OutCmd.SeparatorOpen := FALSE;
+            "FRK_Complete"(Core := #Core, Status := #Status);
+        ELSIF NOT #ParCfg.UsesOpenFb THEN
+            #OutCmd.SeparatorOpen := TRUE;
+            "FRK_Complete"(Core := #Core, Status := #Status);
+        ELSE
+            IF #Device.Step = 10 THEN
+                #Device.PhaseStartMs := "FRK_Clock".NowMs;
+                #Device.Step := 20;
+            ELSIF #Hal.OpenedFb THEN
+                #OutCmd.SeparatorOpen := TRUE;
+                "FRK_Complete"(Core := #Core, Status := #Status);
+            ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PhaseStartMs) >= TIME_TO_UDINT(#ParCfg.MaxOpenTime) THEN
+                #Hal.ValveOpen := FALSE;
+                "FRK_Fault"(ReasonCode := @SEP_NOT_OPENED_FB@,
+                    Description := WSTRING#'std.error.separatorNotOpenedFb', Core := #Core, Status := #Status);
+            END_IF;
+        END_IF;
+    ELSIF #Core.Command = @SEPARATE@ THEN
+        CASE #Device.Step OF
+            10:
+                #OutCmd.SeparateOk := FALSE;
+                #Hal.ValveOpen := #Hal.Permit;
+                #Device.PhaseStartMs := "FRK_Clock".NowMs;
+                #Device.Step := 15;
+            15:
+                #Hal.ValveOpen := #Hal.Permit;
+                IF #Hal.CarrierAt THEN
+                    #Device.PhaseStartMs := "FRK_Clock".NowMs;
+                    #Device.Step := 20;
+                ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PhaseStartMs) >= TIME_TO_UDINT(#ParCfg.MaxOpenTime) THEN
+                    #Hal.ValveOpen := FALSE;
+                    "FRK_Fault"(ReasonCode := @SEP_NO_CARRIER_AT@,
+                        Description := WSTRING#'std.error.separatorNoCarrierAt', Core := #Core, Status := #Status);
+                END_IF;
+            20:
+                #Hal.ValveOpen := #Hal.Permit;
+                IF NOT #Hal.CarrierAt THEN
+                    #Device.PhaseStartMs := "FRK_Clock".NowMs;
+                    IF #ParCfg.CheckAfter THEN
+                        #Device.Step := 30;
+                    ELSE
+                        #Device.Step := 40;
+                    END_IF;
+                ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PhaseStartMs) >= TIME_TO_UDINT(#ParCfg.MaxOpenTime) THEN
+                    #Hal.ValveOpen := FALSE;
+                    "FRK_Fault"(ReasonCode := @SEP_CARRIER_NOT_CLEARED@,
+                        Description := WSTRING#'std.error.separatorCarrierNotCleared', Core := #Core, Status := #Status);
+                END_IF;
+            30:
+                #Hal.ValveOpen := #Hal.Permit;
+                IF #Hal.CarrierAfter THEN
+                    #Device.CloseStartMs := "FRK_Clock".NowMs;
+                    #Device.Step := 40;
+                ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PhaseStartMs) >= TIME_TO_UDINT(#ParCfg.SOnMaxTime) THEN
+                    #Hal.ValveOpen := FALSE;
+                    "FRK_Fault"(ReasonCode := @SEP_CARRIER_NOT_ARRIVED@,
+                        Description := WSTRING#'std.error.separatorCarrierNotArrived', Core := #Core, Status := #Status);
+                END_IF;
+            40:
+                IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.CloseStartMs) >= TIME_TO_UDINT(#ParCfg.CloseDelay) THEN
+                    #Hal.ValveOpen := FALSE;
+                    IF #ParCfg.CheckAfter THEN
+                        #Device.PhaseStartMs := "FRK_Clock".NowMs;
+                        #Device.Step := 50;
+                    ELSE
+                        #OutCmd.SeparateOk := TRUE;
+                        #OutCmd.SeparatorOpen := FALSE;
+                        "FRK_Complete"(Core := #Core, Status := #Status);
+                    END_IF;
+                END_IF;
+            50:
+                #Hal.ValveOpen := FALSE;
+                IF NOT #Hal.CarrierAfter THEN
+                    #OutCmd.SeparateOk := TRUE;
+                    #OutCmd.SeparatorOpen := FALSE;
+                    "FRK_Complete"(Core := #Core, Status := #Status);
+                ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PhaseStartMs) >= TIME_TO_UDINT(#ParCfg.SOnMaxTime) THEN
+                    "FRK_Fault"(ReasonCode := @SEP_SON_NOT_CLEARED@,
+                        Description := WSTRING#'std.error.separatorSonNotCleared', Core := #Core, Status := #Status);
+                END_IF;
+            ELSE
+                ;
+        END_CASE;
+    END_IF;
+@REGION:cyclic@
+    #OutImm.CarrierAt := "FRK_State"(Idx := 1, Key := 'module.state.carrierAt',
+        Ok := #Hal.CarrierAt);
+    #OutImm.CarrierAfter := "FRK_State"(Idx := 2, Key := 'module.state.carrierAfter',
+        Ok := #Hal.CarrierAfter);
+    #OutImm.OpenedFb := "FRK_State"(Idx := 3, Key := 'module.state.openedFb',
+        Ok := #Hal.OpenedFb);
+    #OutImm.ValveOpen := "FRK_State"(Idx := 4, Key := 'module.state.valveOpen',
+        Ok := #Hal.ValveOpen);
+    #OutCmd.SeparatorOpen := #Hal.ValveOpen;
+@REGION:ManRelease@
+    "FRK_ManualCondition"(Conditions := #ManConditions, Slot := 1, Value := 0, Ok := #Hal.Permit, Diag := #Hal.PermitDiagnostic, Bypassable := FALSE);

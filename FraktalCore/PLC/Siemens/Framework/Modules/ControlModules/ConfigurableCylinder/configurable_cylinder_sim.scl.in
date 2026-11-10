@@ -1,0 +1,54 @@
+// Simulation plant helper for FB_ConfigurableCylinderCM.
+FUNCTION_BLOCK "FB_ConfigurableCylinderSim"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+    Travel : Time := T#100ms;
+    HomeN : Int := 1;
+    WorkN : Int := 1;
+    StuckHome : Array[1..4] of Bool;
+    StuckWork : Array[1..4] of Bool;
+END_VAR
+VAR_IN_OUT
+    Hal : "ST_ConfigurableCylinderHal";
+END_VAR
+VAR
+    WorkStartMs : UDInt;
+    HomeStartMs : UDInt;
+    MovingWork : Bool;
+    MovingHome : Bool;
+    Index : Int;
+END_VAR
+BEGIN
+    IF #Hal.ToWorkOut THEN
+        IF NOT #MovingWork THEN
+            #MovingWork := TRUE;
+            #WorkStartMs := "FRK_Clock".NowMs;
+        ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #WorkStartMs) >= TIME_TO_UDINT(#Travel) THEN
+            FOR #Index := 1 TO #WorkN DO
+                #Hal.WorkFb[#Index] := NOT #StuckWork[#Index];
+            END_FOR;
+            FOR #Index := 1 TO #HomeN DO
+                #Hal.HomeFb[#Index] := FALSE;
+            END_FOR;
+        END_IF;
+    ELSE
+        #MovingWork := FALSE;
+    END_IF;
+
+    IF #Hal.ToHomeOut OR (NOT #Hal.ToWorkOut AND NOT #Hal.ToHomeOut) THEN
+        IF NOT #MovingHome THEN
+            #MovingHome := TRUE;
+            #HomeStartMs := "FRK_Clock".NowMs;
+        ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #HomeStartMs) >= TIME_TO_UDINT(#Travel) THEN
+            FOR #Index := 1 TO #HomeN DO
+                #Hal.HomeFb[#Index] := NOT #StuckHome[#Index];
+            END_FOR;
+            FOR #Index := 1 TO #WorkN DO
+                #Hal.WorkFb[#Index] := FALSE;
+            END_FOR;
+        END_IF;
+    ELSE
+        #MovingHome := FALSE;
+    END_IF;
+END_FUNCTION_BLOCK

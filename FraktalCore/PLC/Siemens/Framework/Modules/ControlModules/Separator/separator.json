@@ -1,0 +1,34 @@
+{
+  "name": "FB_SeparatorCM",
+  "tier": "CONTROL_MODULE",
+  "type_key": "std.moduleType.separator",
+  "commands": [
+    {
+      "id": 1,
+      "label": "SEPARATE",
+      "api": "F_SeparatorSeparate"
+    },
+    {
+      "id": 2,
+      "label": "OPEN_CLOSE",
+      "api": "F_SeparatorOpenClose"
+    }
+  ],
+  "records": {
+    "ST_SeparatorParCfg": "STRUCT SchemaVersion : UINT := 1; Timeout : TIME := T#10s; MaxOpenTime : TIME := T#3s; CloseDelay : TIME := T#500ms; SOnMaxTime : TIME := T#4s; CheckAfter : Bool := TRUE; UsesOpenFb : Bool := FALSE; END_STRUCT",
+    "ST_SeparatorParCmd": "STRUCT OpenStopper : Bool; END_STRUCT",
+    "ST_SeparatorOutCmd": "STRUCT SeparateOk : Bool; SeparatorOpen : Bool; END_STRUCT",
+    "ST_SeparatorOutImm": "STRUCT CarrierAt : Bool; CarrierAfter : Bool; OpenedFb : Bool; ValveOpen : Bool; END_STRUCT",
+    "ST_SeparatorHal": "STRUCT CarrierAt : Bool; CarrierAfter : Bool; OpenedFb : Bool; Permit : Bool; PermitDiagnostic : ST_Diagnostic; ValveOpen : Bool; END_STRUCT",
+    "ST_SeparatorDevice": "STRUCT Step : DINT; PhaseStartMs : UDINT; CloseStartMs : UDINT; Withdrawn : BOOL; Lease : ST_SequenceCommandLease; END_STRUCT"
+  },
+  "contract": {
+    "ParCfg": "ST_SeparatorParCfg",
+    "ParCmd": "ST_SeparatorParCmd",
+    "OutCmd": "ST_SeparatorOutCmd",
+    "OutImm": "ST_SeparatorOutImm"
+  },
+  "hal": "ST_SeparatorHal",
+  "timeout": "Timeout",
+  "storage": "ST_SeparatorDevice"
+}

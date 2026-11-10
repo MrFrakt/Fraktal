@@ -1,0 +1,34 @@
+{
+  "name": "FB_ConfigurableCylinderCM",
+  "tier": "CONTROL_MODULE",
+  "type_key": "std.moduleType.configurableCylinder",
+  "commands": [
+    {
+      "id": 1,
+      "label": "TO_HOME",
+      "api": "F_ConfigurableCylinderToHome"
+    },
+    {
+      "id": 2,
+      "label": "TO_WORK",
+      "api": "F_ConfigurableCylinderToWork"
+    }
+  ],
+  "records": {
+    "ST_ConfigurableCylinderParCfg": "STRUCT SchemaVersion : UINT := 1; Timeout : TIME := T#10s; HomeSensorCount : Int := 1; WorkSensorCount : Int := 1; TravelTime : TIME := T#0ms; MoveTimeout : TIME := T#8s; SettleTime : TIME := T#50ms; DiscrepancyTime : TIME := T#200ms; PulsingWidth : TIME := T#0ms; PulsingPeriod : TIME := T#0ms; MinOutputTime : TIME := T#0ms; ResetOnEndPos : Bool := FALSE; ResetOnTimeout : Bool := TRUE; SingleActing : Bool := FALSE; DeenergizeOnAbort : Bool := TRUE; SafePosOnAbort : DInt := 0; END_STRUCT",
+    "ST_ConfigurableCylinderParCmd": "STRUCT Reserved : Bool; END_STRUCT",
+    "ST_ConfigurableCylinderOutCmd": "STRUCT ReachedPosition : DInt; END_STRUCT",
+    "ST_ConfigurableCylinderOutImm": "STRUCT AtHome : Bool; AtWork : Bool; Position : DInt; END_STRUCT",
+    "ST_ConfigurableCylinderHal": "STRUCT HomeFb : Array[1..4] of Bool; WorkFb : Array[1..4] of Bool; ToHomePermit : Bool; ToWorkPermit : Bool; ToHomePermitDiag : ST_Diagnostic; ToWorkPermitDiag : ST_Diagnostic; ToHomeOut : Bool; ToWorkOut : Bool; END_STRUCT",
+    "ST_ConfigurableCylinderDevice": "STRUCT Step : DINT; TargetWork : BOOL; Withdrawn : BOOL; MoveStartMs : UDINT; SettleStartMs : UDINT; PulseStartMs : UDINT; PulsingActive : BOOL; PulseCoilOn : BOOL; DiscHomeSinceMs : UDINT; DiscWorkSinceMs : UDINT; DiscHomeSplit : BOOL; DiscWorkSplit : BOOL; AtHome : BOOL; AtWork : BOOL; Position : DINT; Lease : ST_SequenceCommandLease; END_STRUCT"
+  },
+  "contract": {
+    "ParCfg": "ST_ConfigurableCylinderParCfg",
+    "ParCmd": "ST_ConfigurableCylinderParCmd",
+    "OutCmd": "ST_ConfigurableCylinderOutCmd",
+    "OutImm": "ST_ConfigurableCylinderOutImm"
+  },
+  "hal": "ST_ConfigurableCylinderHal",
+  "timeout": "Timeout",
+  "storage": "ST_ConfigurableCylinderDevice"
+}

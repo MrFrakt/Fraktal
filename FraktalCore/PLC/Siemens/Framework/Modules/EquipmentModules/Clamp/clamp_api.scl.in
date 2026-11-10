@@ -1,0 +1,63 @@
+// Typed sequence API for FB_ClampEM.
+FUNCTION "F_Clamp" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_ClampEM";
+END_VAR
+BEGIN
+    #F_Clamp := "FRK_SeqCommand"(Seq := #Seq, Lease := #Target.Device.Lease,
+        Execute := #Target.Execute, Command := #Target.Command,
+        Value := @CLAMP@, Label := 'CLAMP', TargetIndex := #Target.Core.RegIndex, OwnFailure := FALSE);
+END_FUNCTION
+
+FUNCTION "F_Unclamp" : Bool
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_ClampEM";
+END_VAR
+BEGIN
+    #F_Unclamp := "FRK_SeqCommand"(Seq := #Seq, Lease := #Target.Device.Lease,
+        Execute := #Target.Execute, Command := #Target.Command,
+        Value := @UNCLAMP@, Label := 'UNCLAMP', TargetIndex := #Target.Core.RegIndex, OwnFailure := FALSE);
+END_FUNCTION
+
+FUNCTION "F_ClampSequenceLease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_ClampEM";
+END_VAR
+BEGIN
+    IF #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+        AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex
+        AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex
+        AND #Seq.OwnerIndex > 0 AND #Seq.ChainIndex > 0
+        AND (NOT #Seq.Running OR #Seq.Error OR #Seq.Restart) THEN
+        #Target.Device.Withdrawn := TRUE;
+    END_IF;
+    "FRK_SeqLease"(Seq := #Seq, Lease := #Target.Device.Lease, Execute := #Target.Execute,
+        Abort := #Target.Abort, TargetIndex := #Target.Core.RegIndex);
+END_FUNCTION
+
+FUNCTION "F_ClampRelease" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_IN_OUT
+    Seq : "FRK_SequenceCtx";
+    Target : "FB_ClampEM";
+END_VAR
+BEGIN
+    IF #Target.Device.Lease.Raised AND #Target.Device.Lease.OwnerIndex = #Seq.OwnerIndex
+        AND #Target.Device.Lease.ChainIndex = #Seq.ChainIndex AND #Target.Device.Lease.BranchIndex = #Seq.BranchIndex THEN
+        #Target.Abort := #Target.Busy;
+        #Target.Device.Lease.AbortIssued := #Target.Busy;
+        #Target.Execute := FALSE;
+        #Target.Device.Lease.Raised := FALSE;
+        #Target.Device.Lease.ReleasedScan := #Seq.Scan;
+    END_IF;
+END_FUNCTION

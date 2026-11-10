@@ -1,0 +1,42 @@
+{
+  "name": "FB_ClampEM",
+  "tier": "EQUIPMENT_MODULE",
+  "type_key": "std.moduleType.clamp",
+  "commands": [
+    {
+      "id": 1,
+      "label": "CLAMP",
+      "api": "F_Clamp"
+    },
+    {
+      "id": 2,
+      "label": "UNCLAMP",
+      "api": "F_Unclamp"
+    }
+  ],
+  "children": [
+    {
+      "name": "CylA",
+      "type": "FB_CylinderCM"
+    },
+    {
+      "name": "CylB",
+      "type": "FB_CylinderCM"
+    }
+  ],
+  "records": {
+    "ST_ClampParCfg": "STRUCT SchemaVersion : UINT := 1; Timeout : TIME := T#10s; SettleTime : TIME := T#150ms; END_STRUCT",
+    "ST_ClampParCmd": "STRUCT Reserved : BOOL; END_STRUCT",
+    "ST_ClampOutCmd": "STRUCT Confirmed : BOOL; END_STRUCT",
+    "ST_ClampOutImm": "STRUCT Clamped : BOOL; Unclamped : BOOL; END_STRUCT",
+    "ST_ClampDevice": "STRUCT Step : DINT; TargetExtended : BOOL; SettleStartMs : UDINT; Withdrawn : BOOL; Lease : ST_SequenceCommandLease; END_STRUCT"
+  },
+  "contract": {
+    "ParCfg": "ST_ClampParCfg",
+    "ParCmd": "ST_ClampParCmd",
+    "OutCmd": "ST_ClampOutCmd",
+    "OutImm": "ST_ClampOutImm"
+  },
+  "timeout": "Timeout",
+  "storage": "ST_ClampDevice"
+}

@@ -94,9 +94,9 @@ None exist; the press sensor CMs therefore omit TC3's `IoTag` fields.
 
 | Module | Status |
 |---|---|
-| `FB_ClampEM` (EM tier, rollup proof T6) | missing |
-| `FB_ConfigurableCylinderCM` + sim | missing |
-| `FB_SeparatorCM` | missing |
+| `FB_ClampEM` (EM tier, rollup proof T6) | complete (Phase P9) |
+| `FB_ConfigurableCylinderCM` + sim | complete (Phase P9) |
+| `FB_SeparatorCM` | complete (Phase P9) |
 | `FB_AxisCM` / press `PartFeed` | missing; blocked by S14 (technology objects); excluded by owner decision |
 | Robot (`FB_RobotCM`, route planner, connectors) | missing; needs S13/S14 |
 | Vision / code reader (`FB_Iv3VisionCM`, `FB_Matrix220CM`, `FB_AsciiDeviceCM`) | missing; needs S13 |
@@ -189,7 +189,7 @@ Each phase ends in evidence (dated report + archive) and leaves the press runnab
 | P6 | Operator facets | run style/step/hold-run, `MANUAL_HELD`, shelving, signal tower + lamp test | P5 (tower uses gates) | L |
 | P7 | Data classes, model creation, capture | `SET_CLASS_LEVEL`, `CREATE_MODEL`, `CAPTURE_CONFIG` | P1 (line classes) | M |
 | P8 | I/O topology + PROFINET health + forcing | catalog, `IoTag` on CMs/diagnostics, fieldbus page, `FORCE_CHANNEL` | P5 | L |
-| P9 | Modules | `FB_ClampEM`, configurable cylinder, separator; two-hand start from READY | — | M |
+| P9 | Modules | `FB_ClampEM`, configurable cylinder, separator (complete) | — | M |
 | P10 | GRAPH CHANGEOVER/LoadPosition | Phase 7 parity with rendition gate | — | M |
 | P11 | Host events / MES | §11.6 fixed set over the existing delivery FIFO | P3 | M |
 | P12 | Cross-controller line source | §4 item 6 (OUC TCP or host-mediated) | P1, S13 or gateway work | L |
@@ -201,6 +201,21 @@ Recommended start: P13's contract freeze in parallel with P1, because every
 later phase adds published surface that the frozen contract must then cover.
 
 ### Implementation progress
+
+**November 10 Core Reusable Modules milestone — Phase P9.**
+Phase P9 reusable modules are implemented and verified:
+`FB_ClampEM` (Equipment Module tier archetype managing child cylinders with parallel commands,
+child fault/hold rollups, settle time verification, and derived `Clamped`/`Unclamped` state flags);
+`FB_ConfigurableCylinderCM` (configurable single/dual solenoid cylinder CM with redundant 4-sensor
+supervision, discrepancy timing, pulsing valve drive, settle time, plausibility check, and simulation block
+`FB_ConfigurableCylinderSim`);
+`FB_SeparatorCM` (parts singulation/escapement actuator CM with 5-phase SEPARATE sequence, OPEN_CLOSE command,
+carrier arrival/clearance supervision, and optional open feedback).
+Typed sequence APIs (`clamp_api.scl.in`, `configurable_cylinder_api.scl.in`, `separator_api.scl.in`) and
+simulation models delivered under `Framework/Modules`. Layout generator routes them to their respective
+program folders. Dedicated unit test suite `test_fraktal_tia_reusable_modules.py` added; all 274 engineering
+tool tests pass. TIA Portal V20 native compilation builds 286 replayed sources with 0 errors and 0 warnings.
+PLCSIM Advanced bench passes 93/93 live in-PLC assertions.
 
 **October17 Line press milestone — generator 0.25.**
 [Measured scope and evidence](../Evidence/TIA_LINE_PRESS_2026-10-17.md):

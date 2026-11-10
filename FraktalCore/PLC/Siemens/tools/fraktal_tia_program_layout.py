@@ -60,6 +60,12 @@ def group(filename, text):
         return 'Examples/PressDemo/01_PneumaticPress/Release'
     if filename.startswith(('26_','27_','28_')) or 'FB_PressDemoAuto' in filename or 'FB_PressDemoHome' in filename or 'FB_PressDemoChangeover' in filename or 'LoadPosition' in filename:
         return 'Examples/PressDemo/01_PneumaticPress/Sequences'
+    if 'ConfigurableCylinder' in filename:
+        return 'Framework/Modules/ControlModules/ConfigurableCylinder'
+    if 'Separator' in filename:
+        return 'Framework/Modules/ControlModules/Separator'
+    if 'Clamp' in filename:
+        return 'Framework/Modules/EquipmentModules/Clamp'
     if 'Cylinder' in filename and not 'Declaration' in filename:
         return 'Framework/Modules/ControlModules/Cylinder'
     for token, folder in (('TwoHand', 'TwoHand'), ('DigitalInput', 'DigitalInput'), ('AirPressure', 'AirPressure')):

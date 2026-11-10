@@ -1,0 +1,83 @@
+// Equipment Module logic: orchestration of children CylA and CylB.
+@REGION:CommandStart@
+    #Device.TargetExtended := #Core.Command = @CLAMP@;
+    #Device.Step := 10;
+    #Device.Withdrawn := FALSE;
+    IF NOT #Device.Lease.Raised THEN
+        #Device.Lease.OwnerIndex := 0;
+        #Device.Lease.ChainIndex := 0;
+        #Device.Lease.BranchIndex := 0;
+    END_IF;
+@REGION:Abort@
+    #Device.Step := 0;
+    #CylA.Abort := TRUE;
+    #CylB.Abort := TRUE;
+    #CylA.Execute := FALSE;
+    #CylB.Execute := FALSE;
+@REGION:AbortInError@
+    #Device.Step := 0;
+    #CylA.Abort := TRUE;
+    #CylB.Abort := TRUE;
+    #CylA.Execute := FALSE;
+    #CylB.Execute := FALSE;
+@REGION:dispatch@
+    CASE #Device.Step OF
+        10:
+            #OutCmd.Confirmed := FALSE;
+            #CylA.Abort := FALSE;
+            #CylB.Abort := FALSE;
+            IF #Device.TargetExtended THEN
+                #CylA.Command := 1; // EXTEND
+                #CylB.Command := 1;
+            ELSE
+                #CylA.Command := 2; // RETRACT
+                #CylB.Command := 2;
+            END_IF;
+            #CylA.Execute := TRUE;
+            #CylB.Execute := TRUE;
+            #Device.Step := 20;
+        20:
+            IF #CylA.Error THEN
+                "FRK_AdoptFault"(Core := #Core, Status := #Status, Diag := #CylA.Status.Diagnostic);
+                #CylA.Abort := TRUE;
+                #CylB.Abort := TRUE;
+                #CylA.Execute := FALSE;
+                #CylB.Execute := FALSE;
+            ELSIF #CylB.Error THEN
+                "FRK_AdoptFault"(Core := #Core, Status := #Status, Diag := #CylB.Status.Diagnostic);
+                #CylA.Abort := TRUE;
+                #CylB.Abort := TRUE;
+                #CylA.Execute := FALSE;
+                #CylB.Execute := FALSE;
+            ELSIF #CylA.Held THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #CylA.Status.Diagnostic);
+            ELSIF #CylB.Held THEN
+                "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #CylB.Status.Diagnostic);
+            ELSIF #CylA.Done AND #CylB.Done THEN
+                #CylA.Execute := FALSE;
+                #CylB.Execute := FALSE;
+                #Device.Step := 30;
+                #Device.SettleStartMs := "FRK_Clock".NowMs;
+            END_IF;
+        30:
+            IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.SettleStartMs) >= TIME_TO_UDINT(#ParCfg.SettleTime) THEN
+                IF (#Device.TargetExtended AND #CylA.OutImm.Extended AND #CylB.OutImm.Extended)
+                    OR (NOT #Device.TargetExtended AND #CylA.OutImm.Retracted AND #CylB.OutImm.Retracted) THEN
+                    #OutCmd.Confirmed := TRUE;
+                    "FRK_Complete"(Core := #Core, Status := #Status);
+                ELSE
+                    "FRK_Fault"(ReasonCode := @CLAMP_NOT_CONFIRMED@,
+                        Description := WSTRING#'std.error.clampNotConfirmedAfterSettle', Core := #Core, Status := #Status);
+                END_IF;
+            END_IF;
+        ELSE
+            ;
+    END_CASE;
+@REGION:cyclic@
+    #OutImm.Clamped := "FRK_State"(Idx := 1, Key := 'module.state.clamped',
+        Ok := #CylA.OutImm.Extended AND #CylB.OutImm.Extended);
+    #OutImm.Unclamped := "FRK_State"(Idx := 2, Key := 'module.state.unclamped',
+        Ok := #CylA.OutImm.Retracted AND #CylB.OutImm.Retracted);
+@REGION:ManRelease@
+    "FRK_ManualCondition"(Conditions := #ManConditions, Slot := 1, Value := @CLAMP@, Ok := #Hal.CylA.ExtendPermit AND #Hal.CylB.ExtendPermit, Diag := #Hal.CylA.PermitDiagnostic, Bypassable := FALSE);
+    "FRK_ManualCondition"(Conditions := #ManConditions, Slot := 2, Value := @UNCLAMP@, Ok := #Hal.CylA.RetractPermit AND #Hal.CylB.RetractPermit, Diag := #Hal.CylA.RetractDiagnostic, Bypassable := FALSE);
