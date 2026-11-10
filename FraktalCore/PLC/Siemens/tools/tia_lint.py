@@ -198,6 +198,15 @@ def check_case_else(path: pathlib.Path, block: Block) -> list[Finding]:
     return out
 
 
+def check_formal(path: pathlib.Path, block: Block) -> list[Finding]:
+    """T-FORMAL: SEL takes formal parameters only. STEP 7 V20 refuses
+    SEL(g, a, b) at compile time (measured 2026-11-10, FB_ConfigurableCylinderCM)."""
+    out = []
+    for m in re.finditer(r"\bSEL\s*\(\s*(?![A-Za-z_]\w*\s*:=)", block.body):
+        out.append(Finding(path, line_of(block, m.start()), "T-FORMAL", "SEL needs formal parameters (G := , IN0 := , IN1 := )"))
+    return out
+
+
 def check_keyword_and_collide(path: pathlib.Path, block: Block) -> list[Finding]:
     out = []
     seen = {}
@@ -393,6 +402,7 @@ def lint(paths: list[pathlib.Path]) -> list[Finding]:
             findings += check_ext(f, b, fb_names)
             if b.kind in ("FUNCTION_BLOCK", "FUNCTION", "ORGANIZATION_BLOCK"):
                 findings += check_case_else(f, b)
+                findings += check_formal(f, b)
                 findings += check_ownio(f, b)
                 findings += check_seq(f, b)
             if b.kind == "FUNCTION_BLOCK" and is_module_fb(b):

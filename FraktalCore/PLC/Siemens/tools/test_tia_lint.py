@@ -64,6 +64,16 @@ class TiaLintTest(unittest.TestCase):
         self.mutate("30_CylinderCM.scl", "\t            ELSE\n", "\t            11:\n")
         self.assertRejected("T-CASE")
 
+    def test_positional_sel(self):
+        self.mutate("30_CylinderCM.scl", "#OutImm.Extended := #Hal.Extended AND NOT #Hal.Retracted;",
+                    "#OutImm.Extended := SEL(#Hal.Extended, FALSE, TRUE);")
+        self.assertRejected("T-FORMAL")
+
+    def test_formal_sel_is_clean(self):
+        self.mutate("30_CylinderCM.scl", "#OutImm.Extended := #Hal.Extended AND NOT #Hal.Retracted;",
+                    "#OutImm.Extended := SEL(G := #Hal.Extended, IN0 := FALSE, IN1 := TRUE);")
+        self.assertNotIn("T-FORMAL", self.rules())
+
     def test_keyword_member_unquoted(self):
         self.mutate("00_02_ST_ModuleStatus.udt", '"Name" :', "Name :")
         self.assertRejected("T-KEYWORD")

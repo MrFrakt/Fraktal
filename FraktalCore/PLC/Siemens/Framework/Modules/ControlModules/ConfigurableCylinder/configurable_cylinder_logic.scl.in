@@ -129,6 +129,7 @@
 @REGION:dispatch@
     CASE #Device.Step OF
         10:
+            // E_CylinderPosition (TC3 Modules): UNKNOWN 0, HOME 1, WORK 2.
             #OutCmd.ReachedPosition := 0;
             IF #Device.TargetWork AND NOT #Hal.ToWorkPermit THEN
                 "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.ToWorkPermitDiag);
@@ -182,7 +183,7 @@
                 IF (#Device.TargetWork AND #Device.AtWork) OR (NOT #Device.TargetWork AND #Device.AtHome) THEN
                     IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.SettleStartMs) >= TIME_TO_UDINT(#ParCfg.SettleTime)
                         AND "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.MoveStartMs) >= TIME_TO_UDINT(#ParCfg.MinOutputTime) THEN
-                        #OutCmd.ReachedPosition := SEL(#Device.TargetWork, 1, 2);
+                        #OutCmd.ReachedPosition := SEL(G := #Device.TargetWork, IN0 := DINT#1, IN1 := DINT#2);
                         IF #ParCfg.ResetOnEndPos THEN #Device.Withdrawn := TRUE; END_IF;
                         "FRK_Complete"(Core := #Core, Status := #Status);
                     END_IF;
@@ -191,7 +192,7 @@
                 END_IF;
             ELSE
                 IF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.MoveStartMs) >= TIME_TO_UDINT(#ParCfg.MinOutputTime) THEN
-                    #OutCmd.ReachedPosition := SEL(#Device.TargetWork, 1, 2);
+                    #OutCmd.ReachedPosition := SEL(G := #Device.TargetWork, IN0 := DINT#1, IN1 := DINT#2);
                     IF #ParCfg.ResetOnEndPos THEN #Device.Withdrawn := TRUE; END_IF;
                     "FRK_Complete"(Core := #Core, Status := #Status);
                 END_IF;

@@ -19,6 +19,34 @@ def execute(command,log,cwd=REPO):
     if result.returncode:raise RuntimeError('Gate failed: '+log.name)
 
 
+def compile_fresh(revision,project_dir,station_name,profile,log):
+    """Import one generated revision into a fresh reserved project; require a clean compile and exact read-back."""
+    from fraktal_tia_program_layout import organize
+    sys.path.insert(0,str(TIA/'Tests/Line'))
+    from run_bench import DRIVER,DRIVER_SHA256
+    if hashlib.sha256(DRIVER.read_bytes()).hexdigest()!=DRIVER_SHA256:raise ValueError('approved driver hash differs')
+    if project_dir.exists():raise ValueError('fresh gate engineering directory already exists')
+    selected=json.loads(profile.read_bytes())
+    project=project_dir/station_name/(station_name+'.ap20')
+    organize(revision/'sources',revision/'grouped',project,revision/'native')
+    plan=revision/'grouped/import.plan'
+    tail=plan.read_text('ascii').split('\n',1)[1]
+    creation=['create-project --dir "'+str(project_dir)+'" --name '+station_name,
+              'add-device --order "OrderNumber:6ES7 516-3AP03-0AB0/V3.0" --name PLC_1 --station TiaGate',
+              'set-ip --plc PLC_1 --ip '+selected['address']+' --mask 255.255.0.0 --item "PROFINET interface_1"',
+              'set-ip --plc PLC_1 --ip '+selected['secondary']+' --mask 255.255.255.0 --item "PROFINET interface_2"',
+              'master-secret --plc PLC_1 --mode none',
+              'service-set --plc PLC_1 --service PlcAccessLevelProvider --prop PlcProtectionAccessLevel --value FullAccess',
+              'project-set --prop IsSimulationDuringBlockCompilationEnabled --value true','save']
+    plan.write_bytes(('\n'.join(creation)+'\n'+tail.replace('\ncompile --plc PLC_1\n','\nsave\ncompile --plc PLC_1\n')).encode('ascii'))
+    execute([sys.executable,'-B',str(TIA/'Spikes/S12_TypeMap/run_plan.py'),str(plan),str(revision/'build.log'),'--driver',str(DRIVER),'--require-clean-compile'],log)
+    verifier=importlib.util.spec_from_file_location('native_readback',TIA/'Tests/Line/verify_owner_exports.py')
+    module=importlib.util.module_from_spec(verifier);verifier.loader.exec_module(module)
+    verified=module.verify(revision/'sources',revision/'native')
+    (revision/'owner_verified_private.json').write_text(json.dumps(verified,indent=2)+'\n',encoding='ascii')
+    return project
+
+
 def run(output,native=False,bench=False):
     local=Path(os.environ['LOCALAPPDATA'])/'Fraktal'
     output=output.resolve()
@@ -37,34 +65,17 @@ def run(output,native=False,bench=False):
     fixture=TIA/'Tests/Operations/make_fixture.py'
     execute([sys.executable,'-B',str(fixture),str(output/'native/sources')],output/'generate.log')
     execute([sys.executable,'-B',str(HERE/'tia_lint.py'),str(output/'native/sources')],output/'fixture_lint.log')
+    modules=TIA/'Tests/ReusableModules/make_fixture.py'
+    execute([sys.executable,'-B',str(modules),str(output/'modules/sources')],output/'modules_generate.log')
+    execute([sys.executable,'-B',str(HERE/'tia_lint.py'),str(output/'modules/sources')],output/'modules_lint.log')
     if native:
-        sys.path.insert(0,str(TIA/'Tests/Line'))
-        from run_bench import DRIVER,DRIVER_SHA256
-        if hashlib.sha256(DRIVER.read_bytes()).hexdigest()!=DRIVER_SHA256:raise ValueError('approved driver hash differs')
-        from fraktal_tia_program_layout import organize
-        project_dir=local/'TiaStations'/output.name
-        if project_dir.exists():raise ValueError('fresh gate engineering directory already exists')
+        local_stations=local/'TiaStations'
         # This fixed profile is reserved for tests; no physical adapter is mapped.
-        profile=TIA/'Tests/Operations/bench.json';selected=json.loads(profile.read_bytes())
-        station_name='FrkTiaGate'
-        project=project_dir/station_name/(station_name+'.ap20')
+        profile=TIA/'Tests/Operations/bench.json'
         revision=output/'native'
-        organize(revision/'sources',revision/'grouped',project,revision/'native')
-        plan=revision/'grouped/import.plan'
-        tail=plan.read_text('ascii').split('\n',1)[1]
-        creation=['create-project --dir "'+str(project_dir)+'" --name '+station_name,
-                  'add-device --order "OrderNumber:6ES7 516-3AP03-0AB0/V3.0" --name PLC_1 --station TiaGate',
-                  'set-ip --plc PLC_1 --ip '+selected['address']+' --mask 255.255.0.0 --item "PROFINET interface_1"',
-                  'set-ip --plc PLC_1 --ip '+selected['secondary']+' --mask 255.255.255.0 --item "PROFINET interface_2"',
-                  'master-secret --plc PLC_1 --mode none',
-                  'service-set --plc PLC_1 --service PlcAccessLevelProvider --prop PlcProtectionAccessLevel --value FullAccess',
-                  'project-set --prop IsSimulationDuringBlockCompilationEnabled --value true','save']
-        plan.write_bytes(('\n'.join(creation)+'\n'+tail.replace('\ncompile --plc PLC_1\n','\nsave\ncompile --plc PLC_1\n')).encode('ascii'))
-        execute([sys.executable,'-B',str(TIA/'Spikes/S12_TypeMap/run_plan.py'),str(plan),str(revision/'build.log'),'--driver',str(DRIVER),'--require-clean-compile'],output/'native_compile.log')
-        verifier=importlib.util.spec_from_file_location('native_readback',TIA/'Tests/Line/verify_owner_exports.py')
-        module=importlib.util.module_from_spec(verifier);verifier.loader.exec_module(module)
-        verified=module.verify(revision/'sources',revision/'native')
-        (revision/'owner_verified_private.json').write_text(json.dumps(verified,indent=2)+'\n',encoding='ascii')
+        project=compile_fresh(revision,local_stations/output.name,'FrkTiaGate',profile,output/'native_compile.log')
+        # Reusable module types are compiled, never downloaded: they need no bench.
+        compile_fresh(output/'modules',local_stations/(output.name+'_Modules'),'FrkTiaModules',profile,output/'modules_compile.log')
         if bench:
             stop=output/'bench.stop';helper=HERE/'Invoke-TiaIsolatedBench.ps1'
             with (output/'host.log').open('xb') as stdout,(output/'host.stderr').open('xb') as stderr:

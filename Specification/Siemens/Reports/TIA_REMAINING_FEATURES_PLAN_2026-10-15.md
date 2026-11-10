@@ -234,6 +234,11 @@ simulation models delivered under `Framework/Modules`. Layout generator routes t
 program folders. Dedicated unit test suite `test_fraktal_tia_reusable_modules.py` added; all 274 engineering
 tool tests pass. TIA Portal V20 native compilation builds 286 replayed sources with 0 errors and 0 warnings.
 PLCSIM Advanced bench passes 93/93 live in-PLC assertions.
+*Correction, 2026-11-10:* neither figure covered the P9 types (286 is the press replay; the 93
+assertions are the Operations fixture). Their first native compile found two positional `SEL`
+calls in `FB_ConfigurableCylinderCM`; both are fixed, lint rule T-FORMAL now rejects the form, and
+the gate compiles a reusable-module fixture on every run. Compile/read-back only — no P9 type has
+run natively. See [the native record](../Evidence/TIA_P9_MODULES_NATIVE_2026-11-10.md).
 
 **October17 Line press milestone — generator 0.25.**
 [Measured scope and evidence](../Evidence/TIA_LINE_PRESS_2026-10-17.md):

@@ -428,18 +428,50 @@ def graph_sources(chain,roles,module,sources,definition):
         sources[owner_source]+='FUNCTION "F_PressDemoLoadPositionGraph"'+wrapper.replace('"FB_PressDemoLoadPosition"','"FB_PressDemoLoadPositionGraphOwner"').replace('#F_PressDemoLoadPosition :=','#F_PressDemoLoadPositionGraph :=')
 
 
+def module_type(directory, stem, catalog):
+    """One reusable module type: its declaration, records and bound logic regions.
+    Command labels bind from the type's own catalog; every other token is a
+    module band reason, whose one source is the TC3 module reason list."""
+    module=json.loads((directory/(stem+'.json')).read_bytes())
+    reasons=(GEN.REPO/TC3_MODULE_REASONS).read_text('utf-8-sig')
+    template=(directory/(stem+'_logic.scl.in')).read_text('ascii')
+    commands={c['label']:c['id'] for c in module.get('commands',[])}
+    tokens={name:int(re.search(r'\b'+name+r'\s*:\s*DINT\s*:=\s*(\d+)',reasons)[1])
+            for name in set(re.findall(r'@([A-Z][A-Z_]+)@',template))-set(commands)}
+    pieces=re.split(r'@REGION:(\w+)@\n',bind(template,catalog,{**commands,**tokens}))[1:]
+    records=module.pop('records')
+    module['logic']=dict(zip(pieces[::2],pieces[1::2]));module.setdefault('children',[])
+    return module,records
+
+
 def sensor_module(folder, stem, catalog):
     """One passive sensor CM: its declaration, records and bound logic regions."""
-    module=json.loads((CONTROL_MODULES/folder/(stem+'.json')).read_bytes())
-    reasons=(GEN.REPO/TC3_MODULE_REASONS).read_text('utf-8-sig')
-    template=(CONTROL_MODULES/folder/(stem+'_logic.scl.in')).read_text('ascii')
-    # Module band reasons have one source: the TC3 module reason list.
-    tokens={name:int(re.search(name+r'\s*:\s*DINT\s*:=\s*(\d+)',reasons)[1])
-            for name in set(re.findall(r'@([A-Z][A-Z_]+)@',template))}
-    pieces=re.split(r'@REGION:(\w+)@\n',bind(template,catalog,tokens))[1:]
-    records=module.pop('records')
-    module['logic']=dict(zip(pieces[::2],pieces[1::2]));module['children']=[]
-    return module,records
+    return module_type(CONTROL_MODULES/folder,stem,catalog)
+
+
+def sequence_sources(catalog):
+    """The shared chain context, row and sequence services every typed module API calls."""
+    sources={}
+    fields=[('RunPrevious','Bool'),('Running','Bool'),('Restart','Bool'),('Done','Bool'),('Error','Bool'),
+            ('Initialized','Bool'),('Frozen','Bool'),('ResumePending','Bool'),('RestartPending','Bool'),('Rearm','Bool'),('SubReset','Bool'),
+            ('RestartEpoch','UDInt'),('ResumeEpoch','UDInt'),
+            ('Pending','Bool'),('StartLatched','Bool'),('OwnerIndex','DInt'),('ChainIndex','DInt'),
+            ('Step','DInt'),('ScanStep','DInt'),('RecordedStep','DInt'),('RetVal','DInt'),('Scan','UDInt'),
+            ('Visit','UDInt'),('Elapsed','Time'),('DelayElapsed','Time'),
+            ('StepName',next(f['native_type'] for f in catalog.resolve(['ST_StepRecord'])['ST_StepRecord'] if f['member']=='StepName')),
+            ('Awaiting',next(f['native_type'] for f in catalog.resolve(['ST_StepRecord'])['ST_StepRecord'] if f['member']=='AwaitingLabel')),
+            ('ErrorDiagnostic','"ST_Diagnostic"'),('BranchIndex','DInt'),('ViewOffset','DInt'),('ViewDepth','Int'),('NoTimeGuard','Time'),
+            ('CommandFailed','Bool'),('CommandIssued','Bool'),('Warned','Bool'),('HandledDiagnostic','"ST_Diagnostic"'),
+            ('EventVisit','UDInt'),('EventToken','DInt'),('Steppable','Bool'),('DecisionAnswer','Int')]
+    sources['06_FRK_SequenceCtx.udt']=udt('FRK_SequenceCtx',fields,
+        ('Running','Done','Error','Pending','Step','Elapsed','StepName','Awaiting','ErrorDiagnostic'))
+    sources['06_FRK_SequenceRow.udt']=udt('FRK_SequenceRow',[('StepNo','DInt'),('Visited','Bool'),('LastDuration','Time')],('StepNo','Visited','LastDuration'))
+    record_fields={f['member']:f['native_type'] for f in catalog.resolve(['ST_MeasRecord'])['ST_MeasRecord']}
+    record_widths={'RECORD_NAME_WIDTH':int(re.search(r'\[(\d+)\]',record_fields['Name'])[1]),
+                   'RECORD_UNIT_WIDTH':int(re.search(r'\[(\d+)\]',record_fields['Unit'])[1])}
+    sources['16_SequenceServices.scl']=bind((CORE/'sequence_services.scl.in').read_text('ascii')+'\n'+
+        (CORE/'sequence_branches.scl.in').read_text('ascii'),catalog,{**catalog.capacities,**record_widths})
+    return sources
 
 
 def unit_policy(catalog):
@@ -653,25 +685,7 @@ def build():
     for name in sources:
         if 'ST_PressDemoUnitHal' in name:
             sources[name]=sources[name].replace('END_STRUCT','    Process'+PRIVATE+' : "ST_PressDemoSignals";\nEND_STRUCT')
-    fields=[('RunPrevious','Bool'),('Running','Bool'),('Restart','Bool'),('Done','Bool'),('Error','Bool'),
-            ('Initialized','Bool'),('Frozen','Bool'),('ResumePending','Bool'),('RestartPending','Bool'),('Rearm','Bool'),('SubReset','Bool'),
-            ('RestartEpoch','UDInt'),('ResumeEpoch','UDInt'),
-            ('Pending','Bool'),('StartLatched','Bool'),('OwnerIndex','DInt'),('ChainIndex','DInt'),
-            ('Step','DInt'),('ScanStep','DInt'),('RecordedStep','DInt'),('RetVal','DInt'),('Scan','UDInt'),
-            ('Visit','UDInt'),('Elapsed','Time'),('DelayElapsed','Time'),
-            ('StepName',next(f['native_type'] for f in catalog.resolve(['ST_StepRecord'])['ST_StepRecord'] if f['member']=='StepName')),
-            ('Awaiting',next(f['native_type'] for f in catalog.resolve(['ST_StepRecord'])['ST_StepRecord'] if f['member']=='AwaitingLabel')),
-            ('ErrorDiagnostic','"ST_Diagnostic"'),('BranchIndex','DInt'),('ViewOffset','DInt'),('ViewDepth','Int'),('NoTimeGuard','Time'),
-            ('CommandFailed','Bool'),('CommandIssued','Bool'),('Warned','Bool'),('HandledDiagnostic','"ST_Diagnostic"'),
-            ('EventVisit','UDInt'),('EventToken','DInt'),('Steppable','Bool'),('DecisionAnswer','Int')]
-    sources['06_FRK_SequenceCtx.udt']=udt('FRK_SequenceCtx',fields,
-        ('Running','Done','Error','Pending','Step','Elapsed','StepName','Awaiting','ErrorDiagnostic'))
-    sources['06_FRK_SequenceRow.udt']=udt('FRK_SequenceRow',[('StepNo','DInt'),('Visited','Bool'),('LastDuration','Time')],('StepNo','Visited','LastDuration'))
-    record_fields={f['member']:f['native_type'] for f in catalog.resolve(['ST_MeasRecord'])['ST_MeasRecord']}
-    record_widths={'RECORD_NAME_WIDTH':int(re.search(r'\[(\d+)\]',record_fields['Name'])[1]),
-                   'RECORD_UNIT_WIDTH':int(re.search(r'\[(\d+)\]',record_fields['Unit'])[1])}
-    sources['16_SequenceServices.scl']=bind((CORE/'sequence_services.scl.in').read_text('ascii')+'\n'+
-        (CORE/'sequence_branches.scl.in').read_text('ascii'),catalog,{**catalog.capacities,**record_widths})
+    sources.update(sequence_sources(catalog))
     sources['22_CylinderApi.scl']=bind((MODULES/'cylinder_api.scl.in').read_text('ascii'),catalog,
                                     {**command_ids,'READY':catalog.enums['E_ExecState']['READY']})
     release_sources(definition,sources,width)
