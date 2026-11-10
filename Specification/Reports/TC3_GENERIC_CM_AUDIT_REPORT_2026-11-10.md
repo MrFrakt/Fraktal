@@ -212,8 +212,8 @@ Re-run on branch head `0c97b6098`:
 
 ## 11. Follow-Up Action Items
 
-1. **[S2] Require explicit safety permit on Robot CM (F-02):** Update `FB_RobotCM` so that absence of a safety permit prevents arm power and motion unless explicitly configured for simulation.
-2. **[S3] Formally document route preview status in Annex I.15 (F-01):** Note route preview as deferred to vision integration work.
-3. **[S4] De-energize pulsing cylinder coil on timeout (F-04):** Update `FB_ValveDrive` so travel timeout forces output to safe de-energized level.
-4. **[S4] Widen `Commands` mask in `ST_RobotCapabilities` (F-03):** Prepare `ST_RobotCapabilities` for command ordinals ≥ 32.
-5. **[S5] Clean up section symbols in `FB_AxisCM.TcPOU` comments (F-05):** Replace ASCII `S` with `§`.
+1. **[S2] Require explicit safety permit on Robot CM (F-02):** Update `FB_RobotCM` so that absence of a safety permit prevents arm power and motion unless explicitly configured for simulation. *(Resolved in commit `78115a2b0` on branch `fix/generic-cm-audit-followup`)*
+2. **[S3] Formally document route preview status in Annex I.15 (F-01):** Note route preview as deferred to vision integration work. *(Resolved in commit `78115a2b0` on branch `fix/generic-cm-audit-followup`)*
+3. **[S4] De-energize pulsing cylinder coil on timeout (F-04):** Update `FB_ValveDrive` so travel timeout forces output to safe de-energized level. *(Resolved in commit `78115a2b0` on branch `fix/generic-cm-audit-followup`)*
+4. **[S4] Widen `Commands` mask in `ST_RobotCapabilities` (F-03):** Prepare `ST_RobotCapabilities` for command ordinals ≥ 32. *(Resolved in commit `78115a2b0` on branch `fix/generic-cm-audit-followup`)*
+5. **[S5] Clean up section symbols in `FB_AxisCM.TcPOU` comments (F-05):** Replace ASCII `S` with `§`. *(Resolved in commit `78115a2b0` on branch `fix/generic-cm-audit-followup`)*
