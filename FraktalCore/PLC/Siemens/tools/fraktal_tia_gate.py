@@ -47,6 +47,23 @@ def compile_fresh(revision,project_dir,station_name,profile,log):
     return project
 
 
+def bench_suite(output,revision,profile,project,prefix=''):
+    """Host one reserved isolated test CPU, download the revision and read its native assertions."""
+    stop=output/(prefix+'bench.stop');helper=HERE/'Invoke-TiaIsolatedBench.ps1';log=output/(prefix+'host.log')
+    with log.open('xb') as stdout,(output/(prefix+'host.stderr')).open('xb') as stderr:
+        host=subprocess.Popen(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(helper),'-Profile',str(profile),'-Action','host','-StopFile',str(stop)],stdout=stdout,stderr=stderr,creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            deadline=time.monotonic()+60
+            while not any(json.loads(line).get('event')=='bench' for line in log.read_text('utf-8-sig').splitlines() if line.startswith('{') and line.endswith('}')):
+                if host.poll() is not None or time.monotonic()>deadline:raise RuntimeError('isolated test host did not become ready')
+                time.sleep(.25)
+            execute([sys.executable,'-B',str(HERE/'fraktal_tia_test.py'),'--profile',str(profile),'--project',str(project),'--revision',str(revision),'--download'],output/(prefix+'native_test.log'))
+        finally:
+            stop.touch(exist_ok=False)
+            try:host.wait(timeout=40)
+            except subprocess.TimeoutExpired:raise RuntimeError('test host cleanup did not finish; inspect host log')
+
+
 def run(output,native=False,bench=False):
     local=Path(os.environ['LOCALAPPDATA'])/'Fraktal'
     output=output.resolve()
@@ -70,26 +87,16 @@ def run(output,native=False,bench=False):
     execute([sys.executable,'-B',str(HERE/'tia_lint.py'),str(output/'modules/sources')],output/'modules_lint.log')
     if native:
         local_stations=local/'TiaStations'
-        # This fixed profile is reserved for tests; no physical adapter is mapped.
-        profile=TIA/'Tests/Operations/bench.json'
-        revision=output/'native'
-        project=compile_fresh(revision,local_stations/output.name,'FrkTiaGate',profile,output/'native_compile.log')
-        # Reusable module types are compiled, never downloaded: they need no bench.
-        compile_fresh(output/'modules',local_stations/(output.name+'_Modules'),'FrkTiaModules',profile,output/'modules_compile.log')
+        # Each fixed profile is reserved for tests; no physical adapter is mapped.
+        # (revision, profile, station, project directory, log prefix)
+        suites=[(output/'native',TIA/'Tests/Operations/bench.json','FrkTiaGate',output.name,''),
+                (output/'modules',TIA/'Tests/ReusableModules/bench.json','FrkTiaModules',output.name+'_Modules','modules_')]
+        projects=[compile_fresh(revision,local_stations/directory,station,profile,output/((prefix or 'native_')+'compile.log'))
+                  for revision,profile,station,directory,prefix in suites]
         if bench:
-            stop=output/'bench.stop';helper=HERE/'Invoke-TiaIsolatedBench.ps1'
-            with (output/'host.log').open('xb') as stdout,(output/'host.stderr').open('xb') as stderr:
-                host=subprocess.Popen(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(helper),'-Profile',str(profile),'-Action','host','-StopFile',str(stop)],stdout=stdout,stderr=stderr,creationflags=subprocess.CREATE_NO_WINDOW)
-                try:
-                    deadline=time.monotonic()+60
-                    while not any(json.loads(line).get('event')=='bench' for line in (output/'host.log').read_text('utf-8-sig').splitlines() if line.startswith('{') and line.endswith('}')):
-                        if host.poll() is not None or time.monotonic()>deadline:raise RuntimeError('isolated test host did not become ready')
-                        time.sleep(.25)
-                    execute([sys.executable,'-B',str(HERE/'fraktal_tia_test.py'),'--profile',str(profile),'--project',str(project),'--revision',str(revision),'--download'],output/'native_test.log')
-                finally:
-                    stop.touch(exist_ok=False)
-                    try:host.wait(timeout=40)
-                    except subprocess.TimeoutExpired:raise RuntimeError('test host cleanup did not finish; inspect host log')
+            # One isolated test CPU at a time; each is released before the next.
+            for (revision,profile,station,directory,prefix),project in zip(suites,projects):
+                bench_suite(output,revision,profile,project,prefix)
     with (output/'gate.json').open('x',encoding='ascii',newline='\n') as stream:
         json.dump(dict(result='PASS',native=native,bench=bench,press_sources=replay['replayed_sources'],profile='isolated reference S7-1500',physical_reference_qualified=False),stream,indent=2);stream.write('\n')
     print(json.dumps(dict(result='PASS',native=native,bench=bench,output=str(output))))

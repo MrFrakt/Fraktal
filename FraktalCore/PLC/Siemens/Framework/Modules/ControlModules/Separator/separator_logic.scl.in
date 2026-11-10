@@ -66,6 +66,8 @@
                     IF #ParCfg.CheckAfter THEN
                         #Device.Step := 30;
                     ELSE
+                        // The close delay starts on entering step 40 by either path.
+                        #Device.CloseStartMs := "FRK_Clock".NowMs;
                         #Device.Step := 40;
                     END_IF;
                 ELSIF "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PhaseStartMs) >= TIME_TO_UDINT(#ParCfg.MaxOpenTime) THEN

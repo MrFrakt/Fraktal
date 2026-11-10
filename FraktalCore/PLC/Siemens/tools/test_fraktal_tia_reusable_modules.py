@@ -62,7 +62,7 @@ class ReusableModulesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             out = Path(temp_dir) / "sources"
             out.mkdir()
-            sources, _ = FIXTURE.build()
+            sources, _, _ = FIXTURE.build()
             for name, text in sources.items():
                 (out / name).write_bytes(text.encode("ascii"))
             self.assertEqual(tia_lint.lint([out]), [])

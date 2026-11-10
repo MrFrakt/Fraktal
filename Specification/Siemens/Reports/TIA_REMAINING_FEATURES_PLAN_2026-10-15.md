@@ -239,6 +239,10 @@ assertions are the Operations fixture). Their first native compile found two pos
 calls in `FB_ConfigurableCylinderCM`; both are fixed, lint rule T-FORMAL now rejects the form, and
 the gate compiles a reusable-module fixture on every run. Compile/read-back only — no P9 type has
 run natively. See [the native record](../Evidence/TIA_P9_MODULES_NATIVE_2026-11-10.md).
+*Runtime, 2026-11-10:* a 46-assertion native suite mirroring the TC3 rows now runs in the gate.
+Unfixed code failed 6 checks from three port defects (abort/timeout coil reactions overridden,
+HELD consuming `MoveTimeout`, separator close delay without `CheckAfter`); fixed code passes 46/46.
+See [the runtime record](../Evidence/TIA_P9_MODULES_RUNTIME_2026-11-10.md).
 
 **October17 Line press milestone — generator 0.25.**
 [Measured scope and evidence](../Evidence/TIA_LINE_PRESS_2026-10-17.md):

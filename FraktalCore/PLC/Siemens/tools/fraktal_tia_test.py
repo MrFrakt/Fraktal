@@ -33,6 +33,9 @@ def junit(path,name,assertions,result,error=''):
     case=ET.SubElement(suite,'testcase',classname='Fraktal.TIA.Native',name=name)
     if failed:
         label=assertions.get(str(result.get('FirstFailure',0)),'native execution/observation gate')
+        codes=result.get('FailedCodes') or []
+        named=[assertions.get(str(code),str(code)) for code in (codes if isinstance(codes,list) else [codes])]
+        if len(named)>1:label+=' (all failing: '+'; '.join(named)+')'
         ET.SubElement(case,'failure',message=label,type='NativeAssertion').text=error or json.dumps(result)
     tree=ET.ElementTree(suite);ET.indent(tree)
     with path.open('xb') as stream:tree.write(stream,encoding='utf-8',xml_declaration=True)

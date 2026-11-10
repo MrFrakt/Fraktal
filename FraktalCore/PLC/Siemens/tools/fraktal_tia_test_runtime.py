@@ -17,7 +17,9 @@ def build():
         dict(member=n,native_type=t,accessible=True,initial='') for n,t in fields.items()])}
     result['02_FRK_TestStatus.udt']=type_source('FRK_TestStatus',[
         dict(member=n,native_type=t,accessible=True,initial='')
-        for n,t in [('Done','Bool'),('Checks','Int'),('Failures','Int'),('FirstFailure','Int'),('ImageHash','Array[0..7] of DWord')]])
+        for n,t in [('Done','Bool'),('Checks','Int'),('Failures','Int'),('FirstFailure','Int'),('ImageHash','Array[0..7] of DWord'),
+                    # Every failing code, so one run names every failure, not only the first.
+                    ('Failed','Array[1..%d] of Bool'%count)]])
     result['19a_TestRuntime.scl']=function('FRK_TestAssert',['Condition : Bool;','Code : Int;'],
         ['Result : "FRK_TestResult";'],[],[
             '    IF #Result.Checks >= %d OR #Code <> #Result.Checks + 1 THEN'%count,
@@ -32,7 +34,7 @@ def build():
         ['Result : "FRK_TestResult";','Status : "FRK_TestStatus";'],[],[
             '    #Status.Done := #Complete AND NOT #Result.ProtocolError;',
             '    #Status.Checks := #Result.Checks; #Status.Failures := #Result.Failures;',
-            '    #Status.FirstFailure := #Result.FirstFailure;',
+            '    #Status.FirstFailure := #Result.FirstFailure; #Status.Failed := #Result.Failed;',
             *['    #Status.ImageHash[%d] := #Image%d;'%(i,i) for i in range(8)]])
     return result
 

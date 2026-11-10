@@ -23,27 +23,25 @@
     END_IF;
 @REGION:Abort@
     #Device.Step := 0;
+    // Core 3.14.2 fail-safe abort, stated as the coil the output law below
+    // keeps driving: writing the outputs here would be undone the same scan.
     IF #ParCfg.DeenergizeOnAbort THEN
-        #Hal.ToWorkOut := FALSE;
-        #Hal.ToHomeOut := FALSE;
-    ELSIF #ParCfg.SafePosOnAbort = 2 THEN
-        #Hal.ToWorkOut := TRUE;
-        #Hal.ToHomeOut := FALSE;
+        #Device.Withdrawn := TRUE;
     ELSE
-        #Hal.ToWorkOut := FALSE;
-        #Hal.ToHomeOut := NOT #ParCfg.SingleActing;
+        #Device.Withdrawn := FALSE;
+        #Device.PulseCoilOn := TRUE;
+        #Device.TargetWork := #ParCfg.SafePosOnAbort = 2;
     END_IF;
 @REGION:AbortInError@
     #Device.Step := 0;
+    // Core 3.14.2 fail-safe abort, stated as the coil the output law below
+    // keeps driving: writing the outputs here would be undone the same scan.
     IF #ParCfg.DeenergizeOnAbort THEN
-        #Hal.ToWorkOut := FALSE;
-        #Hal.ToHomeOut := FALSE;
-    ELSIF #ParCfg.SafePosOnAbort = 2 THEN
-        #Hal.ToWorkOut := TRUE;
-        #Hal.ToHomeOut := FALSE;
+        #Device.Withdrawn := TRUE;
     ELSE
-        #Hal.ToWorkOut := FALSE;
-        #Hal.ToHomeOut := NOT #ParCfg.SingleActing;
+        #Device.Withdrawn := FALSE;
+        #Device.PulseCoilOn := TRUE;
+        #Device.TargetWork := #ParCfg.SafePosOnAbort = 2;
     END_IF;
 @REGION:Cyclic@
     IF #ParCfg.HomeSensorCount > 0 THEN
@@ -142,10 +140,14 @@
                 #Device.Step := 20;
             END_IF;
         20:
+            // HELD (Core 6.1) re-enters step 10, which re-arms the move timer when
+            // the permit returns: a hold must not consume the travel window.
             IF #Device.TargetWork AND NOT #Hal.ToWorkPermit THEN
                 "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.ToWorkPermitDiag);
+                #Device.Step := 10;
             ELSIF NOT #Device.TargetWork AND NOT #Hal.ToHomePermit THEN
                 "FRK_HoldDiag"(Core := #Core, Status := #Status, Diag := #Hal.ToHomePermitDiag);
+                #Device.Step := 10;
             ELSE
                 IF #Device.PulsingActive AND TIME_TO_UDINT(#ParCfg.PulsingPeriod) > 0 THEN
                     IF ("FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := #Device.PulseStartMs) MOD TIME_TO_UDINT(#ParCfg.PulsingPeriod)) < TIME_TO_UDINT(#ParCfg.PulsingWidth) THEN
@@ -201,10 +203,12 @@
             ;
     END_CASE;
 @REGION:cyclic@
-    #Hal.ToWorkOut := NOT #Device.Withdrawn AND #Device.PulseCoilOn AND #Device.TargetWork AND #Hal.ToWorkPermit
-        AND #Core.Exec <> @E_ExecState.ERROR@ AND #Core.Exec <> @E_ExecState.ABORTED@;
+    // The coils follow the device state alone (TC3 _M_DriveCoil): a fault keeps
+    // or withdraws them as ResetOnTimeout/DeenergizeOnAbort/SafePosOnAbort
+    // decided, and the live permit always withdraws them.
+    #Hal.ToWorkOut := NOT #Device.Withdrawn AND #Device.PulseCoilOn AND #Device.TargetWork AND #Hal.ToWorkPermit;
     #Hal.ToHomeOut := NOT #Device.Withdrawn AND #Device.PulseCoilOn AND NOT #Device.TargetWork AND #Hal.ToHomePermit
-        AND NOT #ParCfg.SingleActing AND #Core.Exec <> @E_ExecState.ERROR@ AND #Core.Exec <> @E_ExecState.ABORTED@;
+        AND NOT #ParCfg.SingleActing;
     #OutImm.AtHome := "FRK_State"(Idx := 1, Key := 'module.state.atHome', Ok := #Device.AtHome);
     #OutImm.AtWork := "FRK_State"(Idx := 2, Key := 'module.state.atWork', Ok := #Device.AtWork);
     #OutImm.Position := #Device.Position;
