@@ -393,7 +393,8 @@
       "sequence_language": "GRAPH",
       "release_language": "ST",
       "root": "PressDemo",
-      "simulate_feedback": true
+      "simulate_feedback": true,
+      "output_forcing": false
     },
     "fieldbus": {
       "io_list": "Examples/PressIoBridge/00_System/io.json",
@@ -401,6 +402,15 @@
       "healthy": "StandardIoHealthy",
       "block": "GDB_PressDemoFieldbus",
       "publisher": "F_PressDemoPublishFieldbus",
+      "apply": "F_PressDemoApplyForces",
+      "forceable": [
+        "SlideExtend",
+        "SlideRetract",
+        "DoorClose",
+        "DoorRelease",
+        "RamExtend",
+        "RamRetract"
+      ],
       "station": {
         "name": "PressIo1214C",
         "description_key": "project.hardware.s71214c"
@@ -718,7 +728,7 @@
       "FraktalCore/PLC/Siemens/Framework/Core/unit_routing.scl.in": "be1436d439c94686f245483fafdbe0ee168e4a4a3aca8047db1c736221a97b53",
       "FraktalCore/PLC/Siemens/Framework/Core/config_manifest.scl.in": "65b81d8d2ab8bbd0c6598fb8e5c60cd3cc30e3bd4be8fa3cfc8e1c6dac0218ed",
       "FraktalCore/PLC/Siemens/Framework/Core/decision_services.scl.in": "058fe7b6bb11aa1bdd6673aa42c8773def9eaf47e8864a164b2ece0f40a63fbf",
-      "FraktalCore/PLC/Siemens/Framework/Core/access_services.scl.in": "ebf71f7e279e90f1d68d6fd31a93382dbd0d7e1c41bc4cb43827a5a2f72e1387",
+      "FraktalCore/PLC/Siemens/Framework/Core/access_services.scl.in": "8f6c3c99ab2068055f54b3bee97e79bfbf3afaee36ea49f16d03ce4afea5f013",
       "FraktalCore/PLC/Siemens/Framework/Core/access_persistence.scl.in": "62601264d02bb609129505ede53bb351e136c4f65441cd8a751f45ca7b37c4e5",
       "FraktalCore/PLC/Siemens/Framework/Core/checksum_services.scl.in": "1f470d92dc9760629cd9eb8a8cad385fd2e9f66cdd95a952ab51a6b422a2da40",
       "FraktalCore/PLC/TwinCAT/Framework/Fraktal_Core/Platform/F_Sha256.TcPOU": "30b7c1f4fd63f2919ae3de3049d816c88166ccc08907bc9f0c45ebae09cf1e4b",
@@ -1014,7 +1024,7 @@
     "02_FRK_AlarmRecoveryImage.udt": "0178dccc76e21c4867c3a093bf590e3084b6211dfe8095bdb9942dc107e813c2",
     "05_FRK_AlarmRecovery.db": "d2024c76d18ad1ae9c0adbc35fab4cc508fea053e73afdcacb50eb435d2853c2",
     "05_FRK_AlarmRecoveryRuntime.db": "18d10da657913ad2ef01c0723934d7ae0dfb005c9d7d34ce743c18e84614538b",
-    "13_UnitServices.scl": "40660947240d43d6af63ffdafd2c7751b01fdcc92441a5ceb861f91d3e59dcbd",
+    "13_UnitServices.scl": "dbc87e1100fbf756b0df2d6a29a3f931fbb8f5d7048016715553977c90098c16",
     "02_FRK_AccessPolicyImage.udt": "b93fe4a6e09b494168e4f5b1385be8b3a1ee31de39a948fe449118e91055e8a7",
     "05_FRK_LocalUsers.db": "065f6d770a374e39db5a9968f79e7253973e214f147ef4d9ae9a0f467d5c79d6",
     "05_FRK_AccessPolicies.db": "3cf668a1ef005f4f4f24dda8beec355f5b4a103bb4e56251d8c1ab969f110160",

@@ -1,5 +1,14 @@
 # Fraktal/TIA — Siemens TIA Portal binding (working tree)
 
+Output forcing (2026-11-10): Core §10.5.1 forcing exists only in an engineering
+image (`integration.output_forcing`, framework gate `OUTPUT_FORCING`); the shipped
+press carries none of it. Both press images compile 0/0 and the gate's Operations
+fixture runs the forcing assertions natively; see
+[the record](../../../Specification/Siemens/Evidence/TIA_OUTPUT_FORCING_2026-11-10.md).
+The P9 module types now compile in the gate as well
+([first native run](../../../Specification/Siemens/Evidence/TIA_P9_MODULES_NATIVE_2026-11-10.md)).
+Native PROFINET node health remains open.
+
 Press bridge/topology milestone (2026-10-17): the separate saved FraktalBench
 exchanges ordinary I/O with the physical 1214C. The generic HMI observes 3 live
 nodes and 14 fresh inputs; 10 DQ channels remain unconfirmed demands. Output

@@ -1,5 +1,10 @@
 # Fraktal/TIA specification working set
 
+Output forcing (2026-11-10): [engineering-image forcing behind `OUTPUT_FORCING`](Evidence/TIA_OUTPUT_FORCING_2026-11-10.md)
+and the [first native compile of the P9 module types](Evidence/TIA_P9_MODULES_NATIVE_2026-11-10.md).
+Native PROFINET node health, CPU force-job annunciation and the live press force
+path remain open in P8.
+
 Bench/HMI wrap-up (2026-10-18): [final connection setup and SiemensAgent update](Reports/TIA_BENCH_WRAP_UP_2026-10-18.md).
 The offline-tree report was an HMI endpoint mismatch; the shared Settings
 Disconnect action opens endpoint setup. [Draft lessons for TC3 and AB](../Reports/TIA_BENCH_CROSS_BINDING_LESSONS_2026-10-18.md)

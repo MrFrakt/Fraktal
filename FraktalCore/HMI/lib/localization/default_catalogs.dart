@@ -740,6 +740,12 @@ const standardEnglish = <String, String>{
       'Manual command rejected because the Unit is not in MANUAL.',
   'std.audit.manualCommandAccepted': 'Manual command accepted.',
   'std.audit.manualCommandRejected': 'Manual command rejected.',
+  // Core §10.5.1 — every output force and clear is logged against its channel.
+  'std.audit.channelForced': 'Output channel forced.',
+  'std.audit.channelForceCleared': 'Output channel force cleared.',
+  'std.audit.channelForceRejected': 'Output channel force rejected.',
+  'std.audit.forcesWithdrawn':
+      'Output forces withdrawn: the Unit left idle MANUAL.',
   'std.audit.oeeReset': 'OEE counters reset.',
   'std.config.axisJogRequiresEnable': 'Jog requires an enabling device',
   'std.engineering.jogEnableDeviceNotRequired':

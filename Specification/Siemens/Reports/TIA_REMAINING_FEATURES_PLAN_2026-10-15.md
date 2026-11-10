@@ -332,6 +332,16 @@ commissioning gates remain FALSE; native PROFINET health/forcing, applied-output
 feedback and physical motion/SAT acceptance remain open. This does not close
 P8 as a whole or implement P12 Line transport.
 
+**P8 output forcing (November 10):** [the forcing record](../Evidence/TIA_OUTPUT_FORCING_2026-11-10.md)
+adds Core §10.5.1 forcing behind the framework `OUTPUT_FORCING` gate: absent from
+the shipped press, generated into an engineering image with request, per-scan
+idle-MANUAL permit, falling-edge withdrawal, driver apply and per-channel audit.
+Both press images compile 0/0 with read-back; the Operations fixture adds 15
+native forcing assertions. Still open in P8: native PROFINET node health (blocked
+by the approved Openness driver, which cannot create an IO system), annunciating
+the CPU's own force jobs, the live press force path over the Web API, applied-
+output feedback and physical acceptance.
+
 ## 6. Decisions for the owner
 
 1. **Cross-controller line transport** (P12): owner selected **OUC TCP between

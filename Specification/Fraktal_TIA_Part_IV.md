@@ -1194,6 +1194,29 @@ TC3 §10.6 describes for EtherCAT. **[PROVISIONAL S3]** instruction availability
 and cost on S7-1200. Output forcing (Core §10.5.1) follows TC3 §10.6 semantics
 with the TIA §7 constant gate.
 
+**Output forcing — the TIA realization.** STEP 7 has no conditional compilation,
+so the generator emits the force surface only into an image whose declaration
+activates the framework `OUTPUT_FORCING` gate. A production image contains no
+force code: `Forceable` stays private (absent reads FALSE, so the HMI renders no
+affordance) and `FORCE_CHANNEL` is refused like any unsupported request, and
+audited. In an engineering image the reviewed I/O declaration marks the
+forceable outputs; only a driven OUTPUT may be marked, and two forceable tags on
+one image member are refused, because forcing one would drive a terminal the
+operator did not name. The owning root answers `FORCE_CHANNEL`
+(`FRK_ForceRequest`: Core §7.7 `MANUAL`, then the permit, then the table proves
+path, OUTPUT, `Forceable` and root ownership) and once per scan writes the
+permit — the Unit idle in `MANUAL` — into `ST_FieldbusTopology.ForcesEnabled`
+(`FRK_ForceTick`), withdrawing every force with one audit record on the falling
+edge. A request is accepted only while that flag is TRUE, the same flag the
+outputs are applied by, so accepted and applied cannot disagree. The project
+hardware driver calls one generated function at the end of its physical-output
+write; under `USE_SIMULATION` that branch is not reached, so the simulation gate
+still holds every terminal FALSE. The topology DB is non-retentive: no restart
+resumes a force (TIA §2.8). Every force, clear and refusal is audited against
+the channel path. **[OPEN]** The CPU's own force jobs (TIA force tables) have no
+runtime API; this path neither reads nor replaces them, and annunciating a
+native force job is not yet implemented.
+
 ### TIA §10.6 Motion
 *Binds Core §10.6.* PLCopen `MC_*` on technology objects: S7-1500 `TO_PositioningAxis`/
 `TO_SpeedAxis`; S7-1200 `TO_PositioningAxis` (PTO or PROFIdrive). The press

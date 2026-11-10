@@ -390,7 +390,8 @@
     "sequence_language": "GRAPH",
     "release_language": "ST",
     "root": "PressDemo",
-    "simulate_feedback": true
+    "simulate_feedback": true,
+    "output_forcing": false
   },
   "fieldbus": {
     "io_list": "Examples/PressIoBridge/00_System/io.json",
@@ -398,6 +399,15 @@
     "healthy": "StandardIoHealthy",
     "block": "GDB_PressDemoFieldbus",
     "publisher": "F_PressDemoPublishFieldbus",
+    "apply": "F_PressDemoApplyForces",
+    "forceable": [
+      "SlideExtend",
+      "SlideRetract",
+      "DoorClose",
+      "DoorRelease",
+      "RamExtend",
+      "RamRetract"
+    ],
     "station": {
       "name": "PressIo1214C",
       "description_key": "project.hardware.s71214c"

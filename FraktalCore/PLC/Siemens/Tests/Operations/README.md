@@ -1,9 +1,10 @@
 # Reference-1500 operations checks
 
-`make_fixture.py` generates **93 native assertions** against the shared runtime:
+`make_fixture.py` generates **108 native assertions** against the shared runtime:
 OEE/state priority, monotonic wrap and saturation, V3 calendar validation and
 boundaries, deferred edits/target latching, resets/degradation, health/gate edges,
-alarm shelving/expiry, signal tower/lamp test, sequence pacing and host rings.
+alarm shelving/expiry, signal tower/lamp test, sequence pacing, host rings and
+Core 10.5.1 output forcing (request refusals, permit, apply, clear, withdrawal).
 The assertions execute on the PLC; the Python runner reports their actual count
 and image fingerprint as JUnit. A missing/incomplete result fails the gate.
 

@@ -31,6 +31,19 @@ def build():
     from fraktal_tia_tower import build as tower,RECORDS as TOWER_RECORDS
     for index,(name,fields) in enumerate(facts.resolve(TOWER_RECORDS).items()):sources['00_tower_%03d_%s.udt'%(index,name)]=type_source(name,fields)
     sources.update(tower(facts)[0])
+    # Core 10.5.1 forcing against the generated engineering-image services: one
+    # forceable output of this root, one of another root, one unmarked output.
+    from fraktal_tia_topology import sources as topology
+    force_spec=dict(block='GDB_ForceTestFieldbus',publisher='F_ForceTestPublish',image='GDB_ForceTestIO',healthy='Healthy',
+        forcing=True,apply='F_ForceTestApply',nodes=[dict(name='ForceNode',channels=[
+            dict(tag='I1',description_key='project.io.I1',address='%I0.0',dir='INPUT',source='In1',module='Operations'),
+            dict(tag='Q1',description_key='project.io.Q1',address='%Q0.0',dir='OUTPUT',source='Out1',module='Operations.Valve',forceable=True),
+            dict(tag='Q2',description_key='project.io.Q2',address='%Q0.1',dir='OUTPUT',source='Out2',module='Operations'),
+            dict(tag='Q3',description_key='project.io.Q3',address='%Q0.2',dir='OUTPUT',source='Out3',module='Other.Valve',forceable=True)])])
+    image={'Healthy','In1','Out1','Out2','Out3'}
+    sources.update(topology(facts,force_spec,image,'Operations',{'Operations.Valve','Other.Valve'}))
+    sources['38_GDB_ForceTestIO.db']='\n'.join(['DATA_BLOCK "GDB_ForceTestIO"',"{ S7_Optimized_Access := 'TRUE' }",'VERSION : 0.1','NON_RETAIN',
+        'VAR',*['    '+n+PRIVATE+' : Bool;' for n in sorted(image)],'END_VAR','BEGIN','END_DATA_BLOCK',''])
     def emit(*lines):body.extend('        '+s for s in lines)
     def check(condition,label):
         labels.append(label);emit('"FRK_TestAssert"(Condition := '+condition+', Code := '+str(len(labels))+', Result := #Result);')
@@ -252,6 +265,39 @@ def build():
     host_emit(host['MATERIAL_CHANGED'])
     check('"FRK_HostStore".Rows[1].Sequence = 1 AND "FRK_HostStore".Rows[1].View.Wrapped','sequence exhaustion restarts a marked ring instead of silently overflowing')
     # Keep the normal result projection consumed by the common SDK runner.
+    topology_db='"GDB_ForceTestFieldbus".Topology';q1=topology_db+'.Nodes[1].Channels[2]'
+    def force(path,arm=True,value='true',level=2):
+        emit('#Unit.RequestPending := TRUE; #Unit.Request.Kind := %d; #Unit.Request.TargetPath := WSTRING#\'%s\';'%(facts.enums['E_HmiRequestKind']['FORCE_CHANNEL'],path),
+             '#Unit.Request.BoolValue := %s; #Unit.Request.TextValue := WSTRING#\'%s\'; #Access.CurrentLevel := %d; #Access.Policy.Required[%d] := 2;'%(str(arm).upper(),value,level,facts.enums['E_GatedAction']['MANUAL']),
+             '"FRK_ForceRequest"(Scope := \'Operations\', Unit := #Unit, Access := #Access, Response := #Response, Topology := %s);'%topology_db)
+    def force_tick(permit):
+        emit('"FRK_ForceTick"(Permit := %s, Scope := \'Operations\', Topology := %s, AlarmLog := #AlarmLog);'%(str(permit).upper(),topology_db))
+    def drive(demand):
+        emit('"GDB_ForceTestIO".Out1 := %s; "F_ForceTestApply"();'%str(demand).upper())
+    check(q1+'.Forceable AND NOT %s.Nodes[1].Channels[3].Forceable AND NOT %s.Nodes[1].Channels[1].Forceable'%(topology_db,topology_db),'only declared driven outputs carry the force capability')
+    force('ForceNode/Q1',level=1)
+    check('NOT #Response.Accepted AND #Response.Diagnostic = WSTRING#\'std.error.accessDenied\' AND NOT '+q1+'.Forced','force below MANUAL access refused')
+    force('ForceNode/Q1')
+    check('NOT #Response.Accepted AND #Response.Diagnostic = WSTRING#\'std.fieldbus.forceBlocked\' AND NOT '+q1+'.Forced','force refused until the per-scan permit is up')
+    force_tick(True);force('ForceNode/Q1')
+    check('#Response.Accepted AND '+q1+'.Forced AND '+q1+'.ForceBool','permitted force arms the held set-point')
+    drive(False)
+    check('"GDB_ForceTestIO".Out1','held set-point replaces the application demand at the output')
+    force('ForceNode/Q1',value='TRUE');drive(True)
+    check('#Response.Accepted AND NOT '+q1+'.ForceBool AND NOT "GDB_ForceTestIO".Out1','set-point text other than exactly true is FALSE')
+    for path,label in (('ForceNode/I1','an input'),('ForceNode/Q2','an unmarked output'),('ForceNode/Q3','another root\'s output'),('ForceNode/Q9','an unknown path')):
+        force(path)
+        check('NOT #Response.Accepted AND NOT %s.Nodes[1].Channels[4].Forced'%topology_db,'force of '+label+' refused')
+    force('ForceNode/Q1',arm=False);drive(True)
+    check('#Response.Accepted AND NOT '+q1+'.Forced AND "GDB_ForceTestIO".Out1','clear returns the output to the application demand')
+    force('ForceNode/Q1',value='true');emit('#RingSeen := #AlarmLog.RingHead;');force_tick(False);drive(False)
+    check('NOT '+topology_db+'.ForcesEnabled AND NOT '+q1+'.Forced AND NOT "GDB_ForceTestIO".Out1 AND #AlarmLog.RingHead <> #RingSeen','leaving idle MANUAL withdraws every force and logs it')
+    emit('#RingSeen := #AlarmLog.RingHead;');force_tick(False)
+    check('#AlarmLog.RingHead = #RingSeen','withdrawal is logged once, on the edge')
+    force('ForceNode/Q1')
+    check('NOT #Response.Accepted AND NOT '+q1+'.Forced','no force after withdrawal until the permit returns')
+    force_tick(True);emit('#RingSeen := #AlarmLog.RingHead;');force_tick(False)
+    check('#AlarmLog.RingHead = #RingSeen','a permit edge with nothing forced logs nothing')
     text='\n'.join(['FUNCTION_BLOCK "FB_OperationsTest"',"{ S7_Optimized_Access := 'TRUE' }",'VERSION : 0.1',
         'VAR_OUTPUT',*['    '+n+READONLY+' : '+t+';' for n,t in [('Done','Bool'),('Checks','Int'),('Failures','Int'),('FirstFailure','Int')]],'END_VAR',
         'VAR','    Result'+READONLY+' : "FRK_TestResult";',*['    '+n+PRIVATE+' : '+t+';' for n,t in [
@@ -263,7 +309,7 @@ def build():
         '    ShelfSlot'+PRIVATE+' : Int;','    TestDiag'+PRIVATE+' : "ST_Diagnostic";',
         *['    '+n+PRIVATE+' : '+t+';' for n,t in [('TowerConfig','"ST_SignalTowerParCfg"'),('TowerBook','"FRK_TowerBook"'),('TowerStatus','"ST_SignalTowerOut"'),('TestCore','"FRK_Core"')]],
         '    Support'+PRIVATE+' : Array[0..2] of Bool;',
-        '    HostView'+PRIVATE+' : "FRK_HostEvents";','    HostSeen'+PRIVATE+' : UDInt;',
+        '    HostView'+PRIVATE+' : "FRK_HostEvents";','    HostSeen'+PRIVATE+' : UDInt;','    RingSeen'+PRIVATE+' : Int;',
         'END_VAR','BEGIN','    IF NOT #Ran THEN',*body,'        #Ran := TRUE;','    END_IF;',
         '    #Done := #Ran AND NOT #Result.ProtocolError; #Checks := #Result.Checks; #Failures := #Result.Failures; #FirstFailure := #Result.FirstFailure;', 'END_FUNCTION_BLOCK',''])
     sources['37_OperationsTest.scl']=text

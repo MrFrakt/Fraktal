@@ -45,5 +45,47 @@ class TopologyTests(unittest.TestCase):
             else:row['tag']='x'*1000
             with self.subTest(case=case),self.assertRaises(ValueError):self.build(spec)
 
+    def forcing(self):
+        spec=copy.deepcopy(self.spec)
+        spec.update(forcing=True,apply='F_ApplyBenchForces')
+        spec['nodes'][2]['channels'][0]['forceable']=True
+        return spec
+
+    def test_production_image_carries_no_force_surface(self):
+        sources=self.build()
+        self.assertNotIn('16e_OutputForcing.scl',sources)
+        self.assertNotIn('Forceable := TRUE',sources['38_GDB_BenchFieldbus.db'])
+        self.assertIn('"Forceable" {ExternalAccessible := \'False\'',sources['06_0_ST_IoChannel.udt'])
+        self.assertEqual(topology.unit_calls(self.spec,self.catalog),{})
+
+    def test_engineering_image_publishes_only_the_declared_capability(self):
+        sources=self.build(self.forcing())
+        self.assertIn('"Forceable" : Bool;',sources['06_0_ST_IoChannel.udt'])
+        for private in ('ForceBool','ForceAnalog'):
+            self.assertIn('"%s" {ExternalAccessible := \'False\''%private,sources['06_0_ST_IoChannel.udt'])
+        self.assertIn('"ForcesEnabled" {ExternalAccessible := \'False\'',sources['06_2_ST_FieldbusTopology.udt'])
+        self.assertEqual(sources['38_GDB_BenchFieldbus.db'].count('Forceable := TRUE'),1)
+        self.assertIn('Topology.Nodes[3].Channels[1].Forceable := TRUE;',sources['38_GDB_BenchFieldbus.db'])
+        self.assertNotRegex(sources['16e_OutputForcing.scl'],r'@[A-Za-z_.]+@')
+        apply=sources['38_F_ApplyBenchForces.scl']
+        self.assertIn('IF NOT "GDB_BenchFieldbus".Topology.ForcesEnabled THEN RETURN; END_IF;',apply)
+        self.assertIn('IF "GDB_BenchFieldbus".Topology.Nodes[3].Channels[1].Forced THEN "GDB_BenchIO".Valve := "GDB_BenchFieldbus".Topology.Nodes[3].Channels[1].ForceBool; END_IF;',apply)
+        calls=topology.unit_calls(self.forcing(),self.catalog)
+        manual,ready=self.catalog.enums['E_Mode']['MANUAL'],self.catalog.enums['E_ExecState']['READY']
+        self.assertIn('Permit := #Unit.Mode = %d AND #Core.Exec = %d'%(manual,ready),calls['tick'])
+        self.assertIn('Topology := "GDB_BenchFieldbus".Topology',calls['request'])
+
+    def test_force_capability_refused_where_rules_forbid_it(self):
+        for case in ('input','undriven','shared','apply','gate'):
+            spec=self.forcing()
+            if case=='input':spec['nodes'][1]['channels'][0]['forceable']=True
+            elif case=='undriven':spec['nodes'][2]['channels'][0]['source']=None
+            elif case=='shared':
+                twin=copy.deepcopy(spec['nodes'][2]['channels'][0]);twin['tag']='_Valve2'
+                spec['nodes'][2]['channels'].append(twin)
+            elif case=='apply':del spec['apply']
+            else:spec['forcing']=1
+            with self.subTest(case=case),self.assertRaises(ValueError):self.build(spec)
+
 
 if __name__=='__main__':unittest.main()

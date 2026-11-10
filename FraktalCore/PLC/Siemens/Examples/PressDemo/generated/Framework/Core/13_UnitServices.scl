@@ -2267,10 +2267,21 @@ BEGIN
         IF #Response.Accepted THEN #AuditPath := #Unit.Request.TargetPath; END_IF;
         IF #Response.Accepted THEN #What := WSTRING#'std.audit.manualCommandAccepted'; ELSE #What := WSTRING#'std.audit.manualCommandRejected'; END_IF;
     END_IF;
+    IF #Unit.Request.Kind = 22 THEN
+        // Core 10.5.1: every force and clear is logged against the channel it names.
+        #AuditPath := #Unit.Request.TargetPath;
+        IF NOT #Response.Accepted THEN #What := WSTRING#'std.audit.channelForceRejected';
+        ELSIF #Unit.Request.BoolValue THEN #What := WSTRING#'std.audit.channelForced';
+        ELSE #What := WSTRING#'std.audit.channelForceCleared'; END_IF;
+    END_IF;
     #What := CONCAT(IN1 := #What, IN2 := WSTRING#' kind=');
     #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.Kind));
     #What := CONCAT(IN1 := #What, IN2 := WSTRING#' value=');
     #What := CONCAT(IN1 := #What, IN2 := DINT_TO_WSTRING(#Unit.Request.IntValue));
+    IF #Unit.Request.Kind = 22 AND #Unit.Request.BoolValue THEN
+        #What := CONCAT(IN1 := #What, IN2 := WSTRING#' set=');
+        #What := CONCAT(IN1 := #What, IN2 := #Unit.Request.TextValue);
+    END_IF;
     IF #Unit.Request.Kind = 36 THEN
         #What := CONCAT(IN1 := #What, IN2 := WSTRING#' class=');
         #What := CONCAT(IN1 := #What, IN2 := STRING_TO_WSTRING(#Unit.Request.NameValue));

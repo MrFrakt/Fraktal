@@ -116,6 +116,43 @@ class PressRecoveryGraph(unittest.TestCase):
         self.assertIn('"FB_GRAPH_PressDemoAuto"',dbs)
 
 
+class PressCommittedReplay(unittest.TestCase):
+    def test_committed_press_replays_from_its_declaration(self):
+        # A generator, template or press.json change must refresh the committed tree.
+        self.assertGreater(EX.verify(Path(__file__).resolve().parents[1]/'Examples/PressDemo/generated')['replayed_sources'],0)
+
+
+class PressOutputForcing(unittest.TestCase):
+    def engineering(self):
+        definition=json.loads((EX.EXAMPLE/'press.json').read_bytes())
+        definition['integration']['output_forcing']=True
+        return EX.build(definition)
+
+    def test_shipped_press_has_no_force_surface(self):
+        sources,definition,manifest=EX.build()
+        self.assertFalse(definition['integration']['output_forcing'])
+        self.assertFalse(any('FRK_Force' in text for text in sources.values()))
+        self.assertNotIn('OUTPUT_FORCING',json.dumps(manifest['declaration']['engineering_gates']))
+
+    def test_engineering_press_wires_request_permit_and_driver_apply_once(self):
+        sources,_,manifest=self.engineering()
+        unit=sources['29_FB_PressDemoUnit.scl'];driver=sources['38_PressDemoHardwareDriver.scl']
+        self.assertEqual(unit.count('"FRK_ForceRequest"('),1)
+        self.assertEqual(unit.count('"FRK_ForceTick"('),1)
+        self.assertLess(unit.index('"FRK_AlarmShelfRequest"('),unit.index('"FRK_ForceRequest"('))
+        self.assertLess(unit.index('"FRK_EngineeringTick"('),unit.index('"FRK_ForceTick"('))
+        # Applied only in the physical-output branch, after the demand is written.
+        branch=driver[driver.index('    ELSIF #USE_SIMULATION THEN'):]
+        self.assertLess(branch.index('"GDB_PressDemoIO".StartLamp := "PressDemo"'),branch.index('"F_PressDemoApplyForces"();'))
+        self.assertLess(branch.index('    ELSE\n'),branch.index('"F_PressDemoApplyForces"();'))
+        self.assertEqual(sources['38_GDB_PressDemoFieldbus.db'].count('Forceable := TRUE'),6)
+        gates={g['name']:g['active'] for g in manifest['declaration']['engineering_gates']}
+        self.assertEqual(gates,{'USE_SIMULATION':True,'OUTPUT_FORCING':True})
+        # The control-power coils and the shared lamp member are never forceable.
+        self.assertNotIn('_000K9',sources['38_F_PressDemoApplyForces.scl'])
+        self.assertNotIn('StartLamp',sources['38_F_PressDemoApplyForces.scl'])
+
+
 class PressGraphRenditionGate(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

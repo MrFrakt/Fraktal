@@ -544,18 +544,24 @@ def fieldbus_spec(definition):
     owner={signal:root+'.'+module for module,signals in bus['owners'].items() for signal in signals}
     known={row['signal'] for row in io['inputs']+io['outputs']}
     assert set(owner)<=known,'fieldbus owner names a signal missing from the I/O list: '+str(sorted(set(owner)-known))
+    forceable=set(bus.get('forceable',[]))
+    assert forceable<={row['signal'] for row in io['outputs']},'forceable names a signal that is not a driven output: '+str(sorted(forceable-{row['signal'] for row in io['outputs']}))
     def channel(row,direction,source=True):
         return {'tag':row['tag'],'address':row['address'],'dir':direction,
                 'description_key':'project.io.'+row['tag'].lstrip('_'),
                 'source':row['signal'] if source else None,
-                'module':owner.get(row.get('signal'),root) if source else root}
+                'module':owner.get(row.get('signal'),root) if source else root,
+                **({'forceable':True} if source and direction=='OUTPUT' and row['signal'] in forceable else {})}
     inputs=[channel(row,'INPUT') for row in io['inputs']]
     outputs=[channel(row,'OUTPUT') for row in io['outputs']]+[channel(row,'OUTPUT',False) for row in io['inhibited_outputs']]
     station=dict(bus['station'],type_id='CPU 1214C DC/DC/DC '+io['cpu_order'],address=io['physical_address']+' (I/O bridge)')
     def group(key,channels):
         return dict(bus['groups'][key],parent=1,channels=channels,
                     address=channels[0]['address']+'..'+channels[-1]['address'])
+    # Core 10.5.1 rule 1: the force surface exists only in an engineering image.
+    forcing=definition['integration'].get('output_forcing',False)
     return {**{k:bus[k] for k in ('block','publisher','image','healthy')},
+            **({'forcing':True,'apply':bus['apply']} if forcing else {}),
             'nodes':[station,group('inputs',inputs),group('outputs',outputs)]}
 
 
@@ -577,7 +583,13 @@ def wire_demo(sources,definition,catalog):
     for old in list(sources):
         if old.startswith('25_'):sources['29_'+old[3:].replace('GDB_FraktalHal','GDB_PressDemoHal')]=sources.pop(old)
     simulate=definition['integration']['simulate_feedback']
-    hardware=bind((ROOT/'Examples/PressDemo/00_System/Hardware/hardware_driver.scl.in').read_text('ascii'),catalog,
+    spec=fieldbus_spec(definition) if definition.get('fieldbus') else {}
+    # The driver applies held set-points only where it writes physical outputs,
+    # so USE_SIMULATION still holds every terminal FALSE (Core 7.5).
+    apply='        "'+spec['apply']+'"();\n' if spec.get('forcing') else ''
+    template=(ROOT/'Examples/PressDemo/00_System/Hardware/hardware_driver.scl.in').read_text('ascii')
+    assert template.count('@APPLY_FORCES@\n')==1
+    hardware=bind(template.replace('@APPLY_FORCES@\n',apply),catalog,
         {'USE_SIMULATION':'TRUE' if simulate else 'FALSE'})
     # DB declarations have their own native interface/initializer read-back gate.
     # Keep them separate from the driver FCs rather than hiding DBs in an SCL file.
@@ -594,9 +606,18 @@ def wire_demo(sources,definition,catalog):
     for match in reversed(matches):hardware=hardware[:match.start()]+hardware[match.end():]
     if definition.get('fieldbus'):
         image=set(re.findall(r'^\s+(\w+)\s*\{[^}]*\}\s*:\s*Bool;',sources['38_GDB_PressDemoIO.db'],re.M))
-        spec=fieldbus_spec(definition)
         sources.update(TOPOLOGY.sources(catalog,spec,image,definition['integration']['root'],
             {definition['integration']['root']+'.'+name for name in definition['roles']+[s['name'] for s in definition['sensors']]}))
+        calls=TOPOLOGY.unit_calls(spec,catalog)
+        if calls:
+            # The owning root answers the request beside its other mailbox
+            # services and takes the per-scan permit after its gate tick.
+            unit=sources['29_FB_PressDemoUnit.scl']
+            for anchor,line in (('    "FRK_AlarmShelfRequest"(Scope := #Status.Name, Unit := #Unit, Access := #Access, Response := #HmiResponse, AlarmLog := #AlarmLog);\n',calls['request']),
+                                ('    IF #Core.ParentIndex = 0 THEN "FRK_EngineeringTick"(Scope := #Status.Name, Slots := #EngineeringSlots, AlarmLog := #AlarmLog); END_IF;\n',calls['tick'])):
+                assert unit.count(anchor)==1,anchor
+                unit=unit.replace(anchor,anchor+line+'\n')
+            sources['29_FB_PressDemoUnit.scl']=unit
         # Published after the outputs are computed, inside the routine Main
         # already calls: a project adds no call it could forget.
         anchor='    "GDB_PressDemoHardwareDriver"(ReadInputs := FALSE);'
@@ -611,8 +632,10 @@ def wire_demo(sources,definition,catalog):
     sources['40_PressDemoMain.scl']=sources.pop('40_Main.scl')
 
 
-def build():
-    definition=json.loads((EXAMPLE/'press.json').read_bytes());module=json.loads((MODULES/'cylinder.json').read_bytes())
+def build(definition=None):
+    # A caller may pass a variant of press.json (an engineering image); the
+    # committed tree is always the file itself.
+    definition=copy.deepcopy(definition) if definition else json.loads((EXAMPLE/'press.json').read_bytes());module=json.loads((MODULES/'cylinder.json').read_bytes())
     catalog=Catalog.read();width=DECL.CoreFacts.read().key_width
     records=copy.deepcopy(module['records'])
     records['ST_SequenceCommandLease']='STRUCT OwnerIndex : DINT; ChainIndex : DINT; BranchIndex : DINT; Step : DINT; Raised : BOOL; AbortIssued : BOOL; ReleasedScan : UDINT; END_STRUCT'
@@ -657,6 +680,9 @@ def build():
     declaration={'schema_version':1,'target_family':'S7-1500','registry_capacity':4+len(definition['sensors']),'types':[owner,cm,*(s for s,_ in sensors)],
                  'roots':[{'name':'PressDemo','type':'FB_PressDemoUnit'}],'records':records}
     declaration['engineering_gates']=[dict(name='USE_SIMULATION',description='std.engineering.simulation',active=definition['integration']['simulate_feedback'])]
+    if definition['integration'].get('output_forcing'):
+        # Part IV 7: the framework's own gate; inactive means absent, not registered-and-off.
+        declaration['engineering_gates'].append(dict(name='OUTPUT_FORCING',description='std.engineering.outputForcing',active=True))
     if definition.get('model_config'):
         declaration['model_config']=definition['model_config']
     if definition.get('config_sets'):
@@ -744,8 +770,8 @@ END_FUNCTION
     return sources,definition,manifest
 
 
-def generate(out):
-    sources,definition,manifest=build()
+def generate(out,definition=None):
+    sources,definition,manifest=build(definition)
     out.mkdir(parents=True,exist_ok=False)
     for name,text in sources.items():(out/name).write_bytes(text.encode('ascii'))
     data={'kind':'fraktal.tia.press.examples.v1','wired':True,'definition':definition,

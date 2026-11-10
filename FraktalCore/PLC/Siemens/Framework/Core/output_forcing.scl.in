@@ -1,0 +1,77 @@
+// Core 10.5.1 output forcing. Generated only into an image whose OUTPUT_FORCING
+// engineering gate is active (Part IV 7); a production image carries none of it.
+FUNCTION "FRK_ForceRequest" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; END_VAR
+VAR_IN_OUT Unit : "FRK_Unit"; Access : "FRK_Access"; Response : "ST_HmiResponse"; Topology : "ST_FieldbusTopology"; END_VAR
+VAR_TEMP Node : Int; Channel : Int; Matched : Bool; Owner : WString[255]; Prefix : WString[255]; END_VAR
+BEGIN
+    // One request arms or clears one held set-point. Access (7.7 MANUAL) and the
+    // per-scan permit are proved here; the table then proves what only it knows:
+    // the channel exists, is an OUTPUT, is marked forceable and belongs to this root.
+    IF NOT #Unit.RequestPending OR #Unit.Request.Kind <> @E_HmiRequestKind.FORCE_CHANNEL@ THEN RETURN; END_IF;
+    #Response.Accepted := FALSE; #Response.Diagnostic := WSTRING#'std.error.hmiRequestRejected';
+    #Response.Report.Count := 0; #Response.Report.Released := TRUE;
+    IF #Access.PolicyLost OR #Access.CurrentLevel < #Access.Policy.Required[@E_GatedAction.MANUAL@] THEN
+        #Response.Diagnostic := WSTRING#'std.error.accessDenied';
+    ELSIF NOT #Topology.ForcesEnabled THEN
+        // The same flag the held set-points are applied by, so a request can
+        // never be accepted under conditions in which it would not be applied.
+        #Response.Diagnostic := WSTRING#'std.fieldbus.forceBlocked';
+    ELSE
+        #Matched := FALSE;
+        #Owner := STRING_TO_WSTRING(#Scope);
+        #Prefix := CONCAT(IN1 := #Owner, IN2 := WSTRING#'.');
+        FOR #Node := 1 TO MIN(IN1 := #Topology.NodeCount, IN2 := @NODES@) DO
+            FOR #Channel := 1 TO MIN(IN1 := #Topology.Nodes[#Node].ChannelCount, IN2 := @CHANNELS@) DO
+                IF NOT #Matched AND #Topology.Nodes[#Node].Channels[#Channel].Path = #Unit.Request.TargetPath THEN
+                    #Matched := TRUE;
+                    IF #Topology.Nodes[#Node].Channels[#Channel].Dir = @E_ChannelDir.OUTPUT@
+                        AND #Topology.Nodes[#Node].Channels[#Channel].Forceable
+                        AND (#Topology.Nodes[#Node].Channels[#Channel].ModulePath = #Owner
+                            OR FIND(IN1 := #Topology.Nodes[#Node].Channels[#Channel].ModulePath, IN2 := #Prefix) = 1) THEN
+                        // Clearing keeps the set-point: the driver's own demand is
+                        // what reaches the output again on the next write.
+                        #Topology.Nodes[#Node].Channels[#Channel].Forced := #Unit.Request.BoolValue;
+                        IF #Unit.Request.BoolValue THEN
+                            // The mailbox carries text; anything but exactly 'true' is FALSE (5.6).
+                            #Topology.Nodes[#Node].Channels[#Channel].ForceBool := #Unit.Request.TextValue = WSTRING#'true';
+                        END_IF;
+                        #Response.Accepted := TRUE;
+                    END_IF;
+                END_IF;
+            END_FOR;
+        END_FOR;
+    END_IF;
+    IF #Response.Accepted THEN #Response.Diagnostic := WSTRING#'';
+    ELSE "FRK_ReleaseReason"(Report := #Response.Report, Description := #Response.Diagnostic, Reason := @E_Reason.PERMISSIVE_NOT_MET@, Path := #Unit.Request.TargetPath, Kind := @E_ReleaseKind.OTHER@); END_IF;
+END_FUNCTION
+
+FUNCTION "FRK_ForceTick" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Permit : Bool; Scope : String; END_VAR
+VAR_IN_OUT Topology : "ST_FieldbusTopology"; AlarmLog : "FRK_AlarmLog"; END_VAR
+VAR_TEMP Node : Int; Channel : Int; Withdrawn : Bool; END_VAR
+BEGIN
+    // Rule 3: a force is only honest while the owning Unit is idle in MANUAL.
+    // Leaving it withdraws every force instead of leaving a set-point contending
+    // with live logic. The edge comes from the published flag itself; the table
+    // is NON_RETAIN, so no restart can resume a force.
+    IF #Topology.ForcesEnabled AND NOT #Permit THEN
+        #Withdrawn := FALSE;
+        FOR #Node := 1 TO MIN(IN1 := #Topology.NodeCount, IN2 := @NODES@) DO
+            FOR #Channel := 1 TO MIN(IN1 := #Topology.Nodes[#Node].ChannelCount, IN2 := @CHANNELS@) DO
+                IF #Topology.Nodes[#Node].Channels[#Channel].Forced THEN
+                    #Topology.Nodes[#Node].Channels[#Channel].Forced := FALSE;
+                    #Withdrawn := TRUE;
+                END_IF;
+            END_FOR;
+        END_FOR;
+        IF #Withdrawn THEN
+            "FRK_AccessAudit"(AlarmLog := #AlarmLog, What := WSTRING#'std.audit.forcesWithdrawn', Who := '', SourcePath := STRING_TO_WSTRING(#Scope));
+        END_IF;
+    END_IF;
+    #Topology.ForcesEnabled := #Permit;
+END_FUNCTION

@@ -18,16 +18,25 @@ The Core marks identity members OPC.UA.DA := 0, i.e. excluded from the cyclic
 tree. The S7 Web API has no cyclic tree: the HMI classifies every Topology
 leaf as on-demand (read only while the fieldbus view is open), so the Siemens
 binding publishes identity read-only instead of re-serving it through the
-configuration manifest. The commissioning force set-points and the force
-capability stay private: forcing has no runtime path on this binding, and an
-absent Forceable reads as FALSE, which renders no force affordance (10.5.1).
+configuration manifest.
+
+Output forcing (10.5.1) exists only when the declaration's OUTPUT_FORCING
+engineering gate is active (Part IV 7). Otherwise no force code is generated,
+the force capability and set-points stay private, and an absent Forceable reads
+as FALSE, which renders no force affordance. When the gate is active, Forceable
+is published TRUE on exactly the declared outputs, the owning root runs the
+request and the per-scan permit, and the hardware driver applies held
+set-points through one generated function where it writes physical outputs.
 """
 from __future__ import annotations
 
 import dataclasses
+from pathlib import Path
 import re
 
 from fraktal_tia_binding import Catalog, READONLY, literal, type_source
+
+FORCING_TEMPLATE = Path(__file__).resolve().parents[1] / 'Framework/Core/output_forcing.scl.in'
 
 # Members that stay private on this binding (see the module docstring).
 PRIVATE_MEMBERS = {'Forceable', 'ForceBool', 'ForceAnalog', 'ForcesEnabled'}
@@ -36,14 +45,16 @@ DIRECTIONS = ('INPUT', 'OUTPUT')
 IDENT = re.compile(r'[A-Za-z_]\w*')
 
 
-def resolve_types(catalog: Catalog, nodes: int, channels: int) -> dict:
+def resolve_types(catalog: Catalog, nodes: int, channels: int, forcing: bool = False) -> dict:
     """The three Core types with arrays sized to this station."""
     sized = dataclasses.replace(catalog, capacities={
         **catalog.capacities, 'MAX_BUS_NODES': nodes, 'MAX_NODE_CHANNELS': channels})
     resolved = sized.resolve(['ST_FieldbusTopology'])
+    # The HMI reads only the capability; set-points and the permit stay private.
+    private = PRIVATE_MEMBERS - {'Forceable'} if forcing else PRIVATE_MEMBERS
     for fields in resolved.values():
         for field in fields:
-            field['accessible'] = field['member'] not in PRIVATE_MEMBERS
+            field['accessible'] = field['member'] not in private
     return resolved
 
 
@@ -60,12 +71,17 @@ def validate(spec: dict, image_members: set, root: str, modules: set, types: dic
     for key in ('block', 'publisher', 'image', 'healthy'):
         if not IDENT.fullmatch(spec[key]):
             raise ValueError('fieldbus %s must be an identifier' % key)
+    if type(spec.get('forcing', False)) is not bool:
+        raise ValueError('fieldbus forcing is a build Boolean (the OUTPUT_FORCING gate)')
+    if spec.get('forcing') and not IDENT.fullmatch(spec.get('apply', '')):
+        raise ValueError('fieldbus forcing needs the apply function identifier')
     if spec['healthy'] not in image_members:
         raise ValueError('health bit is not a member of the I/O image: ' + spec['healthy'])
     if not spec['nodes']:
         raise ValueError('fieldbus declares no node')
     node_fields, channel_fields = types['ST_BusNode'], types['ST_IoChannel']
     paths = set()
+    forced_sources = set()
     for index, node in enumerate(spec['nodes'], 1):
         parent = node.get('parent', 0)
         if not (type(parent) is int and 0 <= parent < index):
@@ -90,6 +106,12 @@ def validate(spec: dict, image_members: set, root: str, modules: set, types: dic
                 raise ValueError('channel %s: %s is not a member of the I/O image' % (channel['tag'], source))
             if source is None and channel['dir'] == 'INPUT':
                 raise ValueError('channel %s: an input needs its image member' % channel['tag'])
+            forceable = channel.get('forceable', False)
+            if type(forceable) is not bool:
+                raise ValueError('channel %s: forceable is a Boolean' % channel['tag'])
+            # Rule 2: outputs only, and only one the application actually drives.
+            if forceable and (channel['dir'] != 'OUTPUT' or source is None):
+                raise ValueError('channel %s: only a driven OUTPUT may be forceable' % channel['tag'])
             module = channel.get('module', root)
             if module != root and module not in modules:
                 raise ValueError('channel %s: unknown owning module %s' % (channel['tag'], module))
@@ -97,13 +119,20 @@ def validate(spec: dict, image_members: set, root: str, modules: set, types: dic
             if path in paths:
                 raise ValueError('duplicate channel path ' + path)
             paths.add(path)
+            if forceable:
+                # A force writes the image member; two forceable tags on one member
+                # would force a terminal the operator did not name.
+                if source in forced_sources:
+                    raise ValueError('channel %s: forceable output shares image member %s' % (channel['tag'], source))
+                forced_sources.add(source)
 
 
 def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules: set) -> dict:
     """Source files keyed by import-ordered file name."""
     nodes = spec['nodes']
     channels = max(1, max(len(n.get('channels', [])) for n in nodes))
-    types = resolve_types(catalog, len(nodes), channels)
+    forcing = spec.get('forcing', False)
+    types = resolve_types(catalog, len(nodes), channels, forcing)
     validate(spec, image_members, root, modules, types)
     enums = catalog.enums
     files = {'06_0_ST_IoChannel.udt': type_source('ST_IoChannel', types['ST_IoChannel']),
@@ -113,6 +142,7 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
     start = ['    Topology.NodeCount := %d;' % len(nodes),
              '    Topology.MappingValid := TRUE;']
     publish = []
+    applied = []
     for n, node in enumerate(nodes, 1):
         prefix = 'Topology.Nodes[%d].' % n
         start += ['    %sName := %s;' % (prefix, literal(node['name'])),
@@ -132,6 +162,9 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
                       "    %sModulePath := WSTRING#%s;" % (item, literal(channel.get('module', root))),
                       '    %sDir := %d;' % (item, enums['E_ChannelDir'][channel['dir']]),
                       '    %sKind := %d;' % (item, enums['E_ChannelKind']['DIGITAL'])]
+            if forcing and channel.get('forceable'):
+                start.append('    %sForceable := TRUE;' % item)
+                applied.append(('"%s".%s' % (spec['block'], item), channel['source']))
             live_item = '"%s".%s' % (spec['block'], item)
             if channel.get('source'):
                 publish.append('    %sBoolValue := "%s".%s;' % (live_item, spec['image'], channel['source']))
@@ -155,4 +188,30 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
         '    #State := %d;' % enums['E_NodeState']['OFFLINE'],
         '    IF #Healthy THEN #State := %d; END_IF;' % enums['E_NodeState']['OPERATIONAL'],
         *publish, 'END_FUNCTION', ''])
+    if forcing:
+        text = FORCING_TEMPLATE.read_text('ascii')
+        for name, values in enums.items():
+            for member, value in values.items():
+                text = text.replace('@%s.%s@' % (name, member), str(value))
+        files['16e_OutputForcing.scl'] = text.replace('@NODES@', str(len(nodes))).replace('@CHANNELS@', str(channels))
+        lines = ['    IF NOT "%s".Topology.ForcesEnabled THEN RETURN; END_IF;' % spec['block']]
+        lines += ['    IF %sForced THEN "%s".%s := %sForceBool; END_IF;' % (live, spec['image'], source, live)
+                  for live, source in applied]
+        files['38_%s.scl' % spec['apply']] = '\n'.join([
+            'FUNCTION "%s" : Void' % spec['apply'], "{ S7_Optimized_Access := 'TRUE' }", 'VERSION : 0.1', 'BEGIN',
+            '    // Core 10.5.1: the hardware driver calls this where it writes physical',
+            '    // outputs. A held set-point replaces the application demand only while',
+            '    // forcing is permitted, so the demand returns the moment the Unit can act.',
+            *lines, 'END_FUNCTION', ''])
     return files
+
+
+def unit_calls(spec: dict, catalog: Catalog) -> dict:
+    """The owning root's two force lines: the mailbox request and the per-scan
+    permit. Both act on the one flag the driver applies by (ForcesEnabled)."""
+    if not spec.get('forcing'):
+        return {}
+    topology = '"%s".Topology' % spec['block']
+    idle_manual = '#Unit.Mode = %d AND #Core.Exec = %d' % (catalog.enums['E_Mode']['MANUAL'], catalog.enums['E_ExecState']['READY'])
+    return {'request': '    "FRK_ForceRequest"(Scope := #Status.Name, Unit := #Unit, Access := #Access, Response := #HmiResponse, Topology := %s);' % topology,
+            'tick': '    "FRK_ForceTick"(Permit := %s, Scope := #Status.Name, Topology := %s, AlarmLog := #AlarmLog);' % (idle_manual, topology)}
