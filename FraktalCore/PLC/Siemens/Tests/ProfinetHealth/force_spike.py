@@ -67,15 +67,18 @@ def observe(api, emit):
               diagnostics=attempt('DiagnosticBuffer.Browse', {'language': 'en-US', 'count': 8})))
 
 
-def session(label):
+def session(label, attempt='1'):
+    """Ends at the stop file, or when the bench host's 30-minute lifetime expires."""
     work, revision, _, pin = paths(label)
+    if not attempt.isdigit(): raise ValueError('attempt is a number')
+    suffix = '' if attempt == '1' else attempt
     bench = target(label)
     if not (work/'web_user.log').is_file(): raise ValueError('prepare the fixture first')
-    stop = work/'spike.stop'
-    with hosted(bench, 'session'):
-        bench.download(revision, attempt='download')
+    stop = work/('spike' + suffix + '.stop')
+    with hosted(bench, 'session' + suffix):
+        bench.download(revision, attempt='download' + suffix)
         api = WebApi(bench.profile['address'], pin, not pin.exists())
-        with (work/'observations.jsonl').open('x', encoding='utf-8', newline='\n') as stream:
+        with (work/('observations' + suffix + '.jsonl')).open('x', encoding='utf-8', newline='\n') as stream:
             def emit(row): stream.write(json.dumps(dict(utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), **row)) + '\n'); stream.flush()
             try:
                 api.login('fraktal')
@@ -87,10 +90,10 @@ def session(label):
                 if api.conn: api.conn.close()
 
 
-def stop(label):
-    paths(label)[0].joinpath('spike.stop').touch(exist_ok=False)
+def stop(label, attempt='1'):
+    paths(label)[0].joinpath('spike' + ('' if attempt == '1' else attempt) + '.stop').touch(exist_ok=False)
 
 
 if __name__ == '__main__':
-    stage, label = sys.argv[1].split(':', 1)
-    {'prepare': prepare, 'session': session, 'stop': stop}[stage](label)
+    stage, label, *attempt = sys.argv[1].split(':')
+    {'prepare': prepare, 'session': session, 'stop': stop}[stage](label, *attempt)

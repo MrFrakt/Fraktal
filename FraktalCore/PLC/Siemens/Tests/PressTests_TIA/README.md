@@ -18,6 +18,15 @@ caused a large temporary simulator allocation on this VM; closing that test
 instance recovered the space without deleting projects or storage. The shared
 session helper always signals the stop file and waits for host exit.
 
+`run_forcing.py` checks Core §10.5.1 output forcing on the **engineering** press
+image (`integration.output_forcing` true, never the shipped press). It compiles
+that image fresh at the same isolated address, reads it back, prepares the web
+user offline, downloads once and runs `probe_forcing.py`. The probe forces through
+the real mailbox, checks refusals, the exact `true` rule, per-channel audit,
+withdrawal on leaving idle MANUAL and that nothing resumes. Both stages run through
+the DPAPI wrapper, `prepare:<label>` first, then `live:<label>` once the host
+has the memory for a powered test CPU beside TIA Portal.
+
 The saved `Fraktal` runtime and physical1214C are preserved. These tests prove
 software sequence behavior in the simulated plant; bench wiring, certified
 safety behavior and physical press acceptance remain commissioning work.
