@@ -72,8 +72,11 @@ class TopologyTests(unittest.TestCase):
         self.assertIn("PnGeo {InstructionName := 'GEOADDR'; LibVersion := '1.0'} : GEOADDR;",source)
         self.assertIn('"FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "GDB_BenchFieldbus".PnSampleMs) >= %d'%topology.PN_SAMPLE_MS,source)
         states=self.catalog.enums['E_NodeState']
-        self.assertIn('IF NOT %sLinkOk THEN %sState := %d;'%(node,node,states['OFFLINE']),source)
-        self.assertIn('ELSIF #PnProblem[#PnStation] THEN %sState := %d;'%(node,states['FAULT']),source)
+        self.assertIn('#PnFault := #PnUp AND #PnProblem[#PnStation];',source)
+        self.assertIn('%sLinkOk := #PnUp;'%node,source)
+        self.assertIn('IF NOT #PnUp THEN %sState := %d;'%(node,states['OFFLINE']),source)
+        self.assertIn('ELSIF #PnFault THEN %sState := %d;'%(node,states['FAULT']),source)
+        self.assertNotIn('ModuleStates',source)
         # The bound node's link is never overwritten by the station bit, and its
         # input quality follows the device, not the station.
         self.assertNotIn(node+'LinkOk := #Healthy;',source)
@@ -82,6 +85,19 @@ class TopologyTests(unittest.TestCase):
         self.assertLess(source.index('DeviceStates('),source.index('Nodes[2].Channels[1].Quality'))
         self.assertIn("PnSampled {ExternalAccessible := 'False'",sources['38_GDB_BenchFieldbus.db'])
 
+    def test_module_node_needs_its_device_and_reads_its_slot_once_per_device(self):
+        spec=self.profinet()
+        spec['nodes'][2]['profinet']=dict(io_system='Local~PROFINET_IO-System',device='IM_1~IODevice',module='IM_1~PnDQ')
+        source=self.build(spec)['38_F_PublishBenchFieldbus.scl']
+        self.assertEqual(source.count('ModuleStates(LADDR := "IM_1~IODevice"'),3)
+        self.assertEqual(source.count('DeviceStates('),3)
+        self.assertIn('LOG2GEO(LADDR := "IM_1~PnDQ", GEOADDR := #PnGeo);',source)
+        module=source[source.index('LADDR := "IM_1~PnDQ"'):]
+        # The device's own link gates the module; the module's problem is its own FAULT.
+        self.assertLess(module.index('IF #PnUp THEN #PnUp := #PnModOk AND #PnSlot > 0; END_IF;'),module.index('Nodes[3].LinkOk := #PnUp;'))
+        self.assertIn('#PnFault := #PnUp AND #PnModProblem[#PnSlot];',module)
+        self.assertIn('PnModExisting : Array[0..127] of Bool;',source)
+
     def test_station_without_profinet_samples_nothing(self):
         sources=self.build()
         self.assertNotIn('DeviceStates',sources['38_F_PublishBenchFieldbus.scl'])
@@ -89,6 +105,7 @@ class TopologyTests(unittest.TestCase):
 
     def test_profinet_binding_names_hardware_constants_only(self):
         for binding in (dict(io_system='Local~PROFINET_IO-System'),dict(io_system='X"; DROP',device='IM_1~IODevice'),
+                        dict(io_system='Local~PROFINET_IO-System',device='IM_1~IODevice',module='X"'),
                         dict(io_system='Local~PROFINET_IO-System',device='IM_1~IODevice',number=1),dict(io_system=1,device='IM')):
             spec=copy.deepcopy(self.spec);spec['nodes'][1]['profinet']=binding
             with self.subTest(binding=binding),self.assertRaises(ValueError):self.build(spec)

@@ -1233,9 +1233,18 @@ IO system at most every 250 ms. The node's link is "exists and not disabled";
 its state is `OFFLINE` without a link, `FAULT` when the device reports a problem
 and `OPERATIONAL` otherwise; a read that fails is not a claim, so the node is
 `OFFLINE`. That node's inputs take their quality from its link, not from the
-station bit. **[OPEN]** `ModuleStates`, `GET_DIAG` detail and OB82/OB83/OB86
-event wake-up are not used yet, and the runtime mapping awaits the isolated
-PROFINET bench (`Tests/ProfinetHealth`).
+station bit. A node may also name a module of that device: `ModuleStates`, read
+once per device per sample, gives its own link (only while its device is up)
+and its own `FAULT`, at the slot `LOG2GEO` derives. Measured on the isolated
+PROFINET bench (`Tests/ProfinetHealth`, 8/8): device and module operational,
+`D_ACT_DP` takes both offline at the next sample, re-enabling returns them.
+
+Two mechanisms are deliberately not used. **OB82/OB83/OB86** would only shorten
+detection below the 250 ms sample; generating them would take ownership of a
+station's fault OBs, which belong to its project, and an S7-1500 stays in RUN
+without them. **`GET_DIAG` detail** is not republished: the topology carries
+state, and the CPU's diagnostic buffer and module diagnostics remain the one
+source of the detailed cause.
 
 **Applied-output feedback.** A DQ channel's value is its local demand with
 quality FALSE unless the station declares where the I/O owner's report of the

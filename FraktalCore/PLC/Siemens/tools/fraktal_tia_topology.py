@@ -106,9 +106,9 @@ def validate(spec: dict, image_members: set, root: str, modules: set, types: dic
         if not node.get('name'):
             raise ValueError('node %d needs a name' % index)
         profinet = node.get('profinet')
-        if profinet is not None and (set(profinet) != {'io_system', 'device'} or not all(
+        if profinet is not None and (not {'io_system', 'device'} <= set(profinet) <= {'io_system', 'device', 'module'} or not all(
                 type(profinet[key]) is str and SYSTEM_CONSTANT.fullmatch(profinet[key]) for key in profinet)):
-            raise ValueError('node %d: profinet names its io_system and device system constants' % index)
+            raise ValueError('node %d: profinet names its io_system, device and optional module system constants' % index)
         for channel in node.get('channels', []):
             for member, key in (('Name', 'tag'), ('DescriptionKey', 'description_key'),
                                 ('Address', 'address')):
@@ -242,17 +242,23 @@ def sources(catalog: Catalog, spec: dict, image_members: set, root: str, modules
 def profinet_sample(block: str, nodes: list, states: dict) -> tuple:
     """Node link and state from the CPU's own PROFINET view (Part IV 10.5).
 
-    One DeviceStates read per mode per IO system, at most every PN_SAMPLE_MS;
-    the device number comes from the device's hardware identifier (LOG2GEO), so
-    the declaration names the hardware, never a number to keep in step with it.
+    One DeviceStates read per mode per IO system, and one ModuleStates read per
+    mode per device that has bound modules, at most every PN_SAMPLE_MS. Device
+    numbers and slots come from the hardware identifiers (LOG2GEO), so the
+    declaration names the hardware, never a number to keep in step with it. A
+    module node is up only while its device is; its FAULT is its own problem.
     A read that fails is not a claim: the node is OFFLINE with no link."""
     bound = [(n, node['profinet']) for n, node in enumerate(nodes, 1) if node.get('profinet')]
     if not bound:
         return [], [], []
+    modules = any('module' in p for _, p in bound)
     # The system type carries its instruction identity, as the native export writes it.
-    temps = ['    PnOk : Bool;', '    PnRet : Int;', '    PnStation : Int;',
+    temps = ['    PnOk : Bool;', '    PnRet : Int;', '    PnStation : Int;', '    PnUp : Bool;', '    PnFault : Bool;',
              "    PnGeo {InstructionName := 'GEOADDR'; LibVersion := '1.0'} : GEOADDR;",
              *['    Pn%s : Array[0..1023] of Bool;' % name for name in ('Existing', 'Disabled', 'Problem')]]
+    if modules:
+        temps += ['    PnModOk : Bool;', '    PnSlot : Int;',
+                  *['    PnMod%s : Array[0..127] of Bool;' % name for name in ('Existing', 'Disabled', 'Problem')]]
     members = ['    PnSampled%s : Bool;' % PRIVATE, '    PnSampleMs%s : UDInt;' % PRIVATE]
     lines = ['    // Part IV 10.5: PROFINET device state, sampled per IO system - never per scan per device.',
              '    IF NOT "%s".PnSampled OR "FRK_Elapsed"(NewMs := "FRK_Clock".NowMs, OldMs := "%s".PnSampleMs) >= %d THEN' % (block, block, PN_SAMPLE_MS),
@@ -261,18 +267,31 @@ def profinet_sample(block: str, nodes: list, states: dict) -> tuple:
         lines += ['        #PnRet := DeviceStates(LADDR := "%s", MODE := %d, STATE := #PnExisting); #PnOk := #PnRet = 0;' % (system, PN_EXISTING),
                   '        #PnRet := DeviceStates(LADDR := "%s", MODE := %d, STATE := #PnDisabled); #PnOk := #PnOk AND #PnRet = 0;' % (system, PN_DISABLED),
                   '        #PnRet := DeviceStates(LADDR := "%s", MODE := %d, STATE := #PnProblem); #PnOk := #PnOk AND #PnRet = 0;' % (system, PN_PROBLEM)]
-        for n, profinet in bound:
-            if profinet['io_system'] != system:
-                continue
-            live = '"%s".Topology.Nodes[%d].' % (block, n)
-            lines += ['        #PnStation := 0;',
-                      '        #PnRet := LOG2GEO(LADDR := "%s", GEOADDR := #PnGeo);' % profinet['device'],
-                      '        IF #PnRet = 0 AND #PnGeo.STATION >= 1 AND #PnGeo.STATION <= 1023 THEN #PnStation := UINT_TO_INT(#PnGeo.STATION); END_IF;',
-                      '        %sLinkOk := #PnOk AND #PnStation > 0;' % live,
-                      '        IF %sLinkOk THEN %sLinkOk := #PnExisting[#PnStation] AND NOT #PnDisabled[#PnStation]; END_IF;' % (live, live),
-                      '        IF NOT %sLinkOk THEN %sState := %d;' % (live, live, states['OFFLINE']),
-                      '        ELSIF #PnProblem[#PnStation] THEN %sState := %d;' % (live, states['FAULT']),
-                      '        ELSE %sState := %d; END_IF;' % (live, states['OPERATIONAL'])]
+        for device in dict.fromkeys(p['device'] for _, p in bound if p['io_system'] == system):
+            nodes_here = [(n, p) for n, p in bound if p['io_system'] == system and p['device'] == device]
+            if any('module' in p for _, p in nodes_here):
+                lines += ['        #PnRet := ModuleStates(LADDR := "%s", MODE := %d, STATE := #PnModExisting); #PnModOk := #PnRet = 0;' % (device, PN_EXISTING),
+                          '        #PnRet := ModuleStates(LADDR := "%s", MODE := %d, STATE := #PnModDisabled); #PnModOk := #PnModOk AND #PnRet = 0;' % (device, PN_DISABLED),
+                          '        #PnRet := ModuleStates(LADDR := "%s", MODE := %d, STATE := #PnModProblem); #PnModOk := #PnModOk AND #PnRet = 0;' % (device, PN_PROBLEM)]
+            for n, profinet in nodes_here:
+                live = '"%s".Topology.Nodes[%d].' % (block, n)
+                lines += ['        #PnStation := 0;',
+                          '        #PnRet := LOG2GEO(LADDR := "%s", GEOADDR := #PnGeo);' % device,
+                          '        IF #PnRet = 0 AND #PnGeo.STATION >= 1 AND #PnGeo.STATION <= 1023 THEN #PnStation := UINT_TO_INT(#PnGeo.STATION); END_IF;',
+                          '        #PnUp := #PnOk AND #PnStation > 0;',
+                          '        IF #PnUp THEN #PnUp := #PnExisting[#PnStation] AND NOT #PnDisabled[#PnStation]; END_IF;',
+                          '        #PnFault := #PnUp AND #PnProblem[#PnStation];']
+                if 'module' in profinet:
+                    lines += ['        #PnSlot := 0;',
+                              '        #PnRet := LOG2GEO(LADDR := "%s", GEOADDR := #PnGeo);' % profinet['module'],
+                              '        IF #PnRet = 0 AND #PnGeo.SLOT >= 1 AND #PnGeo.SLOT <= 127 THEN #PnSlot := UINT_TO_INT(#PnGeo.SLOT); END_IF;',
+                              '        IF #PnUp THEN #PnUp := #PnModOk AND #PnSlot > 0; END_IF;',
+                              '        IF #PnUp THEN #PnUp := #PnModExisting[#PnSlot] AND NOT #PnModDisabled[#PnSlot]; END_IF;',
+                              '        #PnFault := #PnUp AND #PnModProblem[#PnSlot];']
+                lines += ['        %sLinkOk := #PnUp;' % live,
+                          '        IF NOT #PnUp THEN %sState := %d;' % (live, states['OFFLINE']),
+                          '        ELSIF #PnFault THEN %sState := %d;' % (live, states['FAULT']),
+                          '        ELSE %sState := %d; END_IF;' % (live, states['OPERATIONAL'])]
     lines.append('    END_IF;')
     return lines, temps, members
 

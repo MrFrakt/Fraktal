@@ -32,8 +32,9 @@ void main() {
     // (CURVE_WINDOW_VIOLATED..CURVE_SPEC_INVALID). 94 adds the robot's
     // ROBOT_SAFETY_DROPPED (10307, registered earlier, raised now) and
     // ROBOT_CFG_INVALID (10316). 96 adds ROBOT_POINT_UNKNOWN (10302, registered
-    // earlier, raised now) and ROBOT_ROUTINE_FAILED (10317).
-    expect(generatedReasonSymbolByCode, hasLength(96));
+    // earlier, raised now) and ROBOT_ROUTINE_FAILED (10317). 97 adds the
+    // controller's own maintenance demand, CONTROLLER_MAINTENANCE_DEMANDED (22).
+    expect(generatedReasonSymbolByCode, hasLength(97));
     for (final code in generatedReasonSymbolByCode.keys) {
       expect(standardEnglish['std.reason.$code'], isNotNull,
           reason: 'missing fallback for reason $code');
