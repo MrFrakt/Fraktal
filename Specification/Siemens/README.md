@@ -6,9 +6,9 @@ now also [run natively](Evidence/TIA_P9_MODULES_RUNTIME_2026-11-10.md) with thre
 DQ channels now carry [applied-output feedback](Evidence/TIA_OUTPUT_FEEDBACK_2026-11-10.md)
 from the 1214C bridge (compiled; downloads await the owner), and topology nodes
 bound to PROFINET devices carry [native node health](Evidence/TIA_PROFINET_HEALTH_2026-11-10.md)
-(compiled in the gate; its bench run awaits PLCSIM TCP/IP mode).
-CPU force-job annunciation, the live press force path and physical acceptance
-remain open in P8.
+(5/5 on a test CPU). Live press forcing passes 38/38 on a test CPU, and a
+[force-job spike](Evidence/TIA_FORCE_JOB_SPIKE_2026-11-11.md) measured what can see a
+TIA force job. Annunciating it and physical acceptance remain open in P8.
 
 Bench/HMI wrap-up (2026-10-18): [final connection setup and SiemensAgent update](Reports/TIA_BENCH_WRAP_UP_2026-10-18.md).
 The offline-tree report was an HMI endpoint mismatch; the shared Settings

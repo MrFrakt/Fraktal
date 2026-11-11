@@ -31,6 +31,8 @@ make_fixture = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(
 
 LOCAL = Path(os.environ['LOCALAPPDATA'])/'Fraktal'
 STATION = 'FrkPnForce'
+# Diagnostics (DoDiagnosis) opens the operating mode and diagnostic buffer to the host.
+PERMISSIONS = 'ReadTagStatus,ModifyTagStatus,DoDiagnosis'
 PERIOD_S = 2.0
 LEDS = ('stop_run', 'error', 'maint')
 
@@ -53,13 +55,24 @@ def prepare(label):
     sources, labels = make_fixture.build(); (revision/'sources').mkdir(parents=True)
     for name, text in sources.items(): (revision/'sources'/name).write_bytes(text.encode('ascii'))
     compile_fresh(revision, stations, STATION, HERE/'bench.json', work/'compile.log', make_fixture.HARDWARE)
-    target(label).configure_web(work/'web_user.log', enable=True)
+    target(label).configure_web(work/'web_user.log', enable=True, permissions=PERMISSIONS)
+
+
+def rights(label, attempt):
+    """Re-apply the web user's rights to a prepared fixture (offline; download follows)."""
+    work = paths(label)[0]
+    if not attempt.isdigit(): raise ValueError('attempt is a number')
+    target(label).configure_web(work/('web_user' + attempt + '.log'), permissions=PERMISSIONS)
 
 
 def observe(api, emit):
+    # An observer records a failed reading and carries on; it never ends the session.
     def attempt(method, params=None):
         try: return dict(ok=api.call(method, params))
         except WebApiError as error: return dict(error=str(error))
+        except Exception as error:
+            api.conn.close(); api.token = None
+            return dict(transport=repr(error))
     leds = {}
     for index, name in enumerate(LEDS, 1):
         leds[name] = attempt('PlcProgram.Read', {'var': leaf_var(['GDB_ProfinetTest', 'LedReturn[%d]' % index])})
@@ -80,12 +93,24 @@ def session(label, attempt='1'):
         api = WebApi(bench.profile['address'], pin, not pin.exists())
         with (work/('observations' + suffix + '.jsonl')).open('x', encoding='utf-8', newline='\n') as stream:
             def emit(row): stream.write(json.dumps(dict(utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), **row)) + '\n'); stream.flush()
+            def login():
+                # A dropped connection or session is re-established, and recorded.
+                try:
+                    if api.token is None: api.login('fraktal'); emit(dict(event='login'))
+                    return True
+                except Exception as error:
+                    api.conn.close(); api.token = None
+                    emit(dict(event='login-failed', error=repr(error))); return False
             try:
-                api.login('fraktal')
+                login()
                 emit(dict(event='methods', methods=api.call('Api.Browse')))
                 while not stop.exists():
-                    observe(api, emit); time.sleep(PERIOD_S)
-                observe(api, emit)
+                    if login(): observe(api, emit)
+                    time.sleep(PERIOD_S)
+                if login(): observe(api, emit)
+            except Exception:
+                import traceback
+                emit(dict(event='session-error', traceback=traceback.format_exc())); raise
             finally:
                 if api.conn: api.conn.close()
 
@@ -96,4 +121,4 @@ def stop(label, attempt='1'):
 
 if __name__ == '__main__':
     stage, label, *attempt = sys.argv[1].split(':')
-    {'prepare': prepare, 'session': session, 'stop': stop}[stage](label, *attempt)
+    {'prepare': prepare, 'rights': rights, 'session': session, 'stop': stop}[stage](label, *attempt)

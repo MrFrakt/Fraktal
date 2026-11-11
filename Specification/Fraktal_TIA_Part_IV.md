@@ -1213,9 +1213,13 @@ hardware driver calls one generated function at the end of its physical-output
 write; under `USE_SIMULATION` that branch is not reached, so the simulation gate
 still holds every terminal FALSE. The topology DB is non-retentive: no restart
 resumes a force (TIA §2.8). Every force, clear and refusal is audited against
-the channel path. **[OPEN]** The CPU's own force jobs (TIA force tables) have no
-runtime API; this path neither reads nor replaces them, and annunciating a
-native force job is not yet implemented.
+the channel path. The CPU's own force jobs (TIA force tables) have no runtime
+API that lists them; this path neither reads nor replaces them. Measured on the
+reference CPU: an active force job raises *maintenance demanded*, which the
+program sees only as the MAINT LED (`LED` instruction) that any maintenance
+demand lights, while the diagnostic buffer names it exactly (event 16469,
+incoming/outgoing, readable over the Web API with the `DoDiagnosis` right).
+**[OPEN]** annunciating it.
 
 **PROFINET node health — the TIA realization.** A topology node may bind to a
 PROFINET device by naming two hardware system constants, its IO system and its

@@ -76,16 +76,18 @@ class Target:
         if self.action('status')['state'] != 'Run':
             self.action('run')
 
-    def configure_web(self, output, enable=False):
+    def configure_web(self, output, enable=False, permissions='ReadTagStatus,ModifyTagStatus'):
         """Prepare credentials on the saved isolated project before hosting.
 
         Download once afterwards: two successive full downloads on the same
         fresh simulated CPU caused a large temporary simulator allocation.
         `enable` first switches on the web server, its use on interface 1 and
         its certificate: a fresh gate project serves no web (S12 commands).
+        `permissions` re-applies to an existing user too (the driver updates it).
         """
         if output.resolve().parent!=self.work or not self.project.is_file():raise ValueError('fixed isolated copy required')
         import re
+        if not re.fullmatch(r'[A-Za-z]+(,[A-Za-z]+)*',permissions):raise ValueError('permission names only')
         if not re.fullmatch(r'Frk[A-Za-z0-9]+Test',self.profile['name']) or not re.fullmatch(r'169\.254\.212\.(5[2-9]|60)',self.profile['address']):raise ValueError('reserved isolated test profile required')
         if hashlib.sha256(DRIVER.read_bytes()).hexdigest()!=DRIVER_SHA256:raise ValueError('approved driver differs')
         if not os.environ.get('FRAKTAL_TIA_WEB_PASSWORD'):raise ValueError('DPAPI credential wrapper required')
@@ -94,7 +96,7 @@ class Target:
             *(['set-hw-attribute --plc PLC_1 --attr WebserverActivate --value true',
                'set-hw-attribute --plc PLC_1 --item "PROFINET interface_1" --attr UseWebServerForInterface --value true',
                'webserver-certificate --plc PLC_1'] if enable else []),
-            'webserver-user --plc PLC_1 --name fraktal --permissions ReadTagStatus,ModifyTagStatus --password-env FRAKTAL_TIA_WEB_PASSWORD',
+            'webserver-user --plc PLC_1 --name fraktal --permissions '+permissions+' --password-env FRAKTAL_TIA_WEB_PASSWORD',
             'save','compile --plc PLC_1 --hw','save']
         plan=output.with_suffix('.plan')
         with plan.open('xb') as stream:stream.write(('\n'.join(commands)+'\n').encode('ascii'))

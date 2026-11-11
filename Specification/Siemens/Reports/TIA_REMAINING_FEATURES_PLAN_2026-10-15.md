@@ -362,6 +362,13 @@ the PLCSIM manager to return to TCP/IP mode. Still open in P8: CPU force-job
 annunciation, the live press force path, ModuleStates/OB event detail and
 physical acceptance.
 
+**P8 bench runs and force-job spike (November 11):** [bench runs](../Evidence/TIA_P8_BENCH_RUNS_2026-11-11.md)
+and [force-job spike](../Evidence/TIA_FORCE_JOB_SPIKE_2026-11-11.md). The
+PROFINET suite runs 5/5 and live press forcing 38/38 on isolated test CPUs. A
+TIA force job is visible to the program only as the MAINT LED (any maintenance
+demand) and to a host exactly, as diagnostic-buffer event 16469. Still open in
+P8: annunciating it, ModuleStates/OB event detail and physical acceptance.
+
 ## 6. Decisions for the owner
 
 1. **Cross-controller line transport** (P12): owner selected **OUC TCP between
