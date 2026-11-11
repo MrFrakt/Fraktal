@@ -2224,7 +2224,7 @@ A generic code plus `SourcePath` renders instance-specific — *"Clamp3: part pr
 
 | Band / sub-range | Reasons |
 |------------------|---------|
-| System `10–21` | controller & clock health (§8.12, §2.7): `TASK_OVERRUN`=10, `TASK_JITTER_HIGH`=11, `CPU_LOAD_HIGH`=12, `MEMORY_LOW`=13, `IPC_TEMP_HIGH`=14, `FIELDBUS_MASTER_FAULT`=15, `DC_SYNC_LOST`=16, `TIME_SYNC_LOST`=17, `UTILITY_DEVIATION`=18 (§8.14), `IPC_FAN_FAULT`=19, `STORAGE_HEALTH_LOW`=20, `CONTROLLER_METRICS_UNAVAILABLE`=21 |
+| System `10–22` | controller & clock health (§8.12, §2.7): `TASK_OVERRUN`=10, `TASK_JITTER_HIGH`=11, `CPU_LOAD_HIGH`=12, `MEMORY_LOW`=13, `IPC_TEMP_HIGH`=14, `FIELDBUS_MASTER_FAULT`=15, `DC_SYNC_LOST`=16, `TIME_SYNC_LOST`=17, `UTILITY_DEVIATION`=18 (§8.14), `IPC_FAN_FAULT`=19, `STORAGE_HEALTH_LOW`=20, `CONTROLLER_METRICS_UNAVAILABLE`=21, `CONTROLLER_MAINTENANCE_DEMANDED`=22 (the controller's own maintenance demand, which an engineering-tool force job raises; a binding raises it only where its platform reports one) |
 | Framework `2000–2009` | common flow reasons: `TIMEOUT`=2001, `PERMISSIVE_NOT_MET`=2002, `INTERLOCK_DROPPED`=2003, `RECIPE_INVALID`=2004, `STEP_STALLED`=2005, `RETRY_EXHAUSTED`=2006, `CYCLE_TIME_DEGRADED`=2007 (maintenance event, §8.11.4/§8.12), `UNSUPPORTED_COMMAND`=2008 (input outside a type's declared command set, §5.6) |
 | Framework `2010–2019` | external device / link supervision (§3.15): `LINK_TIMEOUT`=2010, `DEVICE_NOT_READY`=2011, `DEVICE_PROTOCOL_ERROR`=2012 |
 | Framework `2020–2029` | traceability / part context (§3.16): `CARRIER_READ_FAILED`=2020, `CARRIER_WRITE_FAILED`=2021, `PART_ID_MISMATCH`=2022, `RESULT_RECORD_REJECTED`=2023, `NOK_LIMIT_REACHED`=2028 (§3.16.5) |

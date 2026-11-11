@@ -1219,7 +1219,10 @@ reference CPU: an active force job raises *maintenance demanded*, which the
 program sees only as the MAINT LED (`LED` instruction) that any maintenance
 demand lights, while the diagnostic buffer names it exactly (event 16469,
 incoming/outgoing, readable over the Web API with the `DoDiagnosis` right).
-**[OPEN]** annunciating it.
+Every root carrying health therefore raises `CONTROLLER_MAINTENANCE_DEMANDED`
+(LOW, SYSTEM, non-shelvable, AUTO_RESET) while the MAINT LED is lit, worded as a
+maintenance demand of which a force job is one cause; commissioning confirms a
+force job by that diagnostic-buffer event.
 
 **PROFINET node health — the TIA realization.** A topology node may bind to a
 PROFINET device by naming two hardware system constants, its IO system and its
@@ -1873,6 +1876,19 @@ with both files bound here. The generated command kernel already carries the rea
 mechanism - a recorded gap, not a claim.
 
 <!-- TIA-CONTRACTS-V2 sha256:54f5a1fd9ea66ccde46bc6dda441c5340a6e01df49daaa15ee52a0a33986f331 -->
+
+### TIA candidate contract baseline, version 3
+
+Project owner decision of 2026-11-11 (annunciate the CPU maintenance demand a TIA
+force job raises). The
+[version 3 baseline](../FraktalCore/PLC/Siemens/Contracts/TIA_FROZEN_CONTRACTS_V3.json) is
+version 2 plus one append-only entry, `E_Reason.CONTROLLER_MAINTENANCE_DEMANDED = 22`
+(Part I §8.8 System band). Every version 2 entry is unchanged and the earlier files are
+kept byte for byte. The S7 health probe raises it per root as a LOW, SYSTEM,
+non-shelvable condition while the MAINT LED reports maintenance demanded
+([force-job spike](Siemens/Evidence/TIA_FORCE_JOB_SPIKE_2026-11-11.md)).
+
+<!-- TIA-CONTRACTS-V3 sha256:6a33e017464ed1a425c4e48bd767d0a17c916bd334a6c7201f9e6b75082b4ec0 -->
 
 ### Measured extension, 2026-10-17: complete Line profile admission
 

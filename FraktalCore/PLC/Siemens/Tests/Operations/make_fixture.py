@@ -169,6 +169,17 @@ def build():
     health_tick();check('NOT #HealthStatus.Healthy AND #AlarmLog.NActive = 1','required unavailable fieldbus is diagnosed')
     emit('#HealthConfig.SchemaVersion := 0;')
     health_tick();check('NOT #Ok AND NOT #HealthStatus.Present AND NOT #HealthStatus.Healthy AND #AlarmLog.NActive = 0','invalid health config never claims present or healthy')
+    # The CPU's own maintenance demand (a TIA force job raises one), from the probe's MAINT sample.
+    def maintenance(demanded):
+        emit('"FRK_HealthProbe".MaintenanceDemanded := %s;'%str(demanded).upper(),
+             '"FRK_S7MaintenanceCondition"(Scope := \'Operations\', Slot := #MaintenanceSlot, AlarmLog := #AlarmLog);')
+    maintenance(True)
+    check('#AlarmLog.NActive = 1 AND #AlarmLog.Active[#MaintenanceSlot].ReasonCode = %d AND #AlarmLog.Active[#MaintenanceSlot].Severity = %d AND #AlarmLog.Active[#MaintenanceSlot].Category = %d AND NOT #AlarmLog.Blocking'%(
+        facts.enums['E_Reason']['CONTROLLER_MAINTENANCE_DEMANDED'],facts.enums['E_Severity']['LOW'],facts.enums['E_Category']['SYSTEM']),'controller maintenance demand is one standing LOW system event')
+    maintenance(True);check('#AlarmLog.NActive = 1','the demand is raised once across repeated scans')
+    emit('#Ok := "FRK_AlarmShelve"(Slot := #MaintenanceSlot, DurationMs := 1000, AlarmLog := #AlarmLog);')
+    check('NOT #Ok AND NOT #AlarmLog.Active[#MaintenanceSlot].Shelved','a maintenance demand cannot be shelved out of sight')
+    maintenance(False);check('#AlarmLog.NActive = 0 AND #MaintenanceSlot = 0','the event closes when the controller no longer demands maintenance')
     emit('"FRK_EngineeringTick"(Scope := \'Operations\', Slots := #EngineeringSlots, AlarmLog := #AlarmLog);',
          '"FRK_AlarmOperatorReset"(AlarmLog := #AlarmLog);')
     check('#AlarmLog.NActive = 1 AND #AlarmLog.Active[#EngineeringSlots[1]].ReasonCode = %d AND NOT #AlarmLog.Blocking'%facts.enums['E_Reason']['COMMISSIONING_GATE_ACTIVE'],'active build gate survives operator reset as standard standing nonblocking event')
@@ -306,7 +317,7 @@ def build():
             ('Selected','Int'),('StartAt','LDT'),('EndAt','LDT'),('Target','UDInt'),('CurrentShift','Int'),('StartedAt','LDT'),('ProductionTarget','UDInt'),
             ('History','Array[1..%d] of "ST_ShiftRecordV3"'%facts.capacities['MAX_SHIFT_HISTORY']),('HistoryCount','Int'),('Truncated','Bool')]],
         *['    '+n+PRIVATE+' : '+t+';' for n,t in [('HealthInput','"ST_SystemHealthInput"'),('HealthConfig','"ST_SystemHealthParCfg"'),('HealthStatus','"ST_SystemHealthStatus"'),('HealthBook','"FRK_HealthBook"'),('EngineeringSlots','Array[1..1] of Int')]],
-        '    ShelfSlot'+PRIVATE+' : Int;','    TestDiag'+PRIVATE+' : "ST_Diagnostic";',
+        '    ShelfSlot'+PRIVATE+' : Int;','    MaintenanceSlot'+PRIVATE+' : Int;','    TestDiag'+PRIVATE+' : "ST_Diagnostic";',
         *['    '+n+PRIVATE+' : '+t+';' for n,t in [('TowerConfig','"ST_SignalTowerParCfg"'),('TowerBook','"FRK_TowerBook"'),('TowerStatus','"ST_SignalTowerOut"'),('TestCore','"FRK_Core"')]],
         '    Support'+PRIVATE+' : Array[0..2] of Bool;',
         '    HostView'+PRIVATE+' : "FRK_HostEvents";','    HostSeen'+PRIVATE+' : UDInt;','    RingSeen'+PRIVATE+' : Int;',

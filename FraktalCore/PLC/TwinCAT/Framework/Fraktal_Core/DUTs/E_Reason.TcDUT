@@ -11,7 +11,7 @@ TYPE E_Reason :
 (
     NONE                    := 0,
 
-    // ── System 10–21: controller & clock health (Core §8.12, §2.7) ──
+    // ── System 10–22: controller & clock health (Core §8.12, §2.7) ──
     TASK_OVERRUN            := 10,
     TASK_JITTER_HIGH        := 11,
     CPU_LOAD_HIGH           := 12,
@@ -24,6 +24,7 @@ TYPE E_Reason :
     IPC_FAN_FAULT           := 19,
     STORAGE_HEALTH_LOW      := 20,
     CONTROLLER_METRICS_UNAVAILABLE := 21,
+    CONTROLLER_MAINTENANCE_DEMANDED := 22,   // the controller itself demands maintenance; an engineering-tool force job is one cause
 
     // ── Framework 2000–2009: common flow reasons (Core §8.8) ──
     TIMEOUT                 := 2001,

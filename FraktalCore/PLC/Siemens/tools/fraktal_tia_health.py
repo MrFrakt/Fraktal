@@ -45,19 +45,29 @@ def build(catalog):
         dict(member='Slots',native_type='Array[1..%d] of Int'%len(calls),accessible=False,initial='')]),
         '05_FRK_HealthDefaults.db':db('FRK_HealthDefaults',['Config'+PRIVATE+' : "ST_SystemHealthParCfg";']),
         '05_FRK_HealthProbe.db':db('FRK_HealthProbe',[
-            'Input'+PRIVATE+' : "ST_SystemHealthInput";','HaveSample'+PRIVATE+' : Bool;','LastCycleUs'+PRIVATE+' : UDInt;']),
-        '16c_HealthServices.scl':text+'\n'+PROBE.read_text('ascii')}
+            'Input'+PRIVATE+' : "ST_SystemHealthInput";','HaveSample'+PRIVATE+' : Bool;','LastCycleUs'+PRIVATE+' : UDInt;',
+            'MaintenanceDemanded'+PRIVATE+' : Bool;']),
+        '16c_HealthServices.scl':text+'\n'+probe(catalog)}
     inputs={p.relative_to(REPO).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in (AUTHORITY,PROBE,Path(__file__))}
     return sources,inputs
 
 
+def probe(catalog):
+    """The S7 platform probe, bound to the registered Core reason it raises."""
+    text=PROBE.read_text('ascii');token='@CONTROLLER_MAINTENANCE_DEMANDED@'
+    if text.count(token)!=1:raise ValueError('S7 probe reason inventory changed')
+    return text.replace(token,str(catalog.enums['E_Reason']['CONTROLLER_MAINTENANCE_DEMANDED']))
+
+
 def declarations():return ['    SystemHealth'+READONLY+' : "ST_SystemHealthStatus";',
-    '    HealthBook'+PRIVATE+' : "FRK_HealthBook";','    HealthConfig'+PRIVATE+' : "ST_SystemHealthParCfg";']
+    '    HealthBook'+PRIVATE+' : "FRK_HealthBook";','    HealthConfig'+PRIVATE+' : "ST_SystemHealthParCfg";',
+    '    MaintenanceSlot'+PRIVATE+' : Int;']
 
 
 def frame(t):
     lines=['    #HealthConfig := "FRK_HealthDefaults".Config;']
     names={'max_task_cycle':'MaxTaskCycleUs','max_task_jitter':'MaxTaskJitterUs','require_time_sync':'RequireTimeSync'}
     lines+=['    #HealthConfig.'+names[key]+' := #'+member+';' for key,member in t.health]
-    lines+=['    #HealthResult := "FRK_HealthCyclic"(Configured := TRUE, Scope := #Status.Name, Input := "FRK_HealthProbe".Input, ParCfg := #HealthConfig, Status := #SystemHealth, Book := #HealthBook, AlarmLog := #AlarmLog);']
+    lines+=['    #HealthResult := "FRK_HealthCyclic"(Configured := TRUE, Scope := #Status.Name, Input := "FRK_HealthProbe".Input, ParCfg := #HealthConfig, Status := #SystemHealth, Book := #HealthBook, AlarmLog := #AlarmLog);',
+            '    "FRK_S7MaintenanceCondition"(Scope := #Status.Name, Slot := #MaintenanceSlot, AlarmLog := #AlarmLog);']
     return lines

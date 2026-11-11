@@ -8,7 +8,9 @@ The file's SHA-256 is bound in Part IV. Preserve V1 when adding a reviewed,
 versioned successor; the checker has no rewrite/rebaseline mode.
 
 `TIA_FROZEN_CONTRACTS_V2.json` is that successor (reviewed 2026-10-27): V1 plus
-`E_Reason.NOK_LIMIT_REACHED = 2028`. The checker compares the authorities with the
+`E_Reason.NOK_LIMIT_REACHED = 2028`. `TIA_FROZEN_CONTRACTS_V3.json` (owner decision
+2026-11-11) is V2 plus `E_Reason.CONTROLLER_MAINTENANCE_DEMANDED = 22`, the CPU
+maintenance demand a TIA force job raises. The checker compares the authorities with the
 newest baseline listed in `BASELINES`, requires each earlier one to be contained in
 it unchanged, and requires every baseline's own digest in Part IV.
 

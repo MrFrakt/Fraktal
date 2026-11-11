@@ -27,7 +27,8 @@ import tia_lint
 
 # Oldest first. A reviewed successor is appended; none is ever rewritten.
 BASELINES = (TIA / 'Contracts/TIA_FROZEN_CONTRACTS_V1.json',
-             TIA / 'Contracts/TIA_FROZEN_CONTRACTS_V2.json')
+             TIA / 'Contracts/TIA_FROZEN_CONTRACTS_V2.json',
+             TIA / 'Contracts/TIA_FROZEN_CONTRACTS_V3.json')
 BASELINE = BASELINES[-1]
 ADDITION = ': addition requires a versioned contract review'
 PART = ROOT / 'Specification/Fraktal_TIA_Part_IV.md'

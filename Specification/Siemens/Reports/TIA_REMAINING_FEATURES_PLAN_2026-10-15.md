@@ -366,8 +366,10 @@ physical acceptance.
 and [force-job spike](../Evidence/TIA_FORCE_JOB_SPIKE_2026-11-11.md). The
 PROFINET suite runs 5/5 and live press forcing 38/38 on isolated test CPUs. A
 TIA force job is visible to the program only as the MAINT LED (any maintenance
-demand) and to a host exactly, as diagnostic-buffer event 16469. Still open in
-P8: annunciating it, ModuleStates/OB event detail and physical acceptance.
+demand) and to a host exactly, as diagnostic-buffer event 16469. At the owner's
+choice each health root now [annunciates the maintenance demand](../Evidence/TIA_MAINTENANCE_ANNUNCIATION_2026-11-11.md)
+(Core reason 22, contract V3). Still open in P8: ModuleStates/OB event detail,
+the bridge downloads and physical acceptance.
 
 ## 6. Decisions for the owner
 

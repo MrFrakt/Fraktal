@@ -29,6 +29,19 @@ class ProductionTests(unittest.TestCase):
             unit['health']={'max_task_cycle':source}
             with self.subTest(source=source),self.assertRaises(DeclarationError):gen.build(gen.DECL.validate(value),True)
 
+    def test_each_health_root_annunciates_the_cpu_maintenance_demand(self):
+        import fraktal_tia_health as health
+        catalog=Catalog.read();sources,_=health.build(catalog)
+        probe=sources['16c_HealthServices.scl'];code=catalog.enums['E_Reason']['CONTROLLER_MAINTENANCE_DEMANDED']
+        # Sampled once per scan in the shared probe; a force job lights MAINT (LED 3) at 2.
+        self.assertIn('#Maintenance := LED(LADDR := "Local~Common", LED := 3);',probe)
+        self.assertIn('"FRK_HealthProbe".MaintenanceDemanded := #Maintenance = 2;',probe)
+        self.assertIn('Reason := %d,'%code,probe);self.assertNotIn('@',probe)
+        self.assertIn('MaintenanceDemanded',sources['05_FRK_HealthProbe.db'])
+        frame='\n'.join(health.frame(type('T',(),{'health':()})()))
+        self.assertIn('"FRK_S7MaintenanceCondition"(Scope := #Status.Name, Slot := #MaintenanceSlot, AlarmLog := #AlarmLog);',frame)
+        self.assertTrue(any('MaintenanceSlot' in d and "ExternalAccessible := 'False'" in d for d in health.declarations()))
+
     def test_asset_identity_unique_and_bounded(self):
         value=declaration();value['nameplates']['StationB']=dict(value['nameplates']['StationA'])
         with self.assertRaises(DeclarationError):gen.DECL.validate(value)

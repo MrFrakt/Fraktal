@@ -72,6 +72,7 @@ VAR
     SystemHealth {ExternalWritable := 'False'} : "ST_SystemHealthStatus";
     HealthBook {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_HealthBook";
     HealthConfig {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SystemHealthParCfg";
+    MaintenanceSlot {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
     SignalTower {ExternalWritable := 'False'} : "ST_SignalTowerOut";
     TowerBook {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "FRK_TowerBook";
     TowerConfig {ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "ST_SignalTowerParCfg";
@@ -427,6 +428,7 @@ BEGIN
     IF #Core.ParentIndex = 0 THEN "FRK_EngineeringTick"(Scope := #Status.Name, Slots := #EngineeringSlots, AlarmLog := #AlarmLog); END_IF;
     #HealthConfig := "FRK_HealthDefaults".Config;
     #HealthResult := "FRK_HealthCyclic"(Configured := TRUE, Scope := #Status.Name, Input := "FRK_HealthProbe".Input, ParCfg := #HealthConfig, Status := #SystemHealth, Book := #HealthBook, AlarmLog := #AlarmLog);
+    "FRK_S7MaintenanceCondition"(Scope := #Status.Name, Slot := #MaintenanceSlot, AlarmLog := #AlarmLog);
     IF #Startup THEN #ProductionBook := "FRK_ProductionDefaults".Book; #Oee := "FRK_ProductionDefaults".Oee; END_IF;
     #MachineState := "FRK_MachineState"(Exec := #Core.Exec, Mode := #Unit.Mode, Blocking := #Unit.AlarmBlocking, Starved := #Starved, Blocked := #Blocked, StopRequested := #Unit.StopReq);
     "FRK_OeeTick"(NowMs := "FRK_Clock".NowMs, Exec := #Core.Exec, Blocking := #Unit.AlarmBlocking, Good := #Unit.Good, Nok := #Unit.Nok, IdealCycleMs := #ParCfg.IdealCycleMs, Book := #ProductionBook, Oee := #Oee, Trend := #OeeTrend);

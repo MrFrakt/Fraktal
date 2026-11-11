@@ -4,7 +4,7 @@ FUNCTION "FRK_S7HealthProbe" : Void
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
 VAR_INPUT Startup : Bool; END_VAR
-VAR_TEMP Cycle : LTime; ResultCode : Int; ClockResult : Int; Stamp : DTL; CycleUs : LInt; END_VAR
+VAR_TEMP Cycle : LTime; ResultCode : Int; ClockResult : Int; Stamp : DTL; CycleUs : LInt; Maintenance : Int; END_VAR
 BEGIN
     IF #Startup THEN "FRK_HealthProbe".HaveSample := FALSE; END_IF;
     #ResultCode := RT_INFO(MODE := UINT#25, OB := 0, INFO := #Cycle);
@@ -28,4 +28,21 @@ BEGIN
     "FRK_HealthProbe".Input.TimeQuality.Synchronized := FALSE;
     "FRK_HealthProbe".Input.TimeQuality.Source := 'RD_SYS_T (sync unqualified)';
     IF #ClockResult = 0 THEN "FRK_HealthProbe".Input.TimeQuality.ObservedAt := DTL_TO_LDT(#Stamp); END_IF;
+    // The CPU raises a TIA force job as maintenance demanded: MAINT (LED 3) lit, 2.
+    // Any maintenance demand lights it too, so the program cannot say which; the
+    // diagnostic buffer can (measured, TIA force-job spike 2026-11-11).
+    #Maintenance := LED(LADDR := "Local~Common", LED := 3);
+    "FRK_HealthProbe".MaintenanceDemanded := #Maintenance = 2;
+END_FUNCTION
+
+// Core 8.12: the controller's own maintenance demand, one LOW system event per root
+// while it stands. Non-shelvable by rationalization: a force job must stay visible.
+FUNCTION "FRK_S7MaintenanceCondition" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT Scope : String; END_VAR
+VAR_IN_OUT Slot : Int; AlarmLog : "FRK_AlarmLog"; END_VAR
+BEGIN
+    "FRK_ConditionEvent"(Active := "FRK_HealthProbe".MaintenanceDemanded, Reason := @CONTROLLER_MAINTENANCE_DEMANDED@,
+        Description := WSTRING#'std.system.controllerMaintenanceDemanded', Source := STRING_TO_WSTRING(#Scope), Slot := #Slot, AlarmLog := #AlarmLog);
 END_FUNCTION

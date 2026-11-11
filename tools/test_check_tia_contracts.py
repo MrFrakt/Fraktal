@@ -26,7 +26,8 @@ class ContractTests(unittest.TestCase):
     def test_current_authorities_match_and_prose_binds_exact_bytes(self):
         self.assertEqual(self.audit(), [])
         self.assertTrue(self.audit(part=self.part.replace(self.digest, '0' * 64)))
-        self.assertTrue(self.audit(part=self.part + '\n<!-- TIA-CONTRACTS-V2 sha256:' + self.digest + ' -->'))
+        newest = self.baseline.get('baselineVersion', 1)
+        self.assertTrue(self.audit(part=self.part + '\n<!-- TIA-CONTRACTS-V%d sha256:' % newest + self.digest + ' -->'))
 
     def test_logical_narrowing_and_native_width_changes_are_rejected(self):
         catalog = Catalog.read()

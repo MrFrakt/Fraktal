@@ -239,6 +239,8 @@ const standardEnglish = <String, String>{
       'Clock synchronization lost. Event times cannot be compared across systems.',
   'std.system.controllerMetricsUnavailable':
       'Controller health metrics are unavailable on this target.',
+  'std.system.controllerMaintenanceDemanded':
+      'The controller demands maintenance. An active force job from the engineering tool is one cause.',
   'std.fieldbus.openModule': 'Open owning module',
   'std.io.inputs': 'Inputs',
   'std.io.outputs': 'Outputs',
@@ -1558,6 +1560,8 @@ const standardSpanish = <String, String>{
       'Se perdió la sincronización horaria. No se pueden comparar tiempos entre sistemas.',
   'std.system.controllerMetricsUnavailable':
       'Las métricas de salud del controlador no están disponibles en este destino.',
+  'std.system.controllerMaintenanceDemanded':
+      'El controlador solicita mantenimiento. Un forzado activo desde la herramienta de ingeniería es una de las causas.',
   'std.fieldbus.openModule': 'Abrir el módulo propietario',
   'std.io.inputs': 'Entradas',
   'std.io.outputs': 'Salidas',
