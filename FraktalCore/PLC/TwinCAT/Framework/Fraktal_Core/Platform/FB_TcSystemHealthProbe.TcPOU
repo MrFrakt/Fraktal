@@ -116,6 +116,17 @@ IF _useWindowsTime THEN
         MaximumOffsetUs := _clockMaximumOffsetUs);
     Health.TimeQuality := _windowsTime.Quality;
 END_IF
+// PlcAppSystemInfo exposes both flags from TwinCAT 3.1.4026.21.
+// Resolve availability from the actual target declarations, never a project define.
+{IF defined(variable: TwinCAT_SystemInfoVarList._AppInfo.ActivePlcForces)
+    AND defined(variable: TwinCAT_SystemInfoVarList._AppInfo.ActiveIoForces)}
+Health.MaintenanceAvailable := TRUE;
+Health.MaintenanceDemanded := TwinCAT_SystemInfoVarList._AppInfo.ActivePlcForces
+    OR TwinCAT_SystemInfoVarList._AppInfo.ActiveIoForces;
+{ELSE}
+Health.MaintenanceAvailable := FALSE;
+Health.MaintenanceDemanded := FALSE;
+{END_IF}
 GVL_FraktalTime.Current := Health.TimeQuality;
 Cyclic := TRUE;]]></ST></Implementation>
     </Method>

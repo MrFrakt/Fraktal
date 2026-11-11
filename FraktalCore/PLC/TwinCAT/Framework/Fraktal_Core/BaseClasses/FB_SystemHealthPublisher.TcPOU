@@ -14,6 +14,7 @@ VAR
     _taskOverrunSlot, _taskJitterSlot, _controllerSlot : INT;
     _cpuSlot, _memorySlot, _temperatureSlot, _fanSlot, _storageSlot : INT;
     _fieldbusSlot, _dcSlot, _timeSlot : INT;
+    _maintenanceSlot : INT;
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[;]]></ST></Implementation>
     <Method Name="Setup" Id="{70c5417f-1bee-4c60-a529-41bc56489375}">
@@ -37,7 +38,7 @@ END_VAR
 VAR
     validCfg, taskOverrunBad, jitterBad, controllerBad : BOOL;
     cpuBad, memoryBad, temperatureBad, fanBad, storageBad : BOOL;
-    fieldbusBad, dcBad, timeBad : BOOL;
+    fieldbusBad, dcBad, timeBad, maintenanceBad : BOOL;
 END_VAR]]></Declaration>
       <Implementation><ST><![CDATA[validCfg := Configured AND (ParCfg.SchemaVersion = 1)
     AND (ParCfg.MaxTaskCycleUs > 0) AND (ParCfg.MaxTaskJitterUs > 0)
@@ -119,6 +120,11 @@ _M_UpdateAlarm(Active := dcBad, Reason := E_Reason.DC_SYNC_LOST,
 _M_UpdateAlarm(Active := timeBad, Reason := E_Reason.TIME_SYNC_LOST,
     Text := 'std.system.timeSyncLost', Slot := _timeSlot);
 
+maintenanceBad := validCfg AND Input.MaintenanceAvailable AND Input.MaintenanceDemanded;
+_M_UpdateAlarm(Active := maintenanceBad, Reason := E_Reason.CONTROLLER_MAINTENANCE_DEMANDED,
+    Text := 'std.system.controllerMaintenanceDemanded', Slot := _maintenanceSlot);
+
+// Maintenance is an engineering notice; it adds no machine-health/start interlock.
 Status.Healthy := validCfg AND NOT taskOverrunBad AND NOT jitterBad
     AND NOT controllerBad AND NOT cpuBad AND NOT memoryBad
     AND NOT temperatureBad AND NOT fanBad AND NOT storageBad

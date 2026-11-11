@@ -6142,3 +6142,132 @@ passed / 12 skipped on Flutter 3.44.6. On the isolated UmRT, after the
 trial licence was renewed: aggregate 353/353 in 54 suites and Press 9/9 in
 2 suites. Scope and artifacts:
 `Specification/Evidence/2026-11-03_TC3_RobotBacklog.md`.
+
+## 176. Release the shared maintenance reason and the Modules audit fixes (Core 0.26.8.0 / Modules 0.18.0.0, 2026-11-10)
+
+Executes `Specification/Reports/TC3_HANDOVER_PROMPT_2026-11-11.md` against
+main `4af593db7`. Siemens P8 added `CONTROLLER_MAINTENANCE_DEMANDED` (22)
+and regenerated the shared reason catalog (97 entries). This step updates
+release metadata and consumer pins and corrects the runtime regressions below;
+it does not hand-edit generated sources.
+
+- Core is a patch: 0.26.7.0 -> 0.26.8.0, an additive shared reason.
+- Modules is minor: 0.17.0.0 -> 0.18.0.0. A revision-only rebuild would hide
+  the observable changes already merged in `78115a2b0`: `Commands` in
+  `ST_RobotCapabilities` widened from DWORD to LWORD, changing the published
+  layout and connector return contract; real robots now require an explicit
+  safety alias; pulsed cylinder outputs are withdrawn on travel timeout.
+  Part II §2.2 requires a minor step for a changed published layout. Rebuild
+  third-party robot connectors and typed clients and supply the safety alias.
+  No ParCfg schema or retained-data layout changes in this release step.
+- The existing Core reason 22 and the TIA V3 contract keep their identities.
+  The Siemens and Allen-Bradley trees are unchanged by this handover.
+- Beckhoff documents `_AppInfo.ActivePlcForces` and `ActiveIoForces` from
+  4026.21. The proposed runtime annunciation is a separate owner decision;
+  this release does not infer force activity or add the health condition.
+
+- The first aggregate runtime attempt exposed a defect in the audit follow-up's
+  test: the safety-alias row allocated a robot CM (39,712 bytes) and connector
+  (4,288 bytes, measured from the generated TMC) as method locals. The PLC
+  task raised 0xc00000fd (stack overflow), disappeared from ADS and produced
+  no TcUnit summary; that attempt is a failed gate even though the wrapper
+  exited zero. Both fixtures now live in the suite's instance storage, and
+  the row calls Cyclic before checking its derived OutImm.SafetyPermit.
+  This is test-only; neither the task stack nor a production gate is relaxed.
+
+- The next aggregate completed with 351 successful / 2 failed. The cylinder
+  row proved that WithdrawOutputs' added M_Reset erased the pulse selection,
+  so RestoreOutputs could not resume pulsing. Remove that reset only: the
+  withdrawal latch still forces both outputs off; timeout resets remain.
+- The robot row proved that the real-connector fixture received the simulation
+  default. An empty I_SimulatedRobotConnector was not a discriminating
+  capability on this compiler. It now has a read-only Simulated property;
+  FB_SimRobotConnector returns TRUE and Setup consumes the value. The row
+  directly checks both positive and negative interface queries. Implementers
+  of this optional simulation interface must supply the getter. The primary
+  I_RobotConnector contract is unchanged by this repair.
+
+Measured acceptance is recorded in the dated handover evidence and receipt.
+
+The following 352/353 attempt left the robot fixture's own override scenario
+as its remaining failure. The row now explicitly starts and ends with that
+override disabled through the standard API, and asserts withdrawal removes
+permission; its no-alias and both interface assertions are preserved.
+
+Final: Core 0.26.8.0 / Modules 0.18.0.0 installed from the isolated checkout;
+six CheckAllObjects TRUE with 0 compiler errors / 0 warnings. One PressTests
+COM startup failure (0x80080005) was retried from a clean XAE process; the test
+check's benign Unknown TMC file version row is retained verbatim. Both lint
+profiles are clean (469 files), 79 TC3 tool tests OK (one skip), strict
+consistency 0/0 and its 36 tests OK, reason catalog --check clean (97 entries).
+On UmRT_Default 192.168.1.6.1.1:851 with boot autostart disabled: aggregate
+353/353 in 54 suites and Press 9/9 in two, both independently validated.
+PressTests is stopped. Both documented native force flags read FALSE over ADS;
+adding the maintenance alarm source remains the handover's owner decision.
+Evidence: Specification/Evidence/2026-11-10_TC3_MaintenanceHandover.md and its
+SHA-256 receipt. No AB/TIA or HMI lockfile changes; no commit or push.
+
+
+## 177. Native engineering-force maintenance notice (2026-11-11)
+
+Owner approved the handover review's detector proposal. Core 0.26.9.0 appends
+MaintenanceAvailable/MaintenanceDemanded to the adapter input record; existing
+producers default to unavailable. This record is neither retained nor the
+published SystemHealth status, so the additive change is a patch under TC3 §2.2.
+Modules 0.18.0.1 is a contract-neutral rebuild against that Core.
+
+FB_TcSystemHealthProbe samples the native PlcAppSystemInfo ActivePlcForces and
+ActiveIoForces fields (introduced in 3.1.4026.21). Implementation conditional
+pragmas query both declared members; an older target declaration yields explicit
+unavailability without a project define or extra scan call. The existing Unit
+SetSystemHealth path carries the sample to FB_SystemHealthPublisher, which owns
+one deduplicated LOW/SYSTEM/AUTO_RESET event, reason 22, using the registered
+non-shelvable key. Demand/availability/configuration clearing closes the event.
+The notice leaves Healthy unchanged and adds no Start gate or force-write path.
+
+The Core health port generator accepts its existing named Boolean condition
+shape unchanged. Shared input additions and authoritative source hashes require
+regenerating the Siemens declaration/Press packages and the type-map field pin;
+the S7 probe keeps its existing dedicated maintenance source. Frozen V3 is not
+changed. The previous accepted source baseline is preserved separately before
+these edits; dated handover evidence and its receipt remain immutable.
+
+Two TcUnit rows cover availability, repeated demand, registered metadata,
+non-shelvability, nonblocking behavior, automatic close/history/re-raise and the
+native probe mapping. Dated follow-up evidence records the measured gates.
+
+
+## 178. Live native-force acceptance fixture (2026-11-11)
+
+Owner requested live force verification on the isolated runtime after §177.
+PRG_PlatformAcceptance now continuously samples MaintenanceProbe through
+MaintenanceUnit.SetSystemHealth and the inherited publisher. Its unmapped
+ForceWitness Boolean is assigned FALSE every scan and has no control consumer;
+it exists only for a native XAE force. The fixture restores GVL_FraktalTime
+after probing so the existing TcUnit suites retain their own clock authority.
+No framework, released contract or library version changes: Core 0.26.9.0 and
+Modules 0.18.0.1 remain the installed/tested pair.
+
+On UmRT_Default 192.168.1.6.1.1:851, XAE forcing the witness TRUE set
+ActivePlcForces TRUE (ActiveIoForces FALSE); the real probe and Unit published
+one LOW/SYSTEM/AUTO_RESET reason-22 event and kept Healthy TRUE. The held
+snapshot remained one event with unchanged ring head. Unforce returned witness
+and demand FALSE and closed the event with 38,890 ms duration.
+
+An unlinked BOOL in a software-only task image then exercised native System
+Manager Online Force: ActiveIoForces TRUE, ActivePlcForces FALSE, one identical
+notice and Healthy TRUE. The held snapshot again stayed deduplicated. Release
+cleared the native flag/demand and closed the event with 78,320 ms duration.
+The input retained 1 after release, as an unlinked image has no writer; Online
+Write 0 restored it. The temporary task existed only in the disposable XAE
+configuration, with zero I/O devices. It was removed and the original one-task
+configuration activated again. Both flags are clear; Fraktal_Tests is stopped
+in Run mode with boot autostart off.
+
+Each of the initial, temporary-image and restored aggregate gates compiled
+cleanly and ran 355/355 in 54 suites. Both lint profiles remain clean. The
+previous five unaffected solution checks and Press 9/9 acceptance remain bound
+by the preceding receipt; neither their authored source nor either installed
+library changed. The procedure is Specification/Guides/TC3_NATIVE_FORCE_ACCEPTANCE.md;
+raw phase/configuration snapshots and exact-runner JUnit results are in
+Specification/Evidence/2026-11-11_TC3_LiveForceAcceptance.md and its receipt.

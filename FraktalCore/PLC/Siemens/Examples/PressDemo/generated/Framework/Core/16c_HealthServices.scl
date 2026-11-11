@@ -25,6 +25,7 @@ VAR_TEMP
     fieldbusBad : Bool;
     dcBad : Bool;
     timeBad : Bool;
+    maintenanceBad : Bool;
 END_VAR
 BEGIN
     #validCfg := #Configured AND (#ParCfg.SchemaVersion = 1)
@@ -96,6 +97,10 @@ BEGIN
     "FRK_ConditionEvent"(Active := #dcBad, Reason := 16, Description := WSTRING#'std.system.dcSyncLost', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[10], AlarmLog := #AlarmLog);
     "FRK_ConditionEvent"(Active := #timeBad, Reason := 17, Description := WSTRING#'std.system.timeSyncLost', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[11], AlarmLog := #AlarmLog);
 
+    #maintenanceBad := #validCfg AND #Input.MaintenanceAvailable AND #Input.MaintenanceDemanded;
+    "FRK_ConditionEvent"(Active := #maintenanceBad, Reason := 22, Description := WSTRING#'std.system.controllerMaintenanceDemanded', Source := STRING_TO_WSTRING(#Scope), Slot := #Book.Slots[12], AlarmLog := #AlarmLog);
+
+    // Maintenance is an engineering notice; it adds no machine-health/start interlock.
     #Status.Healthy := #validCfg AND NOT #taskOverrunBad AND NOT #jitterBad
         AND NOT #controllerBad AND NOT #cpuBad AND NOT #memoryBad
         AND NOT #temperatureBad AND NOT #fanBad AND NOT #storageBad

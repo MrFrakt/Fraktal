@@ -2,6 +2,14 @@
 
 The Fraktal Core base classes, contract types, `FB_PermIntlk`, the base TcUnit suite, and the test-first scaffold — the "lifecycle written once" of Core §2.2/§6.1. Part I (the platform-neutral normative standard) is `Fraktal_Core_Part_I.md`; this library is its reference implementation on the TwinCAT 3 binding (Part II, `fraktal-tc3`).
 
+Core `0.26.9.0` detects native PLC/I/O forcing as controller-maintenance reason 22
+(on TwinCAT 3.1.4026.21+; unavailable on older declarations). Modules
+`0.18.0.1` rebuilds the audit follow-up against this Core: a 64-bit robot capability mask,
+explicit safety binding for real connectors and withdrawal of pulsed cylinder
+outputs on travel timeout. Rebuild robot connectors and clients against the
+changed capability layout; retained recipes keep their existing schemas
+(IMPLEMENTATION_NOTES §176).
+
 Modules `0.17.0.0` adds the robot backlog the audit plan listed (the connected
 controller's capabilities, its brake test and safe reference run on the secondary
 `I_RobotRoutines`, refusal of a missing or untaught point, declared one-press manual
@@ -41,7 +49,7 @@ the user table outside the symbol table, controller/IPC health from the Beckhoff
 Device Manager and the EtherCAT master's own state, frame and CRC counters (§160-§162).
 The Windows clock adapter observes the target's existing time service and expires
 missing quality; see the [build and installation guide](../../../Specification/Guides/TC3_WINDOWS_CLOCK.md).
-Modules `0.17.0.0` pins Core `0.26.7.0`. The latest source audit is
+Modules `0.18.0.1` pins Core `0.26.9.0`. The latest source audit is
 [Core and Press TC3 feature gaps](../../../Specification/Reports/TC3_CORE_PRESS_FEATURE_AUDIT_2026-10-06.md).
 
 > **Baseline (2026-08-02): Core `0.4.0.0` / Modules `0.3.0.0` build clean and their

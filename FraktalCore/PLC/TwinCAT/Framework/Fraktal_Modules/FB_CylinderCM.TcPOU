@@ -96,7 +96,6 @@ _bothSensorAddresses := CONCAT(Identity.ExtendedSensor.Address, CONCAT(' / ', Id
 // This is not a certified stop; the safety system remains authoritative.
 METHOD WithdrawOutputs]]></Declaration>
       <Implementation><ST><![CDATA[_withdrawn := TRUE;
-_drive.M_Reset();
 IF __ISVALIDREF(_hal) THEN
     _hal.ExtendOut := FALSE;
     _hal.RetractOut := FALSE;

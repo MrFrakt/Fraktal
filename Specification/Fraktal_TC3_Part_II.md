@@ -577,6 +577,19 @@ producers keep the single `IpcAvailable` meaning) separate an unmeasured fan or 
 figure from a healthy one. `M_UseEtherCatMaster` takes the fieldbus and DC groups
 from `FB_EcBusHealth`'s always-on master sample (TC3 §10.5).
 
+On TwinCAT 3.1.4026.21+ declarations, the probe shall sample
+`TwinCAT_SystemInfoVarList._AppInfo.ActivePlcForces` and `ActiveIoForces` each scan.
+`MaintenanceAvailable` shall be TRUE only when both native fields are declared;
+`MaintenanceDemanded` shall be their OR. Older declarations shall produce FALSE
+for both fields, without inferring force status from unrelated system bits.
+The existing publisher shall own one LOW/SYSTEM/AUTO_RESET event with reason
+`CONTROLLER_MAINTENANCE_DEMANDED` (22) and key
+`std.system.controllerMaintenanceDemanded` while the configured, available sample
+demands maintenance. Clearing the demand or its availability shall close the event.
+The registered reason is non-shelvable. This notice shall not change `Healthy` or
+add a Start interlock. The existing probe/`SetSystemHealth` path carries the sample;
+no additional project scan call is required.
+
 ### TC3 §8.13 Signal-tower binding
 *Binds Core §8.13.* `FB_SignalTower` produces only semantic lamp/horn outputs.
 `FB_UnitBase` calls it from the Unit's machine state, active-alarm maximum severity,

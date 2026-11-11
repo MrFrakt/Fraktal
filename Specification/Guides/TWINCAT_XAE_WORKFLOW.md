@@ -448,7 +448,7 @@ Expect these counts for the next run:
 
 | Gate | Required runner in the log | Expected from current source |
 |---|---|---:|
-| Core/Modules | `PRG_TcUnitRunner` | 353 tests / 54 suites (current inventory) |
+| Core/Modules | `PRG_TcUnitRunner` | 355 tests / 54 suites (current inventory) |
 | Internal Press integration | `PRG_PressTestRunner` | 9 tests / 2 suites / 0 failed |
 
 Derive them from source rather than trusting this table — the suite count is the
@@ -566,3 +566,15 @@ Autostart, never targets a runtime it was not given by name, and a void call sti
 proves nothing: the gate asserts the ADS Run state and the loaded project's name.
 A runtime that is loading the application may refuse a state read for a moment (ADS
 0x4, router mailbox, measured once); the poll retries until its deadline.
+
+
+### 9.3 Native force-status acceptance (2026-11-11)
+
+The aggregate test application's PRG_PlatformAcceptance has a continuous,
+unmapped force witness and a probe/Unit health path. Native PLC forcing and
+System Manager task-image forcing were independently measured on the isolated
+4026.24 runtime, including alarm come/gone, deduplication and cleanup. Follow
+[the native-force acceptance procedure](TC3_NATIVE_FORCE_ACCEPTANCE.md);
+[the dated evidence](../Evidence/2026-11-11_TC3_LiveForceAcceptance.md) binds its
+phase snapshots and temporary software-only configuration. This is test-only
+acceptance; no force-writing hook was added to either library.

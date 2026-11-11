@@ -129,8 +129,8 @@ _conn := Robot;
 __QUERYINTERFACE(Robot, _routines);
 // Core §10.6, §9.8 (F-02) - detect simulation connector to permit un-aliased motion in test benches.
 IF __QUERYINTERFACE(Robot, simConnector) THEN
-    _simulated := TRUE;
-    IF NOT _safetyConfigured THEN
+    _simulated := simConnector.Simulated;
+    IF _simulated AND NOT _safetyConfigured THEN
         _safetyPermit := TRUE;
         _safetyPrev := TRUE;
     END_IF

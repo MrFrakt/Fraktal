@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
   <Itf Name="I_SimulatedRobotConnector" Id="{6ff429dd-6a91-41fe-a088-d0aa961ed5c5}">
-    <Declaration><![CDATA[// Marker interface identifying simulated robot connectors (Core §10.6, §9.8, Annex I I.5c).
+    <Declaration><![CDATA[// Optional identity interface for simulated robot connectors (Core §10.6, §9.8, Annex I I.5c).
 // Robot CMs query this at Setup to detect simulation connectors and permit motion in
 // test environments without requiring physical safety circuit wiring (F-02).
 INTERFACE I_SimulatedRobotConnector EXTENDS __System.IQueryInterface]]></Declaration>
+    <Property Name="Simulated" Id="{28b08407-3dd5-4084-9c84-b7755e095a4c}">
+      <Declaration><![CDATA[// Explicit connector identity; empty marker interfaces are not sufficient.
+PROPERTY Simulated : BOOL]]></Declaration>
+      <Get Name="Get" Id="{3115eb16-dc70-453d-a7da-0bdbe4d96c28}">
+        <Declaration><![CDATA[VAR
+END_VAR]]></Declaration>
+      </Get>
+    </Property>
   </Itf>
 </TcPlcObject>

@@ -31,6 +31,8 @@ VAR
     _cmL : FB_RobotCM;  _rbL : FB_SimRobotConnector;  _sL : INT;  _nL : INT;
     _cmM : FB_RobotCM;  _rbM : FB_SimRobotConnector;  _sM : INT;  _nM : INT;
     _cmN : FB_RobotCM;  _rbN : FB_SimRobotConnector;  _sN : INT;  _nN : INT;
+    // Large multi-scan fixtures belong to the suite, never the PLC task stack.
+    _cmReal : FB_RobotCM;  _connReal : FB_StaubliVal3Connector;
     _cmO : FB_RobotCM;  _rbO : FB_SimRobotConnector;  _sO : INT;  _nO : INT;
     _cmP : FB_RobotCM;  _rbP : FB_SimRobotConnector;  _sP : INT;  _nP : INT;
     _cmQ : FB_RobotCM;  _rbQ : FB_SimRobotConnector;  _sQ : INT;  _nQ : INT;
@@ -920,8 +922,7 @@ END_CASE]]></ST>
       <Method Name="Power_on_is_refused_without_the_safety_alias" Id="{911ae33b-8393-46af-8392-a993436121a9}">
         <Declaration><![CDATA[METHOD PRIVATE Power_on_is_refused_without_the_safety_alias
 VAR
-    cmReal   : FB_RobotCM;
-    connReal : FB_StaubliVal3Connector;
+    iSimulation : I_SimulatedRobotConnector;
 END_VAR]]></Declaration>
         <Implementation>
           <ST><![CDATA[TEST('Power_on_is_refused_without_the_safety_alias');
@@ -932,12 +933,24 @@ _rbN.Connect();
 _rbN.Cyclic();
 CASE _sN OF
     0:
-        cmReal.Setup(Name := 'Test.RobotReal', Robot := connReal);
-        AssertFalse(Condition := cmReal.OutImm.SafetyPermit,
+        AssertFalse(Condition := __QUERYINTERFACE(_connReal, iSimulation),
+            Message := 'a real connector has no simulation capability');
+        AssertTrue(Condition := __QUERYINTERFACE(_rbN, iSimulation),
+            Message := 'the simulation connector declares its identity');
+        // This row also enables an override below; begin and end with it off.
+        _cmReal.SetSimulationOverride(Enable := FALSE);
+        _cmReal.Setup(Name := 'Test.RobotReal', Robot := _connReal);
+        _cmReal();
+        AssertFalse(Condition := _cmReal.OutImm.SafetyPermit,
             Message := 'unconfigured real connector defaults to absent safety permit');
-        cmReal.SetSimulationOverride(Enable := TRUE);
-        AssertTrue(Condition := cmReal.OutImm.SafetyPermit,
+        _cmReal.SetSimulationOverride(Enable := TRUE);
+        _cmReal();
+        AssertTrue(Condition := _cmReal.OutImm.SafetyPermit,
             Message := 'SetSimulationOverride enables permit on un-aliased connector');
+        _cmReal.SetSimulationOverride(Enable := FALSE);
+        _cmReal();
+        AssertFalse(Condition := _cmReal.OutImm.SafetyPermit,
+            Message := 'withdrawing the override removes permission');
         _cmN.Setup(Name := 'Test.RobotN', Robot := _rbN);
         _cmN.ParCfg.DefaultMode := E_RobotOpMode.AUTO_REMOTE;   // an auto-only cell
         _cmN.ParCfg.MoveTimeout := T#3S;

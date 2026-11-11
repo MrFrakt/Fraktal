@@ -21,6 +21,12 @@
 // methods.
 PROGRAM PRG_PlatformAcceptance
 VAR
+    // Native-force acceptance only: no mapping, hardware, or control consumer.
+    ForceWitness : BOOL;
+    MaintenanceProbe : FB_TcSystemHealthProbe;
+    MaintenanceUnit : FB_ProbeUnit;
+    MaintenanceCfg : ST_SystemHealthParCfg;
+    _savedTimeQuality : ST_TimeQuality;
     Clock : FB_TcWindowsTime;
     Ipc : FB_TcIpcDiagnostics;
     Bus : FB_EcBusHealth;
@@ -65,6 +71,10 @@ VAR CONSTANT
 END_VAR]]></Declaration>
     <Implementation><ST><![CDATA[IF NOT _setup THEN
     _setup := TRUE;
+    MaintenanceUnit.Setup(Name := 'ForceAcceptance');
+    MaintenanceCfg.MaxTaskCycleUs := 1000000;
+    MaintenanceCfg.MaxTaskJitterUs := 1000000;
+    MaintenanceCfg.RequireTimeSync := FALSE;
     // No slave is mapped: only the always-on master sample runs.
     Bus.Setup(Publisher := _topology, MasterNetIdArr := _noMaster,
         FirstSlaveNode := 1, SlaveCount := 0, MasterNodeIndex := 0);
@@ -134,6 +144,19 @@ IF RegisterUser <> '' THEN
     RegisterPin := '';
 END_IF
 AccessUnit();
+// A native force holds this harmless witness TRUE despite the normal assignment.
+ForceWitness := FALSE;
+// Keep the suites' time-quality authority unchanged by this independent harness.
+_savedTimeQuality := GVL_FraktalTime.Current;
+MaintenanceProbe.Cyclic(ExpectedCycleUs := 10000, ExternalTaskOverrun := FALSE,
+    ControllerAvailable := TRUE, CpuLoadPct := 0.0, MemoryAvailableMb := 1024,
+    IpcAvailable := FALSE, IpcTemperatureC := 0.0, FanHealthy := TRUE, StorageHealthPct := 100.0,
+    FieldbusAvailable := FALSE, FieldbusMasterHealthy := FALSE, LostFrameCount := 0, SlaveErrorCount := 0,
+    DcAvailable := FALSE, DcSynchronized := FALSE, TimeAvailable := FALSE, TimeSynchronized := FALSE,
+    TimeSource := '', TimeOffsetUs := 0, LastSyncAt := DT#1970-01-01-00:00:00);
+GVL_FraktalTime.Current := _savedTimeQuality;
+MaintenanceUnit.SetSystemHealth(Input := MaintenanceProbe.Health, ParCfg := MaintenanceCfg);
+MaintenanceUnit();
 Clock.Cyclic(FilePath := CLOCK_FILE, PollInterval := T#10S, MaximumSampleAge := T#90S,
     MaximumSyncAgeSeconds := 7200, MaximumOffsetUs := 1000);
 Ipc.Cyclic();

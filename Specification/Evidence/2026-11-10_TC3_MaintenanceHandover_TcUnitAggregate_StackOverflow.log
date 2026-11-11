@@ -1,0 +1,30 @@
+Gate FraktalTests -> 192.168.1.6.1.1 (expect PRG_TcUnitRunner, 353 tests / 54 suites)
+  target NetId: 192.168.1.6.1.1
+  PLC project: Fraktal_Tests (autostart disabled)
+  compiles clean
+  activating configuration
+  restarting TwinCAT into Run
+  ADS port 851 before start: Invalid
+  ADS Run: loads and starts the boot application activation just wrote
+  PLC is RUNNING 'Fraktal_Tests' (verified over ADS)
+WARNING: ADS result read failed: Could not resolve the TcUnit GVL over ADS on 192.168.1.6.1.1:851. Published symbols 
+matching 'TcUnit':
+  ReadState failed: Exception calling "ReadState" with "0" argument(s): "Ads-Error 0x6 : Target port could not be 
+found. (Target port could not be found. (AdsErrorCode: 6, 0x6))"
+  symbol enumeration failed: The following exception occurred while trying to enumerate the collection: "Ads-Error 0x6 
+: Target port could not be found. (Target port could not be found. (AdsErrorCode: 6, 0x6))".
+  running, polling the log for 60 s
+  captured 61 distinct rows, 0 from PlcTask
+  raw log: C:\Projects\Fraktal\artifacts\tc3-maintenance-handover-2026-11-10\checkout\..\logs\TcUnitAggregate\FraktalTests-2026-11-10_231032.raw.log
+WARNING: No TcUnit summary in the captured text. The run may still have passed - harvest the TwinCAT log window 
+manually before concluding anything.
+WARNING: ADS Stop failed: Exception calling "ReadState" with "0" argument(s): "Ads-Error 0x6 : Target port could not be
+ found. (Target port could not be found. (AdsErrorCode: 6, 0x6))"
+  restored the .tsproj that activation rewrote
+
+Validate with:
+  python tools\tcunit_to_junit.py "C:\Projects\Fraktal\artifacts\tc3-maintenance-handover-2026-11-10\checkout\..\logs\TcUnitAggregate\FraktalTests-2026-11-10_231032.raw.log" "C:\Projects\Fraktal\artifacts\tc3-maintenance-handover-2026-11-10\checkout\..\logs\TcUnitAggregate\FraktalTests-2026-11-10_231032.junit.xml" `
+    --gate-name FraktalTests --expected-tests 353 `
+    --expected-suites 54 --expected-runner PRG_TcUnitRunner
+
+The target is left in Run mode with the application stopped. Returning it to Config is yours to do.
