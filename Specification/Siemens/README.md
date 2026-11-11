@@ -9,8 +9,9 @@ bound to PROFINET devices carry [native node health](Evidence/TIA_PROFINET_HEALT
 (5/5 on a test CPU). Live press forcing passes 38/38 on a test CPU, and a
 [force-job spike](Evidence/TIA_FORCE_JOB_SPIKE_2026-11-11.md) measured what can see a
 TIA force job; every health root now [annunciates the CPU's maintenance demand](Evidence/TIA_MAINTENANCE_ANNUNCIATION_2026-11-11.md)
-that a force job raises. P8 is [complete apart from what the owner holds](Evidence/TIA_P8_CLOSURE_2026-11-11.md):
-the bridge downloads and physical acceptance.
+that a force job raises. The v2 bridge is [deployed](Evidence/TIA_BRIDGE_V2_DEPLOYMENT_2026-11-11.md)
+to FraktalBench and the 1214C; P8 is [complete](Evidence/TIA_P8_CLOSURE_2026-11-11.md)
+apart from physical acceptance.
 
 Bench/HMI wrap-up (2026-10-18): [final connection setup and SiemensAgent update](Reports/TIA_BENCH_WRAP_UP_2026-10-18.md).
 The offline-tree report was an HMI endpoint mismatch; the shared Settings

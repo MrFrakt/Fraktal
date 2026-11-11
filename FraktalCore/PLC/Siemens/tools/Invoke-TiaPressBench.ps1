@@ -1,4 +1,7 @@
-<# Persistent press bench on the physical I/O LAN. The saved Fraktal CPU is observation-only. #>
+<# Persistent press bench on the physical I/O LAN. The saved Fraktal CPU is observation-only.
+   'start' registers the bench in THIS process, and PLCSIM drops an instance when the
+   process that registered it exits: run it in a process that stays alive (a keeper),
+   as Resume-TiaSimOwner.ps1 does for Fraktal, before downloading (measured 2026-11-11). #>
 param(
   [ValidateSet('inspect','start','power-on','engineering-address','status','run')] [string] $Action = 'inspect',
   [string] $EvidenceDirectory = ''

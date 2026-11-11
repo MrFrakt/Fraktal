@@ -33,13 +33,10 @@ reason-22 catalog change (871 tests, 12 opt-in skips; its catalog-size pin is 97
 
 ## Held by the owner
 
-- **Bridge downloads (decision 4A).** Both bridge sides compile 0/0 with
-  read-back ([feedback record](TIA_OUTPUT_FEEDBACK_2026-11-10.md)). Deploying
-  needs the owner's explicit authorization at the time, for the physical 1214C
-  at 192.168.0.10 and for FraktalBench, and the FraktalBench engineering project:
-  `TiaStations/Press_IoBridge_Press1500_20261015` is an empty folder and the
-  FraktalBench simulator instance is not registered. Wire version 2 means both
-  sides go together.
+- **Bridge downloads (decision 4A): done later the same day** with the owner's
+  authorization, see [the deployment record](TIA_BRIDGE_V2_DEPLOYMENT_2026-11-11.md):
+  both ends link on wire version 2 and the eight ordinary DQ channels are
+  confirmed by the 1214C's applied-output report.
 - **Physical acceptance.** Output wiring confirmation (`OUTPUT_MAPPING_CONFIRMED`,
   `EVALUATED_TWO_HAND_WIRED`) and witnessed forcing on the press are the
   commissioning engineer's; an agent never sets those gates.

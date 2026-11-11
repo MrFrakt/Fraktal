@@ -372,9 +372,10 @@ choice each health root now [annunciates the maintenance demand](../Evidence/TIA
 
 **P8 closure (November 11):** [closure record](../Evidence/TIA_P8_CLOSURE_2026-11-11.md).
 Module-bound nodes take state from `ModuleStates` (PROFINET suite 8/8); OB82/83/86
-wake-up and `GET_DIAG` detail are declined by design. P8 is complete apart from
-what the owner holds: the bridge downloads (authorization and the missing
-FraktalBench project) and physical acceptance. The TwinCAT patch release for
+wake-up and `GET_DIAG` detail are declined by design. The bridge downloads ran
+the same day with the owner's authorization ([deployment record](../Evidence/TIA_BRIDGE_V2_DEPLOYMENT_2026-11-11.md)):
+wire version 2 links and the eight ordinary DQ channels carry applied-output
+feedback. P8 is complete apart from physical acceptance. The TwinCAT patch release for
 reason 22 is handed over in `Specification/Reports/TC3_HANDOVER_PROMPT_2026-11-11.md`.
 
 ## 6. Decisions for the owner
