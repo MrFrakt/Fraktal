@@ -35,6 +35,7 @@ belongs below.
 | [`Evidence/`](Evidence/) | Dated TwinCAT runtime evidence — logs, JUnit, SHA-256s. | Append-only. Never edit a past record to match the present. |
 | [`AllenBradley/`](AllenBradley/) | The Fraktal/AB working set: port plan, implementation plan, handover prompts, engineering runbooks, the frozen contracts, and `Evidence/` for the R- and S-gate spikes. | Part III itself stays at the root; everything used to *produce* it lives here. |
 | [`Siemens/`](Siemens/README.md) | The Fraktal/TIA port plan and dated evidence reports; Markdown only. | Part IV stays at the root. Code, tools and immutable raw evidence live in `FraktalCore/PLC/Siemens/`. |
+| [`I50/`](I50/FRAKTAL_I50_DRAFT.md) | The working draft of the Industry 5.0 operations tier (MES, routing, portal, assistant) and its decision ledger. | Non-normative until it becomes a Part at the root. |
 
 Two conventions worth knowing before you edit anything here:
 
